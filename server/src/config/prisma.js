@@ -1,4 +1,6 @@
-import { PrismaClient } from "../generated/prisma/client";
+import { PrismaClient } from "../generated/prisma/client.ts";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { env } from "./env.js";
 
 /**
  * Singleton Prisma client instance.
@@ -7,11 +9,9 @@ import { PrismaClient } from "../generated/prisma/client";
  * In development, hot-reloading creates a new PrismaClient on every file change.
  * Without singleton, you'd exhaust database connections quickly.
  * In production, this is less critical but still good practice.
- *
- * Usage in any repository:
- *   import prisma from '../config/prisma.js';
- *   const users = await prisma.user.findMany();
  */
-const prisma = new PrismaClient();
+const adapter = new PrismaPg({ connectionString: env.DATABASE_URL });
+
+const prisma = new PrismaClient({ adapter });
 
 export default prisma;

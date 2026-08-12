@@ -8,7 +8,8 @@ import cookieParser from "cookie-parser";
 import { env } from "./config/env.js";
 import errorHandler from "./middleware/errorHandler.middleware.js";
 
-// Imports route
+// Routes
+import authRoutes from "./modules/auth/auth.routes.js";
 
 const app = express();
 
@@ -45,7 +46,7 @@ app.use(cookieParser());
 // app.use(generalLimiter);
 
 // Routes endpoints
-// app.use("/api/auth", authRoutes);
+app.use("/api/auth", authRoutes);
 
 // Health check endpoint (used by hosting platforms to verify server is running)
 app.get("/api/health", (req, res) => {

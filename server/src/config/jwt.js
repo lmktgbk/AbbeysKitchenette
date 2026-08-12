@@ -1,6 +1,5 @@
 import jwt from "jsonwebtoken";
-import { env } from "./env";
-import { en } from "zod/v4/locales";
+import { env } from "./env.js";
 
 /**
  * JWT Configuration

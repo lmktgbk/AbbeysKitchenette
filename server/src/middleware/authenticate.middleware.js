@@ -1,5 +1,5 @@
-import { verifyToken } from "../config/jwt";
-import { AppError } from "./errorHandler.middleware";
+import { verifyToken } from "../config/jwt.js";
+import { AppError } from "./errorHandler.middleware.js";
 import prisma from "../config/prisma.js";
 
 /**

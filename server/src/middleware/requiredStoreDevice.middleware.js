@@ -1,51 +1,28 @@
-import prisma from "../config/prisma.js";
-import { AppError } from "./errorHandler.js";
-import { env } from "../config/env.js";
+import { AppError } from "./errorHandler.middleware.js";
+import { isStoreIP } from "../utils/ipCheck.js";
 
 /**
- * Store Device Restriction Middleware
+ * Middleware to restrict access to store devices only.
  *
- * Compares req.ip against the store IP whitelist in SystemSettings.
  * Used on PIN login and staff-list endpoints to ensure
- * only in-store terminals can access PIN-based features.
+ * only in-store terminals can access these features.
+ *
+ * Note: Email login IP check happens in the service layer,
+ * because we need to look up the user first to check their role.
  *
  * In development mode, always allows access (for testing outside the store).
-
- * Flow:
- *   1. Fetch storeIpWhitelist from SystemSettings
- *   2. Split by comma → array of allowed IPs
- *   3. Check if req.ip is in the list
- *   4. If not → throw AppError(403, ..., 'STORE_IP_REQUIRED')
- *   5. If yes → call next()
  */
 const requireStoreDevice = async (req, res, next) => {
   try {
-    // In development, always allow (for testing outside the store)
-    if (env.NODE_ENV === "development") {
-      return next();
-    }
+    // Get the client's public IP address
+    // req.ip is preferred, fallback to req.connection.remoteAddress for older Node versions
+    const clientIp = req.ip || req.connection.remoteAddress;
 
-    // Fetch allowed IPs from database
-    const settings = await prisma.systemSettings.findUnique({
-      where: { id: 1 },
-      select: { storeIpWhitelist: true },
-    });
+    // Check if this IP is allowed (reads from database, handles IPv6 normalization)
+    const allowed = await isStoreIP(clientIp);
 
-    const allowedIPs =
-      settings?.storeIpWhitelist
-        ?.split(",")
-        .map((ip) => ip.trim())
-        .filter(Boolean) || [];
-
-    // If no IPs configured, allow all (open mode)
-    if (allowedIPs.length === 0) {
-      return next();
-    }
-
-    // Check if client IP is in the whitelist
-    const clientIP = req.ip || req.connection.remoteAddress;
-
-    if (!allowedIPs.includes(clientIP)) {
+    // If IP is not in the whitelist, reject the request
+    if (!allowed) {
       return next(
         new AppError(
           403,
@@ -55,8 +32,10 @@ const requireStoreDevice = async (req, res, next) => {
       );
     }
 
+    // IP is allowed, continue to the next middleware/controller
     next();
   } catch (err) {
+    // Pass any unexpected errors to the global error handler
     next(err);
   }
 };

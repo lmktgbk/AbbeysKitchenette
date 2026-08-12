@@ -6,9 +6,43 @@
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
-
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+model User {
+  id                String    @id @default(uuid()) @db.Uuid
+  name              String
+  email             String    @unique
+  role              Role      @default(cashier)
+  passwordHash      String
+  pinHash           String?
+  isActive          Boolean   @default(true)
+  mustChangePwd     Boolean   @default(false)
+  failedPinAttempts Int       @default(0)
+  lockedUntil       DateTime?
+  lastLoginAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model SystemSettings {
+  id               Int      @id @default(1)
+  storeName        String   @default("Abbey's Kitchenette")
+  storeAddress     String?
+  storePhone       String?
+  storeEmail       String?
+  storeIpWhitelist String?
+  currency         String   @default("PHP")
+  taxRate          Float    @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+enum Role {
+  admin
+  cashier
+  kitchen
 }
