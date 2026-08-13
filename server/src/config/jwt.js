@@ -21,7 +21,7 @@ import { env } from "./env.js";
  */
 export function signToken(payload) {
   return jwt.sign(payload, env.JWT_SECRET, {
-    expiresIn: env.JWT_SECRET,
+    expiresIn: env.JWT_EXPIRES_IN,
   });
 }
 

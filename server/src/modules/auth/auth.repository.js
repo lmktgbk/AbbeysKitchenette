@@ -2,17 +2,19 @@ import prisma from "../../config/prisma.js";
 
 /**
  * Auth Repository
- * All database queries related to to authentication
- * This layer only touches PRISMA for auth operations
+ * All database queries related to authentication.
+ * This layer only touches Prisma for auth operations.
  */
 
 // object type for readability and consistency
 export const authRepository = {
+  /* ── Lookups ─────────────────────────── */
+
   /**
-   * Find a user email including other fields
-   * Only function returns password hash in order to strip and return to client
+   * Find a user by email including credential fields.
+   * Only function that returns passwordHash — used for email+password login.
    * @param {string} email - email address
-   * @returns {object|null} - user w other fields or nulll if not found
+   * @returns {object|null} - user with credentials or null if not found
    */
   async findByEmailWithCredentials(email) {
     return prisma.user.findUnique({
@@ -34,10 +36,28 @@ export const authRepository = {
   },
 
   /**
-   * Find a user by ID - including PIN Hash and lockout Info.
-   * Used for PIN-Based Login.
-   * @param {string} id - users id
-   * @return {object|null} user with PIN data or null
+   * Find a user by email — minimal fields only.
+   * Used for forgot password (just needs id to generate reset token).
+   * @param {string} email - email address
+   * @returns {object|null} - minimal user object or null if not found
+   */
+  async findByEmail(email) {
+    return prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        isActive: true,
+      },
+    });
+  },
+
+  /**
+   * Find a user by ID — including PIN hash and lockout info.
+   * Used for PIN-based login.
+   * @param {string} id - user's UUID
+   * @returns {object|null} - user with PIN data or null if not found
    */
   async findByIdWithPin(id) {
     return prisma.user.findUnique({
@@ -57,10 +77,10 @@ export const authRepository = {
   },
 
   /**
-   * Finds a user by ID, excluding sensitive fields.
-   * Safe to return to the client (no passwordHash, no pinHash).
-   * @param {string} id - User's UUID
-   * @returns {object|null} Safe user object, or null if not found
+   * Find a user by ID — safe fields only (no passwordHash, no pinHash).
+   * Safe to return to the client.
+   * @param {string} id - user's UUID
+   * @returns {object|null} - safe user object or null if not found
    */
   async findById(id) {
     return prisma.user.findUnique({
@@ -79,9 +99,9 @@ export const authRepository = {
   },
 
   /**
-   * Returns all active staff members for the PIN login selection grid.
+   * Returns all active staff for the PIN login selection grid.
    * Only returns id, name, role — no emails, no PINs, no sensitive data.
-   * @returns {Array<{id: string, name: string, role: string}>} Staff list
+   * @returns {Array<{id: string, name: string, role: string}>} - staff list
    */
   async findActiveStaff() {
     return prisma.user.findMany({
@@ -95,11 +115,12 @@ export const authRepository = {
     });
   },
 
+  /* ── Updates ─────────────────────────── */
+
   /**
    * Updates the user's lastLoginAt timestamp.
    * Called on successful login (email or PIN).
-   *
-   * @param {string} userId - User's UUID
+   * @param {string} userId - user's UUID
    */
   async updateLastLogin(userId) {
     return prisma.user.update({
@@ -111,13 +132,16 @@ export const authRepository = {
   /**
    * Increments failed PIN attempt counter.
    * Locks account for 15 minutes after 5 consecutive failures.
-   * @param {string} userId - User's UUID
-   * @param {number} currentAttempts - Current failed attempt count
+   * @param {string} userId - user's UUID
+   * @param {number} currentAttempts - current failed attempt count
+   * @param {number} lockoutMinutes - minutes to lock after max attempts
    */
   async incrementFailedPinAttempts(userId, currentAttempts, lockoutMinutes) {
     const newAttempts = currentAttempts + 1;
     const lockUntil =
-      newAttempts >= 5 ? new Date(Date.now() + lockoutMinutes * 60 * 1000) : null;
+      newAttempts >= 5
+        ? new Date(Date.now() + lockoutMinutes * 60 * 1000)
+        : null;
 
     return prisma.user.update({
       where: { id: userId },
@@ -131,44 +155,55 @@ export const authRepository = {
   /**
    * Resets failed PIN attempts and clears lockout.
    * Called on successful PIN login.
-   * @param {string} userId - User's UUID
+   * @param {string} userId - user's UUID
    */
   async resetFailedPinAttempts(userId) {
     return prisma.user.update({
       where: { id: userId },
       data: {
-        failedPinAttempts: 0, //restart
+        failedPinAttempts: 0,
         lockedUntil: null,
       },
     });
   },
 
   /**
-   * Updates password hash and clears mustChangePwd flag.
-   * Used during password change or first-time setup.
-   * @param {string} userId - User's UUID
-   * @param {string} passwordHash - New bcrypt-hashed password
+   * Updates password hash for a user.
+   * Used during password reset from email link.
+   * @param {string} userId - user's UUID
+   * @param {string} passwordHash - new bcrypt-hashed password
    */
   async updatePassword(userId, passwordHash) {
     return prisma.user.update({
       where: { id: userId },
-      data: {
-        passwordHash,
-        mustChangePwd: false,
-      },
+      data: { passwordHash },
     });
   },
 
   /**
    * Updates PIN hash for a user.
-   * Used during PIN setup or PIN reset.
-   * @param {string} userId - User's UUID
-   * @param {string} pinHash - New bcrypt-hashed PIN
+   * Used during PIN setup or admin PIN reset.
+   * @param {string} userId - user's UUID
+   * @param {string} pinHash - new bcrypt-hashed PIN
    */
   async updatePin(userId, pinHash) {
     return prisma.user.update({
       where: { id: userId },
       data: { pinHash },
+    });
+  },
+
+  /**
+   * Sets the mustChangePwd flag.
+   * Admin sets true when resetting staff PIN.
+   * Change-pin sets false after staff creates new PIN.
+   * @param {string} userId - user's UUID
+   * @param {boolean} value - true or false
+   */
+  async setMustChangePwd(userId, value) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: { mustChangePwd: value },
     });
   },
 };

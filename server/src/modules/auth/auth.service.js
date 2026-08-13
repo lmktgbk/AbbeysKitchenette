@@ -4,23 +4,33 @@ import { authRepository } from "./auth.repository.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { signToken } from "../../config/jwt.js";
 import { isStoreIP } from "../../utils/ipCheck.js";
+import { generateOtp, verifyOtp as verifyOtpCode } from "../../utils/otp.js";
+import {
+  sendEmail,
+  generateResetPasswordEmail,
+  generateOtpEmail,
+} from "../../utils/email.js";
+import { env } from "../../config/env.js";
 
 // Constants
 const PIN_MAX_ATTEMPTS = 5;
 const PIN_LOCKOUT_MINUTES = 15;
+const OTP_EXPIRY_MINUTES = 10;
 
 // Actual Business Logic
 export const authService = {
   /**
-   * Email + password login
+   * Email + password login.
+   * Admin → returns requiresOtp (sends OTP email, no JWT yet).
+   * Staff → returns JWT directly (no OTP, IP restriction checked).
    * @param {string} email
    * @param {string} password
-   * @returns {{ token: string, user: object }}
+   * @param {string} clientIP - from req.ip
+   * @returns {{ token?, user, requiresOtp? }}
    */
   async login(email, password, clientIP) {
     const user = await authRepository.findByEmailWithCredentials(email);
 
-    // no user
     if (!user) {
       throw new AppError(
         401,
@@ -29,7 +39,6 @@ export const authService = {
       );
     }
 
-    // not activated
     if (!user.isActive) {
       throw new AppError(
         403,
@@ -51,10 +60,8 @@ export const authService = {
       }
     }
 
-    // check if password correct
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
-    // incorrect password
     if (!isPasswordValid) {
       throw new AppError(
         401,
@@ -63,33 +70,40 @@ export const authService = {
       );
     }
 
-    // update login, date now to passed id
-    await authRepository.updateLastLogin(user.id);
+    // Admin → send OTP, don't issue JWT yet
+    if (user.role === "admin") {
+      const otpCode = generateOtp(user.id);
+      await sendEmail({
+        to: user.email,
+        subject: "Your Verification Code — Abbey's Kitchenette",
+        html: generateOtpEmail(otpCode),
+      });
 
-    // sub for subject - easily decoded later using .sub
+      const { passwordHash, pinHash, ...safeUser } = user;
+      return { requiresOtp: true, user: safeUser };
+    }
+
+    // Staff → JWT directly
+    await authRepository.updateLastLogin(user.id);
     const token = signToken({ sub: user.id, role: user.role });
-    // remove credentials then incorporate other data to safe user
     const { passwordHash, pinHash, ...safeUser } = user;
 
     return { token, user: safeUser };
   },
 
   /**
-   * PIN login (store IP required — validated by middleware)
+   * PIN login (store IP required — validated by middleware).
    * @param {string} userId - from staff grid selection
    * @param {string} pin - 4-6 digit PIN
-   * @returns {{ token: string, user: object }}
+   * @returns {{ token: string, user: object, mustChangePin?: boolean }}
    */
   async loginPin(userId, pin) {
-    // find ID via pin
     const user = await authRepository.findByIdWithPin(userId);
 
-    // if user not set
     if (!user) {
       throw new AppError(401, "Invalid PIN", "INVALID_PIN");
     }
 
-    // if user not activated
     if (!user.isActive) {
       throw new AppError(
         403,
@@ -98,7 +112,6 @@ export const authService = {
       );
     }
 
-    // if user is locked
     if (user.lockedUntil && user.lockedUntil > new Date()) {
       const minutesLeft = Math.ceil((user.lockedUntil - new Date()) / 60000);
       throw new AppError(
@@ -108,7 +121,6 @@ export const authService = {
       );
     }
 
-    // if pin was not set
     if (!user.pinHash) {
       throw new AppError(
         400,
@@ -117,8 +129,8 @@ export const authService = {
       );
     }
 
-    // if pin find then check if
     const isPinValid = await bcrypt.compare(pin, user.pinHash);
+
     if (!isPinValid) {
       const updated = await authRepository.incrementFailedPinAttempts(
         user.id,
@@ -127,6 +139,7 @@ export const authService = {
       );
 
       const remaining = PIN_MAX_ATTEMPTS - updated.failedPinAttempts;
+
       if (remaining <= 0) {
         throw new AppError(
           423,
@@ -148,14 +161,142 @@ export const authService = {
     const token = signToken({ sub: user.id, role: user.role });
     const { passwordHash, pinHash, ...safeUser } = user;
 
-    return { token, user: safeUser };
+    return {
+      token,
+      user: safeUser,
+      ...(user.mustChangePwd && { mustChangePin: true }),
+    };
   },
 
   /**
-   * Get all active staff for PIN login selection grid
+   * Get all active staff for PIN login selection grid.
    * @returns {Array<{ id: string, name: string, role: string }>}
    */
   async getStaffList() {
     return authRepository.findActiveStaff();
+  },
+
+  /**
+   * Verify OTP code for admin login.
+   * Returns JWT on success.
+   * @param {string} userId - user's UUID
+   * @param {string} code - 6-digit OTP
+   * @returns {{ token: string, user: object }}
+   */
+  async verifyOtp(userId, code) {
+    const isValid = verifyOtpCode(userId, code);
+
+    if (!isValid) {
+      throw new AppError(401, "Invalid or expired OTP code", "INVALID_OTP");
+    }
+
+    const user = await authRepository.findById(userId);
+
+    if (!user) {
+      throw new AppError(401, "User not found", "USER_NOT_FOUND");
+    }
+
+    await authRepository.updateLastLogin(user.id);
+    const token = signToken({ sub: user.id, role: user.role });
+
+    return { token, user };
+  },
+
+  /**
+   * Resend OTP to admin email.
+   * @param {string} userId - user's UUID
+   */
+  async resendOtp(userId) {
+    const user = await authRepository.findById(userId);
+
+    if (!user) {
+      throw new AppError(401, "User not found", "USER_NOT_FOUND");
+    }
+
+    const otpCode = generateOtp(user.id);
+
+    await sendEmail({
+      to: user.email,
+      subject: "Your New Verification Code — Abbey's Kitchenette",
+      html: generateOtpEmail(otpCode),
+    });
+  },
+
+  /**
+   * Send password reset link to admin email.
+   * Generates JWT token (15min expiry) embedded in reset URL.
+   * @param {string} email - admin's email
+   */
+  async forgotPassword(email) {
+    const user = await authRepository.findByEmail(email);
+
+    if (!user) {
+      // Don't reveal whether email exists
+      return;
+    }
+
+    const resetToken = signToken(
+      { sub: user.id, purpose: "password-reset" },
+      "15m",
+    );
+
+    const resetUrl = `${env.CLIENT_URL}/reset-password?token=${resetToken}`;
+
+    await sendEmail({
+      to: user.email,
+      subject: "Reset Your Password — Abbey's Kitchenette",
+      html: generateResetPasswordEmail(resetUrl),
+    });
+  },
+
+  /**
+   * Reset password from email link.
+   * Verifies JWT token, updates password.
+   * @param {string} token - JWT token from email link
+   * @param {string} newPassword - new password (min 8 chars)
+   */
+  async resetPassword(token, newPassword) {
+    const { verifyToken } = await import("../../config/jwt.js");
+    let decoded;
+
+    try {
+      decoded = verifyToken(token);
+    } catch {
+      throw new AppError(
+        401,
+        "Invalid or expired reset token",
+        "INVALID_TOKEN",
+      );
+    }
+
+    if (decoded.purpose !== "password-reset") {
+      throw new AppError(401, "Invalid token purpose", "INVALID_TOKEN");
+    }
+
+    const user = await authRepository.findById(decoded.sub);
+
+    if (!user) {
+      throw new AppError(401, "User not found", "USER_NOT_FOUND");
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await authRepository.updatePassword(user.id, passwordHash);
+  },
+
+  /**
+   * Change own PIN after mustChangePwd.
+   * @param {string} userId - user's UUID
+   * @param {string} newPin - 4-6 digit PIN
+   */
+  async changePin(userId, newPin) {
+    const user = await authRepository.findByIdWithPin(userId);
+
+    if (!user) {
+      throw new AppError(401, "User not found", "USER_NOT_FOUND");
+    }
+
+    const pinHash = await bcrypt.hash(newPin, 10);
+    await authRepository.updatePin(userId, pinHash);
+    await authRepository.setMustChangePwd(userId, false);
   },
 };

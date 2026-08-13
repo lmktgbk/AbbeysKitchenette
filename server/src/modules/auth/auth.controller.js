@@ -1,95 +1,192 @@
 import { authService } from "./auth.service.js";
 import { successResponse, errorResponse } from "../../utils/response.js";
+import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { env } from "../../config/env.js";
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
   secure: env.NODE_ENV === "production",
   sameSite: "strict",
-  maxAge: 8 * 60 * 60 * 1000, //8hrs
+  maxAge: 8 * 60 * 60 * 1000, // 8hrs
   path: "/",
 };
+
+/**
+ * Wraps error response logic: AppError → show message, unexpected → generic.
+ */
+function handleError(res, error, fallbackCode) {
+  if (error instanceof AppError) {
+    return errorResponse(
+      res,
+      error.message,
+      null,
+      error.statusCode,
+      error.code,
+    );
+  }
+  console.error(`[${fallbackCode}]`, error);
+  return errorResponse(res, "Something went wrong", null, 500, fallbackCode);
+}
 
 export const authController = {
   /**
    * POST /login
-   * Email + password login
+   * Email + password login.
+   * Admin → returns requiresOtp (no cookie yet).
+   * Staff → sets cookie and returns token.
    */
   async login(req, res) {
     try {
       const { email, password } = req.body;
       const clientIP = req.ip;
-      const { token, user } = await authService.login(
-        email,
-        password,
-        clientIP,
-      );
+      const result = await authService.login(email, password, clientIP);
 
-      res.cookie("token", token, COOKIE_OPTIONS);
-      return successResponse(res, 200, "Login successful", { user, token });
+      if (result.requiresOtp) {
+        return successResponse(res, "OTP sent to email", {
+          requiresOtp: true,
+          user: result.user,
+        });
+      }
+
+      res.cookie("token", result.token, COOKIE_OPTIONS);
+      return successResponse(res, "Login successful", {
+        user: result.user,
+        token: result.token,
+      });
     } catch (error) {
-      return errorResponse(
-        res,
-        error.statusCode || 500,
-        error.code || "LOGIN_ERROR",
-        error.message,
-      );
+      return handleError(res, error, "LOGIN_ERROR");
     }
   },
 
   /**
    * POST /login-pin
-   * PIN-based login (store IP required)
+   * PIN-based login (store IP required).
+   * Sets cookie on success.
    */
   async loginPin(req, res) {
     try {
       const { userId, pin } = req.body;
-      const { token, user } = await authService.loginPin(userId, pin);
+      const { token, user, mustChangePin } = await authService.loginPin(
+        userId,
+        pin,
+      );
 
       res.cookie("token", token, COOKIE_OPTIONS);
-      return successResponse(res, 200, "Login successful", { user, token });
+      return successResponse(res, "Login successful", {
+        user,
+        token,
+        ...(mustChangePin && { mustChangePin: true }),
+      });
     } catch (error) {
-      return errorResponse(
-        res,
-        error.statusCode || 500,
-        error.code || "PIN_LOGIN_ERROR",
-        error.message,
-      );
+      return handleError(res, error, "PIN_LOGIN_ERROR");
     }
   },
 
   /**
    * POST /logout
-   * Clear authentication cookie
+   * Clear authentication cookie.
    */
   async logout(req, res) {
     res.clearCookie("token", { path: "/" });
-    return successResponse(res, 200, "Logged out successfully");
+    return successResponse(res, "Logged out successfully");
   },
 
   /**
    * GET /me
-   * Return current authenticated user
+   * Return current authenticated user.
    */
   async getMe(req, res) {
-    return successResponse(res, 200, "User retrieved", { user: req.user });
+    return successResponse(res, "User retrieved", { user: req.user });
   },
 
   /**
    * GET /staff-list
-   * Return active staff for PIN login grid (store IP required)
+   * Return active staff for PIN login grid (store IP required).
    */
   async getStaffList(req, res) {
     try {
       const staff = await authService.getStaffList();
-      return successResponse(res, 200, "Staff list retrieved", { staff });
+      return successResponse(res, "Staff list retrieved", { staff });
     } catch (error) {
-      return errorResponse(
-        res,
-        error.statusCode || 500,
-        error.code || "STAFF_LIST_ERROR",
-        error.message,
-      );
+      return handleError(res, error, "STAFF_LIST_ERROR");
+    }
+  },
+
+  /**
+   * POST /verify-otp
+   * Verify OTP code for admin login.
+   * Sets cookie on success.
+   */
+  async verifyOtp(req, res) {
+    try {
+      const { userId, code } = req.body;
+      const { token, user } = await authService.verifyOtp(userId, code);
+
+      res.cookie("token", token, COOKIE_OPTIONS);
+      return successResponse(res, "OTP verified", { user, token });
+    } catch (error) {
+      return handleError(res, error, "OTP_VERIFY_ERROR");
+    }
+  },
+
+  /**
+   * POST /resend-otp
+   * Resend OTP to admin email.
+   */
+  async resendOtp(req, res) {
+    try {
+      const { userId } = req.body;
+      await authService.resendOtp(userId);
+
+      return successResponse(res, "OTP sent to email");
+    } catch (error) {
+      return handleError(res, error, "OTP_RESEND_ERROR");
+    }
+  },
+
+  /**
+   * POST /forgot-password
+   * Send password reset link to admin email.
+   * Always returns success (don't reveal if email exists).
+   */
+  async forgotPassword(req, res) {
+    try {
+      const { email } = req.body;
+      await authService.forgotPassword(email);
+
+      return successResponse(res, "If email exists, reset link has been sent");
+    } catch (error) {
+      return handleError(res, error, "FORGOT_PASSWORD_ERROR");
+    }
+  },
+
+  /**
+   * POST /reset-password
+   * Reset password from email link (token in body).
+   */
+  async resetPassword(req, res) {
+    try {
+      const { token, newPassword } = req.body;
+      await authService.resetPassword(token, newPassword);
+
+      return successResponse(res, "Password reset successful");
+    } catch (error) {
+      return handleError(res, error, "RESET_PASSWORD_ERROR");
+    }
+  },
+
+  /**
+   * POST /change-pin
+   * Change own PIN after mustChangePwd.
+   */
+  async changePin(req, res) {
+    try {
+      const { newPin } = req.body;
+      await authService.changePin(req.user.id, newPin);
+
+      return successResponse(res, "PIN changed successfully");
+    } catch (error) {
+      return handleError(res, error, "CHANGE_PIN_ERROR");
     }
   },
 };

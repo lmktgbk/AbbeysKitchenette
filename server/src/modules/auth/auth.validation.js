@@ -10,26 +10,44 @@ import { z } from "zod";
  * If validation passes → req.body is replaced with parsed data.
  */
 
-// Email + password login.
+// Used by POST /auth/login — email + password login for all roles
 export const loginSchema = z.object({
-  email: z
-    .string()
-    .min(1, "Email is required")
-    .pipe(
-      z.email({
-        error: "Please enter a valid email address",
-      }),
-    ),
-
+  email: z.string().email("Invalid email format").min(1, "Email is required"),
   password: z.string().min(1, "Password is required"),
 });
 
-/**
- * PIN login.
- * userId is the staff member's UUID from the selection grid.
- * pin is 4-6 digits.
- */
+// Used by POST /auth/login-pin — PIN login for cashier/kitchen (store IP only)
 export const loginPinSchema = z.object({
-  userId: z.string().uuid("Invalid user"),
+  userId: z.string().uuid("Invalid user ID"),
   pin: z.string().regex(/^\d{4,6}$/, "PIN must be 4-6 digits"),
+});
+
+// Used by POST /auth/verify-otp — admin 2FA verification
+export const verifyOtpSchema = z.object({
+  userId: z.string().uuid("Invalid user ID"),
+  code: z.string().regex(/^\d{6}$/, "OTP must be 6 digits"),
+});
+
+// Used by POST /auth/resend-otp — resend OTP to admin email
+export const resendOtpSchema = z.object({
+  userId: z.string().uuid("Invalid user ID"),
+});
+
+// Used by POST /auth/forgot-password — admin requests password reset link
+export const forgotPasswordSchema = z.object({
+  email: z.string().email("Invalid email format").min(1, "Email is required"),
+});
+
+// Used by POST /auth/reset-password — reset password from email link (token in URL)
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, "Token is required"),
+  newPassword: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(128, "Password must not exceed 128 characters"),
+});
+
+// Used by POST /auth/change-pin — staff changes own PIN after mustChangePwd
+export const changePinSchema = z.object({
+  newPin: z.string().regex(/^\d{4,6}$/, "PIN must be 4-6 digits"),
 });
