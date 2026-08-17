@@ -71,6 +71,7 @@ export const authRepository = {
         isActive: true,
         mustChangePwd: true,
         failedPinAttempts: true,
+        lastFailedPinAt: true,
         lockedUntil: true,
       },
     });
@@ -105,7 +106,10 @@ export const authRepository = {
    */
   async findActiveStaff() {
     return prisma.user.findMany({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        role: { in: ["cashier", "kitchen"] },
+      },
       select: {
         id: true,
         name: true,
@@ -147,6 +151,7 @@ export const authRepository = {
       where: { id: userId },
       data: {
         failedPinAttempts: newAttempts,
+        lastFailedPinAt: new Date(),
         ...(lockUntil && { lockedUntil: lockUntil }),
       },
     });
@@ -162,6 +167,7 @@ export const authRepository = {
       where: { id: userId },
       data: {
         failedPinAttempts: 0,
+        lastFailedPinAt: null,
         lockedUntil: null,
       },
     });

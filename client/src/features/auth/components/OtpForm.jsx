@@ -1,45 +1,48 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { verifyOtpRequest, resendOtpRequest } from "../api";
 import useAuthStore from "@/features/auth/authStore";
+import { otpSchema } from "../authValidation";
+import Icon from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import Icon from "@/components/ui/icon";
-import PrimarySpinner from "@/components/ui/spinner";
 import { toast } from "sonner";
 
 /**
- * OtpForm
- * Standalone OTP verification form for admin 2FA.
- * Used as a dedicated OTP page if needed in the future.
+ * OtpForm — Reusable OTP verification form.
+ * Used by EmailForm (admin 2FA) and can be used anywhere OTP is needed.
  */
 export default function OtpForm({ userId }) {
-    const [code, setCode] = useState("");
-    const [error, setError] = useState("");
-    const [loading, setLoading] = useState(false);
+    const [serverError, setServerError] = useState("");
     const [resending, setResending] = useState(false);
     const setUser = useAuthStore((s) => s.setUser);
     const navigate = useNavigate();
 
-    const handleVerify = async (e) => {
-        e.preventDefault();
-        setError("");
-        setLoading(true);
+    const {
+        register,
+        handleSubmit,
+        formState: { errors, isSubmitting },
+    } = useForm({
+        resolver: zodResolver(otpSchema),
+    });
+
+    const onSubmit = async (data) => {
+        setServerError("");
 
         try {
-            const data = await verifyOtpRequest(userId, code);
-            const { user } = data.data;
+            const result = await verifyOtpRequest(userId, data.code);
+            const { user } = result.data;
             setUser(user);
             toast.success("Login Successful", {
                 description: `Welcome, ${user.name}!`,
             });
             navigate("/dashboard");
         } catch (err) {
-            setError(
+            setServerError(
                 err.response?.data?.message || "Invalid or expired OTP code."
             );
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -55,41 +58,39 @@ export default function OtpForm({ userId }) {
         }
     };
 
-    if (loading) return <PrimarySpinner />;
-
     return (
-        <form onSubmit={handleVerify} className="space-y-4 text-center">
-            <Icon name="mail" size={32} className="mx-auto text-muted-foreground" />
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 text-center animate-in fade-in-0 slide-in-from-right-3 duration-300">
+            <Icon name="mail" size={32} className="mx-auto text-primary" />
             <p className="text-sm font-medium">Enter the 6-digit code sent to your email</p>
 
-            {error && (
-                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                    {error}
+            {serverError && (
+                <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                    {serverError}
                 </div>
             )}
 
             <Input
                 type="text"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
                 placeholder="000000"
                 maxLength={6}
                 className="mx-auto max-w-[200px] text-center text-lg tracking-[0.5em]"
                 autoFocus
+                error={errors.code?.message}
+                {...register("code")}
             />
 
-            <div className="flex flex-col gap-2">
-                <Button type="submit" disabled={code.length < 6}>
-                    Verify
+            <div className="flex flex-col gap-3">
+                <Button type="submit" fullWidth disabled={isSubmitting}>
+                    {isSubmitting ? "Verifying..." : "Verify"}
                 </Button>
-                <button
+                <Button
                     type="button"
+                    variant="ghost"
                     onClick={handleResend}
-                    disabled={resending}
-                    className="text-sm text-muted-foreground hover:text-foreground"
+                    disabled={resending || isSubmitting}
                 >
                     {resending ? "Sending..." : "Resend OTP"}
-                </button>
+                </Button>
             </div>
         </form>
     );

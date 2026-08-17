@@ -6,8 +6,6 @@ const required = [
   "JWT_EXPIRES_IN",
   "DATABASE_URL",
   "DIRECT_URL",
-  "SMTP_EMAIL",
-  "SMTP_PASSWORD",
 ];
 
 /**
@@ -29,6 +27,14 @@ export const env = {
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN,
   DATABASE_URL: process.env.DATABASE_URL,
   DIRECT_URL: process.env.DIRECT_URL,
-  SMTP_EMAIL: process.env.SMTP_EMAIL,
-  SMTP_PASSWORD: process.env.SMTP_PASSWORD,
+
+  // Email — SMTP config (optional — falls back to console log in dev)
+  SMTP_HOST: process.env.SMTP_HOST,
+  SMTP_PORT: process.env.SMTP_PORT,
+  SMTP_SECURE: process.env.SMTP_SECURE,
+  SMTP_USER: process.env.SMTP_USER,
+  SMTP_PASS: process.env.SMTP_PASS,
+  GMAIL_USER: process.env.GMAIL_USER,
+  GMAIL_APP_PASS: process.env.GMAIL_APP_PASS,
+  EMAIL_FROM: process.env.EMAIL_FROM || "Abbey's Kitchenette",
 };

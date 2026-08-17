@@ -26,7 +26,7 @@ const authenticate = async (req, res, next) => {
     // Fetch user from DB to confirm they still exist and are active
     // This prevents login after account deletion/deactivation
     const user = await prisma.user.findUnique({
-      where: { id: decoded.id },
+      where: { id: decoded.sub },
       select: {
         id: true,
         name: true,

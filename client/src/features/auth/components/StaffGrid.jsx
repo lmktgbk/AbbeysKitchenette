@@ -2,11 +2,6 @@ import { useState, useEffect } from "react";
 import { getStaffListRequest } from "../api";
 import Icon from "@/components/ui/icon";
 
-/**
- * StaffGrid
- * Fetches staff list and displays a selection grid for PIN login.
- * Calls onStaffSelect when a staff member is tapped.
- */
 export default function StaffGrid({ onStaffSelect }) {
     const [staffList, setStaffList] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -37,13 +32,13 @@ export default function StaffGrid({ onStaffSelect }) {
 
     return (
         <div className="space-y-4">
-            <p className="text-center text-sm font-medium">Select your name</p>
+            <p className="text-center text-sm font-medium">Select your profile</p>
             <div className="grid grid-cols-3 gap-3">
                 {staffList.map((staff) => (
                     <button
                         key={staff.id}
                         onClick={() => onStaffSelect(staff)}
-                        className="staff-card"
+                        className="flex flex-col items-center gap-2 rounded-xl border border-border bg-card/40 p-4 cursor-pointer transition-all hover:border-primary hover:bg-card/70 hover:-translate-y-0.5"
                     >
                         <Icon name="user" size={24} className="text-muted-foreground" />
                         <span className="text-sm font-medium">{staff.name}</span>

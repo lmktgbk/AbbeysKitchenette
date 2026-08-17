@@ -22,6 +22,7 @@ model User {
   isActive          Boolean   @default(true)
   mustChangePwd     Boolean   @default(false)
   failedPinAttempts Int       @default(0)
+  lastFailedPinAt   DateTime?
   lockedUntil       DateTime?
   lastLoginAt       DateTime?
   createdAt         DateTime  @default(now())

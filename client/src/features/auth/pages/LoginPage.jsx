@@ -5,17 +5,9 @@ import StaffGrid from "../components/StaffGrid";
 import PinEntry from "../components/PinEntry";
 import EmailForm from "../components/EmailForm";
 import ModeToggle from "@/components/ModeToggle";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
-/**
- * LoginPage
- * Main login page with 3 views:
- *   1. "staff" — staff selection grid (default)
- *   2. "pin" — PIN entry after selecting a staff member
- *   3. "email" — email + password form
- *
- * View state managed here, each view is a separate component.
- * Uses glassmorphism card with smooth view transitions.
- */
 export default function LoginPage() {
     const [view, setView] = useState("staff");
     const [selectedStaff, setSelectedStaff] = useState(null);
@@ -31,33 +23,32 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="glass-card relative p-8">
+        <Card className="relative p-8">
             <div className="absolute top-4 right-4">
                 <ModeToggle />
             </div>
 
-            <div className="animate-fade-in">
+            <div className="animate-in fade-in-0 duration-300">
                 <AuthBranding />
 
                 <div className="mt-8">
-                    {/* View: Staff Selection Grid */}
                     {view === "staff" && (
-                        <div key="staff" className="animate-fade-in">
+                        <div key="staff" className="animate-in fade-in-0 duration-300">
                             <StaffGrid onStaffSelect={handleStaffSelect} />
                             <div className="mt-6 text-center">
-                                <button
+                                <Button
+                                    variant="ghost"
+                                    fullWidth
                                     onClick={() => setView("email")}
-                                    className="link-auth"
                                 >
-                                    Login with email instead →
-                                </button>
+                                    Access Admin →
+                                </Button>
                             </div>
                         </div>
                     )}
 
-                    {/* View: PIN Entry */}
                     {view === "pin" && (
-                        <div key="pin" className="animate-slide-in">
+                        <div key="pin" className="animate-in fade-in-0 slide-in-from-right-3 duration-300">
                             <PinEntry
                                 selectedStaff={selectedStaff}
                                 onBack={handleBackToStaff}
@@ -65,26 +56,21 @@ export default function LoginPage() {
                         </div>
                     )}
 
-                    {/* View: Email Login */}
                     {view === "email" && (
-                        <div key="email" className="animate-slide-in">
+                        <div key="email" className="animate-in fade-in-0 slide-in-from-right-3 duration-300">
                             <EmailForm onBack={handleBackToStaff} />
                         </div>
                     )}
                 </div>
 
-                {/* Forgot password link */}
                 {view === "email" && (
                     <div className="mt-4 text-center">
-                        <Link
-                            to="/forgot-password"
-                            className="link-auth"
-                        >
-                            Forgot password?
-                        </Link>
+                        <Button variant="ghost" size="sm" asChild>
+                            <Link to="/forgot-password">Forgot password?</Link>
+                        </Button>
                     </div>
                 )}
             </div>
-        </div>
+        </Card>
     );
 }

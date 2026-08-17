@@ -1,15 +1,10 @@
-/**
- * AuthBranding
- * Logo + app name + subtitle.
- * Reused across all auth pages (login, forgot password, etc.).
- */
 export default function AuthBranding() {
     return (
         <div className="flex flex-col items-center gap-4">
             <img
                 src="/favicon.png"
                 alt="Abbey's Kitchenette"
-                className="auth-logo"
+                className="h-20 w-20 rounded-full object-cover"
             />
             <div className="text-center">
                 <h1 className="text-2xl font-bold tracking-tight">

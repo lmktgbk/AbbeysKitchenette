@@ -5,14 +5,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { forgotPasswordRequest } from "../api";
 import { forgotPasswordSchema } from "../authValidation";
 import AuthBranding from "../components/AuthBranding";
-import Icon from "@/components/ui/icon";
 import ModeToggle from "@/components/ModeToggle";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import Icon from "@/components/ui/icon";
 
-/**
- * ForgotPasswordPage
- * Admin enters email to receive a password reset link.
- * Always shows success message (don't reveal if email exists).
- */
 export default function ForgotPasswordPage() {
     const [submitted, setSubmitted] = useState(false);
     const [serverError, setServerError] = useState("");
@@ -36,28 +34,28 @@ export default function ForgotPasswordPage() {
     };
 
     return (
-        <div className="glass-card relative p-8">
+        <Card className="relative p-8">
             <div className="absolute top-4 right-4">
                 <ModeToggle />
             </div>
 
-            <div className="animate-fade-in">
+            <div className="animate-in fade-in-0 duration-300">
                 <AuthBranding />
 
                 <div className="mt-8">
                     {submitted ? (
-                        <div className="text-center space-y-4 animate-fade-in">
+                        <div className="text-center space-y-4 animate-in fade-in-0 duration-300">
                             <Icon name="mail" size={40} className="mx-auto text-primary" />
                             <h2 className="text-lg font-semibold">Check your email</h2>
                             <p className="text-sm text-muted-foreground">
                                 If an account exists with that email, we've sent a password reset link.
                             </p>
-                            <Link to="/login" className="link-auth inline-block mt-4">
-                                ← Back to login
-                            </Link>
+                            <Button variant="ghost" asChild>
+                                <Link to="/login">← Back to login</Link>
+                            </Button>
                         </div>
                     ) : (
-                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 animate-slide-in">
+                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 animate-in fade-in-0 slide-in-from-right-3 duration-300">
                             <div className="text-center">
                                 <h2 className="text-lg font-semibold">Forgot Password</h2>
                                 <p className="mt-1 text-sm text-muted-foreground">
@@ -75,31 +73,28 @@ export default function ForgotPasswordPage() {
                                 <label htmlFor="email" className="text-sm font-medium">
                                     Email
                                 </label>
-                                <input
+                                <Input
                                     id="email"
                                     type="email"
                                     placeholder="you@example.com"
-                                    className="input-auth"
+                                    error={errors.email?.message}
                                     {...register("email")}
                                 />
-                                {errors.email && (
-                                    <p className="text-sm text-destructive">{errors.email.message}</p>
-                                )}
                             </div>
 
-                            <button type="submit" className="btn-auth" disabled={isSubmitting}>
+                            <Button type="submit" fullWidth disabled={isSubmitting}>
                                 {isSubmitting ? "Sending..." : "Send reset link"}
-                            </button>
+                            </Button>
 
                             <div className="text-center">
-                                <Link to="/login" className="link-auth">
-                                    ← Back to login
-                                </Link>
+                                <Button variant="ghost" size="sm" asChild>
+                                    <Link to="/login">← Back to login</Link>
+                                </Button>
                             </div>
                         </form>
                     )}
                 </div>
             </div>
-        </div>
+        </Card>
     );
 }

@@ -19,9 +19,9 @@ import { env } from "./env.js";
  * @param {object} payload - Data to encode in the token (e.g. { id, role })
  * @returns {string} The signed JWT string
  */
-export function signToken(payload) {
+export function signToken(payload, expiresIn) {
   return jwt.sign(payload, env.JWT_SECRET, {
-    expiresIn: env.JWT_EXPIRES_IN,
+    expiresIn: expiresIn || env.JWT_EXPIRES_IN,
   });
 }
 

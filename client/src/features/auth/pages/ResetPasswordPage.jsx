@@ -5,14 +5,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { resetPasswordRequest } from "../api";
 import { resetPasswordSchema } from "../authValidation";
 import AuthBranding from "../components/AuthBranding";
-import Icon from "@/components/ui/icon";
 import ModeToggle from "@/components/ModeToggle";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import Icon from "@/components/ui/icon";
 
-/**
- * ResetPasswordPage
- * Reached via email link with token in URL.
- * Admin enters new password + confirm.
- */
 export default function ResetPasswordPage() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
@@ -41,45 +39,39 @@ export default function ResetPasswordPage() {
     };
 
     return (
-        <div className="glass-card relative p-8">
+        <Card className="relative p-8">
             <div className="absolute top-4 right-4">
                 <ModeToggle />
             </div>
 
-            <div className="animate-fade-in">
+            <div className="animate-in fade-in-0 duration-300">
                 <AuthBranding />
 
                 <div className="mt-8">
                     {!token ? (
-                        /* Invalid token */
-                        <div className="text-center space-y-4 animate-fade-in">
+                        <div className="text-center space-y-4 animate-in fade-in-0 duration-300">
                             <Icon name="lock" size={40} className="mx-auto text-destructive" />
                             <h2 className="text-lg font-semibold">Invalid Reset Link</h2>
                             <p className="text-sm text-muted-foreground">
                                 This password reset link is invalid or has expired.
                             </p>
-                            <Link to="/forgot-password" className="link-auth inline-block mt-4">
-                                Request a new link
-                            </Link>
+                            <Button variant="ghost" asChild>
+                                <Link to="/forgot-password">Request a new link</Link>
+                            </Button>
                         </div>
                     ) : submitted ? (
-                        /* Success */
-                        <div className="text-center space-y-4 animate-fade-in">
+                        <div className="text-center space-y-4 animate-in fade-in-0 duration-300">
                             <Icon name="lock" size={40} className="mx-auto text-primary" />
                             <h2 className="text-lg font-semibold">Password Reset Successful</h2>
                             <p className="text-sm text-muted-foreground">
                                 Your password has been updated. You can now login with your new password.
                             </p>
-                            <button
-                                onClick={() => navigate("/login")}
-                                className="btn-auth mt-4"
-                            >
+                            <Button fullWidth onClick={() => navigate("/login")}>
                                 Go to Login
-                            </button>
+                            </Button>
                         </div>
                     ) : (
-                        /* Reset form */
-                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 animate-slide-in">
+                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 animate-in fade-in-0 slide-in-from-right-3 duration-300">
                             <div className="text-center">
                                 <h2 className="text-lg font-semibold">Reset Password</h2>
                                 <p className="mt-1 text-sm text-muted-foreground">
@@ -97,47 +89,41 @@ export default function ResetPasswordPage() {
                                 <label htmlFor="password" className="text-sm font-medium">
                                     New Password
                                 </label>
-                                <input
+                                <Input
                                     id="password"
                                     type="password"
                                     placeholder="Min 8 characters"
-                                    className="input-auth"
+                                    error={errors.password?.message}
                                     {...register("password")}
                                 />
-                                {errors.password && (
-                                    <p className="text-sm text-destructive">{errors.password.message}</p>
-                                )}
                             </div>
 
                             <div className="space-y-2">
                                 <label htmlFor="confirmPassword" className="text-sm font-medium">
                                     Confirm Password
                                 </label>
-                                <input
+                                <Input
                                     id="confirmPassword"
                                     type="password"
                                     placeholder="Re-enter password"
-                                    className="input-auth"
+                                    error={errors.confirmPassword?.message}
                                     {...register("confirmPassword")}
                                 />
-                                {errors.confirmPassword && (
-                                    <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
-                                )}
                             </div>
 
-                            <button type="submit" className="btn-auth" disabled={isSubmitting}>
+                            <Button type="submit" fullWidth disabled={isSubmitting}>
                                 {isSubmitting ? "Resetting..." : "Reset Password"}
-                            </button>
+                            </Button>
 
                             <div className="text-center">
-                                <Link to="/login" className="link-auth">
-                                    ← Back to login
-                                </Link>
+                                <Button variant="ghost" size="sm" asChild>
+                                    <Link to="/login">← Back to login</Link>
+                                </Button>
                             </div>
                         </form>
                     )}
                 </div>
             </div>
-        </div>
+        </Card>
     );
 }

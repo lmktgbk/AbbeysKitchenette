@@ -121,6 +121,21 @@ export const authService = {
       );
     }
 
+    // Lockout expired — reset attempts
+    if (user.lockedUntil && user.lockedUntil <= new Date()) {
+      await authRepository.resetFailedPinAttempts(user.id);
+      user.failedPinAttempts = 0;
+    }
+    // Cooldown expired (15 min since last failed attempt) — reset attempts
+    else if (user.lastFailedPinAt) {
+      const cooldownMs = PIN_LOCKOUT_MINUTES * 60 * 1000;
+      const cooldownExpired = (Date.now() - new Date(user.lastFailedPinAt).getTime()) > cooldownMs;
+      if (cooldownExpired) {
+        await authRepository.resetFailedPinAttempts(user.id);
+        user.failedPinAttempts = 0;
+      }
+    }
+
     if (!user.pinHash) {
       throw new AppError(
         400,

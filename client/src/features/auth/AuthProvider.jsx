@@ -13,7 +13,7 @@ export default function AuthProvider({ children }) {
 
     useEffect(() => {
         getMeRequest()
-            .then((res) => setUser(res.data.data.user))
+            .then((res) => setUser(res.data.user))
             .catch(() => setUser(null));
     }, [setUser]);
 

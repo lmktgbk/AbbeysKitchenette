@@ -615,6 +615,7 @@ export const UserScalarFieldEnum = {
   isActive: 'isActive',
   mustChangePwd: 'mustChangePwd',
   failedPinAttempts: 'failedPinAttempts',
+  lastFailedPinAt: 'lastFailedPinAt',
   lockedUntil: 'lockedUntil',
   lastLoginAt: 'lastLoginAt',
   createdAt: 'createdAt',

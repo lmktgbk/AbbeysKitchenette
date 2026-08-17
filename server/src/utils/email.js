@@ -8,7 +8,7 @@ import { env } from "../config/env.js";
  */
 export async function sendEmail({ to, subject, html }) {
   const mailOptions = {
-    from: `"Abbey's Kitchenette" <${env.SMTP_EMAIL}>`,
+    from: `"Abbey's Kitchenette" <${env.EMAIL_FROM}>`,
     to,
     subject,
     html,

@@ -3,14 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { loginPinRequest } from "../api";
 import useAuthStore from "@/features/auth/authStore";
 import Icon from "@/components/ui/icon";
-import PrimarySpinner from "@/components/ui/spinner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
-/**
- * PinEntry
- * PIN input form after staff member is selected.
- * Shows selected staff name, PIN input, and submit button.
- */
 export default function PinEntry({ selectedStaff, onBack }) {
     const [pin, setPin] = useState("");
     const [error, setError] = useState("");
@@ -45,10 +41,8 @@ export default function PinEntry({ selectedStaff, onBack }) {
         }
     };
 
-    if (loading) return <PrimarySpinner />;
-
     return (
-        <form onSubmit={handleSubmit} className="space-y-5 text-center animate-slide-in">
+        <form onSubmit={handleSubmit} className="space-y-5 text-center animate-in fade-in-0 slide-in-from-right-3 duration-300">
             <Icon name="user" size={32} className="mx-auto text-primary" />
             <p className="text-sm text-muted-foreground">
                 Welcome, <span className="font-medium text-foreground">{selectedStaff.name}</span>!
@@ -61,27 +55,24 @@ export default function PinEntry({ selectedStaff, onBack }) {
                 </div>
             )}
 
-            <input
+            <Input
                 type="password"
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
                 placeholder="••••"
                 maxLength={6}
-                className="input-auth mx-auto max-w-[200px] text-center text-lg tracking-[0.5em]"
+                className="mx-auto max-w-[200px] text-center text-lg tracking-[0.5em]"
                 autoFocus
+                disabled={loading}
             />
 
             <div className="flex flex-col gap-3">
-                <button type="submit" className="btn-auth" disabled={pin.length < 4}>
-                    Sign in
-                </button>
-                <button
-                    type="button"
-                    onClick={onBack}
-                    className="link-auth"
-                >
-                    <Icon name="arrowLeft" size={14} className="inline" /> Back to staff list
-                </button>
+                <Button type="submit" fullWidth disabled={pin.length < 4 || loading}>
+                    {loading ? "Signing in..." : "Sign in"}
+                </Button>
+                <Button type="button" variant="ghost" onClick={onBack} disabled={loading}>
+                    <Icon name="arrowLeft" size={14} /> Back to staff list
+                </Button>
             </div>
         </form>
     );

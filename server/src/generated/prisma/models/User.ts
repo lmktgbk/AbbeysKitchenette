@@ -44,6 +44,7 @@ export type UserMinAggregateOutputType = {
   isActive: boolean | null
   mustChangePwd: boolean | null
   failedPinAttempts: number | null
+  lastFailedPinAt: Date | null
   lockedUntil: Date | null
   lastLoginAt: Date | null
   createdAt: Date | null
@@ -60,6 +61,7 @@ export type UserMaxAggregateOutputType = {
   isActive: boolean | null
   mustChangePwd: boolean | null
   failedPinAttempts: number | null
+  lastFailedPinAt: Date | null
   lockedUntil: Date | null
   lastLoginAt: Date | null
   createdAt: Date | null
@@ -76,6 +78,7 @@ export type UserCountAggregateOutputType = {
   isActive: number
   mustChangePwd: number
   failedPinAttempts: number
+  lastFailedPinAt: number
   lockedUntil: number
   lastLoginAt: number
   createdAt: number
@@ -102,6 +105,7 @@ export type UserMinAggregateInputType = {
   isActive?: true
   mustChangePwd?: true
   failedPinAttempts?: true
+  lastFailedPinAt?: true
   lockedUntil?: true
   lastLoginAt?: true
   createdAt?: true
@@ -118,6 +122,7 @@ export type UserMaxAggregateInputType = {
   isActive?: true
   mustChangePwd?: true
   failedPinAttempts?: true
+  lastFailedPinAt?: true
   lockedUntil?: true
   lastLoginAt?: true
   createdAt?: true
@@ -134,6 +139,7 @@ export type UserCountAggregateInputType = {
   isActive?: true
   mustChangePwd?: true
   failedPinAttempts?: true
+  lastFailedPinAt?: true
   lockedUntil?: true
   lastLoginAt?: true
   createdAt?: true
@@ -237,6 +243,7 @@ export type UserGroupByOutputType = {
   isActive: boolean
   mustChangePwd: boolean
   failedPinAttempts: number
+  lastFailedPinAt: Date | null
   lockedUntil: Date | null
   lastLoginAt: Date | null
   createdAt: Date
@@ -276,6 +283,7 @@ export type UserWhereInput = {
   isActive?: Prisma.BoolFilter<"User"> | boolean
   mustChangePwd?: Prisma.BoolFilter<"User"> | boolean
   failedPinAttempts?: Prisma.IntFilter<"User"> | number
+  lastFailedPinAt?: Prisma.DateTimeNullableFilter<"User"> | Date | string | null
   lockedUntil?: Prisma.DateTimeNullableFilter<"User"> | Date | string | null
   lastLoginAt?: Prisma.DateTimeNullableFilter<"User"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
@@ -292,6 +300,7 @@ export type UserOrderByWithRelationInput = {
   isActive?: Prisma.SortOrder
   mustChangePwd?: Prisma.SortOrder
   failedPinAttempts?: Prisma.SortOrder
+  lastFailedPinAt?: Prisma.SortOrderInput | Prisma.SortOrder
   lockedUntil?: Prisma.SortOrderInput | Prisma.SortOrder
   lastLoginAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -311,6 +320,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   isActive?: Prisma.BoolFilter<"User"> | boolean
   mustChangePwd?: Prisma.BoolFilter<"User"> | boolean
   failedPinAttempts?: Prisma.IntFilter<"User"> | number
+  lastFailedPinAt?: Prisma.DateTimeNullableFilter<"User"> | Date | string | null
   lockedUntil?: Prisma.DateTimeNullableFilter<"User"> | Date | string | null
   lastLoginAt?: Prisma.DateTimeNullableFilter<"User"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
@@ -327,6 +337,7 @@ export type UserOrderByWithAggregationInput = {
   isActive?: Prisma.SortOrder
   mustChangePwd?: Prisma.SortOrder
   failedPinAttempts?: Prisma.SortOrder
+  lastFailedPinAt?: Prisma.SortOrderInput | Prisma.SortOrder
   lockedUntil?: Prisma.SortOrderInput | Prisma.SortOrder
   lastLoginAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -351,6 +362,7 @@ export type UserScalarWhereWithAggregatesInput = {
   isActive?: Prisma.BoolWithAggregatesFilter<"User"> | boolean
   mustChangePwd?: Prisma.BoolWithAggregatesFilter<"User"> | boolean
   failedPinAttempts?: Prisma.IntWithAggregatesFilter<"User"> | number
+  lastFailedPinAt?: Prisma.DateTimeNullableWithAggregatesFilter<"User"> | Date | string | null
   lockedUntil?: Prisma.DateTimeNullableWithAggregatesFilter<"User"> | Date | string | null
   lastLoginAt?: Prisma.DateTimeNullableWithAggregatesFilter<"User"> | Date | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"User"> | Date | string
@@ -367,6 +379,7 @@ export type UserCreateInput = {
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: number
+  lastFailedPinAt?: Date | string | null
   lockedUntil?: Date | string | null
   lastLoginAt?: Date | string | null
   createdAt?: Date | string
@@ -383,6 +396,7 @@ export type UserUncheckedCreateInput = {
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: number
+  lastFailedPinAt?: Date | string | null
   lockedUntil?: Date | string | null
   lastLoginAt?: Date | string | null
   createdAt?: Date | string
@@ -399,6 +413,7 @@ export type UserUpdateInput = {
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lastFailedPinAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -415,6 +430,7 @@ export type UserUncheckedUpdateInput = {
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lastFailedPinAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -431,6 +447,7 @@ export type UserCreateManyInput = {
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: number
+  lastFailedPinAt?: Date | string | null
   lockedUntil?: Date | string | null
   lastLoginAt?: Date | string | null
   createdAt?: Date | string
@@ -447,6 +464,7 @@ export type UserUpdateManyMutationInput = {
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lastFailedPinAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -463,6 +481,7 @@ export type UserUncheckedUpdateManyInput = {
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lastFailedPinAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -479,6 +498,7 @@ export type UserCountOrderByAggregateInput = {
   isActive?: Prisma.SortOrder
   mustChangePwd?: Prisma.SortOrder
   failedPinAttempts?: Prisma.SortOrder
+  lastFailedPinAt?: Prisma.SortOrder
   lockedUntil?: Prisma.SortOrder
   lastLoginAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -499,6 +519,7 @@ export type UserMaxOrderByAggregateInput = {
   isActive?: Prisma.SortOrder
   mustChangePwd?: Prisma.SortOrder
   failedPinAttempts?: Prisma.SortOrder
+  lastFailedPinAt?: Prisma.SortOrder
   lockedUntil?: Prisma.SortOrder
   lastLoginAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -515,6 +536,7 @@ export type UserMinOrderByAggregateInput = {
   isActive?: Prisma.SortOrder
   mustChangePwd?: Prisma.SortOrder
   failedPinAttempts?: Prisma.SortOrder
+  lastFailedPinAt?: Prisma.SortOrder
   lockedUntil?: Prisma.SortOrder
   lastLoginAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -569,6 +591,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: boolean
+  lastFailedPinAt?: boolean
   lockedUntil?: boolean
   lastLoginAt?: boolean
   createdAt?: boolean
@@ -585,6 +608,7 @@ export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: boolean
+  lastFailedPinAt?: boolean
   lockedUntil?: boolean
   lastLoginAt?: boolean
   createdAt?: boolean
@@ -601,6 +625,7 @@ export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: boolean
+  lastFailedPinAt?: boolean
   lockedUntil?: boolean
   lastLoginAt?: boolean
   createdAt?: boolean
@@ -617,13 +642,14 @@ export type UserSelectScalar = {
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: boolean
+  lastFailedPinAt?: boolean
   lockedUntil?: boolean
   lastLoginAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "email" | "role" | "passwordHash" | "pinHash" | "isActive" | "mustChangePwd" | "failedPinAttempts" | "lockedUntil" | "lastLoginAt" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "email" | "role" | "passwordHash" | "pinHash" | "isActive" | "mustChangePwd" | "failedPinAttempts" | "lastFailedPinAt" | "lockedUntil" | "lastLoginAt" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
 
 export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "User"
@@ -638,6 +664,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     isActive: boolean
     mustChangePwd: boolean
     failedPinAttempts: number
+    lastFailedPinAt: Date | null
     lockedUntil: Date | null
     lastLoginAt: Date | null
     createdAt: Date
@@ -1074,6 +1101,7 @@ export interface UserFieldRefs {
   readonly isActive: Prisma.FieldRef<"User", 'Boolean'>
   readonly mustChangePwd: Prisma.FieldRef<"User", 'Boolean'>
   readonly failedPinAttempts: Prisma.FieldRef<"User", 'Int'>
+  readonly lastFailedPinAt: Prisma.FieldRef<"User", 'DateTime'>
   readonly lockedUntil: Prisma.FieldRef<"User", 'DateTime'>
   readonly lastLoginAt: Prisma.FieldRef<"User", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"User", 'DateTime'>
