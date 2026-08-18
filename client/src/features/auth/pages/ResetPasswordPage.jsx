@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Icon from "@/components/ui/icon";
+import { toast } from "sonner";
 
 export default function ResetPasswordPage() {
     const [searchParams] = useSearchParams();
@@ -32,9 +33,12 @@ export default function ResetPasswordPage() {
             await resetPasswordRequest(token, data.password);
             setSubmitted(true);
         } catch (err) {
-            setServerError(
-                err.response?.data?.message || "Reset link is invalid or has expired."
-            );
+            const msg = err.response?.data?.message;
+            if (msg) {
+                setServerError(msg);
+            } else {
+                toast.error("Reset link is invalid or has expired.");
+            }
         }
     };
 

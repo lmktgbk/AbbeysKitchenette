@@ -10,10 +10,10 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Icon from "@/components/ui/icon";
+import { toast } from "sonner";
 
 export default function ForgotPasswordPage() {
     const [submitted, setSubmitted] = useState(false);
-    const [serverError, setServerError] = useState("");
 
     const {
         register,
@@ -24,12 +24,11 @@ export default function ForgotPasswordPage() {
     });
 
     const onSubmit = async (data) => {
-        setServerError("");
         try {
             await forgotPasswordRequest(data.email);
             setSubmitted(true);
         } catch {
-            setServerError("Something went wrong. Please try again.");
+            toast.error("Something went wrong. Please try again.");
         }
     };
 
@@ -62,12 +61,6 @@ export default function ForgotPasswordPage() {
                                     Enter your email and we'll send you a reset link.
                                 </p>
                             </div>
-
-                            {serverError && (
-                                <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-                                    {serverError}
-                                </div>
-                            )}
 
                             <div className="space-y-2">
                                 <label htmlFor="email" className="text-sm font-medium">

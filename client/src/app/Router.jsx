@@ -8,8 +8,15 @@
  *   /reset-password  → Reset password from link (public)
  *   /change-pin      → Change PIN after mustChangePwd (protected)
  *   /dashboard       → Dashboard (protected, admin layout)
+ *   /products        → Products (protected, admin layout)
+ *   /inventory       → Inventory (protected, admin layout)
  *   /pos             → POS (protected, full-screen)
  *   /kitchen         → Kitchen display (protected, full-screen)
+ *   /staff           → Staff (protected, admin layout)
+ *   /forecasting     → Forecasting (protected, admin layout)
+ *   /market-basket   → Market Basket (protected, admin layout)
+ *   /audit-logs      → Audit Logs (protected, admin layout)
+ *   /settings        → Settings (protected, admin layout)
  */
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { ProtectedRoute } from "./ProtectedRoute";
@@ -27,6 +34,27 @@ import ChangePinPage from "@/features/auth/pages/ChangePinPage";
 
 function DashboardPlaceholder() {
     return <div className="p-6"><h1 className="text-2xl font-bold">Dashboard</h1></div>;
+}
+function ProductsPlaceholder() {
+    return <div className="p-6"><h1 className="text-2xl font-bold">Products</h1></div>;
+}
+function InventoryPlaceholder() {
+    return <div className="p-6"><h1 className="text-2xl font-bold">Inventory</h1></div>;
+}
+function StaffPlaceholder() {
+    return <div className="p-6"><h1 className="text-2xl font-bold">Staff</h1></div>;
+}
+function ForecastingPlaceholder() {
+    return <div className="p-6"><h1 className="text-2xl font-bold">Forecasting</h1></div>;
+}
+function MarketBasketPlaceholder() {
+    return <div className="p-6"><h1 className="text-2xl font-bold">Market Basket</h1></div>;
+}
+function AuditLogsPlaceholder() {
+    return <div className="p-6"><h1 className="text-2xl font-bold">Audit Logs</h1></div>;
+}
+function SettingsPlaceholder() {
+    return <div className="p-6"><h1 className="text-2xl font-bold">Settings</h1></div>;
 }
 function PosPlaceholder() {
     return <div className="flex h-screen items-center justify-center"><h1 className="text-2xl font-bold">POS</h1></div>;
@@ -70,6 +98,13 @@ const router = createBrowserRouter([
         ),
         children: [
             { path: "/dashboard", element: <DashboardPlaceholder /> },
+            { path: "/products", element: <ProductsPlaceholder /> },
+            { path: "/inventory", element: <InventoryPlaceholder /> },
+            { path: "/staff", element: <StaffPlaceholder /> },
+            { path: "/forecasting", element: <ForecastingPlaceholder /> },
+            { path: "/market-basket", element: <MarketBasketPlaceholder /> },
+            { path: "/audit-logs", element: <AuditLogsPlaceholder /> },
+            { path: "/settings", element: <SettingsPlaceholder /> },
         ],
     },
 

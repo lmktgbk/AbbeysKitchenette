@@ -49,9 +49,12 @@ export default function EmailForm({ onBack }) {
                 default: navigate("/dashboard");
             }
         } catch (err) {
-            setServerError(
-                err.response?.data?.message || "Login failed. Please try again."
-            );
+            const msg = err.response?.data?.message;
+            if (msg) {
+                setServerError(msg);
+            } else {
+                toast.error("Login failed. Please try again.");
+            }
         }
     };
 

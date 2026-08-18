@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { getStaffListRequest } from "../api";
 import Icon from "@/components/ui/icon";
+import { toast } from "sonner";
 
 export default function StaffGrid({ onStaffSelect }) {
     const [staffList, setStaffList] = useState([]);
@@ -10,7 +11,10 @@ export default function StaffGrid({ onStaffSelect }) {
     useEffect(() => {
         getStaffListRequest()
             .then((res) => setStaffList(res.data.staff))
-            .catch(() => setError("Failed to load staff list."))
+            .catch(() => {
+                setError("Failed to load staff list.");
+                toast.error("Failed to load staff list.");
+            })
             .finally(() => setLoading(false));
     }, []);
 

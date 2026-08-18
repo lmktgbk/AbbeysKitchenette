@@ -29,9 +29,12 @@ export default function ChangePinPage() {
             toast.success("PIN Changed", { description: "Your new PIN is now active." });
             navigate("/pos");
         } catch (err) {
-            setServerError(
-                err.response?.data?.message || "Failed to change PIN. Please try again."
-            );
+            const msg = err.response?.data?.message;
+            if (msg) {
+                setServerError(msg);
+            } else {
+                toast.error("Failed to change PIN. Please try again.");
+            }
         }
     };
 

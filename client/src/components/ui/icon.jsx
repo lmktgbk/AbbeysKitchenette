@@ -11,6 +11,7 @@ import {
     Menu,
     X,
     ChevronDown,
+    ChevronRight,
     Heart,
     Coffee,
     Users,
@@ -18,6 +19,16 @@ import {
     Clock,
     Phone,
     Send,
+    LayoutDashboard,
+    Package,
+    Warehouse,
+    ShoppingCart,
+    TrendingUp,
+    ShoppingBag,
+    FileText,
+    Settings,
+    LogOut,
+    Bell,
 } from "lucide-react";
 
 const iconMap = {
@@ -33,6 +44,7 @@ const iconMap = {
     menu: Menu,
     x: X,
     chevronDown: ChevronDown,
+    chevronRight: ChevronRight,
     heart: Heart,
     coffee: Coffee,
     users: Users,
@@ -40,6 +52,16 @@ const iconMap = {
     clock: Clock,
     phone: Phone,
     send: Send,
+    dashboard: LayoutDashboard,
+    package: Package,
+    warehouse: Warehouse,
+    cart: ShoppingCart,
+    trendingUp: TrendingUp,
+    shoppingBag: ShoppingBag,
+    fileText: FileText,
+    settings: Settings,
+    logOut: LogOut,
+    bell: Bell,
 };
 
 /**
