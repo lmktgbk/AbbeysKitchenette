@@ -9,6 +9,7 @@ import ModeToggle from "@/components/ModeToggle";
 const PAGE_TITLES = {
     "/dashboard": "Dashboard",
     "/products": "Products",
+    "/ingredients": "Inventory",
     "/inventory": "Inventory",
     "/pos": "POS",
     "/kitchen": "Kitchen",

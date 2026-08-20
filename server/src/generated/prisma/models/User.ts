@@ -288,6 +288,9 @@ export type UserWhereInput = {
   lastLoginAt?: Prisma.DateTimeNullableFilter<"User"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
+  restockBatches?: Prisma.RestockBatchListRelationFilter
+  lossRecords?: Prisma.LossRecordListRelationFilter
+  stockAdjustments?: Prisma.StockAdjustmentListRelationFilter
 }
 
 export type UserOrderByWithRelationInput = {
@@ -305,6 +308,9 @@ export type UserOrderByWithRelationInput = {
   lastLoginAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  restockBatches?: Prisma.RestockBatchOrderByRelationAggregateInput
+  lossRecords?: Prisma.LossRecordOrderByRelationAggregateInput
+  stockAdjustments?: Prisma.StockAdjustmentOrderByRelationAggregateInput
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -325,6 +331,9 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   lastLoginAt?: Prisma.DateTimeNullableFilter<"User"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
+  restockBatches?: Prisma.RestockBatchListRelationFilter
+  lossRecords?: Prisma.LossRecordListRelationFilter
+  stockAdjustments?: Prisma.StockAdjustmentListRelationFilter
 }, "id" | "email">
 
 export type UserOrderByWithAggregationInput = {
@@ -384,6 +393,9 @@ export type UserCreateInput = {
   lastLoginAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  restockBatches?: Prisma.RestockBatchCreateNestedManyWithoutRestockedByInput
+  lossRecords?: Prisma.LossRecordCreateNestedManyWithoutDeclaredByInput
+  stockAdjustments?: Prisma.StockAdjustmentCreateNestedManyWithoutAdjustedByInput
 }
 
 export type UserUncheckedCreateInput = {
@@ -401,6 +413,9 @@ export type UserUncheckedCreateInput = {
   lastLoginAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  restockBatches?: Prisma.RestockBatchUncheckedCreateNestedManyWithoutRestockedByInput
+  lossRecords?: Prisma.LossRecordUncheckedCreateNestedManyWithoutDeclaredByInput
+  stockAdjustments?: Prisma.StockAdjustmentUncheckedCreateNestedManyWithoutAdjustedByInput
 }
 
 export type UserUpdateInput = {
@@ -418,6 +433,9 @@ export type UserUpdateInput = {
   lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  restockBatches?: Prisma.RestockBatchUpdateManyWithoutRestockedByNestedInput
+  lossRecords?: Prisma.LossRecordUpdateManyWithoutDeclaredByNestedInput
+  stockAdjustments?: Prisma.StockAdjustmentUpdateManyWithoutAdjustedByNestedInput
 }
 
 export type UserUncheckedUpdateInput = {
@@ -435,6 +453,9 @@ export type UserUncheckedUpdateInput = {
   lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  restockBatches?: Prisma.RestockBatchUncheckedUpdateManyWithoutRestockedByNestedInput
+  lossRecords?: Prisma.LossRecordUncheckedUpdateManyWithoutDeclaredByNestedInput
+  stockAdjustments?: Prisma.StockAdjustmentUncheckedUpdateManyWithoutAdjustedByNestedInput
 }
 
 export type UserCreateManyInput = {
@@ -547,6 +568,11 @@ export type UserSumOrderByAggregateInput = {
   failedPinAttempts?: Prisma.SortOrder
 }
 
+export type UserScalarRelationFilter = {
+  is?: Prisma.UserWhereInput
+  isNot?: Prisma.UserWhereInput
+}
+
 export type StringFieldUpdateOperationsInput = {
   set?: string
 }
@@ -579,6 +605,371 @@ export type DateTimeFieldUpdateOperationsInput = {
   set?: Date | string
 }
 
+export type UserCreateNestedOneWithoutRestockBatchesInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutRestockBatchesInput, Prisma.UserUncheckedCreateWithoutRestockBatchesInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutRestockBatchesInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutRestockBatchesNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutRestockBatchesInput, Prisma.UserUncheckedCreateWithoutRestockBatchesInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutRestockBatchesInput
+  upsert?: Prisma.UserUpsertWithoutRestockBatchesInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutRestockBatchesInput, Prisma.UserUpdateWithoutRestockBatchesInput>, Prisma.UserUncheckedUpdateWithoutRestockBatchesInput>
+}
+
+export type UserCreateNestedOneWithoutLossRecordsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutLossRecordsInput, Prisma.UserUncheckedCreateWithoutLossRecordsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutLossRecordsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutLossRecordsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutLossRecordsInput, Prisma.UserUncheckedCreateWithoutLossRecordsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutLossRecordsInput
+  upsert?: Prisma.UserUpsertWithoutLossRecordsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutLossRecordsInput, Prisma.UserUpdateWithoutLossRecordsInput>, Prisma.UserUncheckedUpdateWithoutLossRecordsInput>
+}
+
+export type UserCreateNestedOneWithoutStockAdjustmentsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutStockAdjustmentsInput, Prisma.UserUncheckedCreateWithoutStockAdjustmentsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutStockAdjustmentsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutStockAdjustmentsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutStockAdjustmentsInput, Prisma.UserUncheckedCreateWithoutStockAdjustmentsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutStockAdjustmentsInput
+  upsert?: Prisma.UserUpsertWithoutStockAdjustmentsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutStockAdjustmentsInput, Prisma.UserUpdateWithoutStockAdjustmentsInput>, Prisma.UserUncheckedUpdateWithoutStockAdjustmentsInput>
+}
+
+export type UserCreateWithoutRestockBatchesInput = {
+  id?: string
+  name: string
+  email: string
+  role?: $Enums.Role
+  passwordHash: string
+  pinHash?: string | null
+  isActive?: boolean
+  mustChangePwd?: boolean
+  failedPinAttempts?: number
+  lastFailedPinAt?: Date | string | null
+  lockedUntil?: Date | string | null
+  lastLoginAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  lossRecords?: Prisma.LossRecordCreateNestedManyWithoutDeclaredByInput
+  stockAdjustments?: Prisma.StockAdjustmentCreateNestedManyWithoutAdjustedByInput
+}
+
+export type UserUncheckedCreateWithoutRestockBatchesInput = {
+  id?: string
+  name: string
+  email: string
+  role?: $Enums.Role
+  passwordHash: string
+  pinHash?: string | null
+  isActive?: boolean
+  mustChangePwd?: boolean
+  failedPinAttempts?: number
+  lastFailedPinAt?: Date | string | null
+  lockedUntil?: Date | string | null
+  lastLoginAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  lossRecords?: Prisma.LossRecordUncheckedCreateNestedManyWithoutDeclaredByInput
+  stockAdjustments?: Prisma.StockAdjustmentUncheckedCreateNestedManyWithoutAdjustedByInput
+}
+
+export type UserCreateOrConnectWithoutRestockBatchesInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutRestockBatchesInput, Prisma.UserUncheckedCreateWithoutRestockBatchesInput>
+}
+
+export type UserUpsertWithoutRestockBatchesInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutRestockBatchesInput, Prisma.UserUncheckedUpdateWithoutRestockBatchesInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutRestockBatchesInput, Prisma.UserUncheckedCreateWithoutRestockBatchesInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutRestockBatchesInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutRestockBatchesInput, Prisma.UserUncheckedUpdateWithoutRestockBatchesInput>
+}
+
+export type UserUpdateWithoutRestockBatchesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lastFailedPinAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  lossRecords?: Prisma.LossRecordUpdateManyWithoutDeclaredByNestedInput
+  stockAdjustments?: Prisma.StockAdjustmentUpdateManyWithoutAdjustedByNestedInput
+}
+
+export type UserUncheckedUpdateWithoutRestockBatchesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lastFailedPinAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  lossRecords?: Prisma.LossRecordUncheckedUpdateManyWithoutDeclaredByNestedInput
+  stockAdjustments?: Prisma.StockAdjustmentUncheckedUpdateManyWithoutAdjustedByNestedInput
+}
+
+export type UserCreateWithoutLossRecordsInput = {
+  id?: string
+  name: string
+  email: string
+  role?: $Enums.Role
+  passwordHash: string
+  pinHash?: string | null
+  isActive?: boolean
+  mustChangePwd?: boolean
+  failedPinAttempts?: number
+  lastFailedPinAt?: Date | string | null
+  lockedUntil?: Date | string | null
+  lastLoginAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  restockBatches?: Prisma.RestockBatchCreateNestedManyWithoutRestockedByInput
+  stockAdjustments?: Prisma.StockAdjustmentCreateNestedManyWithoutAdjustedByInput
+}
+
+export type UserUncheckedCreateWithoutLossRecordsInput = {
+  id?: string
+  name: string
+  email: string
+  role?: $Enums.Role
+  passwordHash: string
+  pinHash?: string | null
+  isActive?: boolean
+  mustChangePwd?: boolean
+  failedPinAttempts?: number
+  lastFailedPinAt?: Date | string | null
+  lockedUntil?: Date | string | null
+  lastLoginAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  restockBatches?: Prisma.RestockBatchUncheckedCreateNestedManyWithoutRestockedByInput
+  stockAdjustments?: Prisma.StockAdjustmentUncheckedCreateNestedManyWithoutAdjustedByInput
+}
+
+export type UserCreateOrConnectWithoutLossRecordsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutLossRecordsInput, Prisma.UserUncheckedCreateWithoutLossRecordsInput>
+}
+
+export type UserUpsertWithoutLossRecordsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutLossRecordsInput, Prisma.UserUncheckedUpdateWithoutLossRecordsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutLossRecordsInput, Prisma.UserUncheckedCreateWithoutLossRecordsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutLossRecordsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutLossRecordsInput, Prisma.UserUncheckedUpdateWithoutLossRecordsInput>
+}
+
+export type UserUpdateWithoutLossRecordsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lastFailedPinAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  restockBatches?: Prisma.RestockBatchUpdateManyWithoutRestockedByNestedInput
+  stockAdjustments?: Prisma.StockAdjustmentUpdateManyWithoutAdjustedByNestedInput
+}
+
+export type UserUncheckedUpdateWithoutLossRecordsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lastFailedPinAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  restockBatches?: Prisma.RestockBatchUncheckedUpdateManyWithoutRestockedByNestedInput
+  stockAdjustments?: Prisma.StockAdjustmentUncheckedUpdateManyWithoutAdjustedByNestedInput
+}
+
+export type UserCreateWithoutStockAdjustmentsInput = {
+  id?: string
+  name: string
+  email: string
+  role?: $Enums.Role
+  passwordHash: string
+  pinHash?: string | null
+  isActive?: boolean
+  mustChangePwd?: boolean
+  failedPinAttempts?: number
+  lastFailedPinAt?: Date | string | null
+  lockedUntil?: Date | string | null
+  lastLoginAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  restockBatches?: Prisma.RestockBatchCreateNestedManyWithoutRestockedByInput
+  lossRecords?: Prisma.LossRecordCreateNestedManyWithoutDeclaredByInput
+}
+
+export type UserUncheckedCreateWithoutStockAdjustmentsInput = {
+  id?: string
+  name: string
+  email: string
+  role?: $Enums.Role
+  passwordHash: string
+  pinHash?: string | null
+  isActive?: boolean
+  mustChangePwd?: boolean
+  failedPinAttempts?: number
+  lastFailedPinAt?: Date | string | null
+  lockedUntil?: Date | string | null
+  lastLoginAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  restockBatches?: Prisma.RestockBatchUncheckedCreateNestedManyWithoutRestockedByInput
+  lossRecords?: Prisma.LossRecordUncheckedCreateNestedManyWithoutDeclaredByInput
+}
+
+export type UserCreateOrConnectWithoutStockAdjustmentsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutStockAdjustmentsInput, Prisma.UserUncheckedCreateWithoutStockAdjustmentsInput>
+}
+
+export type UserUpsertWithoutStockAdjustmentsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutStockAdjustmentsInput, Prisma.UserUncheckedUpdateWithoutStockAdjustmentsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutStockAdjustmentsInput, Prisma.UserUncheckedCreateWithoutStockAdjustmentsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutStockAdjustmentsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutStockAdjustmentsInput, Prisma.UserUncheckedUpdateWithoutStockAdjustmentsInput>
+}
+
+export type UserUpdateWithoutStockAdjustmentsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lastFailedPinAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  restockBatches?: Prisma.RestockBatchUpdateManyWithoutRestockedByNestedInput
+  lossRecords?: Prisma.LossRecordUpdateManyWithoutDeclaredByNestedInput
+}
+
+export type UserUncheckedUpdateWithoutStockAdjustmentsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lastFailedPinAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  restockBatches?: Prisma.RestockBatchUncheckedUpdateManyWithoutRestockedByNestedInput
+  lossRecords?: Prisma.LossRecordUncheckedUpdateManyWithoutDeclaredByNestedInput
+}
+
+
+/**
+ * Count Type UserCountOutputType
+ */
+
+export type UserCountOutputType = {
+  restockBatches: number
+  lossRecords: number
+  stockAdjustments: number
+}
+
+export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  restockBatches?: boolean | UserCountOutputTypeCountRestockBatchesArgs
+  lossRecords?: boolean | UserCountOutputTypeCountLossRecordsArgs
+  stockAdjustments?: boolean | UserCountOutputTypeCountStockAdjustmentsArgs
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the UserCountOutputType
+   */
+  select?: Prisma.UserCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountRestockBatchesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.RestockBatchWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountLossRecordsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.LossRecordWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountStockAdjustmentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.StockAdjustmentWhereInput
+}
 
 
 export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -596,6 +987,10 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   lastLoginAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  restockBatches?: boolean | Prisma.User$restockBatchesArgs<ExtArgs>
+  lossRecords?: boolean | Prisma.User$lossRecordsArgs<ExtArgs>
+  stockAdjustments?: boolean | Prisma.User$stockAdjustmentsArgs<ExtArgs>
+  _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
 
 export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -650,10 +1045,22 @@ export type UserSelectScalar = {
 }
 
 export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "email" | "role" | "passwordHash" | "pinHash" | "isActive" | "mustChangePwd" | "failedPinAttempts" | "lastFailedPinAt" | "lockedUntil" | "lastLoginAt" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
+export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  restockBatches?: boolean | Prisma.User$restockBatchesArgs<ExtArgs>
+  lossRecords?: boolean | Prisma.User$lossRecordsArgs<ExtArgs>
+  stockAdjustments?: boolean | Prisma.User$stockAdjustmentsArgs<ExtArgs>
+  _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
+}
+export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
+export type UserIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
 
 export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "User"
-  objects: {}
+  objects: {
+    restockBatches: Prisma.$RestockBatchPayload<ExtArgs>[]
+    lossRecords: Prisma.$LossRecordPayload<ExtArgs>[]
+    stockAdjustments: Prisma.$StockAdjustmentPayload<ExtArgs>[]
+  }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     name: string
@@ -1063,6 +1470,9 @@ readonly fields: UserFieldRefs;
  */
 export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
+  restockBatches<T extends Prisma.User$restockBatchesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$restockBatchesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RestockBatchPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  lossRecords<T extends Prisma.User$lossRecordsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$lossRecordsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$LossRecordPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  stockAdjustments<T extends Prisma.User$stockAdjustmentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$stockAdjustmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$StockAdjustmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1123,6 +1533,10 @@ export type UserFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.Internal
    */
   omit?: Prisma.UserOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.UserInclude<ExtArgs> | null
+  /**
    * Filter, which User to fetch.
    */
   where: Prisma.UserWhereUniqueInput
@@ -1141,6 +1555,10 @@ export type UserFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Extensions.I
    */
   omit?: Prisma.UserOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.UserInclude<ExtArgs> | null
+  /**
    * Filter, which User to fetch.
    */
   where: Prisma.UserWhereUniqueInput
@@ -1158,6 +1576,10 @@ export type UserFindFirstArgs<ExtArgs extends runtime.Types.Extensions.InternalA
    * Omit specific fields from the User
    */
   omit?: Prisma.UserOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.UserInclude<ExtArgs> | null
   /**
    * Filter, which User to fetch.
    */
@@ -1207,6 +1629,10 @@ export type UserFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Extensions.In
    */
   omit?: Prisma.UserOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.UserInclude<ExtArgs> | null
+  /**
    * Filter, which User to fetch.
    */
   where?: Prisma.UserWhereInput
@@ -1254,6 +1680,10 @@ export type UserFindManyArgs<ExtArgs extends runtime.Types.Extensions.InternalAr
    * Omit specific fields from the User
    */
   omit?: Prisma.UserOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.UserInclude<ExtArgs> | null
   /**
    * Filter, which Users to fetch.
    */
@@ -1303,6 +1733,10 @@ export type UserCreateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs
    */
   omit?: Prisma.UserOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.UserInclude<ExtArgs> | null
+  /**
    * The data needed to create a User.
    */
   data: Prisma.XOR<Prisma.UserCreateInput, Prisma.UserUncheckedCreateInput>
@@ -1350,6 +1784,10 @@ export type UserUpdateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs
    * Omit specific fields from the User
    */
   omit?: Prisma.UserOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.UserInclude<ExtArgs> | null
   /**
    * The data needed to update a User.
    */
@@ -1417,6 +1855,10 @@ export type UserUpsertArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs
    */
   omit?: Prisma.UserOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.UserInclude<ExtArgs> | null
+  /**
    * The filter to search for the User to update in case it exists.
    */
   where: Prisma.UserWhereUniqueInput
@@ -1443,6 +1885,10 @@ export type UserDeleteArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs
    */
   omit?: Prisma.UserOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.UserInclude<ExtArgs> | null
+  /**
    * Filter which User to delete.
    */
   where: Prisma.UserWhereUniqueInput
@@ -1463,6 +1909,78 @@ export type UserDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Internal
 }
 
 /**
+ * User.restockBatches
+ */
+export type User$restockBatchesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the RestockBatch
+   */
+  select?: Prisma.RestockBatchSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the RestockBatch
+   */
+  omit?: Prisma.RestockBatchOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.RestockBatchInclude<ExtArgs> | null
+  where?: Prisma.RestockBatchWhereInput
+  orderBy?: Prisma.RestockBatchOrderByWithRelationInput | Prisma.RestockBatchOrderByWithRelationInput[]
+  cursor?: Prisma.RestockBatchWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.RestockBatchScalarFieldEnum | Prisma.RestockBatchScalarFieldEnum[]
+}
+
+/**
+ * User.lossRecords
+ */
+export type User$lossRecordsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the LossRecord
+   */
+  select?: Prisma.LossRecordSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the LossRecord
+   */
+  omit?: Prisma.LossRecordOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.LossRecordInclude<ExtArgs> | null
+  where?: Prisma.LossRecordWhereInput
+  orderBy?: Prisma.LossRecordOrderByWithRelationInput | Prisma.LossRecordOrderByWithRelationInput[]
+  cursor?: Prisma.LossRecordWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.LossRecordScalarFieldEnum | Prisma.LossRecordScalarFieldEnum[]
+}
+
+/**
+ * User.stockAdjustments
+ */
+export type User$stockAdjustmentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the StockAdjustment
+   */
+  select?: Prisma.StockAdjustmentSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the StockAdjustment
+   */
+  omit?: Prisma.StockAdjustmentOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.StockAdjustmentInclude<ExtArgs> | null
+  where?: Prisma.StockAdjustmentWhereInput
+  orderBy?: Prisma.StockAdjustmentOrderByWithRelationInput | Prisma.StockAdjustmentOrderByWithRelationInput[]
+  cursor?: Prisma.StockAdjustmentWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.StockAdjustmentScalarFieldEnum | Prisma.StockAdjustmentScalarFieldEnum[]
+}
+
+/**
  * User without action
  */
 export type UserDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1474,4 +1992,8 @@ export type UserDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArg
    * Omit specific fields from the User
    */
   omit?: Prisma.UserOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.UserInclude<ExtArgs> | null
 }

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/icon";
 import useAuthStore from "@/features/auth/authStore";
 import { logoutRequest } from "@/features/auth/api";
+import { confirm } from "@/components/alerts/ConfirmDialog";
 
 /**
  * AvatarDropdown — user section at bottom of sidebar.
@@ -27,9 +28,18 @@ export default function AvatarDropdown({ collapsed, user }) {
         return () => document.removeEventListener("mousedown", handleClick);
     }, []);
 
+    // logout
     async function handleLogout() {
+        const confirmLogout = await confirm({
+            title: "Logout?",
+            message: "Are you sure you want to logout?",
+            confirmLabel: "Logout",
+            variant: "danger",
+        });
+        if (!confirmLogout) return;
+
         try {
-            await logoutRequest();
+            await logoutRequest()
         } catch {
             // Logout even if request fails
         } finally {
@@ -40,11 +50,11 @@ export default function AvatarDropdown({ collapsed, user }) {
 
     const initials = user?.name
         ? user.name
-              .split(" ")
-              .map((n) => n[0])
-              .join("")
-              .toUpperCase()
-              .slice(0, 2)
+            .split(" ")
+            .map((n) => n[0])
+            .join("")
+            .toUpperCase()
+            .slice(0, 2)
         : "??";
 
     return (
@@ -113,11 +123,10 @@ function DropdownItem({ icon, label, onClick, danger }) {
     return (
         <button
             onClick={onClick}
-            className={`flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-muted ${
-                danger
-                    ? "text-destructive"
-                    : "text-foreground"
-            }`}
+            className={`flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-muted ${danger
+                ? "text-destructive"
+                : "text-foreground"
+                }`}
         >
             <Icon name={icon} size={16} />
             {label}

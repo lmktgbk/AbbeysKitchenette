@@ -27,6 +27,10 @@ model User {
   lastLoginAt       DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
+
+  restockBatches    RestockBatch[]
+  lossRecords       LossRecord[]
+  stockAdjustments  StockAdjustment[]
 }
 
 model SystemSettings {
@@ -46,4 +50,190 @@ enum Role {
   admin
   cashier
   kitchen
+}
+
+// ── Categories ────────────────────────────────────────────────
+model Category {
+  categoryId   Int       @id @default(autoincrement()) @map("category_id")
+  categoryName String    @unique @map("category_name") @db.VarChar(100)
+  description  String?   @db.VarChar(500)
+  sortOrder    Int       @default(0) @map("sort_order")
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  products Product[]
+
+  @@map("categories")
+}
+
+// ── Products ──────────────────────────────────────────────────
+model Product {
+  productId   String   @id @default(uuid()) @map("product_id") @db.Uuid
+  categoryId  Int      @map("category_id")
+  productName String   @map("product_name") @db.VarChar(150)
+  description String?  @db.VarChar(500)
+  imageUrl    String?  @map("image_url")
+  isAvailable Boolean  @default(true) @map("is_available")
+  isArchived  Boolean  @default(false) @map("is_archived")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  category Category @relation(fields: [categoryId], references: [categoryId])
+
+  variants ProductVariant[]
+
+  @@map("products")
+}
+
+// ── Product Variants (sizes with different prices) ────────────
+model ProductVariant {
+  variantId   Int      @id @default(autoincrement()) @map("variant_id")
+  productId   String   @map("product_id") @db.Uuid
+  sizeName    String   @map("size_name") @db.VarChar(50)
+  price       Decimal  @db.Decimal(10, 2)
+  isAvailable Boolean  @default(true) @map("is_available")
+
+  product  Product  @relation(fields: [productId], references: [productId], onDelete: Cascade)
+  recipes  Recipe[]
+
+  @@unique([productId, sizeName])
+  @@map("product_variants")
+}
+
+// ── Ingredients ───────────────────────────────────────────────
+model Ingredient {
+  ingredientId     String   @id @default(uuid()) @map("ingredient_id") @db.Uuid
+  ingredientName   String   @unique @map("ingredient_name") @db.VarChar(150)
+  unit             String   @db.VarChar(50)
+  stockQuantity    Decimal  @default(0) @map("stock_quantity") @db.Decimal(10, 3)
+  minimumThreshold Decimal  @default(0) @map("minimum_threshold") @db.Decimal(10, 3)
+  isArchived       Boolean  @default(false) @map("is_archived")
+  version          Int      @default(0)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  recipes            Recipe[]
+  restockBatches     RestockBatch[]
+  lossRecords        LossRecord[]
+  stockAdjustments   StockAdjustment[]
+  stockAlerts        StockAlert[]
+
+  @@map("ingredients")
+}
+
+// ── Recipe (ingredients per variant) ──────────────────────────
+model Recipe {
+  recipeId       Int     @id @default(autoincrement()) @map("recipe_id")
+  variantId      Int     @map("variant_id")
+  ingredientId   String  @map("ingredient_id") @db.Uuid
+  quantityNeeded Decimal @map("quantity_needed") @db.Decimal(10, 3)
+
+  variant    ProductVariant @relation(fields: [variantId], references: [variantId], onDelete: Cascade)
+  ingredient Ingredient     @relation(fields: [ingredientId], references: [ingredientId])
+
+  @@unique([variantId, ingredientId])
+  @@map("recipes")
+}
+
+// ── Restock Batches ──────────────────────────────────────────
+model RestockBatch {
+  restockId      Int      @id @default(autoincrement()) @map("restock_id")
+  ingredientId   String   @map("ingredient_id") @db.Uuid
+  restockedById  String   @map("restocked_by") @db.Uuid
+  quantityAdded  Decimal  @map("quantity_added") @db.Decimal(10, 3)
+  quantityLeft   Decimal  @map("quantity_left") @db.Decimal(10, 3)
+  costPerUnit    Decimal  @map("cost_per_unit") @db.Decimal(10, 4)
+  totalCost      Decimal  @map("total_cost") @db.Decimal(10, 2)
+  isPriority     Boolean  @default(false) @map("is_priority")
+  version        Int      @default(0)
+  supplierName   String?  @map("supplier_name") @db.VarChar(150)
+  notes          String?  @db.VarChar(500)
+  restockedAt    DateTime @default(now()) @map("restocked_at")
+
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [ingredientId], onDelete: Cascade)
+  restockedBy  User       @relation(fields: [restockedById], references: [id])
+
+  @@map("restock_batches")
+}
+
+// ── Loss Records ─────────────────────────────────────────────
+model LossRecord {
+  lossId           Int      @id @default(autoincrement()) @map("loss_id")
+  ingredientId     String   @map("ingredient_id") @db.Uuid
+  declaredById     String   @map("declared_by") @db.Uuid
+  lossType         LossType @map("loss_type")
+  quantityLost     Decimal  @map("quantity_lost") @db.Decimal(10, 3)
+  costPerUnit      Decimal  @map("cost_per_unit") @db.Decimal(10, 4)
+  totalCostLost    Decimal  @map("total_cost_lost") @db.Decimal(10, 2)
+  relatedRestockId Int?     @map("related_restock_id")
+  notes            String?  @db.VarChar(500)
+  loggedAt         DateTime @default(now()) @map("logged_at")
+
+  ingredient Ingredient @relation(fields: [ingredientId], references: [ingredientId], onDelete: Cascade)
+  declaredBy User       @relation(fields: [declaredById], references: [id])
+
+  @@map("loss_records")
+}
+
+// ── Stock Adjustments (audit trail) ──────────────────────────
+model StockAdjustment {
+  adjustmentId     Int            @id @default(autoincrement()) @map("adjustment_id")
+  ingredientId     String         @map("ingredient_id") @db.Uuid
+  adjustedById     String         @map("adjusted_by") @db.Uuid
+  adjustmentType   AdjustmentType @map("adjustment_type")
+  quantityBefore   Decimal        @map("quantity_before") @db.Decimal(10, 3)
+  quantityChanged  Decimal        @map("quantity_changed") @db.Decimal(10, 3)
+  quantityAfter    Decimal        @map("quantity_after") @db.Decimal(10, 3)
+  relatedOrderId   String?        @map("related_order_id") @db.Uuid
+  relatedRestockId Int?           @map("related_restock_id")
+  relatedLossId    Int?           @map("related_loss_id")
+  notes            String?        @db.VarChar(500)
+  adjustedAt       DateTime       @default(now()) @map("adjusted_at")
+
+  ingredient Ingredient @relation(fields: [ingredientId], references: [ingredientId], onDelete: Cascade)
+  adjustedBy User       @relation(fields: [adjustedById], references: [id])
+
+  @@map("stock_adjustments")
+}
+
+// ── Stock Alerts ─────────────────────────────────────────────
+model StockAlert {
+  alertId        Int       @id @default(autoincrement()) @map("alert_id")
+  ingredientId   String    @map("ingredient_id") @db.Uuid
+  alertType      AlertType @map("alert_type")
+  stockAtTrigger Decimal   @map("stock_at_trigger") @db.Decimal(10, 3)
+  isResolved     Boolean   @default(false) @map("is_resolved")
+  resolvedAt     DateTime? @map("resolved_at")
+  triggeredAt    DateTime  @default(now()) @map("triggered_at")
+
+  ingredient Ingredient @relation(fields: [ingredientId], references: [ingredientId], onDelete: Cascade)
+
+  @@map("stock_alerts")
+}
+
+// ── Enums ─────────────────────────────────────────────────────
+enum LossType {
+  spoilage
+  spillage
+  expiry
+  other
+
+  @@map("loss_type_enum")
+}
+
+enum AdjustmentType {
+  deduction
+  restock
+  loss
+  manual
+
+  @@map("adjustment_type_enum")
+}
+
+enum AlertType {
+  low_stock
+  out_of_stock
+
+  @@map("alert_type_enum")
 }

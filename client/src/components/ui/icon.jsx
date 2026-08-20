@@ -10,6 +10,7 @@ import {
     UtensilsCrossed,
     Menu,
     X,
+    ChevronLeft,
     ChevronDown,
     ChevronRight,
     Heart,
@@ -29,6 +30,10 @@ import {
     Settings,
     LogOut,
     Bell,
+    Search,
+    AlertTriangle,
+    TrendingDown,
+    Lightbulb,
 } from "lucide-react";
 
 const iconMap = {
@@ -43,6 +48,7 @@ const iconMap = {
     utensils: UtensilsCrossed,
     menu: Menu,
     x: X,
+    chevronLeft: ChevronLeft,
     chevronDown: ChevronDown,
     chevronRight: ChevronRight,
     heart: Heart,
@@ -62,6 +68,10 @@ const iconMap = {
     settings: Settings,
     logOut: LogOut,
     bell: Bell,
+    search: Search,
+    alertTriangle: AlertTriangle,
+    trendingDown: TrendingDown,
+    lightbulb: Lightbulb,
 };
 
 /**

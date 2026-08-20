@@ -16,3 +16,31 @@ export const Role = {
 } as const
 
 export type Role = (typeof Role)[keyof typeof Role]
+
+
+export const LossType = {
+  spoilage: 'spoilage',
+  spillage: 'spillage',
+  expiry: 'expiry',
+  other: 'other'
+} as const
+
+export type LossType = (typeof LossType)[keyof typeof LossType]
+
+
+export const AdjustmentType = {
+  deduction: 'deduction',
+  restock: 'restock',
+  loss: 'loss',
+  manual: 'manual'
+} as const
+
+export type AdjustmentType = (typeof AdjustmentType)[keyof typeof AdjustmentType]
+
+
+export const AlertType = {
+  low_stock: 'low_stock',
+  out_of_stock: 'out_of_stock'
+} as const
+
+export type AlertType = (typeof AlertType)[keyof typeof AlertType]

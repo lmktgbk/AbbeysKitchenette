@@ -10,6 +10,8 @@ import errorHandler from "./middleware/errorHandler.middleware.js";
 
 // Routes
 import authRoutes from "./modules/auth/auth.routes.js";
+import categoryRoutes from "./modules/categories/category.routes.js";
+import ingredientRoutes from "./modules/ingredients/ingredient.routes.js";
 
 const app = express();
 
@@ -47,6 +49,8 @@ app.use(cookieParser());
 
 // Routes endpoints
 app.use("/api/auth", authRoutes);
+app.use("/api/categories", categoryRoutes);
+app.use("/api/ingredients", ingredientRoutes);
 
 // Health check endpoint (used by hosting platforms to verify server is running)
 app.get("/api/health", (req, res) => {

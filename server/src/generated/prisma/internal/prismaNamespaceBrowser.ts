@@ -52,7 +52,16 @@ export const AnyNull = runtime.AnyNull
 
 export const ModelName = {
   User: 'User',
-  SystemSettings: 'SystemSettings'
+  SystemSettings: 'SystemSettings',
+  Category: 'Category',
+  Product: 'Product',
+  ProductVariant: 'ProductVariant',
+  Ingredient: 'Ingredient',
+  Recipe: 'Recipe',
+  RestockBatch: 'RestockBatch',
+  LossRecord: 'LossRecord',
+  StockAdjustment: 'StockAdjustment',
+  StockAlert: 'StockAlert'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -105,6 +114,135 @@ export const SystemSettingsScalarFieldEnum = {
 } as const
 
 export type SystemSettingsScalarFieldEnum = (typeof SystemSettingsScalarFieldEnum)[keyof typeof SystemSettingsScalarFieldEnum]
+
+
+export const CategoryScalarFieldEnum = {
+  categoryId: 'categoryId',
+  categoryName: 'categoryName',
+  description: 'description',
+  sortOrder: 'sortOrder',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CategoryScalarFieldEnum = (typeof CategoryScalarFieldEnum)[keyof typeof CategoryScalarFieldEnum]
+
+
+export const ProductScalarFieldEnum = {
+  productId: 'productId',
+  categoryId: 'categoryId',
+  productName: 'productName',
+  description: 'description',
+  imageUrl: 'imageUrl',
+  isAvailable: 'isAvailable',
+  isArchived: 'isArchived',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ProductScalarFieldEnum = (typeof ProductScalarFieldEnum)[keyof typeof ProductScalarFieldEnum]
+
+
+export const ProductVariantScalarFieldEnum = {
+  variantId: 'variantId',
+  productId: 'productId',
+  sizeName: 'sizeName',
+  price: 'price',
+  isAvailable: 'isAvailable'
+} as const
+
+export type ProductVariantScalarFieldEnum = (typeof ProductVariantScalarFieldEnum)[keyof typeof ProductVariantScalarFieldEnum]
+
+
+export const IngredientScalarFieldEnum = {
+  ingredientId: 'ingredientId',
+  ingredientName: 'ingredientName',
+  unit: 'unit',
+  stockQuantity: 'stockQuantity',
+  minimumThreshold: 'minimumThreshold',
+  isArchived: 'isArchived',
+  version: 'version',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type IngredientScalarFieldEnum = (typeof IngredientScalarFieldEnum)[keyof typeof IngredientScalarFieldEnum]
+
+
+export const RecipeScalarFieldEnum = {
+  recipeId: 'recipeId',
+  variantId: 'variantId',
+  ingredientId: 'ingredientId',
+  quantityNeeded: 'quantityNeeded'
+} as const
+
+export type RecipeScalarFieldEnum = (typeof RecipeScalarFieldEnum)[keyof typeof RecipeScalarFieldEnum]
+
+
+export const RestockBatchScalarFieldEnum = {
+  restockId: 'restockId',
+  ingredientId: 'ingredientId',
+  restockedById: 'restockedById',
+  quantityAdded: 'quantityAdded',
+  quantityLeft: 'quantityLeft',
+  costPerUnit: 'costPerUnit',
+  totalCost: 'totalCost',
+  isPriority: 'isPriority',
+  version: 'version',
+  supplierName: 'supplierName',
+  notes: 'notes',
+  restockedAt: 'restockedAt'
+} as const
+
+export type RestockBatchScalarFieldEnum = (typeof RestockBatchScalarFieldEnum)[keyof typeof RestockBatchScalarFieldEnum]
+
+
+export const LossRecordScalarFieldEnum = {
+  lossId: 'lossId',
+  ingredientId: 'ingredientId',
+  declaredById: 'declaredById',
+  lossType: 'lossType',
+  quantityLost: 'quantityLost',
+  costPerUnit: 'costPerUnit',
+  totalCostLost: 'totalCostLost',
+  relatedRestockId: 'relatedRestockId',
+  notes: 'notes',
+  loggedAt: 'loggedAt'
+} as const
+
+export type LossRecordScalarFieldEnum = (typeof LossRecordScalarFieldEnum)[keyof typeof LossRecordScalarFieldEnum]
+
+
+export const StockAdjustmentScalarFieldEnum = {
+  adjustmentId: 'adjustmentId',
+  ingredientId: 'ingredientId',
+  adjustedById: 'adjustedById',
+  adjustmentType: 'adjustmentType',
+  quantityBefore: 'quantityBefore',
+  quantityChanged: 'quantityChanged',
+  quantityAfter: 'quantityAfter',
+  relatedOrderId: 'relatedOrderId',
+  relatedRestockId: 'relatedRestockId',
+  relatedLossId: 'relatedLossId',
+  notes: 'notes',
+  adjustedAt: 'adjustedAt'
+} as const
+
+export type StockAdjustmentScalarFieldEnum = (typeof StockAdjustmentScalarFieldEnum)[keyof typeof StockAdjustmentScalarFieldEnum]
+
+
+export const StockAlertScalarFieldEnum = {
+  alertId: 'alertId',
+  ingredientId: 'ingredientId',
+  alertType: 'alertType',
+  stockAtTrigger: 'stockAtTrigger',
+  isResolved: 'isResolved',
+  resolvedAt: 'resolvedAt',
+  triggeredAt: 'triggeredAt'
+} as const
+
+export type StockAlertScalarFieldEnum = (typeof StockAlertScalarFieldEnum)[keyof typeof StockAlertScalarFieldEnum]
 
 
 export const SortOrder = {

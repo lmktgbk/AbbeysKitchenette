@@ -6,6 +6,7 @@ const variants = {
     destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
     ghost: "hover:bg-muted text-foreground",
     link: "text-primary underline-offset-4 hover:underline",
+    outline: "border border-border bg-transparent hover:bg-muted text-foreground",
 };
 
 const sizes = {

@@ -10,4 +10,13 @@
  */
 export type * from './models/User.ts'
 export type * from './models/SystemSettings.ts'
+export type * from './models/Category.ts'
+export type * from './models/Product.ts'
+export type * from './models/ProductVariant.ts'
+export type * from './models/Ingredient.ts'
+export type * from './models/Recipe.ts'
+export type * from './models/RestockBatch.ts'
+export type * from './models/LossRecord.ts'
+export type * from './models/StockAdjustment.ts'
+export type * from './models/StockAlert.ts'
 export type * from './commonInputTypes.ts'

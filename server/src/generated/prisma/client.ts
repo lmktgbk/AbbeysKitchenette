@@ -51,3 +51,48 @@ export type User = Prisma.UserModel
  * 
  */
 export type SystemSettings = Prisma.SystemSettingsModel
+/**
+ * Model Category
+ * 
+ */
+export type Category = Prisma.CategoryModel
+/**
+ * Model Product
+ * 
+ */
+export type Product = Prisma.ProductModel
+/**
+ * Model ProductVariant
+ * 
+ */
+export type ProductVariant = Prisma.ProductVariantModel
+/**
+ * Model Ingredient
+ * 
+ */
+export type Ingredient = Prisma.IngredientModel
+/**
+ * Model Recipe
+ * 
+ */
+export type Recipe = Prisma.RecipeModel
+/**
+ * Model RestockBatch
+ * 
+ */
+export type RestockBatch = Prisma.RestockBatchModel
+/**
+ * Model LossRecord
+ * 
+ */
+export type LossRecord = Prisma.LossRecordModel
+/**
+ * Model StockAdjustment
+ * 
+ */
+export type StockAdjustment = Prisma.StockAdjustmentModel
+/**
+ * Model StockAlert
+ * 
+ */
+export type StockAlert = Prisma.StockAlertModel

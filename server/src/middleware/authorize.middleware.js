@@ -1,4 +1,4 @@
-import { AppError } from "./errorHandler.js";
+import { AppError } from "./errorHandler.middleware.js";
 
 /**
  * Authorization Middleware

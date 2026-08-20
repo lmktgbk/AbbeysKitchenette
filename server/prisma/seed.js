@@ -108,6 +108,88 @@ async function main() {
 
   console.log("\n  ✓ SystemSettings seeded");
 
+  // Seed categories
+  const categories = [
+    { categoryName: "Coffee", description: "Coffee-based drinks", sortOrder: 1 },
+    { categoryName: "Tea", description: "Tea-based drinks", sortOrder: 2 },
+    { categoryName: "Pastries", description: "Baked goods and pastries", sortOrder: 3 },
+    { categoryName: "Sandwiches", description: "Sandwiches and wraps", sortOrder: 4 },
+    { categoryName: "Rice Meals", description: "Rice-based meals", sortOrder: 5 },
+    { categoryName: "Snacks", description: "Light bites and snacks", sortOrder: 6 },
+    { categoryName: "Drinks", description: "Non-coffee and non-tea beverages", sortOrder: 7 },
+  ];
+
+  for (const cat of categories) {
+    await prisma.category.upsert({
+      where: { categoryName: cat.categoryName },
+      update: { description: cat.description, sortOrder: cat.sortOrder },
+      create: cat,
+    });
+    console.log(`  ✓ Category: ${cat.categoryName}`);
+  }
+
+  // Seed ingredients (admin user for restockedBy/declaredBy/adjustedBy)
+  const adminUser = await prisma.user.findUnique({ where: { email: "admin@abbey.com" } });
+
+  const ingredients = [
+    { ingredientName: "Espresso Beans", unit: "g", stockQuantity: 2000, minimumThreshold: 500, costPerUnit: 1.50 },
+    { ingredientName: "Milk (Fresh)", unit: "ml", stockQuantity: 5000, minimumThreshold: 1000, costPerUnit: 0.05 },
+    { ingredientName: "Sugar", unit: "g", stockQuantity: 3000, minimumThreshold: 500, costPerUnit: 0.02 },
+    { ingredientName: "Tea Leaves (Green)", unit: "g", stockQuantity: 500, minimumThreshold: 100, costPerUnit: 2.00 },
+    { ingredientName: "Tea Leaves (Black)", unit: "g", stockQuantity: 500, minimumThreshold: 100, costPerUnit: 1.80 },
+    { ingredientName: "Bread (Sliced)", unit: "pcs", stockQuantity: 30, minimumThreshold: 10, costPerUnit: 15.00 },
+    { ingredientName: "Cheese", unit: "g", stockQuantity: 1000, minimumThreshold: 200, costPerUnit: 0.50 },
+    { ingredientName: "Ham", unit: "g", stockQuantity: 800, minimumThreshold: 200, costPerUnit: 0.60 },
+    { ingredientName: "Rice", unit: "g", stockQuantity: 5000, minimumThreshold: 1000, costPerUnit: 0.03 },
+    { ingredientName: "Chicken", unit: "g", stockQuantity: 2000, minimumThreshold: 500, costPerUnit: 0.15 },
+    { ingredientName: "Chocolate Syrup", unit: "ml", stockQuantity: 1000, minimumThreshold: 200, costPerUnit: 0.10 },
+    { ingredientName: "Vanilla Syrup", unit: "ml", stockQuantity: 500, minimumThreshold: 100, costPerUnit: 0.12 },
+    { ingredientName: "Whipped Cream", unit: "ml", stockQuantity: 800, minimumThreshold: 200, costPerUnit: 0.08 },
+    { ingredientName: "Flour", unit: "g", stockQuantity: 2000, minimumThreshold: 500, costPerUnit: 0.02 },
+    { ingredientName: "Butter", unit: "g", stockQuantity: 1000, minimumThreshold: 200, costPerUnit: 0.30 },
+    { ingredientName: "Eggs", unit: "pcs", stockQuantity: 30, minimumThreshold: 10, costPerUnit: 8.00 },
+    { ingredientName: "Lettuce", unit: "g", stockQuantity: 500, minimumThreshold: 100, costPerUnit: 0.10 },
+    { ingredientName: "Tomato", unit: "g", stockQuantity: 500, minimumThreshold: 100, costPerUnit: 0.08 },
+    { ingredientName: "Mayonnaise", unit: "ml", stockQuantity: 500, minimumThreshold: 100, costPerUnit: 0.06 },
+    { ingredientName: "Caramel Syrup", unit: "ml", stockQuantity: 300, minimumThreshold: 50, costPerUnit: 0.15 },
+  ];
+
+  for (const ing of ingredients) {
+    const existing = await prisma.ingredient.findUnique({
+      where: { ingredientName: ing.ingredientName },
+    });
+
+    if (!existing) {
+      const created = await prisma.ingredient.create({
+        data: {
+          ingredientName: ing.ingredientName,
+          unit: ing.unit,
+          stockQuantity: ing.stockQuantity,
+          minimumThreshold: ing.minimumThreshold,
+        },
+      });
+
+      // Create a restock batch for each ingredient
+      await prisma.restockBatch.create({
+        data: {
+          ingredientId: created.ingredientId,
+          restockedById: adminUser.id,
+          quantityAdded: ing.stockQuantity,
+          quantityLeft: ing.stockQuantity,
+          costPerUnit: ing.costPerUnit,
+          totalCost: ing.stockQuantity * ing.costPerUnit,
+          isPriority: false,
+          supplierName: "Initial Stock",
+          notes: "Seeded inventory",
+        },
+      });
+
+      console.log(`  ✓ Ingredient: ${ing.ingredientName} (${ing.stockQuantity} ${ing.unit})`);
+    } else {
+      console.log(`  - Ingredient already exists: ${ing.ingredientName}`);
+    }
+  }
+
   console.log("\nSeeding complete!");
   console.log("\n--- Login Credentials ---");
   console.log("Admin:   admin@abbey.com / admin123");

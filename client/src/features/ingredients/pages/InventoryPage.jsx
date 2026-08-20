@@ -1,0 +1,291 @@
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import {
+  createIngredientRequest,
+  updateIngredientRequest,
+  restockIngredientRequest,
+  declareLossRequest,
+  archiveIngredientRequest,
+  restoreIngredientRequest,
+  deleteIngredientRequest,
+} from "../api";
+import { confirm } from "@/components/alerts/ConfirmDialog";
+import KpiCards from "../components/KpiCards";
+import IngredientTable from "../components/IngredientTable";
+import IngredientFormModal from "../components/IngredientFormModal";
+import RestockModal from "../components/RestockModal";
+import LossModal from "../components/LossModal";
+import BatchListModal from "../components/BatchListModal";
+import StockAlerts from "../components/sidebar/StockAlerts";
+import ReorderSuggestions from "../components/sidebar/ReorderSuggestions";
+import WasteInsights from "../components/sidebar/WasteInsights";
+
+/**
+ * InventoryPage
+ *
+ * Main orchestrator for the Inventory module.
+ * Manages state and mutations only — all UI is delegated to child components.
+ *
+ * Layout:
+ * - KpiCards (summary stats)
+ * - IngredientTable (data table with filters and actions)
+ * - Modals (form, restock, loss, batch list)
+ * - Confirmations via SweetAlert2 (archive, restore, delete)
+ */
+export default function InventoryPage() {
+  const queryClient = useQueryClient();
+
+  // ── Modal state ─────────────────────
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [showRestockModal, setShowRestockModal] = useState(false);
+  const [showLossModal, setShowLossModal] = useState(false);
+  const [showBatchModal, setShowBatchModal] = useState(false);
+  const [selectedIngredient, setSelectedIngredient] = useState(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+
+  // ── Mutations ───────────────────────
+
+  const createMutation = useMutation({
+    mutationFn: createIngredientRequest,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ingredients"] });
+      queryClient.invalidateQueries({ queryKey: ["ingredients-summary"] });
+      toast.success("Ingredient created");
+      setShowFormModal(false);
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to create ingredient");
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => updateIngredientRequest(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ingredients"] });
+      toast.success("Ingredient updated");
+      setShowFormModal(false);
+      setSelectedIngredient(null);
+      setIsEditMode(false);
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to update ingredient");
+    },
+  });
+
+  const restockMutation = useMutation({
+    mutationFn: ({ id, data }) => restockIngredientRequest(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ingredients"] });
+      queryClient.invalidateQueries({ queryKey: ["ingredients-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["ingredients-alerts"] });
+      toast.success("Ingredient restocked");
+      setShowRestockModal(false);
+      setSelectedIngredient(null);
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to restock ingredient");
+    },
+  });
+
+  const lossMutation = useMutation({
+    mutationFn: ({ id, data }) => declareLossRequest(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ingredients"] });
+      queryClient.invalidateQueries({ queryKey: ["ingredients-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["ingredients-alerts"] });
+      toast.success("Loss declared");
+      setShowLossModal(false);
+      setSelectedIngredient(null);
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to declare loss");
+    },
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: archiveIngredientRequest,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ingredients"] });
+      queryClient.invalidateQueries({ queryKey: ["ingredients-summary"] });
+      toast.success("Ingredient archived");
+      setSelectedIngredient(null);
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to archive ingredient");
+    },
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: restoreIngredientRequest,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ingredients"] });
+      queryClient.invalidateQueries({ queryKey: ["ingredients-summary"] });
+      toast.success("Ingredient restored");
+      setSelectedIngredient(null);
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to restore ingredient");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteIngredientRequest,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ingredients"] });
+      queryClient.invalidateQueries({ queryKey: ["ingredients-summary"] });
+      toast.success("Ingredient deleted permanently");
+      setSelectedIngredient(null);
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to delete ingredient");
+    },
+  });
+
+  // ── Handlers ────────────────────────
+
+  function handleAdd() {
+    setSelectedIngredient(null);
+    setIsEditMode(false);
+    setShowFormModal(true);
+  }
+
+  function handleEdit(ingredient) {
+    setSelectedIngredient(ingredient);
+    setIsEditMode(true);
+    setShowFormModal(true);
+  }
+
+  function handleRestock(ingredient) {
+    setSelectedIngredient(ingredient);
+    setShowRestockModal(true);
+  }
+
+  function handleLoss(ingredient) {
+    setSelectedIngredient(ingredient);
+    setShowLossModal(true);
+  }
+
+  function handleBatches(ingredient) {
+    setSelectedIngredient(ingredient);
+    setShowBatchModal(true);
+  }
+
+  async function handleArchive(ingredient) {
+    const ok = await confirm({
+      title: "Archive Ingredient?",
+      message: `This will hide "${ingredient.ingredient_name}" from active lists.`,
+      note: "This ingredient can be restored later from the Archived view.",
+      confirmLabel: "Archive",
+      variant: "danger",
+    });
+    if (ok) archiveMutation.mutate(ingredient.ingredient_id);
+  }
+
+  async function handleRestore(ingredient) {
+    const ok = await confirm({
+      title: "Restore Ingredient?",
+      message: `This will restore "${ingredient.ingredient_name}" to active lists.`,
+      note: "The ingredient will reappear in your inventory and can be restocked or used immediately.",
+      confirmLabel: "Restore",
+      variant: "success",
+    });
+    if (ok) restoreMutation.mutate(ingredient.ingredient_id);
+  }
+
+  async function handleDelete(ingredient) {
+    const ok = await confirm({
+      title: "Delete Permanently?",
+      message: `This will permanently delete "${ingredient.ingredient_name}".`,
+      note: "This action cannot be undone. All associated data will be lost.",
+      confirmLabel: "Delete",
+      variant: "danger",
+    });
+    if (ok) deleteMutation.mutate(ingredient.ingredient_id);
+  }
+
+  function handleFormSubmit(data) {
+    if (isEditMode && selectedIngredient) {
+      updateMutation.mutate({ id: selectedIngredient.ingredient_id, data });
+    } else {
+      createMutation.mutate(data);
+    }
+  }
+
+  const isFormLoading = createMutation.isPending || updateMutation.isPending;
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* KPI Summary Cards */}
+      <KpiCards />
+
+      {/* Two-column layout: Table + Sidebar */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
+        {/* Left — Table */}
+        <IngredientTable
+          onAdd={handleAdd}
+          onEdit={handleEdit}
+          onRestock={handleRestock}
+          onLoss={handleLoss}
+          onBatches={handleBatches}
+          onArchive={handleArchive}
+          onRestore={handleRestore}
+          onDelete={handleDelete}
+        />
+
+        {/* Right — Sidebar panels */}
+        <div className="flex flex-col gap-4">
+          <StockAlerts onRestock={handleRestock} />
+          <ReorderSuggestions />
+          <WasteInsights />
+        </div>
+      </div>
+
+      {/* ── Modals ─────────────────────── */}
+
+      {/* Add/Edit Ingredient Modal */}
+      <IngredientFormModal
+        open={showFormModal}
+        onOpenChange={setShowFormModal}
+        ingredient={isEditMode ? selectedIngredient : null}
+        onSubmit={handleFormSubmit}
+        isLoading={isFormLoading}
+      />
+
+      {/* Restock Modal */}
+      <RestockModal
+        open={showRestockModal}
+        onOpenChange={setShowRestockModal}
+        ingredient={selectedIngredient}
+        onSubmit={(data) =>
+          restockMutation.mutate({
+            id: selectedIngredient?.ingredient_id,
+            data,
+          })
+        }
+        isLoading={restockMutation.isPending}
+      />
+
+      {/* Loss Modal */}
+      <LossModal
+        open={showLossModal}
+        onOpenChange={setShowLossModal}
+        ingredient={selectedIngredient}
+        onSubmit={(data) =>
+          lossMutation.mutate({
+            id: selectedIngredient?.ingredient_id,
+            data,
+          })
+        }
+        isLoading={lossMutation.isPending}
+      />
+
+      {/* Batch List Modal */}
+      <BatchListModal
+        open={showBatchModal}
+        onOpenChange={setShowBatchModal}
+        ingredient={selectedIngredient}
+      />
+    </div>
+  );
+}
