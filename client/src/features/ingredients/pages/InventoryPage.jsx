@@ -41,6 +41,7 @@ export default function InventoryPage() {
   const [showRestockModal, setShowRestockModal] = useState(false);
   const [showLossModal, setShowLossModal] = useState(false);
   const [showBatchModal, setShowBatchModal] = useState(false);
+  const [batchModalIngredient, setBatchModalIngredient] = useState(null);
   const [selectedIngredient, setSelectedIngredient] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
 
@@ -167,7 +168,7 @@ export default function InventoryPage() {
   }
 
   function handleBatches(ingredient) {
-    setSelectedIngredient(ingredient);
+    setBatchModalIngredient(ingredient);
     setShowBatchModal(true);
   }
 
@@ -280,12 +281,13 @@ export default function InventoryPage() {
         isLoading={lossMutation.isPending}
       />
 
-      {/* Batch List Modal */}
+      {/* Batches & History Modal */}
       <BatchListModal
         open={showBatchModal}
         onOpenChange={setShowBatchModal}
-        ingredient={selectedIngredient}
+        ingredient={batchModalIngredient}
       />
+
     </div>
   );
 }

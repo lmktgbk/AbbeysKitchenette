@@ -34,6 +34,8 @@ import {
     AlertTriangle,
     TrendingDown,
     Lightbulb,
+    Minus,
+    Edit,
 } from "lucide-react";
 
 const iconMap = {
@@ -72,6 +74,8 @@ const iconMap = {
     alertTriangle: AlertTriangle,
     trendingDown: TrendingDown,
     lightbulb: Lightbulb,
+    minus: Minus,
+    edit: Edit,
 };
 
 /**

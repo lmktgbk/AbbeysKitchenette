@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
 import { DropDown } from "@/components/filters/DropDown";
 
-const DEFAULT_PAGE_SIZE_OPTIONS = [20, 50, 100];
+const DEFAULT_PAGE_SIZE_OPTIONS = [50, 75, 100];
 
 /**
  * Pagination — reusable page navigation with page size selector.

@@ -9,9 +9,9 @@ import api from "@/config/axios";
 
 // ── List & Get ──────────────────────
 
-// GET /api/ingredients — list all ingredients
-export async function getIngredientsRequest() {
-  const res = await api.get("/ingredients");
+// GET /api/ingredients — paginated list with search, filter, sort
+export async function getIngredientsRequest(params = {}) {
+  const res = await api.get("/ingredients", { params });
   return res.data;
 }
 
@@ -22,8 +22,8 @@ export async function getIngredientSummaryRequest() {
 }
 
 // GET /api/ingredients/archived — archived ingredients
-export async function getArchivedIngredientsRequest() {
-  const res = await api.get("/ingredients/archived");
+export async function getArchivedIngredientsRequest(params = {}) {
+  const res = await api.get("/ingredients/archived", { params });
   return res.data;
 }
 
@@ -64,8 +64,8 @@ export async function declareLossRequest(id, data) {
 // ── Batches ─────────────────────────
 
 // GET /api/ingredients/:id/batches — restock batches for an ingredient
-export async function getIngredientBatchesRequest(id) {
-  const res = await api.get(`/ingredients/${id}/batches`);
+export async function getIngredientBatchesRequest(id, params = {}) {
+  const res = await api.get(`/ingredients/${id}/batches`, { params });
   return res.data;
 }
 
@@ -80,13 +80,17 @@ export async function toggleBatchPriorityRequest(id, batchId, isPriority) {
   return res.data;
 }
 
+// PATCH /api/ingredients/:id/batches/follow-fifo — clear all priority flags, restore FIFO
+export async function followFifoRequest(id) {
+  const res = await api.patch(`/ingredients/${id}/batches/follow-fifo`);
+  return res.data;
+}
+
 // ── History ─────────────────────────
 
-// GET /api/ingredients/:id/history — adjustment history
-export async function getAdjustmentHistoryRequest(id, limit = 50) {
-  const res = await api.get(`/ingredients/${id}/history`, {
-    params: { limit },
-  });
+// GET /api/ingredients/:id/history — adjustment history with pagination, search, type filter
+export async function getAdjustmentHistoryRequest(id, params = {}) {
+  const res = await api.get(`/ingredients/${id}/history`, { params });
   return res.data;
 }
 

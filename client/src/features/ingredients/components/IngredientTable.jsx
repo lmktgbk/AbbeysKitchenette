@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getIngredientsRequest, getArchivedIngredientsRequest } from "../api";
+import { getIngredientsRequest, getArchivedIngredientsRequest, getIngredientBatchesRequest } from "../api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/filters/SearchBar";
@@ -8,6 +8,7 @@ import { FilterPill } from "@/components/filters/FilterPill";
 import { DropDown } from "@/components/filters/DropDown";
 import { Skeleton } from "@/components/ui/skeleton";
 import Icon from "@/components/ui/icon";
+import PrimarySpinner from "@/components/ui/spinner";
 import { Pagination } from "@/components/filters/Pagination";
 import {
   Table,
@@ -17,6 +18,7 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
+import { formatDate, formatTime } from "@/lib/date";
 
 const SORTABLE_COLUMNS = [
   { key: "ingredient_name", label: "Ingredient" },
@@ -25,32 +27,6 @@ const SORTABLE_COLUMNS = [
   { key: "minimum_threshold", label: "Min Treshold" },
   { key: "status", label: "Status" },
 ];
-
-function getStatusPriority(ingredient) {
-  if (ingredient.stock_quantity === 0) return 0;
-  if (ingredient.stock_quantity <= ingredient.minimum_threshold) return 1;
-  return 2;
-}
-
-function sortIngredients(ingredients, sortKey, sortDir) {
-  if (!sortKey) return ingredients;
-
-  return [...ingredients].sort((a, b) => {
-    let cmp;
-
-    if (sortKey === "status") {
-      cmp = getStatusPriority(a) - getStatusPriority(b);
-    } else {
-      const aVal = a[sortKey];
-      const bVal = b[sortKey];
-      cmp = typeof aVal === "string"
-        ? aVal.localeCompare(bVal)
-        : (aVal ?? 0) - (bVal ?? 0);
-    }
-
-    return sortDir === "desc" ? -cmp : cmp;
-  });
-}
 
 export default function IngredientTable({
   onRestock,
@@ -68,49 +44,39 @@ export default function IngredientTable({
   const [sortKey, setSortKey] = useState(null);
   const [sortDir, setSortDir] = useState("asc");
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(50);
 
   function toggleExpand(id) {
     setExpandedRow((prev) => (prev === id ? null : id));
   }
 
+  const queryParams = {
+    page: currentPage,
+    limit: pageSize,
+    search: search || undefined,
+    status: statusFilter !== "all" ? statusFilter : undefined,
+    sortBy: sortKey || "ingredient_name",
+    sortDir,
+  };
+
   const { data: ingredientsData, isLoading } = useQuery({
-    queryKey: showArchived ? ["ingredients-archived"] : ["ingredients"],
-    queryFn: showArchived ? getArchivedIngredientsRequest : getIngredientsRequest,
+    queryKey: showArchived
+      ? ["ingredients-archived", queryParams]
+      : ["ingredients", queryParams],
+    queryFn: () =>
+      showArchived
+        ? getArchivedIngredientsRequest(queryParams)
+        : getIngredientsRequest(queryParams),
   });
 
-  const filtered = useMemo(() => {
-    const list = ingredientsData?.data?.ingredients ?? [];
-    const result = list.filter((i) => {
-      const matchesSearch = i.ingredient_name
-        .toLowerCase()
-        .includes(search.toLowerCase());
+  const ingredients = ingredientsData?.data?.ingredients ?? [];
+  const totalItems = ingredientsData?.data?.totalItems ?? 0;
 
-      let matchesStatus = true;
-      if (statusFilter === "out") matchesStatus = i.stock_quantity === 0;
-      else if (statusFilter === "low")
-        matchesStatus =
-          i.stock_quantity > 0 && i.stock_quantity <= i.minimum_threshold;
-      else if (statusFilter === "healthy")
-        matchesStatus = i.stock_quantity > i.minimum_threshold;
-
-      return matchesSearch && matchesStatus;
-    });
-
-    return sortIngredients(result, sortKey, sortDir);
-  }, [ingredientsData, search, statusFilter, sortKey, sortDir]);
-
-  // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [search, statusFilter, showArchived]);
 
-  const paginatedData = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filtered.slice(start, start + pageSize);
-  }, [filtered, currentPage, pageSize]);
-
-  const hasData = ingredientsData?.data?.ingredients?.length > 0;
+  const hasData = totalItems > 0;
   const isRefetching = isLoading && hasData;
 
   function handleSort(key) {
@@ -182,10 +148,14 @@ export default function IngredientTable({
               {SORTABLE_COLUMNS.map((col) => (
                 <TableHead
                   key={col.key}
-                  className={`text-[10px] uppercase tracking-widest ${col.key === "stock_quantity" || col.key === "minimum_threshold" || col.key === "status"
-                    ? "text-center"
-                    : ""
-                    }`}
+                  className={`text-[10px] uppercase tracking-widest ${
+                    col.key === "unit" ||
+                    col.key === "stock_quantity" ||
+                    col.key === "minimum_threshold" ||
+                    col.key === "status"
+                      ? "text-center"
+                      : ""
+                  }`}
                 >
                   <button
                     onClick={() => handleSort(col.key)}
@@ -206,9 +176,9 @@ export default function IngredientTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {!hasData && isLoading ? (
+            {isLoading && !hasData ? (
               <SkeletonRows />
-            ) : filtered.length === 0 ? (
+            ) : ingredients.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                   {search || statusFilter !== "all"
@@ -217,7 +187,7 @@ export default function IngredientTable({
                 </TableCell>
               </TableRow>
             ) : (
-              paginatedData.map((ingredient) => (
+              ingredients.map((ingredient) => (
                 <IngredientRow
                   key={ingredient.ingredient_id}
                   ingredient={ingredient}
@@ -240,7 +210,7 @@ export default function IngredientTable({
       {/* Footer */}
       <Pagination
         currentPage={currentPage}
-        totalItems={filtered.length}
+        totalItems={totalItems}
         pageSize={pageSize}
         onPageChange={setCurrentPage}
         onPageSizeChange={(size) => {
@@ -318,7 +288,7 @@ function IngredientRow({
         <TableCell className="font-medium">
           {ingredient.ingredient_name}
         </TableCell>
-        <TableCell className="text-muted-foreground">{ingredient.unit}</TableCell>
+        <TableCell className="text-center text-muted-foreground">{ingredient.unit}</TableCell>
         <TableCell className={`text-center font-mono font-semibold ${stockColor}`}>
           {stock.toLocaleString()}
         </TableCell>
@@ -363,18 +333,15 @@ function IngredientRow({
 
 /* ── Expanded Row ──────────────────── */
 
-const MOCK_CURRENT_BATCH = {
-  batchNumber: 1,
-  supplierName: "Supplier A",
-  date: "2026-08-15T14:30:00",
-  quantityAdded: 2000,
-  quantityLeft: 800,
-  costPerUnit: 1.50,
-  notes: null,
-};
-
 function ExpandedRow({ ingredient, onRestock, onLoss, onBatches, onArchive, onRestore, onDelete, showArchived }) {
-  const batch = MOCK_CURRENT_BATCH;
+  const { data: batchesData, isLoading } = useQuery({
+    queryKey: ["ingredient-batches", ingredient.ingredient_id],
+    queryFn: () => getIngredientBatchesRequest(ingredient.ingredient_id),
+  });
+
+  const batches = batchesData?.data?.batches ?? [];
+  const activeBatch = batches.find((b) => b.quantity_left > 0) ?? null;
+
   const stock = ingredient.stock_quantity;
   const threshold = ingredient.minimum_threshold;
   const unit = ingredient.unit;
@@ -392,21 +359,21 @@ function ExpandedRow({ ingredient, onRestock, onLoss, onBatches, onArchive, onRe
     statusVariant = "warning";
   }
 
-  const percentRemaining = batch.quantityAdded > 0
-    ? Math.round((batch.quantityLeft / batch.quantityAdded) * 100)
-    : 0;
-  const batchTotalCost = batch.quantityLeft * batch.costPerUnit;
+  const lastRestockStr = activeBatch
+    ? formatDate(activeBatch.restocked_at)
+    : "N/A";
 
-  const restockDate = new Date(batch.date);
-  const dateStr = restockDate.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-  const timeStr = restockDate.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  if (isLoading) {
+    return (
+      <TableRow className="bg-muted/20">
+        <TableCell colSpan={6} className="p-0">
+          <div className="px-6 py-8 flex justify-center">
+            <PrimarySpinner size="sm" />
+          </div>
+        </TableCell>
+      </TableRow>
+    );
+  }
 
   return (
     <TableRow className="bg-muted/20">
@@ -425,33 +392,23 @@ function ExpandedRow({ ingredient, onRestock, onLoss, onBatches, onArchive, onRe
                 <span className="text-muted-foreground">Status</span>
                 <Badge variant={statusVariant}>{statusLabel}</Badge>
               </div>
-              <DetailRow label="Last Restock" value={dateStr} />
+              <DetailRow label="Last Restock" value={lastRestockStr} />
             </div>
 
             {/* Right — Current Batch + Actions */}
             <div className="w-full lg:w-2/3 space-y-5">
-              {/* Current Batch */}
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
-                  Current Batch
-                </p>
-                <div className="rounded-lg border border-border p-4 space-y-3">
-                  <DetailRow label="Batch No." value={`#${batch.batchNumber}`} />
-                  <DetailRow label="Stock Added" value={`${batch.quantityAdded.toLocaleString()} ${unit}`} />
-                  <DetailRow
-                    label="Remaining Stock"
-                    value={`${batch.quantityLeft.toLocaleString()} ${unit} (${percentRemaining}%)`}
-                  />
-                  <DetailRow label="Cost per Unit" value={`₱${batch.costPerUnit.toFixed(2)}/${unit}`} />
-                  <DetailRow
-                    label="Total Cost"
-                    value={`₱${batchTotalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                  />
-                  <DetailRow label="Supplier Name" value={batch.supplierName || "N/A"} />
-                  <DetailRow label="Notes" value={batch.notes || "N/A"} />
-                  <DetailRow label="Restock Date & Time" value={`${dateStr} · ${timeStr}`} />
+              {activeBatch ? (
+                <CurrentBatch batch={activeBatch} unit={unit} />
+              ) : (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
+                    Current Batch
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    No restock batches yet. Use Restock to add inventory.
+                  </p>
                 </div>
-              </div>
+              )}
 
               {/* Actions */}
               <div className="border-t border-border pt-4">
@@ -507,6 +464,43 @@ function ExpandedRow({ ingredient, onRestock, onLoss, onBatches, onArchive, onRe
         </div>
       </TableCell>
     </TableRow>
+  );
+}
+
+/* ── Current Batch ──────────────────── */
+
+function CurrentBatch({ batch, unit }) {
+  const percentRemaining = batch.quantity_added > 0
+    ? Math.round((batch.quantity_left / batch.quantity_added) * 100)
+    : 0;
+
+  const batchTotalCost = batch.quantity_left * batch.cost_per_unit;
+
+  const restockDate = new Date(batch.restocked_at);
+  const dateStr = formatDate(restockDate);
+  const timeStr = formatTime(restockDate);
+
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
+        Current Batch
+      </p>
+      <div className="rounded-lg border border-border p-4 space-y-3">
+        <DetailRow label="Stock Added" value={`${batch.quantity_added.toLocaleString()} ${unit}`} />
+        <DetailRow
+          label="Remaining Stock"
+          value={`${batch.quantity_left.toLocaleString()} ${unit} (${percentRemaining}%)`}
+        />
+        <DetailRow label="Cost per Unit" value={`₱${batch.cost_per_unit.toFixed(2)}/${unit}`} />
+        <DetailRow
+          label="Total Cost"
+          value={`₱${batchTotalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+        />
+        <DetailRow label="Supplier Name" value={batch.supplier_name || "N/A"} />
+        <DetailRow label="Notes" value={batch.notes || "N/A"} />
+        <DetailRow label="Restock Date & Time" value={`${dateStr} · ${timeStr}`} />
+      </div>
+    </div>
   );
 }
 

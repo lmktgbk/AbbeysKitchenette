@@ -83,7 +83,7 @@ export default function RestockModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogClose onClick={handleClose} />
         <DialogHeader>
           <DialogTitle>Restock Ingredient</DialogTitle>
@@ -98,7 +98,7 @@ export default function RestockModal({
           className="flex flex-col gap-4"
         >
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-foreground">
+            <label className="mb-1.5 block text-sm font-semibold text-foreground">
               Ingredient
             </label>
             <div className="flex h-10 w-full items-center rounded-lg border border-input bg-muted/50 px-3 text-sm text-muted-foreground">
@@ -107,8 +107,8 @@ export default function RestockModal({
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-foreground">
-              Quantity Added * ({ingredient.unit})
+            <label className="mb-1.5 block text-sm font-semibold text-foreground">
+              Quantity Added ({ingredient.unit})
             </label>
             <Input
               type="number"
@@ -121,8 +121,8 @@ export default function RestockModal({
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-foreground">
-              Total Cost (₱) *
+            <label className="mb-1.5 block text-sm font-semibold text-foreground">
+              Total Cost (₱)
             </label>
             <Input
               type="number"
@@ -140,7 +140,7 @@ export default function RestockModal({
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-foreground">
+            <label className="mb-1.5 block text-sm font-semibold text-foreground">
               Supplier Name
             </label>
             <Input
@@ -151,7 +151,7 @@ export default function RestockModal({
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-foreground">
+            <label className="mb-1.5 block text-sm font-semibold text-foreground">
               Notes
             </label>
             <Textarea

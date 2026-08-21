@@ -43,7 +43,7 @@ export default function KpiCards() {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       <StatCard label="Total Items" value={summary.total} />
-      <StatCard label="Total Value" value="--" prefix="₱" />
+      <StatCard label="Total Value" value="0" prefix="₱" />
       <RingCard
         label="Healthy"
         count={summary.healthy}

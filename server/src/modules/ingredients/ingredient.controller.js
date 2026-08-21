@@ -29,12 +29,22 @@ function handleError(res, error, fallbackCode) {
 export const ingredientController = {
   /**
    * GET /api/ingredients
-   * Return all non-archived ingredients with stock info.
+   * Return paginated non-archived ingredients with stock info.
+   * Query params: page, limit, search, status, sortBy, sortDir
+   * Response: { ingredients: [...], totalItems: number }
    */
   async getIngredients(req, res) {
     try {
-      const ingredients = await ingredientService.getAll();
-      return successResponse(res, "Ingredients retrieved", { ingredients });
+      const { page, limit, search, status, sortBy, sortDir } = req.validatedQuery;
+      const result = await ingredientService.getAll({
+        page: Number(page),
+        limit: Number(limit),
+        search,
+        status,
+        sortBy,
+        sortDir,
+      });
+      return successResponse(res, "Ingredients retrieved", result);
     } catch (error) {
       return handleError(res, error, "GET_INGREDIENTS_ERROR");
     }
@@ -68,15 +78,107 @@ export const ingredientController = {
   },
 
   /**
+   * POST /api/ingredients/:id/restock
+   * Restock an ingredient — adds stock via a new FIFO batch.
+   */
+  async restockIngredient(req, res) {
+    try {
+      const ingredient = await ingredientService.restock(
+        req.params.id,
+        req.body,
+        req.user.id,
+      );
+      return successResponse(res, "Stock restocked", { ingredient });
+    } catch (error) {
+      return handleError(res, error, "RESTOCK_INGREDIENT_ERROR");
+    }
+  },
+
+  /**
    * GET /api/ingredients/archived
-   * Return all archived ingredients.
+   * Return archived ingredients with pagination, search, sort.
    */
   async getArchivedIngredients(req, res) {
     try {
-      const ingredients = await ingredientService.getArchived();
-      return successResponse(res, "Archived ingredients retrieved", { ingredients });
+      const { page, limit, search, sortBy, sortDir } = req.validatedQuery;
+      const result = await ingredientService.getArchived({
+        page: Number(page),
+        limit: Number(limit),
+        search,
+        sortBy,
+        sortDir,
+      });
+      return successResponse(res, "Archived ingredients retrieved", result);
     } catch (error) {
       return handleError(res, error, "GET_ARCHIVED_ERROR");
+    }
+  },
+
+  /**
+   * GET /api/ingredients/:id/batches
+   * Return paginated restock batches for an ingredient.
+   */
+  async getBatches(req, res) {
+    try {
+      const { page, limit, search } = req.validatedQuery;
+      const result = await ingredientService.getBatches(req.params.id, {
+        page: Number(page),
+        limit: Number(limit),
+        search,
+      });
+      return successResponse(res, "Batches retrieved", result);
+    } catch (error) {
+      return handleError(res, error, "GET_BATCHES_ERROR");
+    }
+  },
+
+  /**
+   * GET /api/ingredients/:id/history
+   * Return paginated stock adjustment history for an ingredient.
+   * Supports search (notes, adjuster name, date) and type filter.
+   */
+  async getHistory(req, res) {
+    try {
+      const { page, limit, search, type } = req.validatedQuery;
+      const result = await ingredientService.getHistory(req.params.id, {
+        page: Number(page),
+        limit: Number(limit),
+        search,
+        type,
+      });
+      return successResponse(res, "History retrieved", result);
+    } catch (error) {
+      return handleError(res, error, "GET_HISTORY_ERROR");
+    }
+  },
+
+  /**
+   * PATCH /api/ingredients/:id/batches/:batchId/priority
+   * Toggle priority (star) on a batch. Enforces single-star rule.
+   */
+  async toggleBatchPriority(req, res) {
+    try {
+      const batch = await ingredientService.toggleBatchPriority(
+        req.params.id,
+        Number(req.params.batchId),
+        req.body.is_priority,
+      );
+      return successResponse(res, "Batch priority updated", { batch });
+    } catch (error) {
+      return handleError(res, error, "TOGGLE_PRIORITY_ERROR");
+    }
+  },
+
+  /**
+   * PATCH /api/ingredients/:id/batches/follow-fifo
+   * Clear all priority flags — return to natural FIFO order.
+   */
+  async followFifo(req, res) {
+    try {
+      const result = await ingredientService.followFifo(req.params.id);
+      return successResponse(res, "FIFO order restored", result);
+    } catch (error) {
+      return handleError(res, error, "FOLLOW_FIFO_ERROR");
     }
   },
 
