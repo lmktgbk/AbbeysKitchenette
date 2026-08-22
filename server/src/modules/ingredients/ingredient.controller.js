@@ -78,6 +78,19 @@ export const ingredientController = {
   },
 
   /**
+   * PATCH /api/ingredients/:id
+   * Update ingredient name and/or minimum threshold.
+   */
+  async updateIngredient(req, res) {
+    try {
+      const ingredient = await ingredientService.update(req.params.id, req.body);
+      return successResponse(res, "Ingredient updated", { ingredient });
+    } catch (error) {
+      return handleError(res, error, "UPDATE_INGREDIENT_ERROR");
+    }
+  },
+
+  /**
    * POST /api/ingredients/:id/restock
    * Restock an ingredient — adds stock via a new FIFO batch.
    */
@@ -91,6 +104,23 @@ export const ingredientController = {
       return successResponse(res, "Stock restocked", { ingredient });
     } catch (error) {
       return handleError(res, error, "RESTOCK_INGREDIENT_ERROR");
+    }
+  },
+
+  /**
+   * POST /api/ingredients/:id/loss
+   * Declare a loss — deducts stock from a specific batch or via FIFO.
+   */
+  async declareLoss(req, res) {
+    try {
+      const ingredient = await ingredientService.declareLoss(
+        req.params.id,
+        req.body,
+        req.user.id,
+      );
+      return successResponse(res, "Loss declared", { ingredient });
+    } catch (error) {
+      return handleError(res, error, "DECLARE_LOSS_ERROR");
     }
   },
 

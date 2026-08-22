@@ -1,4 +1,4 @@
-import prisma from "../../config/prisma.js";
+import prisma, { Prisma } from "../../config/prisma.js";
 
 /**
  * Ingredient Repository
@@ -21,42 +21,168 @@ export const ingredientRepository = {
     });
   },
 
+  /* ── Paginated Queries (SQL-Level) ──── */
+
   /**
-   * Find all non-archived ingredients.
-   * Ordered by name ascending.
-   * @returns {Array<object>} - list of ingredients
+   * SQL subquery that computes total stock from active batches.
+   * Replaces the removed stock_quantity column on ingredients.
+   * @returns {Prisma.Sql}
    */
-  async findAll() {
-    return prisma.ingredient.findMany({
-      where: { isArchived: false },
-      orderBy: { ingredientName: "asc" },
-    });
+  _stockSubquery() {
+    return Prisma.sql`(SELECT COALESCE(SUM(rb.quantity_left), 0) FROM restock_batches rb WHERE rb.ingredient_id = i.ingredient_id AND rb.quantity_left > 0)`;
   },
 
   /**
-   * Count ingredients by stock status.
+   * Build the status CASE WHEN expression for SQL queries.
+   * @returns {Prisma.Sql}
+   */
+  _statusCase() {
+    return Prisma.sql`(
+      CASE
+        WHEN ${this._stockSubquery()} <= 0 THEN 'out_of_stock'
+        WHEN ${this._stockSubquery()} <= i.minimum_threshold THEN 'low_stock'
+        ELSE 'healthy'
+      END
+    )`;
+  },
+
+  /**
+   * Build WHERE clause for non-archived ingredients.
+   * @param {string} search - search term
+   * @param {string} status - status filter
+   * @returns {Prisma.Sql}
+   */
+  _buildActiveWhere(search, status) {
+    const conditions = [Prisma.sql`i.is_archived = false`];
+
+    if (search) {
+      conditions.push(Prisma.sql`i.ingredient_name ILIKE ${`%${search}%`}`);
+    }
+
+    if (status && status !== "all") {
+      const statusMap = { healthy: "healthy", low: "low_stock", out: "out_of_stock" };
+      conditions.push(Prisma.sql`${this._statusCase()} = ${statusMap[status] || status}`);
+    }
+
+    return Prisma.sql`WHERE ${Prisma.join(conditions, Prisma.sql` AND `)}`;
+  },
+
+  /**
+   * Build ORDER BY clause for active ingredients.
+   * @param {string} sortBy
+   * @param {string} sortDir
+   * @returns {Prisma.Sql}
+   */
+  _buildActiveOrderBy(sortBy, sortDir) {
+    const dir = sortDir === "desc" ? Prisma.sql`DESC` : Prisma.sql`ASC`;
+    const stockExpr = this._stockSubquery();
+    const sortMap = {
+      ingredient_name: Prisma.sql`i.ingredient_name ${dir}`,
+      unit: Prisma.sql`i.unit ${dir}`,
+      stock_quantity: Prisma.sql`(${stockExpr}) ${dir}`,
+      minimum_threshold: Prisma.sql`i.minimum_threshold ${dir}`,
+      status: Prisma.sql`CASE WHEN ${stockExpr} <= 0 THEN 3 WHEN ${stockExpr} <= i.minimum_threshold THEN 2 ELSE 1 END ${dir}, i.ingredient_name ASC`,
+    };
+    return sortMap[sortBy] || Prisma.sql`i.ingredient_name ASC`;
+  },
+
+  /**
+   * Fetch paginated non-archived ingredients with SQL-level search, status filter, and sort.
+   * @param {object} params - { skip, take, search, status, sortBy, sortDir }
+   * @returns {Array<object>}
+   */
+  async findManyPaginated({ skip, take, search, status, sortBy, sortDir }) {
+    const where = this._buildActiveWhere(search, status);
+    const orderBy = this._buildActiveOrderBy(sortBy, sortDir);
+
+    return prisma.$queryRaw`
+      SELECT
+        i.ingredient_id, i.ingredient_name, i.unit,
+        ${this._stockSubquery()} AS stock_quantity,
+        i.minimum_threshold, i.is_archived,
+        i.version, i.created_at, i.updated_at,
+        ${this._statusCase()} AS status
+      FROM ingredients i
+      ${where}
+      ORDER BY ${orderBy}
+      LIMIT ${take} OFFSET ${skip}
+    `;
+  },
+
+  /**
+   * Count non-archived ingredients matching filters.
+   * @param {object} params - { search, status }
+   * @returns {number}
+   */
+  async countFiltered({ search, status }) {
+    const where = this._buildActiveWhere(search, status);
+    const result = await prisma.$queryRaw`SELECT COUNT(*)::int AS count FROM ingredients i ${where}`;
+    return result[0]?.count ?? 0;
+  },
+
+  /**
+   * Fetch paginated archived ingredients with SQL-level search and sort.
+   * @param {object} params - { skip, take, search, sortBy, sortDir }
+   * @returns {Array<object>}
+   */
+  async findManyArchivedPaginated({ skip, take, search, sortBy, sortDir }) {
+    const conditions = [Prisma.sql`i.is_archived = true`];
+    if (search) conditions.push(Prisma.sql`i.ingredient_name ILIKE ${`%${search}%`}`) ;
+    const where = Prisma.sql`WHERE ${Prisma.join(conditions, Prisma.sql` AND `)}`;
+
+    const stockExpr = this._stockSubquery();
+    const sortMap = {
+      ingredient_name: Prisma.sql`i.ingredient_name`,
+      unit: Prisma.sql`i.unit`,
+      stock_quantity: Prisma.sql`(${stockExpr})`,
+      minimum_threshold: Prisma.sql`i.minimum_threshold`,
+    };
+    const orderByCol = sortMap[sortBy] || Prisma.sql`i.ingredient_name`;
+    const orderByDir = sortDir === "desc" ? Prisma.sql`DESC` : Prisma.sql`ASC`;
+
+    return prisma.$queryRaw`
+      SELECT
+        i.ingredient_id, i.ingredient_name, i.unit,
+        ${this._stockSubquery()} AS stock_quantity,
+        i.minimum_threshold, i.is_archived,
+        i.version, i.created_at, i.updated_at
+      FROM ingredients i
+      ${where}
+      ORDER BY ${orderByCol} ${orderByDir}
+      LIMIT ${take} OFFSET ${skip}
+    `;
+  },
+
+  /**
+   * Count archived ingredients matching search filter.
+   * @param {object} params - { search }
+   * @returns {number}
+   */
+  async countArchivedFiltered({ search }) {
+    const conditions = [Prisma.sql`i.is_archived = true`];
+    if (search) conditions.push(Prisma.sql`i.ingredient_name ILIKE ${`%${search}%`}`) ;
+    const where = Prisma.sql`WHERE ${Prisma.join(conditions, Prisma.sql` AND `)}`;
+    const result = await prisma.$queryRaw`SELECT COUNT(*)::int AS count FROM ingredients i ${where}`;
+    return result[0]?.count ?? 0;
+  },
+
+  /**
+   * Count ingredients by stock status using SQL aggregation.
    * Used by the summary endpoint for KPI cards.
    * @returns {{ total: number, healthy: number, low: number, out: number }}
    */
   async countByStatus() {
-    const all = await prisma.ingredient.findMany({
-      where: { isArchived: false },
-      select: { stockQuantity: true, minimumThreshold: true },
-    });
-
-    let healthy = 0;
-    let low = 0;
-    let out = 0;
-
-    for (const i of all) {
-      const stock = Number(i.stockQuantity);
-      const threshold = Number(i.minimumThreshold);
-      if (stock === 0) out++;
-      else if (stock <= threshold) low++;
-      else healthy++;
-    }
-
-    return { total: all.length, healthy, low, out };
+    const stockExpr = this._stockSubquery();
+    const result = await prisma.$queryRaw`
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE ${stockExpr} > i.minimum_threshold)::int AS healthy,
+        COUNT(*) FILTER (WHERE ${stockExpr} > 0 AND ${stockExpr} <= i.minimum_threshold)::int AS low,
+        COUNT(*) FILTER (WHERE ${stockExpr} <= 0)::int AS out
+      FROM ingredients i
+      WHERE i.is_archived = false
+    `;
+    return { total: result[0].total, healthy: result[0].healthy, low: result[0].low, out: result[0].out };
   },
 
   /* ── Mutations ───────────────────────── */
@@ -70,6 +196,20 @@ export const ingredientRepository = {
    */
   async create(data) {
     return prisma.ingredient.create({
+      data,
+    });
+  },
+
+  /**
+   * Update an ingredient (name and/or minimum_threshold only).
+   * Unit is intentionally excluded to protect data integrity.
+   * @param {string} id - ingredient UUID
+   * @param {object} data - { ingredientName?, minimumThreshold? }
+   * @returns {object} - updated ingredient
+   */
+  async update(id, data) {
+    return prisma.ingredient.update({
+      where: { ingredientId: id },
       data,
     });
   },
@@ -89,16 +229,7 @@ export const ingredientRepository = {
 
   /* ── Archived ────────────────────────── */
 
-  /**
-   * Find all archived ingredients.
-   * @returns {Array<object>}
-   */
-  async findArchived() {
-    return prisma.ingredient.findMany({
-      where: { isArchived: true },
-      orderBy: { ingredientName: "asc" },
-    });
-  },
+  // findArchived() replaced by findManyArchivedPaginated() and countArchivedFiltered()
 
   /* ── Relationship Checks ─────────────── */
 
@@ -185,6 +316,25 @@ export const ingredientRepository = {
     return result;
   },
 
+  /* ── Stock Computation ───────────────── */
+
+  /**
+   * Compute total stock for an ingredient by summing active batch quantities.
+   * Replaces the removed stock_quantity column on ingredients.
+   * @param {string} ingredientId - ingredient UUID
+   * @param {object} [tx] - optional Prisma transaction client
+   * @returns {number} - sum of quantityLeft across active batches
+   */
+  async getStockFromBatches(ingredientId, tx) {
+    const client = tx || prisma;
+    const result = await client.$queryRaw`
+      SELECT COALESCE(SUM(quantity_left), 0)::decimal AS total_stock
+      FROM restock_batches
+      WHERE ingredient_id = ${ingredientId} AND quantity_left > 0
+    `;
+    return Number(result[0]?.total_stock ?? 0);
+  },
+
   /* ── Restock ─────────────────────────── */
 
   /**
@@ -201,7 +351,7 @@ export const ingredientRepository = {
 
   /**
    * Read the current version number of an ingredient.
-   * Used for optimistic locking — if another process修改s the ingredient
+   * Used for optimistic locking — if another process modified the ingredient
    * between this read and the subsequent increment, the version won't match.
    * @param {string} id - ingredient UUID
    * @param {object} [tx] - optional Prisma transaction client
@@ -213,28 +363,6 @@ export const ingredientRepository = {
       where: { ingredientId: id },
       select: { version: true },
     });
-  },
-
-  /**
-   * Increment stock only if the version number still matches.
-   * Returns false if another process modified the ingredient (concurrent conflict).
-   * Uses updateMany with a WHERE clause — Prisma's way of doing conditional updates.
-   * @param {string} id - ingredient UUID
-   * @param {number} increment - amount to add to stockQuantity
-   * @param {number} expectedVersion - version read before this operation
-   * @param {object} [tx] - optional Prisma transaction client
-   * @returns {boolean} - true if update succeeded, false if version conflict
-   */
-  async incrementStockChecked(id, increment, expectedVersion, tx) {
-    const client = tx || prisma;
-    const result = await client.ingredient.updateMany({
-      where: { ingredientId: id, version: expectedVersion },
-      data: {
-        stockQuantity: { increment },
-        version: { increment: 1 },
-      },
-    });
-    return result.count > 0;
   },
 
   /**
@@ -293,7 +421,7 @@ export const ingredientRepository = {
    * @param {object} options - { skip, take, search, type }
    * @returns {Array<object>} - paginated StockAdjustment records with adjustedBy.name
    */
-  async findHistoryByIngredientIdPaginated(id, { skip, take, search, type }) {
+  async findHistoryByIngredientIdPaginated(id, { skip, take, search, type, sortBy = "adjustedAt", sortDir = "desc" }) {
     const where = { ingredientId: id };
 
     // Step 1: Type filter — restrict to a specific adjustment type
@@ -321,12 +449,21 @@ export const ingredientRepository = {
       where.OR = orFilters;
     }
 
+    // Map sortBy to Prisma column name
+    const columnMap = {
+      adjustedAt: "adjustedAt",
+      type: "adjustmentType",
+      quantity_changed: "quantityChanged",
+    };
+
+    const column = columnMap[sortBy] || "adjustedAt";
+
     return prisma.stockAdjustment.findMany({
       where,
       include: {
         adjustedBy: { select: { name: true } },
       },
-      orderBy: { adjustedAt: "desc" },
+      orderBy: { [column]: sortDir },
       skip,
       take,
     });
@@ -455,7 +592,7 @@ export const ingredientRepository = {
    * @param {object} options - { skip, take, search }
    * @returns {Array<object>} - paginated RestockBatch records
    */
-  async findBatchesByIngredientIdPaginated(id, { skip, take, search }) {
+  async findBatchesByIngredientIdPaginated(id, { skip, take, search, sortBy = "restocked_at", sortDir = "asc" }) {
     const where = { ingredientId: id };
 
     if (search) {
@@ -471,9 +608,28 @@ export const ingredientRepository = {
       where.OR = orFilters;
     }
 
+    // Map sortBy to Prisma column name
+    const columnMap = {
+      restocked_at: "restockedAt",
+      quantity_left: "quantityLeft",
+      cost_per_unit: "costPerUnit",
+      total_cost: null,
+    };
+
+    const orderBy = [{ isPriority: "desc" }];
+
+    if (sortBy === "total_cost") {
+      // total_cost is computed (quantityLeft * costPerUnit) — sort by quantityLeft as approximation
+      orderBy.push({ quantityLeft: sortDir });
+      orderBy.push({ costPerUnit: sortDir });
+    } else {
+      const column = columnMap[sortBy] || "restockedAt";
+      orderBy.push({ [column]: sortDir });
+    }
+
     return prisma.restockBatch.findMany({
       where,
-      orderBy: [{ isPriority: "desc" }, { restockedAt: "asc" }],
+      orderBy,
       skip,
       take,
     });
@@ -492,6 +648,21 @@ export const ingredientRepository = {
   },
 
   /**
+   * Find the batch with isPriority = true for an ingredient.
+   * Returns the batch record with quantityLeft and version for depletion checks.
+   * @param {string} ingredientId - ingredient UUID
+   * @param {object} [tx] - optional Prisma transaction client
+   * @returns {object|null} - RestockBatch with restockId, quantityLeft, isPriority, or null
+   */
+  async findPriorityBatch(ingredientId, tx) {
+    const client = tx || prisma;
+    return client.restockBatch.findFirst({
+      where: { ingredientId, isPriority: true },
+      select: { restockId: true, quantityLeft: true, isPriority: true },
+    });
+  },
+
+  /**
    * Find the FIFO leader — the oldest active batch with remaining stock.
    * When no priority is set, this batch gets the highlighted star.
    * @param {string} ingredientId - ingredient UUID
@@ -504,6 +675,62 @@ export const ingredientRepository = {
       select: { restockId: true },
     });
     return batch ? batch.restockId : null;
+  },
+
+  /* ── Loss Declaration ─────────────────── */
+
+  /**
+   * Fetch active batches for FIFO deduction — only batches with remaining stock.
+   * Ordered by priority first, then oldest first (FIFO).
+   * Used by declareLoss to deduct stock across batches in order.
+   * @param {string} ingredientId - ingredient UUID
+   * @param {object} [tx] - optional Prisma transaction client
+   * @returns {Array<object>} - active RestockBatch records with version for optimistic locking
+   */
+  async findActiveBatchesFifo(ingredientId, tx) {
+    const client = tx || prisma;
+    return client.restockBatch.findMany({
+      where: { ingredientId, quantityLeft: { gt: 0 } },
+      orderBy: [{ isPriority: "desc" }, { restockedAt: "asc" }],
+      select: {
+        restockId: true,
+        quantityLeft: true,
+        costPerUnit: true,
+        isPriority: true,
+        version: true,
+      },
+    });
+  },
+
+  /**
+   * Decrement a batch's quantityLeft with optimistic locking.
+   * Throws if version mismatch (concurrent modification).
+   * @param {number} restockId - batch ID
+   * @param {number} decrement - amount to subtract from quantityLeft
+   * @param {number} expectedVersion - version read before this operation
+   * @param {object} [tx] - optional Prisma transaction client
+   * @returns {object} - updated RestockBatch
+   */
+  async decrementBatchQuantity(restockId, decrement, expectedVersion, tx) {
+    const client = tx || prisma;
+    return client.restockBatch.update({
+      where: { restockId, version: expectedVersion },
+      data: {
+        quantityLeft: { decrement },
+        version: { increment: 1 },
+      },
+    });
+  },
+
+  /**
+   * Create a loss record (audit trail for stock loss).
+   * @param {object} data - { ingredientId, declaredById, lossType, quantityLost, costPerUnit, totalCostLost, relatedRestockId?, notes? }
+   * @param {object} [tx] - optional Prisma transaction client
+   * @returns {object} - created LossRecord
+   */
+  async createLossLog(data, tx) {
+    const client = tx || prisma;
+    return client.lossRecord.create({ data });
   },
 
   /* ── Archive & Delete ────────────────── */

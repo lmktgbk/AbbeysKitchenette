@@ -132,26 +132,26 @@ async function main() {
   const adminUser = await prisma.user.findUnique({ where: { email: "admin@abbey.com" } });
 
   const ingredients = [
-    { ingredientName: "Espresso Beans", unit: "g", stockQuantity: 2000, minimumThreshold: 500, costPerUnit: 1.50 },
-    { ingredientName: "Milk (Fresh)", unit: "ml", stockQuantity: 5000, minimumThreshold: 1000, costPerUnit: 0.05 },
-    { ingredientName: "Sugar", unit: "g", stockQuantity: 3000, minimumThreshold: 500, costPerUnit: 0.02 },
-    { ingredientName: "Tea Leaves (Green)", unit: "g", stockQuantity: 500, minimumThreshold: 100, costPerUnit: 2.00 },
-    { ingredientName: "Tea Leaves (Black)", unit: "g", stockQuantity: 500, minimumThreshold: 100, costPerUnit: 1.80 },
-    { ingredientName: "Bread (Sliced)", unit: "pcs", stockQuantity: 30, minimumThreshold: 10, costPerUnit: 15.00 },
-    { ingredientName: "Cheese", unit: "g", stockQuantity: 1000, minimumThreshold: 200, costPerUnit: 0.50 },
-    { ingredientName: "Ham", unit: "g", stockQuantity: 800, minimumThreshold: 200, costPerUnit: 0.60 },
-    { ingredientName: "Rice", unit: "g", stockQuantity: 5000, minimumThreshold: 1000, costPerUnit: 0.03 },
-    { ingredientName: "Chicken", unit: "g", stockQuantity: 2000, minimumThreshold: 500, costPerUnit: 0.15 },
-    { ingredientName: "Chocolate Syrup", unit: "ml", stockQuantity: 1000, minimumThreshold: 200, costPerUnit: 0.10 },
-    { ingredientName: "Vanilla Syrup", unit: "ml", stockQuantity: 500, minimumThreshold: 100, costPerUnit: 0.12 },
-    { ingredientName: "Whipped Cream", unit: "ml", stockQuantity: 800, minimumThreshold: 200, costPerUnit: 0.08 },
-    { ingredientName: "Flour", unit: "g", stockQuantity: 2000, minimumThreshold: 500, costPerUnit: 0.02 },
-    { ingredientName: "Butter", unit: "g", stockQuantity: 1000, minimumThreshold: 200, costPerUnit: 0.30 },
-    { ingredientName: "Eggs", unit: "pcs", stockQuantity: 30, minimumThreshold: 10, costPerUnit: 8.00 },
-    { ingredientName: "Lettuce", unit: "g", stockQuantity: 500, minimumThreshold: 100, costPerUnit: 0.10 },
-    { ingredientName: "Tomato", unit: "g", stockQuantity: 500, minimumThreshold: 100, costPerUnit: 0.08 },
-    { ingredientName: "Mayonnaise", unit: "ml", stockQuantity: 500, minimumThreshold: 100, costPerUnit: 0.06 },
-    { ingredientName: "Caramel Syrup", unit: "ml", stockQuantity: 300, minimumThreshold: 50, costPerUnit: 0.15 },
+    { ingredientName: "Espresso Beans", unit: "g", initialStock: 2000, minimumThreshold: 500, costPerUnit: 1.50 },
+    { ingredientName: "Milk (Fresh)", unit: "ml", initialStock: 5000, minimumThreshold: 1000, costPerUnit: 0.05 },
+    { ingredientName: "Sugar", unit: "g", initialStock: 3000, minimumThreshold: 500, costPerUnit: 0.02 },
+    { ingredientName: "Tea Leaves (Green)", unit: "g", initialStock: 500, minimumThreshold: 100, costPerUnit: 2.00 },
+    { ingredientName: "Tea Leaves (Black)", unit: "g", initialStock: 500, minimumThreshold: 100, costPerUnit: 1.80 },
+    { ingredientName: "Bread (Sliced)", unit: "pcs", initialStock: 30, minimumThreshold: 10, costPerUnit: 15.00 },
+    { ingredientName: "Cheese", unit: "g", initialStock: 1000, minimumThreshold: 200, costPerUnit: 0.50 },
+    { ingredientName: "Ham", unit: "g", initialStock: 800, minimumThreshold: 200, costPerUnit: 0.60 },
+    { ingredientName: "Rice", unit: "g", initialStock: 5000, minimumThreshold: 1000, costPerUnit: 0.03 },
+    { ingredientName: "Chicken", unit: "g", initialStock: 2000, minimumThreshold: 500, costPerUnit: 0.15 },
+    { ingredientName: "Chocolate Syrup", unit: "ml", initialStock: 1000, minimumThreshold: 200, costPerUnit: 0.10 },
+    { ingredientName: "Vanilla Syrup", unit: "ml", initialStock: 500, minimumThreshold: 100, costPerUnit: 0.12 },
+    { ingredientName: "Whipped Cream", unit: "ml", initialStock: 800, minimumThreshold: 200, costPerUnit: 0.08 },
+    { ingredientName: "Flour", unit: "g", initialStock: 2000, minimumThreshold: 500, costPerUnit: 0.02 },
+    { ingredientName: "Butter", unit: "g", initialStock: 1000, minimumThreshold: 200, costPerUnit: 0.30 },
+    { ingredientName: "Eggs", unit: "pcs", initialStock: 30, minimumThreshold: 10, costPerUnit: 8.00 },
+    { ingredientName: "Lettuce", unit: "g", initialStock: 500, minimumThreshold: 100, costPerUnit: 0.10 },
+    { ingredientName: "Tomato", unit: "g", initialStock: 500, minimumThreshold: 100, costPerUnit: 0.08 },
+    { ingredientName: "Mayonnaise", unit: "ml", initialStock: 500, minimumThreshold: 100, costPerUnit: 0.06 },
+    { ingredientName: "Caramel Syrup", unit: "ml", initialStock: 300, minimumThreshold: 50, costPerUnit: 0.15 },
   ];
 
   for (const ing of ingredients) {
@@ -164,7 +164,6 @@ async function main() {
         data: {
           ingredientName: ing.ingredientName,
           unit: ing.unit,
-          stockQuantity: ing.stockQuantity,
           minimumThreshold: ing.minimumThreshold,
         },
       });
@@ -174,17 +173,17 @@ async function main() {
         data: {
           ingredientId: created.ingredientId,
           restockedById: adminUser.id,
-          quantityAdded: ing.stockQuantity,
-          quantityLeft: ing.stockQuantity,
+          quantityAdded: ing.initialStock,
+          quantityLeft: ing.initialStock,
           costPerUnit: ing.costPerUnit,
-          totalCost: ing.stockQuantity * ing.costPerUnit,
+          totalCost: ing.initialStock * ing.costPerUnit,
           isPriority: false,
           supplierName: "Initial Stock",
           notes: "Seeded inventory",
         },
       });
 
-      console.log(`  ✓ Ingredient: ${ing.ingredientName} (${ing.stockQuantity} ${ing.unit})`);
+      console.log(`  ✓ Ingredient: ${ing.ingredientName} (${ing.initialStock} ${ing.unit})`);
     } else {
       console.log(`  - Ingredient already exists: ${ing.ingredientName}`);
     }

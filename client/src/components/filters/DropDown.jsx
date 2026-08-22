@@ -25,6 +25,7 @@ export function DropDown({
     className,
 }) {
     const [open, setOpen] = useState(false);
+    const [openUp, setOpenUp] = useState(false);
     const ref = useRef(null);
 
     const selected = options.find((opt) => opt.value === value);
@@ -65,7 +66,15 @@ export function DropDown({
             {/* Trigger */}
             <button
                 type="button"
-                onClick={() => !disabled && setOpen((prev) => !prev)}
+                onClick={() => {
+                    if (disabled) return;
+                    if (!open && ref.current) {
+                        const rect = ref.current.getBoundingClientRect();
+                        const spaceBelow = window.innerHeight - rect.bottom;
+                        setOpenUp(spaceBelow < 220);
+                    }
+                    setOpen((prev) => !prev);
+                }}
                 disabled={disabled}
                 className={cn(
                     "flex w-full items-center justify-between gap-2 rounded-lg border border-border bg-transparent transition-colors",
@@ -92,7 +101,10 @@ export function DropDown({
 
             {/* Dropdown panel */}
             {open && (
-                <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-card py-1 shadow-lg">
+                <div className={cn(
+                    "absolute z-50 w-full max-h-48 overflow-y-auto rounded-lg border border-border bg-card py-1 shadow-lg",
+                    openUp ? "bottom-full mb-1" : "mt-1"
+                )}>
                     {options.map((opt) => (
                         <button
                             key={opt.value}

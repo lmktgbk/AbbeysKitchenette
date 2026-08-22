@@ -159,7 +159,6 @@ export const IngredientScalarFieldEnum = {
   ingredientId: 'ingredientId',
   ingredientName: 'ingredientName',
   unit: 'unit',
-  stockQuantity: 'stockQuantity',
   minimumThreshold: 'minimumThreshold',
   isArchived: 'isArchived',
   version: 'version',

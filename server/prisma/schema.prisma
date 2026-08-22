@@ -106,7 +106,6 @@ model Ingredient {
   ingredientId     String   @id @default(uuid()) @map("ingredient_id") @db.Uuid
   ingredientName   String   @unique @map("ingredient_name") @db.VarChar(150)
   unit             String   @db.VarChar(50)
-  stockQuantity    Decimal  @default(0) @map("stock_quantity") @db.Decimal(10, 3)
   minimumThreshold Decimal  @default(0) @map("minimum_threshold") @db.Decimal(10, 3)
   isArchived       Boolean  @default(false) @map("is_archived")
   version          Int      @default(0)

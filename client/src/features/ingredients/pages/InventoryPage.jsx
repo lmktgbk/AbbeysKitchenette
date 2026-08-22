@@ -1,15 +1,6 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import {
-  createIngredientRequest,
-  updateIngredientRequest,
-  restockIngredientRequest,
-  declareLossRequest,
-  archiveIngredientRequest,
-  restoreIngredientRequest,
-  deleteIngredientRequest,
-} from "../api";
+import { useIngredientMutations } from "../query";
 import { confirm } from "@/components/alerts/ConfirmDialog";
 import KpiCards from "../components/KpiCards";
 import IngredientTable from "../components/IngredientTable";
@@ -31,10 +22,10 @@ import WasteInsights from "../components/sidebar/WasteInsights";
  * - KpiCards (summary stats)
  * - IngredientTable (data table with filters and actions)
  * - Modals (form, restock, loss, batch list)
- * - Confirmations via SweetAlert2 (archive, restore, delete)
+ * - Confirmations via ConfirmDialog (archive, restore, delete)
  */
 export default function InventoryPage() {
-  const queryClient = useQueryClient();
+  const mutations = useIngredientMutations();
 
   // ── Modal state ─────────────────────
   const [showFormModal, setShowFormModal] = useState(false);
@@ -45,103 +36,92 @@ export default function InventoryPage() {
   const [selectedIngredient, setSelectedIngredient] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
 
-  // ── Mutations ───────────────────────
+  // ── Mutations (hook handles invalidation; component handles toast + UI state) ──
 
-  const createMutation = useMutation({
-    mutationFn: createIngredientRequest,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ingredients"] });
-      queryClient.invalidateQueries({ queryKey: ["ingredients-summary"] });
-      toast.success("Ingredient created");
-      setShowFormModal(false);
-    },
-    onError: (err) => {
-      toast.error(err.response?.data?.message || "Failed to create ingredient");
-    },
-  });
+  const createMutation = {
+    mutate: (data) =>
+      mutations.create.mutate(data, {
+        onSuccess: () => {
+          toast.success("Ingredient created");
+          setShowFormModal(false);
+        },
+        onError: (err) => toast.error(err.response?.data?.message || "Failed to create ingredient"),
+      }),
+    isPending: mutations.create.isPending,
+  };
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => updateIngredientRequest(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ingredients"] });
-      toast.success("Ingredient updated");
-      setShowFormModal(false);
-      setSelectedIngredient(null);
-      setIsEditMode(false);
-    },
-    onError: (err) => {
-      toast.error(err.response?.data?.message || "Failed to update ingredient");
-    },
-  });
+  const updateMutation = {
+    mutate: ({ id, data }) =>
+      mutations.update.mutate({ id, data }, {
+        onSuccess: () => {
+          toast.success("Ingredient updated");
+          setShowFormModal(false);
+          setSelectedIngredient(null);
+          setIsEditMode(false);
+        },
+        onError: (err) => toast.error(err.response?.data?.message || "Failed to update ingredient"),
+      }),
+    isPending: mutations.update.isPending,
+  };
 
-  const restockMutation = useMutation({
-    mutationFn: ({ id, data }) => restockIngredientRequest(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ingredients"] });
-      queryClient.invalidateQueries({ queryKey: ["ingredients-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["ingredients-alerts"] });
-      toast.success("Ingredient restocked");
-      setShowRestockModal(false);
-      setSelectedIngredient(null);
-    },
-    onError: (err) => {
-      toast.error(err.response?.data?.message || "Failed to restock ingredient");
-    },
-  });
+  const restockMutation = {
+    mutate: ({ id, data }) =>
+      mutations.restock.mutate({ id, data }, {
+        onSuccess: () => {
+          toast.success("Ingredient restocked");
+          setShowRestockModal(false);
+          setSelectedIngredient(null);
+        },
+        onError: (err) => toast.error(err.response?.data?.message || "Failed to restock ingredient"),
+      }),
+    isPending: mutations.restock.isPending,
+  };
 
-  const lossMutation = useMutation({
-    mutationFn: ({ id, data }) => declareLossRequest(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ingredients"] });
-      queryClient.invalidateQueries({ queryKey: ["ingredients-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["ingredients-alerts"] });
-      toast.success("Loss declared");
-      setShowLossModal(false);
-      setSelectedIngredient(null);
-    },
-    onError: (err) => {
-      toast.error(err.response?.data?.message || "Failed to declare loss");
-    },
-  });
+  const lossMutation = {
+    mutate: ({ id, data }) =>
+      mutations.loss.mutate({ id, data }, {
+        onSuccess: () => {
+          toast.success("Loss declared");
+          setShowLossModal(false);
+          setSelectedIngredient(null);
+        },
+        onError: (err) => toast.error(err.response?.data?.message || "Failed to declare loss"),
+      }),
+    isPending: mutations.loss.isPending,
+  };
 
-  const archiveMutation = useMutation({
-    mutationFn: archiveIngredientRequest,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ingredients"] });
-      queryClient.invalidateQueries({ queryKey: ["ingredients-summary"] });
-      toast.success("Ingredient archived");
-      setSelectedIngredient(null);
-    },
-    onError: (err) => {
-      toast.error(err.response?.data?.message || "Failed to archive ingredient");
-    },
-  });
+  const archiveMutation = {
+    mutate: (id) =>
+      mutations.archive.mutate(id, {
+        onSuccess: () => {
+          toast.success("Ingredient archived");
+          setSelectedIngredient(null);
+        },
+        onError: (err) => toast.error(err.response?.data?.message || "Failed to archive ingredient"),
+      }),
+  };
 
-  const restoreMutation = useMutation({
-    mutationFn: restoreIngredientRequest,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ingredients"] });
-      queryClient.invalidateQueries({ queryKey: ["ingredients-summary"] });
-      toast.success("Ingredient restored");
-      setSelectedIngredient(null);
-    },
-    onError: (err) => {
-      toast.error(err.response?.data?.message || "Failed to restore ingredient");
-    },
-  });
+  const restoreMutation = {
+    mutate: (id) =>
+      mutations.restore.mutate(id, {
+        onSuccess: () => {
+          toast.success("Ingredient restored");
+          setSelectedIngredient(null);
+        },
+        onError: (err) => toast.error(err.response?.data?.message || "Failed to restore ingredient"),
+      }),
+  };
 
-  const deleteMutation = useMutation({
-    mutationFn: deleteIngredientRequest,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ingredients"] });
-      queryClient.invalidateQueries({ queryKey: ["ingredients-summary"] });
-      toast.success("Ingredient deleted permanently");
-      setSelectedIngredient(null);
-    },
-    onError: (err) => {
-      toast.error(err.response?.data?.message || "Failed to delete ingredient");
-    },
-  });
+  const deleteMutation = {
+    mutate: (id) =>
+      mutations.remove.mutate(id, {
+        onSuccess: () => {
+          toast.success("Ingredient deleted permanently");
+          setSelectedIngredient(null);
+        },
+        onError: (err) => toast.error(err.response?.data?.message || "Failed to delete ingredient"),
+      }),
+  };
 
   // ── Handlers ────────────────────────
 
@@ -221,7 +201,7 @@ export default function InventoryPage() {
       <KpiCards />
 
       {/* Two-column layout: Table + Sidebar */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px] items-start">
         {/* Left — Table */}
         <IngredientTable
           onAdd={handleAdd}
@@ -246,6 +226,7 @@ export default function InventoryPage() {
 
       {/* Add/Edit Ingredient Modal */}
       <IngredientFormModal
+        key={isEditMode && selectedIngredient ? selectedIngredient.ingredient_id : "add"}
         open={showFormModal}
         onOpenChange={setShowFormModal}
         ingredient={isEditMode ? selectedIngredient : null}

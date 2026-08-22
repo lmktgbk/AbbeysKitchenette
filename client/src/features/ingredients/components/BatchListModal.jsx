@@ -1,11 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  getIngredientBatchesRequest,
-  toggleBatchPriorityRequest,
-  followFifoRequest,
-  getAdjustmentHistoryRequest,
-} from "../api";
+import { useIngredientBatches, useIngredientHistory, useIngredientMutations } from "../query";
 import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
 import {
   Table,
@@ -20,7 +14,7 @@ import Icon from "@/components/ui/icon";
 import PrimarySpinner from "@/components/ui/spinner";
 import { SearchBar } from "@/components/filters/SearchBar";
 import { FilterPill } from "@/components/filters/FilterPill";
-import { DropDown } from "@/components/filters/DropDown";
+import FilterModal from "@/components/filters/FilterModal";
 import { Pagination } from "@/components/filters/Pagination";
 import { formatDate } from "@/lib/date";
 import { toast } from "sonner";
@@ -43,19 +37,49 @@ import { toast } from "sonner";
  * - ingredient: object
  */
 
-const TYPE_OPTIONS = [
-  { value: "all", label: "All Types" },
-  { value: "restock", label: "Restock" },
-  { value: "loss", label: "Loss" },
-  { value: "manual", label: "Manual" },
-  { value: "deduction", label: "Deduction" },
+const BATCH_SORT_OPTIONS = [
+  { value: "fifo", label: "FIFO (oldest first)" },
+  { value: "restocked_at_desc", label: "Date: Newest first" },
+  { value: "quantity_left_desc", label: "Remaining: Most → Least" },
+  { value: "quantity_left_asc", label: "Remaining: Least → Most" },
+  { value: "cost_per_unit_asc", label: "Cost/Unit: Low → High" },
+  { value: "cost_per_unit_desc", label: "Cost/Unit: High → Low" },
+  { value: "total_cost_asc", label: "Total Cost: Low → High" },
+  { value: "total_cost_desc", label: "Total Cost: High → Low" },
+];
+
+const HISTORY_SORT_OPTIONS = [
+  { value: "adjustedAt_desc", label: "Date: Newest first" },
+  { value: "adjustedAt_asc", label: "Date: Oldest first" },
+];
+
+const HISTORY_FILTER_OPTIONS = [
+  {
+    key: "type",
+    label: "Type",
+    options: [
+      { value: "all", label: "All Types" },
+      { value: "restock", label: "Restock" },
+      { value: "loss", label: "Loss" },
+      { value: "manual", label: "Manual" },
+      { value: "deduction", label: "Deduction" },
+    ],
+  },
 ];
 
 export default function BatchListModal({ open, onOpenChange, ingredient }) {
-  const queryClient = useQueryClient();
+  const mutations = useIngredientMutations();
   const [activeTab, setActiveTab] = useState("batches");
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("all");
+  const [filterOpen, setFilterOpen] = useState(false);
+
+  // Batches sort/filter state
+  const [activeBatchSort, setActiveBatchSort] = useState("fifo");
+  const [activeBatchFilters] = useState({});
+
+  // History sort/filter state
+  const [activeHistorySort, setActiveHistorySort] = useState("adjustedAt_desc");
+  const [activeHistoryFilters, setActiveHistoryFilters] = useState({ type: "all" });
 
   // Batches pagination state
   const [batchPage, setBatchPage] = useState(1);
@@ -65,67 +89,83 @@ export default function BatchListModal({ open, onOpenChange, ingredient }) {
   const [historyPage, setHistoryPage] = useState(1);
   const [historyPageSize, setHistoryPageSize] = useState(50);
 
+  // Parse batch sort into sortBy + sortDir
+  const [batchSortBy, batchSortDir] = activeBatchSort === "fifo"
+    ? ["restocked_at", "asc"]
+    : activeBatchSort.includes("_desc")
+      ? [activeBatchSort.replace("_desc", ""), "desc"]
+      : [activeBatchSort.replace("_asc", ""), "asc"];
+
+  // Parse history sort into sortBy + sortDir
+  const [historySortBy, historySortDir] = activeHistorySort.includes("_desc")
+    ? [activeHistorySort.replace("_desc", ""), "desc"]
+    : [activeHistorySort.replace("_asc", ""), "asc"];
+
   // Build batch query params — sent to backend on every change
   const batchQueryParams = {
     page: batchPage,
     limit: batchPageSize,
     search: search || undefined,
+    sortBy: batchSortBy,
+    sortDir: batchSortDir,
   };
 
   // Fetch batches from server with pagination
-  const { data: batchesData, isLoading: batchesLoading } = useQuery({
-    queryKey: ["ingredient-batches", ingredient?.ingredient_id, batchQueryParams],
-    queryFn: () => getIngredientBatchesRequest(ingredient?.ingredient_id, batchQueryParams),
-    enabled: open && !!ingredient?.ingredient_id && activeTab === "batches",
-  });
+  const { data: batchesData, isLoading: batchesLoading } = useIngredientBatches(
+    ingredient?.ingredient_id,
+    batchQueryParams,
+    { enabled: open && !!ingredient?.ingredient_id && activeTab === "batches" },
+  );
 
   // Build history query params — sent to backend on every change
   const historyQueryParams = {
     page: historyPage,
     limit: historyPageSize,
     search: search || undefined,
-    type: typeFilter !== "all" ? typeFilter : undefined,
+    sortBy: historySortBy,
+    sortDir: historySortDir,
+    type: activeHistoryFilters.type !== "all" ? activeHistoryFilters.type : undefined,
   };
 
   // Fetch history from server with pagination, search, and type filter
-  const { data: historyData, isLoading: historyLoading } = useQuery({
-    queryKey: ["ingredients-history", ingredient?.ingredient_id, historyQueryParams],
-    queryFn: () => getAdjustmentHistoryRequest(ingredient?.ingredient_id, historyQueryParams),
-    enabled: open && !!ingredient?.ingredient_id && activeTab === "history",
-  });
+  const { data: historyData, isLoading: historyLoading } = useIngredientHistory(
+    ingredient?.ingredient_id,
+    historyQueryParams,
+    { enabled: open && !!ingredient?.ingredient_id && activeTab === "history" },
+  );
 
-  const priorityMutation = useMutation({
-    mutationFn: ({ batchId, isPriority }) =>
-      toggleBatchPriorityRequest(ingredient?.ingredient_id, batchId, isPriority),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["ingredient-batches", ingredient?.ingredient_id],
-      });
-      toast.success("Batch priority updated");
-    },
-    onError: (err) => {
-      toast.error(err.response?.data?.message || "Failed to update priority");
-    },
-  });
+  const priorityMutation = {
+    mutate: ({ batchId, isPriority }) =>
+      mutations.togglePriority.mutate(
+        { ingredientId: ingredient?.ingredient_id, batchId, isPriority },
+        {
+          onSuccess: () => toast.success("Batch priority updated"),
+          onError: (err) => toast.error(err.response?.data?.message || "Failed to update priority"),
+        },
+      ),
+    isPending: mutations.togglePriority.isPending,
+  };
 
-  const followFifoMutation = useMutation({
-    mutationFn: () => followFifoRequest(ingredient?.ingredient_id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["ingredient-batches", ingredient?.ingredient_id],
-      });
-      toast.success("FIFO order restored");
-    },
-    onError: (err) => {
-      toast.error(err.response?.data?.message || "Failed to restore FIFO");
-    },
-  });
+  const followFifoMutation = {
+    mutate: () =>
+      mutations.followFifo.mutate(ingredient?.ingredient_id, {
+        onSuccess: () => toast.success("FIFO order restored"),
+        onError: (err) => toast.error(err.response?.data?.message || "Failed to restore FIFO"),
+      }),
+    isPending: mutations.followFifo.isPending,
+  };
 
   // Server returns { batches, totalItems, hasPriority, fifoLeaderBatchId }
   const batches = batchesData?.data?.batches ?? [];
   const totalBatches = batchesData?.data?.totalItems ?? 0;
   const hasPriority = batchesData?.data?.hasPriority ?? false;
   const fifoLeaderBatchId = batchesData?.data?.fifoLeaderBatchId ?? null;
+
+  // Derive FIFO vs manual mode: FIFO mode when priority batch IS the FIFO leader
+  const priorityBatch = batches.find((b) => b.is_priority);
+  const isFifoMode = priorityBatch
+    ? priorityBatch.batch_id === fifoLeaderBatchId
+    : !fifoLeaderBatchId; // no priority batch and no leader = no batches at all
 
   // Server returns { history, totalItems }
   const history = historyData?.data?.history ?? [];
@@ -156,16 +196,19 @@ export default function BatchListModal({ open, onOpenChange, ingredient }) {
               onChange={(val) => {
                 setActiveTab(val);
                 setSearch("");
-                setTypeFilter("all");
-                setBatchPage(1);
-                setHistoryPage(1);
+                // Only reset the target tab's page — keep sort/filter persistent per tab
+                if (val === "batches") {
+                  setBatchPage(1);
+                } else {
+                  setHistoryPage(1);
+                }
               }}
             />
-            <DialogClose onClick={() => onOpenChange(false)} />
+            <DialogClose onClick={() => onOpenChange(false)} className="static" />
           </div>
         </div>
 
-        {/* Toolbar: Search + Type filter | Follow FIFO */}
+        {/* Toolbar: Search + Filter | Follow FIFO */}
         <div className="flex items-center justify-between px-6 py-2 border-b border-border">
           <div className="flex items-center gap-2">
             <SearchBar
@@ -177,39 +220,50 @@ export default function BatchListModal({ open, onOpenChange, ingredient }) {
               }}
               placeholder={activeTab === "batches" ? "Search batches..." : "Search history..."}
               className="w-56"
+              onFilterClick={() => setFilterOpen(true)}
+              filterActive={activeTab === "batches"
+                ? activeBatchSort !== "fifo"
+                : activeHistorySort !== "adjustedAt_desc" || activeHistoryFilters.type !== "all"
+              }
             />
-
-            {activeTab === "history" && (
-              <DropDown
-                options={TYPE_OPTIONS}
-                value={typeFilter}
-                onChange={(val) => {
-                  setTypeFilter(val);
-                  setHistoryPage(1);
-                }}
-                size="sm"
-                className="w-36"
-              />
-            )}
           </div>
 
           <div className="flex items-center gap-2">
             {activeTab === "batches" && totalBatches > 0 && (
               <button
                 onClick={() => followFifoMutation.mutate()}
-                disabled={followFifoMutation.isPending || !hasPriority}
-                className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors ${
-                  !hasPriority
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "text-muted-foreground border-border hover:bg-muted hover:text-foreground"
-                } ${followFifoMutation.isPending ? "opacity-50" : ""}`}
+                disabled={followFifoMutation.isPending || isFifoMode}
+                className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors ${isFifoMode
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "text-muted-foreground border-border hover:bg-muted hover:text-foreground"
+                  } ${followFifoMutation.isPending ? "opacity-50" : ""}`}
               >
                 <Icon name="arrowDown" size={12} />
-                Follow FIFO
+                Following FIFO
               </button>
             )}
           </div>
         </div>
+
+        {/* Filter Modal */}
+        <FilterModal
+          open={filterOpen}
+          onOpenChange={setFilterOpen}
+          sortOptions={activeTab === "batches" ? BATCH_SORT_OPTIONS : HISTORY_SORT_OPTIONS}
+          filterOptions={activeTab === "history" ? HISTORY_FILTER_OPTIONS : []}
+          onApply={(sort, filters) => {
+            if (activeTab === "batches") {
+              setActiveBatchSort(sort);
+            } else {
+              setActiveHistorySort(sort);
+              setActiveHistoryFilters(filters);
+            }
+            setBatchPage(1);
+            setHistoryPage(1);
+          }}
+          currentSort={activeTab === "batches" ? activeBatchSort : activeHistorySort}
+          currentFilters={activeTab === "history" ? activeHistoryFilters : {}}
+        />
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto min-h-0">
@@ -300,7 +354,6 @@ function BatchesTab({ batches, isLoading, ingredient, fifoLeaderBatchId, onToggl
             key={batch.batch_id}
             batch={batch}
             ingredient={ingredient}
-            isFifoLeader={fifoLeaderBatchId === batch.batch_id}
             onTogglePriority={onTogglePriority}
             isPriorityLoading={isPriorityLoading}
           />
@@ -312,7 +365,7 @@ function BatchesTab({ batches, isLoading, ingredient, fifoLeaderBatchId, onToggl
 
 /* ── Batch Row ─────────────────────── */
 
-function BatchRow({ batch, ingredient, isFifoLeader, onTogglePriority, isPriorityLoading }) {
+function BatchRow({ batch, ingredient, onTogglePriority, isPriorityLoading }) {
   const unit = ingredient.unit;
   const remaining = batch.quantity_left;
   const isDepleted = remaining === 0;
@@ -320,7 +373,7 @@ function BatchRow({ batch, ingredient, isFifoLeader, onTogglePriority, isPriorit
   const restockDate = new Date(batch.restocked_at);
   const dateStr = formatDate(restockDate);
 
-  const isStarHighlighted = batch.is_priority || isFifoLeader;
+  const isStarHighlighted = batch.is_priority;
 
   return (
     <TableRow
@@ -333,11 +386,10 @@ function BatchRow({ batch, ingredient, isFifoLeader, onTogglePriority, isPriorit
         <button
           onClick={() => onTogglePriority(batch.batch_id, !batch.is_priority)}
           disabled={isPriorityLoading}
-          className={`w-8 h-8 shrink-0 rounded-md flex items-center justify-center text-sm transition-colors ${
-            isStarHighlighted
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted text-muted-foreground hover:bg-muted/80"
-          } ${isPriorityLoading ? "opacity-50" : "cursor-pointer"}`}
+          className={`w-8 h-8 shrink-0 rounded-md flex items-center justify-center text-sm transition-colors ${isStarHighlighted
+            ? "bg-primary text-primary-foreground"
+            : "bg-muted text-muted-foreground hover:bg-muted/80"
+            } ${isPriorityLoading ? "opacity-50" : "cursor-pointer"}`}
           title={batch.is_priority ? "Remove priority" : "Use first (priority)"}
         >
           {isStarHighlighted ? "★" : "☆"}
@@ -360,11 +412,10 @@ function BatchRow({ batch, ingredient, isFifoLeader, onTogglePriority, isPriorit
       </TableCell>
 
       {/* Remaining */}
-      <TableCell className={`w-28 text-center font-mono font-medium whitespace-nowrap ${
-        isDepleted
-          ? "text-muted-foreground"
-          : "text-green-600 dark:text-green-400"
-      }`}>
+      <TableCell className={`w-28 text-center font-mono font-medium whitespace-nowrap ${isDepleted
+        ? "text-muted-foreground"
+        : "text-green-600 dark:text-green-400"
+        }`}>
         {remaining.toLocaleString()} {unit}
       </TableCell>
 
@@ -483,11 +534,10 @@ function HistoryRow({ entry, unit }) {
               {entry.adjustment_type}
             </Badge>
             <span
-              className={`text-sm font-medium whitespace-nowrap ${
-                isPositive
-                  ? "text-green-600 dark:text-green-400"
-                  : "text-red-600 dark:text-red-400"
-              }`}
+              className={`text-sm font-medium whitespace-nowrap ${isPositive
+                ? "text-green-600 dark:text-green-400"
+                : "text-red-600 dark:text-red-400"
+                }`}
             >
               {isPositive ? "+" : ""}
               {entry.quantity_changed.toLocaleString()} {unit}

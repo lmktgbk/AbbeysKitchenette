@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { getIngredientsRequest, getArchivedIngredientsRequest, getIngredientBatchesRequest } from "../api";
+import { useIngredientTable, useIngredientBatches } from "../query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/filters/SearchBar";
 import { FilterPill } from "@/components/filters/FilterPill";
-import { DropDown } from "@/components/filters/DropDown";
+import FilterModal from "@/components/filters/FilterModal";
 import { Skeleton } from "@/components/ui/skeleton";
 import Icon from "@/components/ui/icon";
 import PrimarySpinner from "@/components/ui/spinner";
@@ -20,11 +19,44 @@ import {
 } from "@/components/ui/table";
 import { formatDate, formatTime } from "@/lib/date";
 
-const SORTABLE_COLUMNS = [
+const INGREDIENT_SORT_OPTIONS = [
+  { value: "status_asc", label: "Status: Healthy first" },
+  { value: "status_desc", label: "Status: Out of stock first" },
+  { value: "ingredient_name_asc", label: "Name A-Z" },
+  { value: "ingredient_name_desc", label: "Name Z-A" },
+  { value: "stock_quantity_asc", label: "Stock: Low → High" },
+  { value: "stock_quantity_desc", label: "Stock: High → Low" },
+  { value: "minimum_threshold_asc", label: "Threshold: Low → High" },
+  { value: "minimum_threshold_desc", label: "Threshold: High → Low" },
+];
+
+const ARCHIVED_SORT_OPTIONS = [
+  { value: "ingredient_name_asc", label: "Name A-Z" },
+  { value: "ingredient_name_desc", label: "Name Z-A" },
+  { value: "stock_quantity_asc", label: "Stock: Low → High" },
+  { value: "stock_quantity_desc", label: "Stock: High → Low" },
+  { value: "minimum_threshold_asc", label: "Threshold: Low → High" },
+  { value: "minimum_threshold_desc", label: "Threshold: High → Low" },
+];
+
+const INGREDIENT_FILTER_OPTIONS = [
+  {
+    key: "status",
+    label: "Status",
+    options: [
+      { value: "all", label: "All" },
+      { value: "healthy", label: "Healthy" },
+      { value: "low", label: "Low Stock" },
+      { value: "out", label: "Out of Stock" },
+    ],
+  },
+];
+
+const INGREDIENT_COLUMNS = [
   { key: "ingredient_name", label: "Ingredient" },
   { key: "unit", label: "Unit" },
   { key: "stock_quantity", label: "Stock" },
-  { key: "minimum_threshold", label: "Min Treshold" },
+  { key: "minimum_threshold", label: "Min Threshold" },
   { key: "status", label: "Status" },
 ];
 
@@ -32,61 +64,58 @@ export default function IngredientTable({
   onRestock,
   onLoss,
   onBatches,
+  onEdit,
   onArchive,
   onRestore,
   onDelete,
   onAdd,
 }) {
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [showArchived, setShowArchived] = useState(false);
   const [expandedRow, setExpandedRow] = useState(null);
-  const [sortKey, setSortKey] = useState(null);
-  const [sortDir, setSortDir] = useState("asc");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [activeSort, setActiveSort] = useState("status_asc");
+  const [activeFilters, setActiveFilters] = useState({ status: "all" });
 
   function toggleExpand(id) {
     setExpandedRow((prev) => (prev === id ? null : id));
   }
 
+  // Parse sort value into sortBy + sortDir
+  const [sortBy, sortDir] = activeSort.includes("_desc")
+    ? [activeSort.replace("_desc", ""), "desc"]
+    : [activeSort.replace("_asc", ""), "asc"];
+
   const queryParams = {
     page: currentPage,
     limit: pageSize,
     search: search || undefined,
-    status: statusFilter !== "all" ? statusFilter : undefined,
-    sortBy: sortKey || "ingredient_name",
+    status: activeFilters.status !== "all" ? activeFilters.status : undefined,
+    sortBy,
     sortDir,
   };
 
-  const { data: ingredientsData, isLoading } = useQuery({
-    queryKey: showArchived
-      ? ["ingredients-archived", queryParams]
-      : ["ingredients", queryParams],
-    queryFn: () =>
-      showArchived
-        ? getArchivedIngredientsRequest(queryParams)
-        : getIngredientsRequest(queryParams),
-  });
+  const { data: ingredientsData, isLoading } = useIngredientTable(queryParams, showArchived);
 
   const ingredients = ingredientsData?.data?.ingredients ?? [];
   const totalItems = ingredientsData?.data?.totalItems ?? 0;
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, statusFilter, showArchived]);
+    setActiveSort(showArchived ? "ingredient_name_asc" : "status_asc");
+  }, [search, showArchived, activeFilters]);
 
   const hasData = totalItems > 0;
   const isRefetching = isLoading && hasData;
 
-  function handleSort(key) {
-    if (sortKey === key) {
-      setSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
-    } else {
-      setSortKey(key);
-      setSortDir("asc");
-    }
+  function handleFilterApply(sort, filters) {
+    setActiveSort(sort);
+    setActiveFilters(filters);
   }
+
+  const filterActive = activeFilters.status !== "all" || activeSort !== "status_asc";
 
   return (
     <div className="relative border border-border rounded-xl">
@@ -97,19 +126,8 @@ export default function IngredientTable({
             value={search}
             onChange={setSearch}
             placeholder="Search ingredients..."
-          />
-
-          <DropDown
-            value={statusFilter}
-            onChange={setStatusFilter}
-            options={[
-              { value: "all", label: "All Status" },
-              { value: "out", label: "Out of Stock" },
-              { value: "low", label: "Low Stock" },
-              { value: "healthy", label: "Healthy" },
-            ]}
-            size="sm"
-            className="w-36"
+            onFilterClick={() => setFilterOpen(true)}
+            filterActive={filterActive}
           />
         </div>
 
@@ -134,6 +152,16 @@ export default function IngredientTable({
         </div>
       </div>
 
+      <FilterModal
+        open={filterOpen}
+        onOpenChange={setFilterOpen}
+        sortOptions={showArchived ? ARCHIVED_SORT_OPTIONS : INGREDIENT_SORT_OPTIONS}
+        filterOptions={showArchived ? [] : INGREDIENT_FILTER_OPTIONS}
+        onApply={handleFilterApply}
+        currentSort={activeSort}
+        currentFilters={activeFilters}
+      />
+
       {/* Table */}
       <div className={`relative ${isRefetching ? "pointer-events-none" : ""}`}>
         {isRefetching && (
@@ -145,31 +173,18 @@ export default function IngredientTable({
         <Table noOverflow>
           <TableHeader>
             <TableRow className="bg-muted/30">
-              {SORTABLE_COLUMNS.map((col) => (
+              {INGREDIENT_COLUMNS.map((col) => (
                 <TableHead
                   key={col.key}
-                  className={`text-[10px] uppercase tracking-widest ${
-                    col.key === "unit" ||
+                  className={`text-[10px] uppercase tracking-widest ${col.key === "unit" ||
                     col.key === "stock_quantity" ||
                     col.key === "minimum_threshold" ||
                     col.key === "status"
-                      ? "text-center"
-                      : ""
-                  }`}
+                    ? "text-center"
+                    : ""
+                    }`}
                 >
-                  <button
-                    onClick={() => handleSort(col.key)}
-                    className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
-                  >
-                    {col.label}
-                    {sortKey === col.key && (
-                      <Icon
-                        name="chevronDown"
-                        size={12}
-                        className={`transition-transform ${sortDir === "desc" ? "rotate-180" : ""}`}
-                      />
-                    )}
-                  </button>
+                  {col.label}
                 </TableHead>
               ))}
               <TableHead className="w-12"></TableHead>
@@ -181,9 +196,11 @@ export default function IngredientTable({
             ) : ingredients.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                  {search || statusFilter !== "all"
-                    ? "No ingredients match your filters."
-                    : "No ingredients yet. Add your first ingredient to get started."}
+                  {showArchived
+                    ? "No archived ingredients."
+                    : search || activeFilters.status !== "all"
+                      ? "No ingredients match your filters."
+                      : "No ingredients yet. Add your first ingredient to get started."}
                 </TableCell>
               </TableRow>
             ) : (
@@ -196,6 +213,7 @@ export default function IngredientTable({
                   onRestock={onRestock}
                   onLoss={onLoss}
                   onBatches={onBatches}
+                  onEdit={onEdit}
                   onArchive={onArchive}
                   onRestore={onRestore}
                   onDelete={onDelete}
@@ -251,6 +269,7 @@ function IngredientRow({
   onRestock,
   onLoss,
   onBatches,
+  onEdit,
   onArchive,
   onRestore,
   onDelete,
@@ -321,6 +340,7 @@ function IngredientRow({
           onRestock={onRestock}
           onLoss={onLoss}
           onBatches={onBatches}
+          onEdit={onEdit}
           onArchive={onArchive}
           onRestore={onRestore}
           onDelete={onDelete}
@@ -333,11 +353,8 @@ function IngredientRow({
 
 /* ── Expanded Row ──────────────────── */
 
-function ExpandedRow({ ingredient, onRestock, onLoss, onBatches, onArchive, onRestore, onDelete, showArchived }) {
-  const { data: batchesData, isLoading } = useQuery({
-    queryKey: ["ingredient-batches", ingredient.ingredient_id],
-    queryFn: () => getIngredientBatchesRequest(ingredient.ingredient_id),
-  });
+function ExpandedRow({ ingredient, onRestock, onLoss, onBatches, onEdit, onArchive, onRestore, onDelete, showArchived }) {
+  const { data: batchesData, isLoading } = useIngredientBatches(ingredient.ingredient_id);
 
   const batches = batchesData?.data?.batches ?? [];
   const activeBatch = batches.find((b) => b.quantity_left > 0) ?? null;
@@ -400,12 +417,13 @@ function ExpandedRow({ ingredient, onRestock, onLoss, onBatches, onArchive, onRe
               {activeBatch ? (
                 <CurrentBatch batch={activeBatch} unit={unit} />
               ) : (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
-                    Current Batch
-                  </p>
+                <div className="rounded-lg border border-border p-4 text-center">
+                  <Icon name="package" size={20} className="mx-auto text-muted-foreground/40 mb-2" />
                   <p className="text-sm text-muted-foreground">
-                    No restock batches yet. Use Restock to add inventory.
+                    No restock batches yet.
+                  </p>
+                  <p className="text-xs text-muted-foreground/60 mt-1">
+                    Click <span className="font-medium text-foreground">Restock</span> to add inventory.
                   </p>
                 </div>
               )}
@@ -442,6 +460,10 @@ function ExpandedRow({ ingredient, onRestock, onLoss, onBatches, onArchive, onRe
                       <Button size="sm" variant="outline" onClick={() => onBatches(ingredient)}>
                         <Icon name="warehouse" size={14} />
                         Batches
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => onEdit(ingredient)}>
+                        <Icon name="edit" size={14} />
+                        Edit
                       </Button>
                       {!hasTransactions && !isLinkedToProducts && (
                         <Button size="sm" variant="outline" onClick={() => onDelete(ingredient)} className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive">

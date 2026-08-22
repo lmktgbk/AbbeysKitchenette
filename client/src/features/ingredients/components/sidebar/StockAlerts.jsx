@@ -1,5 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
-import { getActiveAlertsRequest } from "../../api";
+import { useIngredientAlerts } from "../../query";
 import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,10 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  * - onRestock: (ingredient) => void
  */
 export default function StockAlerts({ onRestock }) {
-  const { data: alertsData, isLoading } = useQuery({
-    queryKey: ["ingredients-alerts"],
-    queryFn: getActiveAlertsRequest,
-  });
+  const { data: alertsData, isLoading } = useIngredientAlerts();
 
   const alerts = alertsData?.data?.alerts ?? [];
 

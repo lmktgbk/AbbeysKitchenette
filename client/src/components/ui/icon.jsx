@@ -36,6 +36,7 @@ import {
     Lightbulb,
     Minus,
     Edit,
+    SlidersHorizontal,
 } from "lucide-react";
 
 const iconMap = {
@@ -76,6 +77,7 @@ const iconMap = {
     lightbulb: Lightbulb,
     minus: Minus,
     edit: Edit,
+    filter: SlidersHorizontal,
 };
 
 /**

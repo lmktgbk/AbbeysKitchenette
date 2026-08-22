@@ -1,12 +1,16 @@
 import { Router } from "express";
 
 import { ingredientController } from "./ingredient.controller.js";
-import { validate, validateQuery } from "../../middleware/validate.middleware.js";
+import { validate, validateQuery, validateParams } from "../../middleware/validate.middleware.js";
 import authenticate from "../../middleware/authenticate.middleware.js";
 import authorize from "../../middleware/authorize.middleware.js";
 import {
   createIngredientSchema,
+  updateIngredientSchema,
+  idParamSchema,
+  batchIdParamSchema,
   restockIngredientSchema,
+  declareLossSchema,
   togglePrioritySchema,
   getIngredientsQuerySchema,
   getArchivedQuerySchema,
@@ -68,13 +72,34 @@ router.post(
   ingredientController.createIngredient,
 );
 
+// PATCH /api/ingredients/:id — edit ingredient (name and/or min threshold)
+router.patch(
+  "/:id",
+  authenticate,
+  authorize("admin"),
+  validateParams(idParamSchema),
+  validate(updateIngredientSchema),
+  ingredientController.updateIngredient,
+);
+
 // POST /api/ingredients/:id/restock — add stock via new FIFO batch (must be before /:id routes)
 router.post(
   "/:id/restock",
   authenticate,
   authorize("admin"),
+  validateParams(idParamSchema),
   validate(restockIngredientSchema),
   ingredientController.restockIngredient,
+);
+
+// POST /api/ingredients/:id/loss — declare a loss (must be before /:id routes)
+router.post(
+  "/:id/loss",
+  authenticate,
+  authorize("admin"),
+  validateParams(idParamSchema),
+  validate(declareLossSchema),
+  ingredientController.declareLoss,
 );
 
 // GET /api/ingredients/:id/batches — restock batches for an ingredient
@@ -82,6 +107,7 @@ router.get(
   "/:id/batches",
   authenticate,
   authorize("admin"),
+  validateParams(idParamSchema),
   validateQuery(getBatchesQuerySchema),
   ingredientController.getBatches,
 );
@@ -91,6 +117,7 @@ router.patch(
   "/:id/batches/follow-fifo",
   authenticate,
   authorize("admin"),
+  validateParams(idParamSchema),
   ingredientController.followFifo,
 );
 
@@ -99,6 +126,7 @@ router.patch(
   "/:id/batches/:batchId/priority",
   authenticate,
   authorize("admin"),
+  validateParams(batchIdParamSchema),
   validate(togglePrioritySchema),
   ingredientController.toggleBatchPriority,
 );
@@ -108,6 +136,7 @@ router.get(
   "/:id/history",
   authenticate,
   authorize("admin"),
+  validateParams(idParamSchema),
   validateQuery(getHistoryQuerySchema),
   ingredientController.getHistory,
 );
@@ -117,6 +146,7 @@ router.patch(
   "/:id/archive",
   authenticate,
   authorize("admin"),
+  validateParams(idParamSchema),
   ingredientController.archiveIngredient,
 );
 
@@ -125,6 +155,7 @@ router.patch(
   "/:id/restore",
   authenticate,
   authorize("admin"),
+  validateParams(idParamSchema),
   ingredientController.restoreIngredient,
 );
 
@@ -133,6 +164,7 @@ router.delete(
   "/:id",
   authenticate,
   authorize("admin"),
+  validateParams(idParamSchema),
   ingredientController.deleteIngredient,
 );
 

@@ -1,5 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
-import { getIngredientSummaryRequest } from "../api";
+import { useIngredientSummary } from "../query";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
@@ -9,10 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  * 4 cards: Total Items, Total Value, Healthy (ring), Low/Out (ring).
  */
 export default function KpiCards() {
-  const { data: summaryData, isLoading } = useQuery({
-    queryKey: ["ingredients-summary"],
-    queryFn: getIngredientSummaryRequest,
-  });
+  const { data: summaryData, isLoading } = useIngredientSummary();
 
   const summary = summaryData?.data?.summary ?? {
     total: 0,

@@ -27,13 +27,11 @@ export type AggregateIngredient = {
 }
 
 export type IngredientAvgAggregateOutputType = {
-  stockQuantity: runtime.Decimal | null
   minimumThreshold: runtime.Decimal | null
   version: number | null
 }
 
 export type IngredientSumAggregateOutputType = {
-  stockQuantity: runtime.Decimal | null
   minimumThreshold: runtime.Decimal | null
   version: number | null
 }
@@ -42,7 +40,6 @@ export type IngredientMinAggregateOutputType = {
   ingredientId: string | null
   ingredientName: string | null
   unit: string | null
-  stockQuantity: runtime.Decimal | null
   minimumThreshold: runtime.Decimal | null
   isArchived: boolean | null
   version: number | null
@@ -54,7 +51,6 @@ export type IngredientMaxAggregateOutputType = {
   ingredientId: string | null
   ingredientName: string | null
   unit: string | null
-  stockQuantity: runtime.Decimal | null
   minimumThreshold: runtime.Decimal | null
   isArchived: boolean | null
   version: number | null
@@ -66,7 +62,6 @@ export type IngredientCountAggregateOutputType = {
   ingredientId: number
   ingredientName: number
   unit: number
-  stockQuantity: number
   minimumThreshold: number
   isArchived: number
   version: number
@@ -77,13 +72,11 @@ export type IngredientCountAggregateOutputType = {
 
 
 export type IngredientAvgAggregateInputType = {
-  stockQuantity?: true
   minimumThreshold?: true
   version?: true
 }
 
 export type IngredientSumAggregateInputType = {
-  stockQuantity?: true
   minimumThreshold?: true
   version?: true
 }
@@ -92,7 +85,6 @@ export type IngredientMinAggregateInputType = {
   ingredientId?: true
   ingredientName?: true
   unit?: true
-  stockQuantity?: true
   minimumThreshold?: true
   isArchived?: true
   version?: true
@@ -104,7 +96,6 @@ export type IngredientMaxAggregateInputType = {
   ingredientId?: true
   ingredientName?: true
   unit?: true
-  stockQuantity?: true
   minimumThreshold?: true
   isArchived?: true
   version?: true
@@ -116,7 +107,6 @@ export type IngredientCountAggregateInputType = {
   ingredientId?: true
   ingredientName?: true
   unit?: true
-  stockQuantity?: true
   minimumThreshold?: true
   isArchived?: true
   version?: true
@@ -215,7 +205,6 @@ export type IngredientGroupByOutputType = {
   ingredientId: string
   ingredientName: string
   unit: string
-  stockQuantity: runtime.Decimal
   minimumThreshold: runtime.Decimal
   isArchived: boolean
   version: number
@@ -250,7 +239,6 @@ export type IngredientWhereInput = {
   ingredientId?: Prisma.UuidFilter<"Ingredient"> | string
   ingredientName?: Prisma.StringFilter<"Ingredient"> | string
   unit?: Prisma.StringFilter<"Ingredient"> | string
-  stockQuantity?: Prisma.DecimalFilter<"Ingredient"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: Prisma.DecimalFilter<"Ingredient"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: Prisma.BoolFilter<"Ingredient"> | boolean
   version?: Prisma.IntFilter<"Ingredient"> | number
@@ -267,7 +255,6 @@ export type IngredientOrderByWithRelationInput = {
   ingredientId?: Prisma.SortOrder
   ingredientName?: Prisma.SortOrder
   unit?: Prisma.SortOrder
-  stockQuantity?: Prisma.SortOrder
   minimumThreshold?: Prisma.SortOrder
   isArchived?: Prisma.SortOrder
   version?: Prisma.SortOrder
@@ -287,7 +274,6 @@ export type IngredientWhereUniqueInput = Prisma.AtLeast<{
   OR?: Prisma.IngredientWhereInput[]
   NOT?: Prisma.IngredientWhereInput | Prisma.IngredientWhereInput[]
   unit?: Prisma.StringFilter<"Ingredient"> | string
-  stockQuantity?: Prisma.DecimalFilter<"Ingredient"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: Prisma.DecimalFilter<"Ingredient"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: Prisma.BoolFilter<"Ingredient"> | boolean
   version?: Prisma.IntFilter<"Ingredient"> | number
@@ -304,7 +290,6 @@ export type IngredientOrderByWithAggregationInput = {
   ingredientId?: Prisma.SortOrder
   ingredientName?: Prisma.SortOrder
   unit?: Prisma.SortOrder
-  stockQuantity?: Prisma.SortOrder
   minimumThreshold?: Prisma.SortOrder
   isArchived?: Prisma.SortOrder
   version?: Prisma.SortOrder
@@ -324,7 +309,6 @@ export type IngredientScalarWhereWithAggregatesInput = {
   ingredientId?: Prisma.UuidWithAggregatesFilter<"Ingredient"> | string
   ingredientName?: Prisma.StringWithAggregatesFilter<"Ingredient"> | string
   unit?: Prisma.StringWithAggregatesFilter<"Ingredient"> | string
-  stockQuantity?: Prisma.DecimalWithAggregatesFilter<"Ingredient"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: Prisma.DecimalWithAggregatesFilter<"Ingredient"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: Prisma.BoolWithAggregatesFilter<"Ingredient"> | boolean
   version?: Prisma.IntWithAggregatesFilter<"Ingredient"> | number
@@ -336,7 +320,6 @@ export type IngredientCreateInput = {
   ingredientId?: string
   ingredientName: string
   unit: string
-  stockQuantity?: runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: boolean
   version?: number
@@ -353,7 +336,6 @@ export type IngredientUncheckedCreateInput = {
   ingredientId?: string
   ingredientName: string
   unit: string
-  stockQuantity?: runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: boolean
   version?: number
@@ -370,7 +352,6 @@ export type IngredientUpdateInput = {
   ingredientId?: Prisma.StringFieldUpdateOperationsInput | string
   ingredientName?: Prisma.StringFieldUpdateOperationsInput | string
   unit?: Prisma.StringFieldUpdateOperationsInput | string
-  stockQuantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
   version?: Prisma.IntFieldUpdateOperationsInput | number
@@ -387,7 +368,6 @@ export type IngredientUncheckedUpdateInput = {
   ingredientId?: Prisma.StringFieldUpdateOperationsInput | string
   ingredientName?: Prisma.StringFieldUpdateOperationsInput | string
   unit?: Prisma.StringFieldUpdateOperationsInput | string
-  stockQuantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
   version?: Prisma.IntFieldUpdateOperationsInput | number
@@ -404,7 +384,6 @@ export type IngredientCreateManyInput = {
   ingredientId?: string
   ingredientName: string
   unit: string
-  stockQuantity?: runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: boolean
   version?: number
@@ -416,7 +395,6 @@ export type IngredientUpdateManyMutationInput = {
   ingredientId?: Prisma.StringFieldUpdateOperationsInput | string
   ingredientName?: Prisma.StringFieldUpdateOperationsInput | string
   unit?: Prisma.StringFieldUpdateOperationsInput | string
-  stockQuantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
   version?: Prisma.IntFieldUpdateOperationsInput | number
@@ -428,7 +406,6 @@ export type IngredientUncheckedUpdateManyInput = {
   ingredientId?: Prisma.StringFieldUpdateOperationsInput | string
   ingredientName?: Prisma.StringFieldUpdateOperationsInput | string
   unit?: Prisma.StringFieldUpdateOperationsInput | string
-  stockQuantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
   version?: Prisma.IntFieldUpdateOperationsInput | number
@@ -440,7 +417,6 @@ export type IngredientCountOrderByAggregateInput = {
   ingredientId?: Prisma.SortOrder
   ingredientName?: Prisma.SortOrder
   unit?: Prisma.SortOrder
-  stockQuantity?: Prisma.SortOrder
   minimumThreshold?: Prisma.SortOrder
   isArchived?: Prisma.SortOrder
   version?: Prisma.SortOrder
@@ -449,7 +425,6 @@ export type IngredientCountOrderByAggregateInput = {
 }
 
 export type IngredientAvgOrderByAggregateInput = {
-  stockQuantity?: Prisma.SortOrder
   minimumThreshold?: Prisma.SortOrder
   version?: Prisma.SortOrder
 }
@@ -458,7 +433,6 @@ export type IngredientMaxOrderByAggregateInput = {
   ingredientId?: Prisma.SortOrder
   ingredientName?: Prisma.SortOrder
   unit?: Prisma.SortOrder
-  stockQuantity?: Prisma.SortOrder
   minimumThreshold?: Prisma.SortOrder
   isArchived?: Prisma.SortOrder
   version?: Prisma.SortOrder
@@ -470,7 +444,6 @@ export type IngredientMinOrderByAggregateInput = {
   ingredientId?: Prisma.SortOrder
   ingredientName?: Prisma.SortOrder
   unit?: Prisma.SortOrder
-  stockQuantity?: Prisma.SortOrder
   minimumThreshold?: Prisma.SortOrder
   isArchived?: Prisma.SortOrder
   version?: Prisma.SortOrder
@@ -479,7 +452,6 @@ export type IngredientMinOrderByAggregateInput = {
 }
 
 export type IngredientSumOrderByAggregateInput = {
-  stockQuantity?: Prisma.SortOrder
   minimumThreshold?: Prisma.SortOrder
   version?: Prisma.SortOrder
 }
@@ -563,7 +535,6 @@ export type IngredientCreateWithoutRecipesInput = {
   ingredientId?: string
   ingredientName: string
   unit: string
-  stockQuantity?: runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: boolean
   version?: number
@@ -579,7 +550,6 @@ export type IngredientUncheckedCreateWithoutRecipesInput = {
   ingredientId?: string
   ingredientName: string
   unit: string
-  stockQuantity?: runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: boolean
   version?: number
@@ -611,7 +581,6 @@ export type IngredientUpdateWithoutRecipesInput = {
   ingredientId?: Prisma.StringFieldUpdateOperationsInput | string
   ingredientName?: Prisma.StringFieldUpdateOperationsInput | string
   unit?: Prisma.StringFieldUpdateOperationsInput | string
-  stockQuantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
   version?: Prisma.IntFieldUpdateOperationsInput | number
@@ -627,7 +596,6 @@ export type IngredientUncheckedUpdateWithoutRecipesInput = {
   ingredientId?: Prisma.StringFieldUpdateOperationsInput | string
   ingredientName?: Prisma.StringFieldUpdateOperationsInput | string
   unit?: Prisma.StringFieldUpdateOperationsInput | string
-  stockQuantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
   version?: Prisma.IntFieldUpdateOperationsInput | number
@@ -643,7 +611,6 @@ export type IngredientCreateWithoutRestockBatchesInput = {
   ingredientId?: string
   ingredientName: string
   unit: string
-  stockQuantity?: runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: boolean
   version?: number
@@ -659,7 +626,6 @@ export type IngredientUncheckedCreateWithoutRestockBatchesInput = {
   ingredientId?: string
   ingredientName: string
   unit: string
-  stockQuantity?: runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: boolean
   version?: number
@@ -691,7 +657,6 @@ export type IngredientUpdateWithoutRestockBatchesInput = {
   ingredientId?: Prisma.StringFieldUpdateOperationsInput | string
   ingredientName?: Prisma.StringFieldUpdateOperationsInput | string
   unit?: Prisma.StringFieldUpdateOperationsInput | string
-  stockQuantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
   version?: Prisma.IntFieldUpdateOperationsInput | number
@@ -707,7 +672,6 @@ export type IngredientUncheckedUpdateWithoutRestockBatchesInput = {
   ingredientId?: Prisma.StringFieldUpdateOperationsInput | string
   ingredientName?: Prisma.StringFieldUpdateOperationsInput | string
   unit?: Prisma.StringFieldUpdateOperationsInput | string
-  stockQuantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
   version?: Prisma.IntFieldUpdateOperationsInput | number
@@ -723,7 +687,6 @@ export type IngredientCreateWithoutLossRecordsInput = {
   ingredientId?: string
   ingredientName: string
   unit: string
-  stockQuantity?: runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: boolean
   version?: number
@@ -739,7 +702,6 @@ export type IngredientUncheckedCreateWithoutLossRecordsInput = {
   ingredientId?: string
   ingredientName: string
   unit: string
-  stockQuantity?: runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: boolean
   version?: number
@@ -771,7 +733,6 @@ export type IngredientUpdateWithoutLossRecordsInput = {
   ingredientId?: Prisma.StringFieldUpdateOperationsInput | string
   ingredientName?: Prisma.StringFieldUpdateOperationsInput | string
   unit?: Prisma.StringFieldUpdateOperationsInput | string
-  stockQuantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
   version?: Prisma.IntFieldUpdateOperationsInput | number
@@ -787,7 +748,6 @@ export type IngredientUncheckedUpdateWithoutLossRecordsInput = {
   ingredientId?: Prisma.StringFieldUpdateOperationsInput | string
   ingredientName?: Prisma.StringFieldUpdateOperationsInput | string
   unit?: Prisma.StringFieldUpdateOperationsInput | string
-  stockQuantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
   version?: Prisma.IntFieldUpdateOperationsInput | number
@@ -803,7 +763,6 @@ export type IngredientCreateWithoutStockAdjustmentsInput = {
   ingredientId?: string
   ingredientName: string
   unit: string
-  stockQuantity?: runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: boolean
   version?: number
@@ -819,7 +778,6 @@ export type IngredientUncheckedCreateWithoutStockAdjustmentsInput = {
   ingredientId?: string
   ingredientName: string
   unit: string
-  stockQuantity?: runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: boolean
   version?: number
@@ -851,7 +809,6 @@ export type IngredientUpdateWithoutStockAdjustmentsInput = {
   ingredientId?: Prisma.StringFieldUpdateOperationsInput | string
   ingredientName?: Prisma.StringFieldUpdateOperationsInput | string
   unit?: Prisma.StringFieldUpdateOperationsInput | string
-  stockQuantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
   version?: Prisma.IntFieldUpdateOperationsInput | number
@@ -867,7 +824,6 @@ export type IngredientUncheckedUpdateWithoutStockAdjustmentsInput = {
   ingredientId?: Prisma.StringFieldUpdateOperationsInput | string
   ingredientName?: Prisma.StringFieldUpdateOperationsInput | string
   unit?: Prisma.StringFieldUpdateOperationsInput | string
-  stockQuantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
   version?: Prisma.IntFieldUpdateOperationsInput | number
@@ -883,7 +839,6 @@ export type IngredientCreateWithoutStockAlertsInput = {
   ingredientId?: string
   ingredientName: string
   unit: string
-  stockQuantity?: runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: boolean
   version?: number
@@ -899,7 +854,6 @@ export type IngredientUncheckedCreateWithoutStockAlertsInput = {
   ingredientId?: string
   ingredientName: string
   unit: string
-  stockQuantity?: runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: boolean
   version?: number
@@ -931,7 +885,6 @@ export type IngredientUpdateWithoutStockAlertsInput = {
   ingredientId?: Prisma.StringFieldUpdateOperationsInput | string
   ingredientName?: Prisma.StringFieldUpdateOperationsInput | string
   unit?: Prisma.StringFieldUpdateOperationsInput | string
-  stockQuantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
   version?: Prisma.IntFieldUpdateOperationsInput | number
@@ -947,7 +900,6 @@ export type IngredientUncheckedUpdateWithoutStockAlertsInput = {
   ingredientId?: Prisma.StringFieldUpdateOperationsInput | string
   ingredientName?: Prisma.StringFieldUpdateOperationsInput | string
   unit?: Prisma.StringFieldUpdateOperationsInput | string
-  stockQuantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   minimumThreshold?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
   version?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1030,7 +982,6 @@ export type IngredientSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   ingredientId?: boolean
   ingredientName?: boolean
   unit?: boolean
-  stockQuantity?: boolean
   minimumThreshold?: boolean
   isArchived?: boolean
   version?: boolean
@@ -1048,7 +999,6 @@ export type IngredientSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   ingredientId?: boolean
   ingredientName?: boolean
   unit?: boolean
-  stockQuantity?: boolean
   minimumThreshold?: boolean
   isArchived?: boolean
   version?: boolean
@@ -1060,7 +1010,6 @@ export type IngredientSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   ingredientId?: boolean
   ingredientName?: boolean
   unit?: boolean
-  stockQuantity?: boolean
   minimumThreshold?: boolean
   isArchived?: boolean
   version?: boolean
@@ -1072,7 +1021,6 @@ export type IngredientSelectScalar = {
   ingredientId?: boolean
   ingredientName?: boolean
   unit?: boolean
-  stockQuantity?: boolean
   minimumThreshold?: boolean
   isArchived?: boolean
   version?: boolean
@@ -1080,7 +1028,7 @@ export type IngredientSelectScalar = {
   updatedAt?: boolean
 }
 
-export type IngredientOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"ingredientId" | "ingredientName" | "unit" | "stockQuantity" | "minimumThreshold" | "isArchived" | "version" | "createdAt" | "updatedAt", ExtArgs["result"]["ingredient"]>
+export type IngredientOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"ingredientId" | "ingredientName" | "unit" | "minimumThreshold" | "isArchived" | "version" | "createdAt" | "updatedAt", ExtArgs["result"]["ingredient"]>
 export type IngredientInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   recipes?: boolean | Prisma.Ingredient$recipesArgs<ExtArgs>
   restockBatches?: boolean | Prisma.Ingredient$restockBatchesArgs<ExtArgs>
@@ -1105,7 +1053,6 @@ export type $IngredientPayload<ExtArgs extends runtime.Types.Extensions.Internal
     ingredientId: string
     ingredientName: string
     unit: string
-    stockQuantity: runtime.Decimal
     minimumThreshold: runtime.Decimal
     isArchived: boolean
     version: number
@@ -1542,7 +1489,6 @@ export interface IngredientFieldRefs {
   readonly ingredientId: Prisma.FieldRef<"Ingredient", 'String'>
   readonly ingredientName: Prisma.FieldRef<"Ingredient", 'String'>
   readonly unit: Prisma.FieldRef<"Ingredient", 'String'>
-  readonly stockQuantity: Prisma.FieldRef<"Ingredient", 'Decimal'>
   readonly minimumThreshold: Prisma.FieldRef<"Ingredient", 'Decimal'>
   readonly isArchived: Prisma.FieldRef<"Ingredient", 'Boolean'>
   readonly version: Prisma.FieldRef<"Ingredient", 'Int'>

@@ -40,8 +40,13 @@ function Dialog({ open, onOpenChange, children }) {
         className="fixed inset-0 bg-black/50"
         onClick={() => onOpenChange(false)}
       />
-      {/* Content */}
-      <div className="relative z-50 w-full flex justify-center px-4">{children}</div>
+      {/* Content — click outside closes */}
+      <div
+        className="relative z-50 w-full flex justify-center px-4"
+        onClick={() => onOpenChange(false)}
+      >
+        {children}
+      </div>
     </div>,
     document.body,
   );
@@ -51,9 +56,10 @@ function DialogContent({ className, children, ...props }) {
   return (
     <div
       className={cn(
-        "w-full max-w-lg border border-border bg-card text-card-foreground rounded-xl p-6",
+        "w-full max-w-lg relative border border-border bg-card text-card-foreground rounded-xl p-6",
         className,
       )}
+      onClick={(e) => e.stopPropagation()}
       {...props}
     >
       {children}

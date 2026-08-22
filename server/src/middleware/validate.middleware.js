@@ -61,3 +61,31 @@ export const validateQuery = (schema) => {
     next();
   };
 };
+
+/**
+ * Zod Validation Middleware — req.params
+ *
+ * Validates req.params against a Zod schema before the controller runs.
+ * If validation fails → sends error response, controller never executes.
+ * If validation passes → replaces req.params with parsed (sanitized) data.
+ *
+ * Use for routes with path parameters like /:id to validate UUIDs etc.
+ */
+export const validateParams = (schema) => {
+  return (req, res, next) => {
+    const result = schema.safeParse(req.params);
+
+    if (!result.success) {
+      return errorResponse(
+        res,
+        result.error.issues[0].message,
+        null,
+        400,
+        "VALIDATION_ERROR",
+      );
+    }
+
+    req.params = result.data;
+    next();
+  };
+};
