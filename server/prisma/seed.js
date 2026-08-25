@@ -197,6 +197,183 @@ async function main() {
   console.log("Cashier: Jose Reyes   → PIN 3333");
   console.log("Kitchen: Ana Dela Cruz → PIN 4444");
   console.log("Kitchen: Carlo Garcia → PIN 5555");
+
+  // ── Seed Products ─────────────────────────────
+  // Build ingredient name → ID lookup for recipes
+  const allIngredients = await prisma.ingredient.findMany();
+  const ingMap = {};
+  for (const ing of allIngredients) {
+    ingMap[ing.ingredientName] = ing.ingredientId;
+  }
+
+  const categoryMap = {};
+  const allCategories = await prisma.category.findMany();
+  for (const cat of allCategories) {
+    categoryMap[cat.categoryName] = cat.categoryId;
+  }
+
+  const products = [
+    {
+      productName: "Caramel Latte",
+      categoryName: "Coffee",
+      description: "Smooth espresso with caramel and steamed milk",
+      variants: [
+        {
+          sizeName: "Regular",
+          price: 130,
+          recipes: [
+            { ingredientName: "Espresso Beans", qty: 18 },
+            { ingredientName: "Milk (Fresh)", qty: 240 },
+            { ingredientName: "Caramel Syrup", qty: 15 },
+          ],
+        },
+        {
+          sizeName: "Large",
+          price: 150,
+          recipes: [
+            { ingredientName: "Espresso Beans", qty: 24 },
+            { ingredientName: "Milk (Fresh)", qty: 360 },
+            { ingredientName: "Caramel Syrup", qty: 20 },
+          ],
+        },
+      ],
+    },
+    {
+      productName: "Classic Green Tea",
+      categoryName: "Tea",
+      description: "Refreshing green tea served hot or iced",
+      variants: [
+        {
+          sizeName: "Regular",
+          price: 90,
+          recipes: [
+            { ingredientName: "Tea Leaves (Green)", qty: 5 },
+            { ingredientName: "Sugar", qty: 10 },
+          ],
+        },
+        {
+          sizeName: "Large",
+          price: 110,
+          recipes: [
+            { ingredientName: "Tea Leaves (Green)", qty: 8 },
+            { ingredientName: "Sugar", qty: 15 },
+          ],
+        },
+      ],
+    },
+    {
+      productName: "Grilled Ham & Cheese",
+      categoryName: "Sandwiches",
+      description: "Toasted bread with ham and melted cheese",
+      variants: [
+        {
+          sizeName: "Single",
+          price: 120,
+          recipes: [
+            { ingredientName: "Bread (Sliced)", qty: 2 },
+            { ingredientName: "Cheese", qty: 40 },
+            { ingredientName: "Ham", qty: 50 },
+            { ingredientName: "Butter", qty: 10 },
+          ],
+        },
+        {
+          sizeName: "Double",
+          price: 180,
+          recipes: [
+            { ingredientName: "Bread (Sliced)", qty: 3 },
+            { ingredientName: "Cheese", qty: 60 },
+            { ingredientName: "Ham", qty: 80 },
+            { ingredientName: "Butter", qty: 15 },
+          ],
+        },
+      ],
+    },
+    {
+      productName: "Chicken Adobo Rice",
+      categoryName: "Rice Meals",
+      description: "Classic Filipino chicken adobo with steamed rice",
+      variants: [
+        {
+          sizeName: "Regular",
+          price: 150,
+          recipes: [
+            { ingredientName: "Chicken", qty: 150 },
+            { ingredientName: "Rice", qty: 200 },
+          ],
+        },
+        {
+          sizeName: "Large",
+          price: 200,
+          recipes: [
+            { ingredientName: "Chicken", qty: 250 },
+            { ingredientName: "Rice", qty: 300 },
+          ],
+        },
+      ],
+    },
+    {
+      productName: "Chocolate Croissant",
+      categoryName: "Pastries",
+      description: "Buttery croissant filled with chocolate",
+      variants: [
+        {
+          sizeName: "Regular",
+          price: 85,
+          recipes: [
+            { ingredientName: "Flour", qty: 60 },
+            { ingredientName: "Butter", qty: 30 },
+            { ingredientName: "Eggs", qty: 1 },
+            { ingredientName: "Chocolate Syrup", qty: 20 },
+          ],
+        },
+      ],
+    },
+  ];
+
+  for (const prod of products) {
+    const existing = await prisma.product.findFirst({
+      where: { productName: prod.productName },
+    });
+
+    if (existing) {
+      console.log(`  - Product already exists: ${prod.productName}`);
+      continue;
+    }
+
+    const categoryId = categoryMap[prod.categoryName];
+    if (!categoryId) {
+      console.log(`  ✗ Category not found: ${prod.categoryName}`);
+      continue;
+    }
+
+    await prisma.$transaction(async (tx) => {
+      const product = await tx.product.create({
+        data: {
+          productName: prod.productName,
+          categoryId,
+          description: prod.description || null,
+        },
+      });
+
+      for (const v of prod.variants) {
+        await tx.productVariant.create({
+          data: {
+            productId: product.productId,
+            sizeName: v.sizeName,
+            price: v.price,
+            recipes: {
+              create: v.recipes.map((r) => ({
+                ingredientId: ingMap[r.ingredientName],
+                quantityNeeded: r.qty,
+              })),
+            },
+          },
+        });
+      }
+    });
+
+    console.log(`  ✓ Product: ${prod.productName} (${prod.variants.length} variants)`);
+  }
 }
 
 main()

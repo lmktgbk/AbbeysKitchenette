@@ -105,7 +105,7 @@ export default function IngredientTable({
   useEffect(() => {
     setCurrentPage(1);
     setActiveSort(showArchived ? "ingredient_name_asc" : "status_asc");
-  }, [search, showArchived, activeFilters]);
+  }, [search, showArchived, activeFilters.status]);
 
   const hasData = totalItems > 0;
   const isRefetching = isLoading && hasData;

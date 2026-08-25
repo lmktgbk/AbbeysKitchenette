@@ -1,4 +1,4 @@
-import prisma, { Prisma } from "../../config/prisma.js";
+import prisma from "../../config/prisma.js";
 
 /**
  * Ingredient Repository
@@ -21,69 +21,47 @@ export const ingredientRepository = {
     });
   },
 
-  /* ── Paginated Queries (SQL-Level) ──── */
+  /* ── Raw SQL Fragments (plain strings for $queryRawUnsafe) ──── */
 
-  /**
-   * SQL subquery that computes total stock from active batches.
-   * Replaces the removed stock_quantity column on ingredients.
-   * @returns {Prisma.Sql}
-   */
-  _stockSubquery() {
-    return Prisma.sql`(SELECT COALESCE(SUM(rb.quantity_left), 0) FROM restock_batches rb WHERE rb.ingredient_id = i.ingredient_id AND rb.quantity_left > 0)`;
+  _stockExpr() {
+    return "(SELECT COALESCE(SUM(rb.quantity_left), 0) FROM restock_batches rb WHERE rb.ingredient_id = i.ingredient_id AND rb.quantity_left > 0)";
   },
 
-  /**
-   * Build the status CASE WHEN expression for SQL queries.
-   * @returns {Prisma.Sql}
-   */
-  _statusCase() {
-    return Prisma.sql`(
-      CASE
-        WHEN ${this._stockSubquery()} <= 0 THEN 'out_of_stock'
-        WHEN ${this._stockSubquery()} <= i.minimum_threshold THEN 'low_stock'
-        ELSE 'healthy'
-      END
-    )`;
+  _statusCaseExpr() {
+    const stock = this._stockExpr();
+    return `(CASE WHEN ${stock} <= 0 THEN 'out_of_stock' WHEN ${stock} <= i.minimum_threshold THEN 'low_stock' ELSE 'healthy' END)`;
   },
 
-  /**
-   * Build WHERE clause for non-archived ingredients.
-   * @param {string} search - search term
-   * @param {string} status - status filter
-   * @returns {Prisma.Sql}
-   */
-  _buildActiveWhere(search, status) {
-    const conditions = [Prisma.sql`i.is_archived = false`];
+  _buildActiveWhereClause(search, status) {
+    const clauses = ["i.is_archived = false"];
+    const values = [];
+    let idx = 1;
 
     if (search) {
-      conditions.push(Prisma.sql`i.ingredient_name ILIKE ${`%${search}%`}`);
+      values.push(`%${search}%`);
+      clauses.push(`i.ingredient_name ILIKE $${idx++}`);
     }
 
     if (status && status !== "all") {
       const statusMap = { healthy: "healthy", low: "low_stock", out: "out_of_stock" };
-      conditions.push(Prisma.sql`${this._statusCase()} = ${statusMap[status] || status}`);
+      clauses.push(`${this._statusCaseExpr()} = $${idx++}`);
+      values.push(statusMap[status] || status);
     }
 
-    return Prisma.sql`WHERE ${Prisma.join(conditions, Prisma.sql` AND `)}`;
+    return { where: `WHERE ${clauses.join(" AND ")}`, values };
   },
 
-  /**
-   * Build ORDER BY clause for active ingredients.
-   * @param {string} sortBy
-   * @param {string} sortDir
-   * @returns {Prisma.Sql}
-   */
-  _buildActiveOrderBy(sortBy, sortDir) {
-    const dir = sortDir === "desc" ? Prisma.sql`DESC` : Prisma.sql`ASC`;
-    const stockExpr = this._stockSubquery();
+  _buildActiveOrderByClause(sortBy, sortDir) {
+    const dir = sortDir === "desc" ? "DESC" : "ASC";
+    const stock = this._stockExpr();
     const sortMap = {
-      ingredient_name: Prisma.sql`i.ingredient_name ${dir}`,
-      unit: Prisma.sql`i.unit ${dir}`,
-      stock_quantity: Prisma.sql`(${stockExpr}) ${dir}`,
-      minimum_threshold: Prisma.sql`i.minimum_threshold ${dir}`,
-      status: Prisma.sql`CASE WHEN ${stockExpr} <= 0 THEN 3 WHEN ${stockExpr} <= i.minimum_threshold THEN 2 ELSE 1 END ${dir}, i.ingredient_name ASC`,
+      ingredient_name: `i.ingredient_name ${dir}`,
+      unit: `i.unit ${dir}`,
+      stock_quantity: `(${stock}) ${dir}`,
+      minimum_threshold: `i.minimum_threshold ${dir}`,
+      status: `CASE WHEN ${stock} <= 0 THEN 3 WHEN ${stock} <= i.minimum_threshold THEN 2 ELSE 1 END ${dir}, i.ingredient_name ASC`,
     };
-    return sortMap[sortBy] || Prisma.sql`i.ingredient_name ASC`;
+    return sortMap[sortBy] || `i.ingredient_name ${dir}`;
   },
 
   /**
@@ -92,31 +70,32 @@ export const ingredientRepository = {
    * @returns {Array<object>}
    */
   async findManyPaginated({ skip, take, search, status, sortBy, sortDir }) {
-    const where = this._buildActiveWhere(search, status);
-    const orderBy = this._buildActiveOrderBy(sortBy, sortDir);
+    const { where, values } = this._buildActiveWhereClause(search, status);
+    const orderBy = this._buildActiveOrderByClause(sortBy, sortDir);
+    const stock = this._stockExpr();
+    const statusCase = this._statusCaseExpr();
 
-    return prisma.$queryRaw`
-      SELECT
+    return prisma.$queryRawUnsafe(
+      `SELECT
         i.ingredient_id, i.ingredient_name, i.unit,
-        ${this._stockSubquery()} AS stock_quantity,
+        ${stock} AS stock_quantity,
         i.minimum_threshold, i.is_archived,
         i.version, i.created_at, i.updated_at,
-        ${this._statusCase()} AS status
+        ${statusCase} AS status
       FROM ingredients i
       ${where}
       ORDER BY ${orderBy}
-      LIMIT ${take} OFFSET ${skip}
-    `;
+      LIMIT ${take} OFFSET ${skip}`,
+      ...values
+    );
   },
 
-  /**
-   * Count non-archived ingredients matching filters.
-   * @param {object} params - { search, status }
-   * @returns {number}
-   */
   async countFiltered({ search, status }) {
-    const where = this._buildActiveWhere(search, status);
-    const result = await prisma.$queryRaw`SELECT COUNT(*)::int AS count FROM ingredients i ${where}`;
+    const { where, values } = this._buildActiveWhereClause(search, status);
+    const result = await prisma.$queryRawUnsafe(
+      `SELECT COUNT(*)::int AS count FROM ingredients i ${where}`,
+      ...values
+    );
     return result[0]?.count ?? 0;
   },
 
@@ -126,62 +105,66 @@ export const ingredientRepository = {
    * @returns {Array<object>}
    */
   async findManyArchivedPaginated({ skip, take, search, sortBy, sortDir }) {
-    const conditions = [Prisma.sql`i.is_archived = true`];
-    if (search) conditions.push(Prisma.sql`i.ingredient_name ILIKE ${`%${search}%`}`) ;
-    const where = Prisma.sql`WHERE ${Prisma.join(conditions, Prisma.sql` AND `)}`;
+    const clauses = ["i.is_archived = true"];
+    const values = [];
+    let idx = 1;
+    if (search) {
+      values.push(`%${search}%`);
+      clauses.push(`i.ingredient_name ILIKE $${idx++}`);
+    }
+    const where = `WHERE ${clauses.join(" AND ")}`;
 
-    const stockExpr = this._stockSubquery();
+    const stock = this._stockExpr();
     const sortMap = {
-      ingredient_name: Prisma.sql`i.ingredient_name`,
-      unit: Prisma.sql`i.unit`,
-      stock_quantity: Prisma.sql`(${stockExpr})`,
-      minimum_threshold: Prisma.sql`i.minimum_threshold`,
+      ingredient_name: "i.ingredient_name",
+      unit: "i.unit",
+      stock_quantity: `(${stock})`,
+      minimum_threshold: "i.minimum_threshold",
     };
-    const orderByCol = sortMap[sortBy] || Prisma.sql`i.ingredient_name`;
-    const orderByDir = sortDir === "desc" ? Prisma.sql`DESC` : Prisma.sql`ASC`;
+    const orderByCol = sortMap[sortBy] || "i.ingredient_name";
+    const orderByDir = sortDir === "desc" ? "DESC" : "ASC";
 
-    return prisma.$queryRaw`
-      SELECT
+    return prisma.$queryRawUnsafe(
+      `SELECT
         i.ingredient_id, i.ingredient_name, i.unit,
-        ${this._stockSubquery()} AS stock_quantity,
+        ${stock} AS stock_quantity,
         i.minimum_threshold, i.is_archived,
         i.version, i.created_at, i.updated_at
       FROM ingredients i
       ${where}
       ORDER BY ${orderByCol} ${orderByDir}
-      LIMIT ${take} OFFSET ${skip}
-    `;
+      LIMIT ${take} OFFSET ${skip}`,
+      ...values
+    );
   },
 
-  /**
-   * Count archived ingredients matching search filter.
-   * @param {object} params - { search }
-   * @returns {number}
-   */
   async countArchivedFiltered({ search }) {
-    const conditions = [Prisma.sql`i.is_archived = true`];
-    if (search) conditions.push(Prisma.sql`i.ingredient_name ILIKE ${`%${search}%`}`) ;
-    const where = Prisma.sql`WHERE ${Prisma.join(conditions, Prisma.sql` AND `)}`;
-    const result = await prisma.$queryRaw`SELECT COUNT(*)::int AS count FROM ingredients i ${where}`;
+    const clauses = ["i.is_archived = true"];
+    const values = [];
+    let idx = 1;
+    if (search) {
+      values.push(`%${search}%`);
+      clauses.push(`i.ingredient_name ILIKE $${idx++}`);
+    }
+    const where = `WHERE ${clauses.join(" AND ")}`;
+    const result = await prisma.$queryRawUnsafe(
+      `SELECT COUNT(*)::int AS count FROM ingredients i ${where}`,
+      ...values
+    );
     return result[0]?.count ?? 0;
   },
 
-  /**
-   * Count ingredients by stock status using SQL aggregation.
-   * Used by the summary endpoint for KPI cards.
-   * @returns {{ total: number, healthy: number, low: number, out: number }}
-   */
   async countByStatus() {
-    const stockExpr = this._stockSubquery();
-    const result = await prisma.$queryRaw`
-      SELECT
+    const stock = this._stockExpr();
+    const result = await prisma.$queryRawUnsafe(
+      `SELECT
         COUNT(*)::int AS total,
-        COUNT(*) FILTER (WHERE ${stockExpr} > i.minimum_threshold)::int AS healthy,
-        COUNT(*) FILTER (WHERE ${stockExpr} > 0 AND ${stockExpr} <= i.minimum_threshold)::int AS low,
-        COUNT(*) FILTER (WHERE ${stockExpr} <= 0)::int AS out
+        COUNT(*) FILTER (WHERE ${stock} > i.minimum_threshold)::int AS healthy,
+        COUNT(*) FILTER (WHERE ${stock} > 0 AND ${stock} <= i.minimum_threshold)::int AS low,
+        COUNT(*) FILTER (WHERE ${stock} <= 0)::int AS out
       FROM ingredients i
-      WHERE i.is_archived = false
-    `;
+      WHERE i.is_archived = false`
+    );
     return { total: result[0].total, healthy: result[0].healthy, low: result[0].low, out: result[0].out };
   },
 

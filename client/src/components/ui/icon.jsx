@@ -37,6 +37,12 @@ import {
     Minus,
     Edit,
     SlidersHorizontal,
+    Image,
+    Eye,
+    EyeOff,
+    Pencil,
+    Trash2,
+    Plus,
 } from "lucide-react";
 
 const iconMap = {
@@ -78,6 +84,12 @@ const iconMap = {
     minus: Minus,
     edit: Edit,
     filter: SlidersHorizontal,
+    image: Image,
+    eye: Eye,
+    eyeOff: EyeOff,
+    pencil: Pencil,
+    trash2: Trash2,
+    plus: Plus,
 };
 
 /**

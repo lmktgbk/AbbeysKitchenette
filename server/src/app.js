@@ -3,6 +3,8 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
+import path from "path";
+import { fileURLToPath } from "url";
 
 // Imports
 import { env } from "./config/env.js";
@@ -12,6 +14,10 @@ import errorHandler from "./middleware/errorHandler.middleware.js";
 import authRoutes from "./modules/auth/auth.routes.js";
 import categoryRoutes from "./modules/categories/category.routes.js";
 import ingredientRoutes from "./modules/ingredients/ingredient.routes.js";
+import productRoutes from "./modules/products/product.routes.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -47,10 +53,14 @@ app.use(cookieParser());
 // Protects against DDoS and accidental high-volume requests.
 // app.use(generalLimiter);
 
+// Serve uploaded files statically
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+
 // Routes endpoints
 app.use("/api/auth", authRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/ingredients", ingredientRoutes);
+app.use("/api/products", productRoutes);
 
 // Health check endpoint (used by hosting platforms to verify server is running)
 app.get("/api/health", (req, res) => {

@@ -30,6 +30,7 @@ import ForgotPasswordPage from "@/features/auth/pages/ForgotPasswordPage";
 import ResetPasswordPage from "@/features/auth/pages/ResetPasswordPage";
 import ChangePinPage from "@/features/auth/pages/ChangePinPage";
 import IngredientsPage from "@/features/ingredients/pages/InventoryPage";
+import ProductsPage from "@/features/products/pages/ProductsPage";
 
 /* ── Placeholder Pages ───────────────── */
 
@@ -99,7 +100,7 @@ const router = createBrowserRouter([
         ),
         children: [
             { path: "/dashboard", element: <DashboardPlaceholder /> },
-            { path: "/products", element: <ProductsPlaceholder /> },
+            { path: "/products", element: <ProductsPage /> },
             { path: "/inventory", element: <IngredientsPage /> },
             { path: "/inventory", element: <InventoryPlaceholder /> },
             { path: "/staff", element: <StaffPlaceholder /> },

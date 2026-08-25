@@ -158,9 +158,11 @@ export default function InventoryPage() {
       message: `This will hide "${ingredient.ingredient_name}" from active lists.`,
       note: "This ingredient can be restored later from the Archived view.",
       confirmLabel: "Archive",
+      loadingText: "Archiving...",
       variant: "danger",
+      onConfirm: () => mutations.archive.mutateAsync(ingredient.ingredient_id),
     });
-    if (ok) archiveMutation.mutate(ingredient.ingredient_id);
+    if (ok) toast.success("Ingredient archived");
   }
 
   async function handleRestore(ingredient) {
@@ -169,9 +171,11 @@ export default function InventoryPage() {
       message: `This will restore "${ingredient.ingredient_name}" to active lists.`,
       note: "The ingredient will reappear in your inventory and can be restocked or used immediately.",
       confirmLabel: "Restore",
+      loadingText: "Restoring...",
       variant: "success",
+      onConfirm: () => mutations.restore.mutateAsync(ingredient.ingredient_id),
     });
-    if (ok) restoreMutation.mutate(ingredient.ingredient_id);
+    if (ok) toast.success("Ingredient restored");
   }
 
   async function handleDelete(ingredient) {
@@ -180,9 +184,11 @@ export default function InventoryPage() {
       message: `This will permanently delete "${ingredient.ingredient_name}".`,
       note: "This action cannot be undone. All associated data will be lost.",
       confirmLabel: "Delete",
+      loadingText: "Deleting...",
       variant: "danger",
+      onConfirm: () => mutations.remove.mutateAsync(ingredient.ingredient_id),
     });
-    if (ok) deleteMutation.mutate(ingredient.ingredient_id);
+    if (ok) toast.success("Ingredient deleted permanently");
   }
 
   function handleFormSubmit(data) {

@@ -37,4 +37,9 @@ export const env = {
   GMAIL_USER: process.env.GMAIL_USER,
   GMAIL_APP_PASS: process.env.GMAIL_APP_PASS,
   EMAIL_FROM: process.env.EMAIL_FROM || "Abbey's Kitchenette",
+
+  // Cloudinary — image storage
+  CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
+  CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
+  CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
 };

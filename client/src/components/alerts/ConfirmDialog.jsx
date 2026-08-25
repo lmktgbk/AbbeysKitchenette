@@ -17,9 +17,11 @@ const VARIANTS = {
  * @param {string} [opts.confirmLabel] - Confirm button text
  * @param {string} [opts.cancelLabel] - Cancel button text
  * @param {string} [opts.variant] - danger | warning | success | info
- * @returns {Promise<boolean>} - true if confirmed
+ * @param {Function} [opts.onConfirm] - async callback. Dialog stays open with loading text until it resolves.
+ * @param {string} [opts.loadingText] - text shown on confirm button while onConfirm is running
+ * @returns {Promise<boolean>} - true if confirmed (and onConfirm succeeded, if provided)
  */
-export async function confirm({ title, message, note, confirmLabel = "Confirm", cancelLabel = "Cancel", variant = "danger" }) {
+export async function confirm({ title, message, note, confirmLabel = "Confirm", cancelLabel = "Cancel", variant = "danger", onConfirm, loadingText }) {
     const v = VARIANTS[variant] || VARIANTS.danger;
 
     const hasNote = !!note;
@@ -39,6 +41,24 @@ export async function confirm({ title, message, note, confirmLabel = "Confirm", 
         reverseButtons: true,
         background: "var(--card)",
         color: "var(--foreground)",
+        ...(onConfirm && {
+            preConfirm: async () => {
+                const btn = Swal.getConfirmButton();
+                btn.disabled = true;
+                btn.textContent = loadingText || confirmLabel;
+                try {
+                    await onConfirm();
+                } catch (err) {
+                    btn.disabled = false;
+                    btn.textContent = loadingText || confirmLabel;
+                    Swal.showValidationMessage(
+                        err?.response?.data?.message || "Operation failed"
+                    );
+                    return false;
+                }
+            },
+            allowOutsideClick: () => !Swal.isLoading(),
+        }),
     });
     return result.isConfirmed;
 }
