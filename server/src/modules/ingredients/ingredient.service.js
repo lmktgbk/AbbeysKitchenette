@@ -1,5 +1,6 @@
 import { ingredientRepository } from "./ingredient.repository.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
+import { productService } from "../products/product.service.js";
 import prisma from "../../config/prisma.js";
 
 /**
@@ -298,7 +299,12 @@ export const ingredientService = {
 
     // Return the updated ingredient
     const stockQuantity = await ingredientRepository.getStockFromBatches(id);
-    return mapToIngredientResponse(existing, stockQuantity);
+    const response = mapToIngredientResponse(existing, stockQuantity);
+
+    // Recompute variant availability for this ingredient
+    await productService.recomputeVariantAvailability([id]);
+
+    return response;
   },
 
   /* ── Loss Declaration ─────────────────── */
@@ -418,7 +424,12 @@ export const ingredientService = {
 
     // Step 6: Return updated ingredient
     const stockQuantity = await ingredientRepository.getStockFromBatches(id);
-    return mapToIngredientResponse(existing, stockQuantity);
+    const response = mapToIngredientResponse(existing, stockQuantity);
+
+    // Recompute variant availability for this ingredient
+    await productService.recomputeVariantAvailability([id]);
+
+    return response;
   },
 
   /**

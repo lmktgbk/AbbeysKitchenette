@@ -26,7 +26,7 @@ export function SearchBar({ value, onChange, placeholder = "Search...", classNam
                     placeholder={placeholder}
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
-                    className="pl-8 h-8 w-48 text-xs"
+                    className="pl-8 h-8 text-xs"
                 />
             </div>
             {onFilterClick && (

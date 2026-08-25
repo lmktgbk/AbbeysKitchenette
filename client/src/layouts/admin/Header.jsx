@@ -11,6 +11,7 @@ const PAGE_TITLES = {
     "/products": "Products",
     "/ingredients": "Inventory",
     "/inventory": "Inventory",
+    "/orders": "Orders",
     "/pos": "POS",
     "/kitchen": "Kitchen",
     "/staff": "Staff",

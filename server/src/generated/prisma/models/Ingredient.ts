@@ -249,6 +249,7 @@ export type IngredientWhereInput = {
   lossRecords?: Prisma.LossRecordListRelationFilter
   stockAdjustments?: Prisma.StockAdjustmentListRelationFilter
   stockAlerts?: Prisma.StockAlertListRelationFilter
+  orderDeductions?: Prisma.OrderIngredientDeductionListRelationFilter
 }
 
 export type IngredientOrderByWithRelationInput = {
@@ -265,6 +266,7 @@ export type IngredientOrderByWithRelationInput = {
   lossRecords?: Prisma.LossRecordOrderByRelationAggregateInput
   stockAdjustments?: Prisma.StockAdjustmentOrderByRelationAggregateInput
   stockAlerts?: Prisma.StockAlertOrderByRelationAggregateInput
+  orderDeductions?: Prisma.OrderIngredientDeductionOrderByRelationAggregateInput
 }
 
 export type IngredientWhereUniqueInput = Prisma.AtLeast<{
@@ -284,6 +286,7 @@ export type IngredientWhereUniqueInput = Prisma.AtLeast<{
   lossRecords?: Prisma.LossRecordListRelationFilter
   stockAdjustments?: Prisma.StockAdjustmentListRelationFilter
   stockAlerts?: Prisma.StockAlertListRelationFilter
+  orderDeductions?: Prisma.OrderIngredientDeductionListRelationFilter
 }, "ingredientId" | "ingredientName">
 
 export type IngredientOrderByWithAggregationInput = {
@@ -330,6 +333,7 @@ export type IngredientCreateInput = {
   lossRecords?: Prisma.LossRecordCreateNestedManyWithoutIngredientInput
   stockAdjustments?: Prisma.StockAdjustmentCreateNestedManyWithoutIngredientInput
   stockAlerts?: Prisma.StockAlertCreateNestedManyWithoutIngredientInput
+  orderDeductions?: Prisma.OrderIngredientDeductionCreateNestedManyWithoutIngredientInput
 }
 
 export type IngredientUncheckedCreateInput = {
@@ -346,6 +350,7 @@ export type IngredientUncheckedCreateInput = {
   lossRecords?: Prisma.LossRecordUncheckedCreateNestedManyWithoutIngredientInput
   stockAdjustments?: Prisma.StockAdjustmentUncheckedCreateNestedManyWithoutIngredientInput
   stockAlerts?: Prisma.StockAlertUncheckedCreateNestedManyWithoutIngredientInput
+  orderDeductions?: Prisma.OrderIngredientDeductionUncheckedCreateNestedManyWithoutIngredientInput
 }
 
 export type IngredientUpdateInput = {
@@ -362,6 +367,7 @@ export type IngredientUpdateInput = {
   lossRecords?: Prisma.LossRecordUpdateManyWithoutIngredientNestedInput
   stockAdjustments?: Prisma.StockAdjustmentUpdateManyWithoutIngredientNestedInput
   stockAlerts?: Prisma.StockAlertUpdateManyWithoutIngredientNestedInput
+  orderDeductions?: Prisma.OrderIngredientDeductionUpdateManyWithoutIngredientNestedInput
 }
 
 export type IngredientUncheckedUpdateInput = {
@@ -378,6 +384,7 @@ export type IngredientUncheckedUpdateInput = {
   lossRecords?: Prisma.LossRecordUncheckedUpdateManyWithoutIngredientNestedInput
   stockAdjustments?: Prisma.StockAdjustmentUncheckedUpdateManyWithoutIngredientNestedInput
   stockAlerts?: Prisma.StockAlertUncheckedUpdateManyWithoutIngredientNestedInput
+  orderDeductions?: Prisma.OrderIngredientDeductionUncheckedUpdateManyWithoutIngredientNestedInput
 }
 
 export type IngredientCreateManyInput = {
@@ -531,6 +538,20 @@ export type IngredientUpdateOneRequiredWithoutStockAlertsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.IngredientUpdateToOneWithWhereWithoutStockAlertsInput, Prisma.IngredientUpdateWithoutStockAlertsInput>, Prisma.IngredientUncheckedUpdateWithoutStockAlertsInput>
 }
 
+export type IngredientCreateNestedOneWithoutOrderDeductionsInput = {
+  create?: Prisma.XOR<Prisma.IngredientCreateWithoutOrderDeductionsInput, Prisma.IngredientUncheckedCreateWithoutOrderDeductionsInput>
+  connectOrCreate?: Prisma.IngredientCreateOrConnectWithoutOrderDeductionsInput
+  connect?: Prisma.IngredientWhereUniqueInput
+}
+
+export type IngredientUpdateOneRequiredWithoutOrderDeductionsNestedInput = {
+  create?: Prisma.XOR<Prisma.IngredientCreateWithoutOrderDeductionsInput, Prisma.IngredientUncheckedCreateWithoutOrderDeductionsInput>
+  connectOrCreate?: Prisma.IngredientCreateOrConnectWithoutOrderDeductionsInput
+  upsert?: Prisma.IngredientUpsertWithoutOrderDeductionsInput
+  connect?: Prisma.IngredientWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.IngredientUpdateToOneWithWhereWithoutOrderDeductionsInput, Prisma.IngredientUpdateWithoutOrderDeductionsInput>, Prisma.IngredientUncheckedUpdateWithoutOrderDeductionsInput>
+}
+
 export type IngredientCreateWithoutRecipesInput = {
   ingredientId?: string
   ingredientName: string
@@ -544,6 +565,7 @@ export type IngredientCreateWithoutRecipesInput = {
   lossRecords?: Prisma.LossRecordCreateNestedManyWithoutIngredientInput
   stockAdjustments?: Prisma.StockAdjustmentCreateNestedManyWithoutIngredientInput
   stockAlerts?: Prisma.StockAlertCreateNestedManyWithoutIngredientInput
+  orderDeductions?: Prisma.OrderIngredientDeductionCreateNestedManyWithoutIngredientInput
 }
 
 export type IngredientUncheckedCreateWithoutRecipesInput = {
@@ -559,6 +581,7 @@ export type IngredientUncheckedCreateWithoutRecipesInput = {
   lossRecords?: Prisma.LossRecordUncheckedCreateNestedManyWithoutIngredientInput
   stockAdjustments?: Prisma.StockAdjustmentUncheckedCreateNestedManyWithoutIngredientInput
   stockAlerts?: Prisma.StockAlertUncheckedCreateNestedManyWithoutIngredientInput
+  orderDeductions?: Prisma.OrderIngredientDeductionUncheckedCreateNestedManyWithoutIngredientInput
 }
 
 export type IngredientCreateOrConnectWithoutRecipesInput = {
@@ -590,6 +613,7 @@ export type IngredientUpdateWithoutRecipesInput = {
   lossRecords?: Prisma.LossRecordUpdateManyWithoutIngredientNestedInput
   stockAdjustments?: Prisma.StockAdjustmentUpdateManyWithoutIngredientNestedInput
   stockAlerts?: Prisma.StockAlertUpdateManyWithoutIngredientNestedInput
+  orderDeductions?: Prisma.OrderIngredientDeductionUpdateManyWithoutIngredientNestedInput
 }
 
 export type IngredientUncheckedUpdateWithoutRecipesInput = {
@@ -605,6 +629,7 @@ export type IngredientUncheckedUpdateWithoutRecipesInput = {
   lossRecords?: Prisma.LossRecordUncheckedUpdateManyWithoutIngredientNestedInput
   stockAdjustments?: Prisma.StockAdjustmentUncheckedUpdateManyWithoutIngredientNestedInput
   stockAlerts?: Prisma.StockAlertUncheckedUpdateManyWithoutIngredientNestedInput
+  orderDeductions?: Prisma.OrderIngredientDeductionUncheckedUpdateManyWithoutIngredientNestedInput
 }
 
 export type IngredientCreateWithoutRestockBatchesInput = {
@@ -620,6 +645,7 @@ export type IngredientCreateWithoutRestockBatchesInput = {
   lossRecords?: Prisma.LossRecordCreateNestedManyWithoutIngredientInput
   stockAdjustments?: Prisma.StockAdjustmentCreateNestedManyWithoutIngredientInput
   stockAlerts?: Prisma.StockAlertCreateNestedManyWithoutIngredientInput
+  orderDeductions?: Prisma.OrderIngredientDeductionCreateNestedManyWithoutIngredientInput
 }
 
 export type IngredientUncheckedCreateWithoutRestockBatchesInput = {
@@ -635,6 +661,7 @@ export type IngredientUncheckedCreateWithoutRestockBatchesInput = {
   lossRecords?: Prisma.LossRecordUncheckedCreateNestedManyWithoutIngredientInput
   stockAdjustments?: Prisma.StockAdjustmentUncheckedCreateNestedManyWithoutIngredientInput
   stockAlerts?: Prisma.StockAlertUncheckedCreateNestedManyWithoutIngredientInput
+  orderDeductions?: Prisma.OrderIngredientDeductionUncheckedCreateNestedManyWithoutIngredientInput
 }
 
 export type IngredientCreateOrConnectWithoutRestockBatchesInput = {
@@ -666,6 +693,7 @@ export type IngredientUpdateWithoutRestockBatchesInput = {
   lossRecords?: Prisma.LossRecordUpdateManyWithoutIngredientNestedInput
   stockAdjustments?: Prisma.StockAdjustmentUpdateManyWithoutIngredientNestedInput
   stockAlerts?: Prisma.StockAlertUpdateManyWithoutIngredientNestedInput
+  orderDeductions?: Prisma.OrderIngredientDeductionUpdateManyWithoutIngredientNestedInput
 }
 
 export type IngredientUncheckedUpdateWithoutRestockBatchesInput = {
@@ -681,6 +709,7 @@ export type IngredientUncheckedUpdateWithoutRestockBatchesInput = {
   lossRecords?: Prisma.LossRecordUncheckedUpdateManyWithoutIngredientNestedInput
   stockAdjustments?: Prisma.StockAdjustmentUncheckedUpdateManyWithoutIngredientNestedInput
   stockAlerts?: Prisma.StockAlertUncheckedUpdateManyWithoutIngredientNestedInput
+  orderDeductions?: Prisma.OrderIngredientDeductionUncheckedUpdateManyWithoutIngredientNestedInput
 }
 
 export type IngredientCreateWithoutLossRecordsInput = {
@@ -696,6 +725,7 @@ export type IngredientCreateWithoutLossRecordsInput = {
   restockBatches?: Prisma.RestockBatchCreateNestedManyWithoutIngredientInput
   stockAdjustments?: Prisma.StockAdjustmentCreateNestedManyWithoutIngredientInput
   stockAlerts?: Prisma.StockAlertCreateNestedManyWithoutIngredientInput
+  orderDeductions?: Prisma.OrderIngredientDeductionCreateNestedManyWithoutIngredientInput
 }
 
 export type IngredientUncheckedCreateWithoutLossRecordsInput = {
@@ -711,6 +741,7 @@ export type IngredientUncheckedCreateWithoutLossRecordsInput = {
   restockBatches?: Prisma.RestockBatchUncheckedCreateNestedManyWithoutIngredientInput
   stockAdjustments?: Prisma.StockAdjustmentUncheckedCreateNestedManyWithoutIngredientInput
   stockAlerts?: Prisma.StockAlertUncheckedCreateNestedManyWithoutIngredientInput
+  orderDeductions?: Prisma.OrderIngredientDeductionUncheckedCreateNestedManyWithoutIngredientInput
 }
 
 export type IngredientCreateOrConnectWithoutLossRecordsInput = {
@@ -742,6 +773,7 @@ export type IngredientUpdateWithoutLossRecordsInput = {
   restockBatches?: Prisma.RestockBatchUpdateManyWithoutIngredientNestedInput
   stockAdjustments?: Prisma.StockAdjustmentUpdateManyWithoutIngredientNestedInput
   stockAlerts?: Prisma.StockAlertUpdateManyWithoutIngredientNestedInput
+  orderDeductions?: Prisma.OrderIngredientDeductionUpdateManyWithoutIngredientNestedInput
 }
 
 export type IngredientUncheckedUpdateWithoutLossRecordsInput = {
@@ -757,6 +789,7 @@ export type IngredientUncheckedUpdateWithoutLossRecordsInput = {
   restockBatches?: Prisma.RestockBatchUncheckedUpdateManyWithoutIngredientNestedInput
   stockAdjustments?: Prisma.StockAdjustmentUncheckedUpdateManyWithoutIngredientNestedInput
   stockAlerts?: Prisma.StockAlertUncheckedUpdateManyWithoutIngredientNestedInput
+  orderDeductions?: Prisma.OrderIngredientDeductionUncheckedUpdateManyWithoutIngredientNestedInput
 }
 
 export type IngredientCreateWithoutStockAdjustmentsInput = {
@@ -772,6 +805,7 @@ export type IngredientCreateWithoutStockAdjustmentsInput = {
   restockBatches?: Prisma.RestockBatchCreateNestedManyWithoutIngredientInput
   lossRecords?: Prisma.LossRecordCreateNestedManyWithoutIngredientInput
   stockAlerts?: Prisma.StockAlertCreateNestedManyWithoutIngredientInput
+  orderDeductions?: Prisma.OrderIngredientDeductionCreateNestedManyWithoutIngredientInput
 }
 
 export type IngredientUncheckedCreateWithoutStockAdjustmentsInput = {
@@ -787,6 +821,7 @@ export type IngredientUncheckedCreateWithoutStockAdjustmentsInput = {
   restockBatches?: Prisma.RestockBatchUncheckedCreateNestedManyWithoutIngredientInput
   lossRecords?: Prisma.LossRecordUncheckedCreateNestedManyWithoutIngredientInput
   stockAlerts?: Prisma.StockAlertUncheckedCreateNestedManyWithoutIngredientInput
+  orderDeductions?: Prisma.OrderIngredientDeductionUncheckedCreateNestedManyWithoutIngredientInput
 }
 
 export type IngredientCreateOrConnectWithoutStockAdjustmentsInput = {
@@ -818,6 +853,7 @@ export type IngredientUpdateWithoutStockAdjustmentsInput = {
   restockBatches?: Prisma.RestockBatchUpdateManyWithoutIngredientNestedInput
   lossRecords?: Prisma.LossRecordUpdateManyWithoutIngredientNestedInput
   stockAlerts?: Prisma.StockAlertUpdateManyWithoutIngredientNestedInput
+  orderDeductions?: Prisma.OrderIngredientDeductionUpdateManyWithoutIngredientNestedInput
 }
 
 export type IngredientUncheckedUpdateWithoutStockAdjustmentsInput = {
@@ -833,6 +869,7 @@ export type IngredientUncheckedUpdateWithoutStockAdjustmentsInput = {
   restockBatches?: Prisma.RestockBatchUncheckedUpdateManyWithoutIngredientNestedInput
   lossRecords?: Prisma.LossRecordUncheckedUpdateManyWithoutIngredientNestedInput
   stockAlerts?: Prisma.StockAlertUncheckedUpdateManyWithoutIngredientNestedInput
+  orderDeductions?: Prisma.OrderIngredientDeductionUncheckedUpdateManyWithoutIngredientNestedInput
 }
 
 export type IngredientCreateWithoutStockAlertsInput = {
@@ -848,6 +885,7 @@ export type IngredientCreateWithoutStockAlertsInput = {
   restockBatches?: Prisma.RestockBatchCreateNestedManyWithoutIngredientInput
   lossRecords?: Prisma.LossRecordCreateNestedManyWithoutIngredientInput
   stockAdjustments?: Prisma.StockAdjustmentCreateNestedManyWithoutIngredientInput
+  orderDeductions?: Prisma.OrderIngredientDeductionCreateNestedManyWithoutIngredientInput
 }
 
 export type IngredientUncheckedCreateWithoutStockAlertsInput = {
@@ -863,6 +901,7 @@ export type IngredientUncheckedCreateWithoutStockAlertsInput = {
   restockBatches?: Prisma.RestockBatchUncheckedCreateNestedManyWithoutIngredientInput
   lossRecords?: Prisma.LossRecordUncheckedCreateNestedManyWithoutIngredientInput
   stockAdjustments?: Prisma.StockAdjustmentUncheckedCreateNestedManyWithoutIngredientInput
+  orderDeductions?: Prisma.OrderIngredientDeductionUncheckedCreateNestedManyWithoutIngredientInput
 }
 
 export type IngredientCreateOrConnectWithoutStockAlertsInput = {
@@ -894,6 +933,7 @@ export type IngredientUpdateWithoutStockAlertsInput = {
   restockBatches?: Prisma.RestockBatchUpdateManyWithoutIngredientNestedInput
   lossRecords?: Prisma.LossRecordUpdateManyWithoutIngredientNestedInput
   stockAdjustments?: Prisma.StockAdjustmentUpdateManyWithoutIngredientNestedInput
+  orderDeductions?: Prisma.OrderIngredientDeductionUpdateManyWithoutIngredientNestedInput
 }
 
 export type IngredientUncheckedUpdateWithoutStockAlertsInput = {
@@ -909,6 +949,87 @@ export type IngredientUncheckedUpdateWithoutStockAlertsInput = {
   restockBatches?: Prisma.RestockBatchUncheckedUpdateManyWithoutIngredientNestedInput
   lossRecords?: Prisma.LossRecordUncheckedUpdateManyWithoutIngredientNestedInput
   stockAdjustments?: Prisma.StockAdjustmentUncheckedUpdateManyWithoutIngredientNestedInput
+  orderDeductions?: Prisma.OrderIngredientDeductionUncheckedUpdateManyWithoutIngredientNestedInput
+}
+
+export type IngredientCreateWithoutOrderDeductionsInput = {
+  ingredientId?: string
+  ingredientName: string
+  unit: string
+  minimumThreshold?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  isArchived?: boolean
+  version?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  recipes?: Prisma.RecipeCreateNestedManyWithoutIngredientInput
+  restockBatches?: Prisma.RestockBatchCreateNestedManyWithoutIngredientInput
+  lossRecords?: Prisma.LossRecordCreateNestedManyWithoutIngredientInput
+  stockAdjustments?: Prisma.StockAdjustmentCreateNestedManyWithoutIngredientInput
+  stockAlerts?: Prisma.StockAlertCreateNestedManyWithoutIngredientInput
+}
+
+export type IngredientUncheckedCreateWithoutOrderDeductionsInput = {
+  ingredientId?: string
+  ingredientName: string
+  unit: string
+  minimumThreshold?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  isArchived?: boolean
+  version?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutIngredientInput
+  restockBatches?: Prisma.RestockBatchUncheckedCreateNestedManyWithoutIngredientInput
+  lossRecords?: Prisma.LossRecordUncheckedCreateNestedManyWithoutIngredientInput
+  stockAdjustments?: Prisma.StockAdjustmentUncheckedCreateNestedManyWithoutIngredientInput
+  stockAlerts?: Prisma.StockAlertUncheckedCreateNestedManyWithoutIngredientInput
+}
+
+export type IngredientCreateOrConnectWithoutOrderDeductionsInput = {
+  where: Prisma.IngredientWhereUniqueInput
+  create: Prisma.XOR<Prisma.IngredientCreateWithoutOrderDeductionsInput, Prisma.IngredientUncheckedCreateWithoutOrderDeductionsInput>
+}
+
+export type IngredientUpsertWithoutOrderDeductionsInput = {
+  update: Prisma.XOR<Prisma.IngredientUpdateWithoutOrderDeductionsInput, Prisma.IngredientUncheckedUpdateWithoutOrderDeductionsInput>
+  create: Prisma.XOR<Prisma.IngredientCreateWithoutOrderDeductionsInput, Prisma.IngredientUncheckedCreateWithoutOrderDeductionsInput>
+  where?: Prisma.IngredientWhereInput
+}
+
+export type IngredientUpdateToOneWithWhereWithoutOrderDeductionsInput = {
+  where?: Prisma.IngredientWhereInput
+  data: Prisma.XOR<Prisma.IngredientUpdateWithoutOrderDeductionsInput, Prisma.IngredientUncheckedUpdateWithoutOrderDeductionsInput>
+}
+
+export type IngredientUpdateWithoutOrderDeductionsInput = {
+  ingredientId?: Prisma.StringFieldUpdateOperationsInput | string
+  ingredientName?: Prisma.StringFieldUpdateOperationsInput | string
+  unit?: Prisma.StringFieldUpdateOperationsInput | string
+  minimumThreshold?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  recipes?: Prisma.RecipeUpdateManyWithoutIngredientNestedInput
+  restockBatches?: Prisma.RestockBatchUpdateManyWithoutIngredientNestedInput
+  lossRecords?: Prisma.LossRecordUpdateManyWithoutIngredientNestedInput
+  stockAdjustments?: Prisma.StockAdjustmentUpdateManyWithoutIngredientNestedInput
+  stockAlerts?: Prisma.StockAlertUpdateManyWithoutIngredientNestedInput
+}
+
+export type IngredientUncheckedUpdateWithoutOrderDeductionsInput = {
+  ingredientId?: Prisma.StringFieldUpdateOperationsInput | string
+  ingredientName?: Prisma.StringFieldUpdateOperationsInput | string
+  unit?: Prisma.StringFieldUpdateOperationsInput | string
+  minimumThreshold?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  isArchived?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  recipes?: Prisma.RecipeUncheckedUpdateManyWithoutIngredientNestedInput
+  restockBatches?: Prisma.RestockBatchUncheckedUpdateManyWithoutIngredientNestedInput
+  lossRecords?: Prisma.LossRecordUncheckedUpdateManyWithoutIngredientNestedInput
+  stockAdjustments?: Prisma.StockAdjustmentUncheckedUpdateManyWithoutIngredientNestedInput
+  stockAlerts?: Prisma.StockAlertUncheckedUpdateManyWithoutIngredientNestedInput
 }
 
 
@@ -922,6 +1043,7 @@ export type IngredientCountOutputType = {
   lossRecords: number
   stockAdjustments: number
   stockAlerts: number
+  orderDeductions: number
 }
 
 export type IngredientCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -930,6 +1052,7 @@ export type IngredientCountOutputTypeSelect<ExtArgs extends runtime.Types.Extens
   lossRecords?: boolean | IngredientCountOutputTypeCountLossRecordsArgs
   stockAdjustments?: boolean | IngredientCountOutputTypeCountStockAdjustmentsArgs
   stockAlerts?: boolean | IngredientCountOutputTypeCountStockAlertsArgs
+  orderDeductions?: boolean | IngredientCountOutputTypeCountOrderDeductionsArgs
 }
 
 /**
@@ -977,6 +1100,13 @@ export type IngredientCountOutputTypeCountStockAlertsArgs<ExtArgs extends runtim
   where?: Prisma.StockAlertWhereInput
 }
 
+/**
+ * IngredientCountOutputType without action
+ */
+export type IngredientCountOutputTypeCountOrderDeductionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.OrderIngredientDeductionWhereInput
+}
+
 
 export type IngredientSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   ingredientId?: boolean
@@ -992,6 +1122,7 @@ export type IngredientSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   lossRecords?: boolean | Prisma.Ingredient$lossRecordsArgs<ExtArgs>
   stockAdjustments?: boolean | Prisma.Ingredient$stockAdjustmentsArgs<ExtArgs>
   stockAlerts?: boolean | Prisma.Ingredient$stockAlertsArgs<ExtArgs>
+  orderDeductions?: boolean | Prisma.Ingredient$orderDeductionsArgs<ExtArgs>
   _count?: boolean | Prisma.IngredientCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["ingredient"]>
 
@@ -1035,6 +1166,7 @@ export type IngredientInclude<ExtArgs extends runtime.Types.Extensions.InternalA
   lossRecords?: boolean | Prisma.Ingredient$lossRecordsArgs<ExtArgs>
   stockAdjustments?: boolean | Prisma.Ingredient$stockAdjustmentsArgs<ExtArgs>
   stockAlerts?: boolean | Prisma.Ingredient$stockAlertsArgs<ExtArgs>
+  orderDeductions?: boolean | Prisma.Ingredient$orderDeductionsArgs<ExtArgs>
   _count?: boolean | Prisma.IngredientCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type IngredientIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -1048,6 +1180,7 @@ export type $IngredientPayload<ExtArgs extends runtime.Types.Extensions.Internal
     lossRecords: Prisma.$LossRecordPayload<ExtArgs>[]
     stockAdjustments: Prisma.$StockAdjustmentPayload<ExtArgs>[]
     stockAlerts: Prisma.$StockAlertPayload<ExtArgs>[]
+    orderDeductions: Prisma.$OrderIngredientDeductionPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     ingredientId: string
@@ -1457,6 +1590,7 @@ export interface Prisma__IngredientClient<T, Null = never, ExtArgs extends runti
   lossRecords<T extends Prisma.Ingredient$lossRecordsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Ingredient$lossRecordsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$LossRecordPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   stockAdjustments<T extends Prisma.Ingredient$stockAdjustmentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Ingredient$stockAdjustmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$StockAdjustmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   stockAlerts<T extends Prisma.Ingredient$stockAlertsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Ingredient$stockAlertsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$StockAlertPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  orderDeductions<T extends Prisma.Ingredient$orderDeductionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Ingredient$orderDeductionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$OrderIngredientDeductionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2004,6 +2138,30 @@ export type Ingredient$stockAlertsArgs<ExtArgs extends runtime.Types.Extensions.
   take?: number
   skip?: number
   distinct?: Prisma.StockAlertScalarFieldEnum | Prisma.StockAlertScalarFieldEnum[]
+}
+
+/**
+ * Ingredient.orderDeductions
+ */
+export type Ingredient$orderDeductionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the OrderIngredientDeduction
+   */
+  select?: Prisma.OrderIngredientDeductionSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the OrderIngredientDeduction
+   */
+  omit?: Prisma.OrderIngredientDeductionOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.OrderIngredientDeductionInclude<ExtArgs> | null
+  where?: Prisma.OrderIngredientDeductionWhereInput
+  orderBy?: Prisma.OrderIngredientDeductionOrderByWithRelationInput | Prisma.OrderIngredientDeductionOrderByWithRelationInput[]
+  cursor?: Prisma.OrderIngredientDeductionWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.OrderIngredientDeductionScalarFieldEnum | Prisma.OrderIngredientDeductionScalarFieldEnum[]
 }
 
 /**

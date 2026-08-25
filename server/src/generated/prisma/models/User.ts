@@ -291,6 +291,10 @@ export type UserWhereInput = {
   restockBatches?: Prisma.RestockBatchListRelationFilter
   lossRecords?: Prisma.LossRecordListRelationFilter
   stockAdjustments?: Prisma.StockAdjustmentListRelationFilter
+  createdOrders?: Prisma.OrderListRelationFilter
+  acceptedOrders?: Prisma.OrderListRelationFilter
+  processingOrders?: Prisma.OrderListRelationFilter
+  completedOrders?: Prisma.OrderListRelationFilter
 }
 
 export type UserOrderByWithRelationInput = {
@@ -311,6 +315,10 @@ export type UserOrderByWithRelationInput = {
   restockBatches?: Prisma.RestockBatchOrderByRelationAggregateInput
   lossRecords?: Prisma.LossRecordOrderByRelationAggregateInput
   stockAdjustments?: Prisma.StockAdjustmentOrderByRelationAggregateInput
+  createdOrders?: Prisma.OrderOrderByRelationAggregateInput
+  acceptedOrders?: Prisma.OrderOrderByRelationAggregateInput
+  processingOrders?: Prisma.OrderOrderByRelationAggregateInput
+  completedOrders?: Prisma.OrderOrderByRelationAggregateInput
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -334,6 +342,10 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   restockBatches?: Prisma.RestockBatchListRelationFilter
   lossRecords?: Prisma.LossRecordListRelationFilter
   stockAdjustments?: Prisma.StockAdjustmentListRelationFilter
+  createdOrders?: Prisma.OrderListRelationFilter
+  acceptedOrders?: Prisma.OrderListRelationFilter
+  processingOrders?: Prisma.OrderListRelationFilter
+  completedOrders?: Prisma.OrderListRelationFilter
 }, "id" | "email">
 
 export type UserOrderByWithAggregationInput = {
@@ -396,6 +408,10 @@ export type UserCreateInput = {
   restockBatches?: Prisma.RestockBatchCreateNestedManyWithoutRestockedByInput
   lossRecords?: Prisma.LossRecordCreateNestedManyWithoutDeclaredByInput
   stockAdjustments?: Prisma.StockAdjustmentCreateNestedManyWithoutAdjustedByInput
+  createdOrders?: Prisma.OrderCreateNestedManyWithoutCreatorInput
+  acceptedOrders?: Prisma.OrderCreateNestedManyWithoutAcceptedByUserInput
+  processingOrders?: Prisma.OrderCreateNestedManyWithoutProcessingByUserInput
+  completedOrders?: Prisma.OrderCreateNestedManyWithoutCompletedByUserInput
 }
 
 export type UserUncheckedCreateInput = {
@@ -416,6 +432,10 @@ export type UserUncheckedCreateInput = {
   restockBatches?: Prisma.RestockBatchUncheckedCreateNestedManyWithoutRestockedByInput
   lossRecords?: Prisma.LossRecordUncheckedCreateNestedManyWithoutDeclaredByInput
   stockAdjustments?: Prisma.StockAdjustmentUncheckedCreateNestedManyWithoutAdjustedByInput
+  createdOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCreatorInput
+  acceptedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutAcceptedByUserInput
+  processingOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutProcessingByUserInput
+  completedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCompletedByUserInput
 }
 
 export type UserUpdateInput = {
@@ -436,6 +456,10 @@ export type UserUpdateInput = {
   restockBatches?: Prisma.RestockBatchUpdateManyWithoutRestockedByNestedInput
   lossRecords?: Prisma.LossRecordUpdateManyWithoutDeclaredByNestedInput
   stockAdjustments?: Prisma.StockAdjustmentUpdateManyWithoutAdjustedByNestedInput
+  createdOrders?: Prisma.OrderUpdateManyWithoutCreatorNestedInput
+  acceptedOrders?: Prisma.OrderUpdateManyWithoutAcceptedByUserNestedInput
+  processingOrders?: Prisma.OrderUpdateManyWithoutProcessingByUserNestedInput
+  completedOrders?: Prisma.OrderUpdateManyWithoutCompletedByUserNestedInput
 }
 
 export type UserUncheckedUpdateInput = {
@@ -456,6 +480,10 @@ export type UserUncheckedUpdateInput = {
   restockBatches?: Prisma.RestockBatchUncheckedUpdateManyWithoutRestockedByNestedInput
   lossRecords?: Prisma.LossRecordUncheckedUpdateManyWithoutDeclaredByNestedInput
   stockAdjustments?: Prisma.StockAdjustmentUncheckedUpdateManyWithoutAdjustedByNestedInput
+  createdOrders?: Prisma.OrderUncheckedUpdateManyWithoutCreatorNestedInput
+  acceptedOrders?: Prisma.OrderUncheckedUpdateManyWithoutAcceptedByUserNestedInput
+  processingOrders?: Prisma.OrderUncheckedUpdateManyWithoutProcessingByUserNestedInput
+  completedOrders?: Prisma.OrderUncheckedUpdateManyWithoutCompletedByUserNestedInput
 }
 
 export type UserCreateManyInput = {
@@ -573,6 +601,11 @@ export type UserScalarRelationFilter = {
   isNot?: Prisma.UserWhereInput
 }
 
+export type UserNullableScalarRelationFilter = {
+  is?: Prisma.UserWhereInput | null
+  isNot?: Prisma.UserWhereInput | null
+}
+
 export type StringFieldUpdateOperationsInput = {
   set?: string
 }
@@ -647,6 +680,68 @@ export type UserUpdateOneRequiredWithoutStockAdjustmentsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutStockAdjustmentsInput, Prisma.UserUpdateWithoutStockAdjustmentsInput>, Prisma.UserUncheckedUpdateWithoutStockAdjustmentsInput>
 }
 
+export type UserCreateNestedOneWithoutCreatedOrdersInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutCreatedOrdersInput, Prisma.UserUncheckedCreateWithoutCreatedOrdersInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutCreatedOrdersInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserCreateNestedOneWithoutAcceptedOrdersInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutAcceptedOrdersInput, Prisma.UserUncheckedCreateWithoutAcceptedOrdersInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutAcceptedOrdersInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserCreateNestedOneWithoutProcessingOrdersInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutProcessingOrdersInput, Prisma.UserUncheckedCreateWithoutProcessingOrdersInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutProcessingOrdersInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserCreateNestedOneWithoutCompletedOrdersInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutCompletedOrdersInput, Prisma.UserUncheckedCreateWithoutCompletedOrdersInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutCompletedOrdersInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutCreatedOrdersNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutCreatedOrdersInput, Prisma.UserUncheckedCreateWithoutCreatedOrdersInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutCreatedOrdersInput
+  upsert?: Prisma.UserUpsertWithoutCreatedOrdersInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutCreatedOrdersInput, Prisma.UserUpdateWithoutCreatedOrdersInput>, Prisma.UserUncheckedUpdateWithoutCreatedOrdersInput>
+}
+
+export type UserUpdateOneWithoutAcceptedOrdersNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutAcceptedOrdersInput, Prisma.UserUncheckedCreateWithoutAcceptedOrdersInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutAcceptedOrdersInput
+  upsert?: Prisma.UserUpsertWithoutAcceptedOrdersInput
+  disconnect?: Prisma.UserWhereInput | boolean
+  delete?: Prisma.UserWhereInput | boolean
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutAcceptedOrdersInput, Prisma.UserUpdateWithoutAcceptedOrdersInput>, Prisma.UserUncheckedUpdateWithoutAcceptedOrdersInput>
+}
+
+export type UserUpdateOneWithoutProcessingOrdersNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutProcessingOrdersInput, Prisma.UserUncheckedCreateWithoutProcessingOrdersInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutProcessingOrdersInput
+  upsert?: Prisma.UserUpsertWithoutProcessingOrdersInput
+  disconnect?: Prisma.UserWhereInput | boolean
+  delete?: Prisma.UserWhereInput | boolean
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutProcessingOrdersInput, Prisma.UserUpdateWithoutProcessingOrdersInput>, Prisma.UserUncheckedUpdateWithoutProcessingOrdersInput>
+}
+
+export type UserUpdateOneWithoutCompletedOrdersNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutCompletedOrdersInput, Prisma.UserUncheckedCreateWithoutCompletedOrdersInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutCompletedOrdersInput
+  upsert?: Prisma.UserUpsertWithoutCompletedOrdersInput
+  disconnect?: Prisma.UserWhereInput | boolean
+  delete?: Prisma.UserWhereInput | boolean
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutCompletedOrdersInput, Prisma.UserUpdateWithoutCompletedOrdersInput>, Prisma.UserUncheckedUpdateWithoutCompletedOrdersInput>
+}
+
 export type UserCreateWithoutRestockBatchesInput = {
   id?: string
   name: string
@@ -664,6 +759,10 @@ export type UserCreateWithoutRestockBatchesInput = {
   updatedAt?: Date | string
   lossRecords?: Prisma.LossRecordCreateNestedManyWithoutDeclaredByInput
   stockAdjustments?: Prisma.StockAdjustmentCreateNestedManyWithoutAdjustedByInput
+  createdOrders?: Prisma.OrderCreateNestedManyWithoutCreatorInput
+  acceptedOrders?: Prisma.OrderCreateNestedManyWithoutAcceptedByUserInput
+  processingOrders?: Prisma.OrderCreateNestedManyWithoutProcessingByUserInput
+  completedOrders?: Prisma.OrderCreateNestedManyWithoutCompletedByUserInput
 }
 
 export type UserUncheckedCreateWithoutRestockBatchesInput = {
@@ -683,6 +782,10 @@ export type UserUncheckedCreateWithoutRestockBatchesInput = {
   updatedAt?: Date | string
   lossRecords?: Prisma.LossRecordUncheckedCreateNestedManyWithoutDeclaredByInput
   stockAdjustments?: Prisma.StockAdjustmentUncheckedCreateNestedManyWithoutAdjustedByInput
+  createdOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCreatorInput
+  acceptedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutAcceptedByUserInput
+  processingOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutProcessingByUserInput
+  completedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCompletedByUserInput
 }
 
 export type UserCreateOrConnectWithoutRestockBatchesInput = {
@@ -718,6 +821,10 @@ export type UserUpdateWithoutRestockBatchesInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lossRecords?: Prisma.LossRecordUpdateManyWithoutDeclaredByNestedInput
   stockAdjustments?: Prisma.StockAdjustmentUpdateManyWithoutAdjustedByNestedInput
+  createdOrders?: Prisma.OrderUpdateManyWithoutCreatorNestedInput
+  acceptedOrders?: Prisma.OrderUpdateManyWithoutAcceptedByUserNestedInput
+  processingOrders?: Prisma.OrderUpdateManyWithoutProcessingByUserNestedInput
+  completedOrders?: Prisma.OrderUpdateManyWithoutCompletedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutRestockBatchesInput = {
@@ -737,6 +844,10 @@ export type UserUncheckedUpdateWithoutRestockBatchesInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lossRecords?: Prisma.LossRecordUncheckedUpdateManyWithoutDeclaredByNestedInput
   stockAdjustments?: Prisma.StockAdjustmentUncheckedUpdateManyWithoutAdjustedByNestedInput
+  createdOrders?: Prisma.OrderUncheckedUpdateManyWithoutCreatorNestedInput
+  acceptedOrders?: Prisma.OrderUncheckedUpdateManyWithoutAcceptedByUserNestedInput
+  processingOrders?: Prisma.OrderUncheckedUpdateManyWithoutProcessingByUserNestedInput
+  completedOrders?: Prisma.OrderUncheckedUpdateManyWithoutCompletedByUserNestedInput
 }
 
 export type UserCreateWithoutLossRecordsInput = {
@@ -756,6 +867,10 @@ export type UserCreateWithoutLossRecordsInput = {
   updatedAt?: Date | string
   restockBatches?: Prisma.RestockBatchCreateNestedManyWithoutRestockedByInput
   stockAdjustments?: Prisma.StockAdjustmentCreateNestedManyWithoutAdjustedByInput
+  createdOrders?: Prisma.OrderCreateNestedManyWithoutCreatorInput
+  acceptedOrders?: Prisma.OrderCreateNestedManyWithoutAcceptedByUserInput
+  processingOrders?: Prisma.OrderCreateNestedManyWithoutProcessingByUserInput
+  completedOrders?: Prisma.OrderCreateNestedManyWithoutCompletedByUserInput
 }
 
 export type UserUncheckedCreateWithoutLossRecordsInput = {
@@ -775,6 +890,10 @@ export type UserUncheckedCreateWithoutLossRecordsInput = {
   updatedAt?: Date | string
   restockBatches?: Prisma.RestockBatchUncheckedCreateNestedManyWithoutRestockedByInput
   stockAdjustments?: Prisma.StockAdjustmentUncheckedCreateNestedManyWithoutAdjustedByInput
+  createdOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCreatorInput
+  acceptedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutAcceptedByUserInput
+  processingOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutProcessingByUserInput
+  completedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCompletedByUserInput
 }
 
 export type UserCreateOrConnectWithoutLossRecordsInput = {
@@ -810,6 +929,10 @@ export type UserUpdateWithoutLossRecordsInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   restockBatches?: Prisma.RestockBatchUpdateManyWithoutRestockedByNestedInput
   stockAdjustments?: Prisma.StockAdjustmentUpdateManyWithoutAdjustedByNestedInput
+  createdOrders?: Prisma.OrderUpdateManyWithoutCreatorNestedInput
+  acceptedOrders?: Prisma.OrderUpdateManyWithoutAcceptedByUserNestedInput
+  processingOrders?: Prisma.OrderUpdateManyWithoutProcessingByUserNestedInput
+  completedOrders?: Prisma.OrderUpdateManyWithoutCompletedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutLossRecordsInput = {
@@ -829,6 +952,10 @@ export type UserUncheckedUpdateWithoutLossRecordsInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   restockBatches?: Prisma.RestockBatchUncheckedUpdateManyWithoutRestockedByNestedInput
   stockAdjustments?: Prisma.StockAdjustmentUncheckedUpdateManyWithoutAdjustedByNestedInput
+  createdOrders?: Prisma.OrderUncheckedUpdateManyWithoutCreatorNestedInput
+  acceptedOrders?: Prisma.OrderUncheckedUpdateManyWithoutAcceptedByUserNestedInput
+  processingOrders?: Prisma.OrderUncheckedUpdateManyWithoutProcessingByUserNestedInput
+  completedOrders?: Prisma.OrderUncheckedUpdateManyWithoutCompletedByUserNestedInput
 }
 
 export type UserCreateWithoutStockAdjustmentsInput = {
@@ -848,6 +975,10 @@ export type UserCreateWithoutStockAdjustmentsInput = {
   updatedAt?: Date | string
   restockBatches?: Prisma.RestockBatchCreateNestedManyWithoutRestockedByInput
   lossRecords?: Prisma.LossRecordCreateNestedManyWithoutDeclaredByInput
+  createdOrders?: Prisma.OrderCreateNestedManyWithoutCreatorInput
+  acceptedOrders?: Prisma.OrderCreateNestedManyWithoutAcceptedByUserInput
+  processingOrders?: Prisma.OrderCreateNestedManyWithoutProcessingByUserInput
+  completedOrders?: Prisma.OrderCreateNestedManyWithoutCompletedByUserInput
 }
 
 export type UserUncheckedCreateWithoutStockAdjustmentsInput = {
@@ -867,6 +998,10 @@ export type UserUncheckedCreateWithoutStockAdjustmentsInput = {
   updatedAt?: Date | string
   restockBatches?: Prisma.RestockBatchUncheckedCreateNestedManyWithoutRestockedByInput
   lossRecords?: Prisma.LossRecordUncheckedCreateNestedManyWithoutDeclaredByInput
+  createdOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCreatorInput
+  acceptedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutAcceptedByUserInput
+  processingOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutProcessingByUserInput
+  completedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCompletedByUserInput
 }
 
 export type UserCreateOrConnectWithoutStockAdjustmentsInput = {
@@ -902,6 +1037,10 @@ export type UserUpdateWithoutStockAdjustmentsInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   restockBatches?: Prisma.RestockBatchUpdateManyWithoutRestockedByNestedInput
   lossRecords?: Prisma.LossRecordUpdateManyWithoutDeclaredByNestedInput
+  createdOrders?: Prisma.OrderUpdateManyWithoutCreatorNestedInput
+  acceptedOrders?: Prisma.OrderUpdateManyWithoutAcceptedByUserNestedInput
+  processingOrders?: Prisma.OrderUpdateManyWithoutProcessingByUserNestedInput
+  completedOrders?: Prisma.OrderUpdateManyWithoutCompletedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutStockAdjustmentsInput = {
@@ -921,6 +1060,442 @@ export type UserUncheckedUpdateWithoutStockAdjustmentsInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   restockBatches?: Prisma.RestockBatchUncheckedUpdateManyWithoutRestockedByNestedInput
   lossRecords?: Prisma.LossRecordUncheckedUpdateManyWithoutDeclaredByNestedInput
+  createdOrders?: Prisma.OrderUncheckedUpdateManyWithoutCreatorNestedInput
+  acceptedOrders?: Prisma.OrderUncheckedUpdateManyWithoutAcceptedByUserNestedInput
+  processingOrders?: Prisma.OrderUncheckedUpdateManyWithoutProcessingByUserNestedInput
+  completedOrders?: Prisma.OrderUncheckedUpdateManyWithoutCompletedByUserNestedInput
+}
+
+export type UserCreateWithoutCreatedOrdersInput = {
+  id?: string
+  name: string
+  email: string
+  role?: $Enums.Role
+  passwordHash: string
+  pinHash?: string | null
+  isActive?: boolean
+  mustChangePwd?: boolean
+  failedPinAttempts?: number
+  lastFailedPinAt?: Date | string | null
+  lockedUntil?: Date | string | null
+  lastLoginAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  restockBatches?: Prisma.RestockBatchCreateNestedManyWithoutRestockedByInput
+  lossRecords?: Prisma.LossRecordCreateNestedManyWithoutDeclaredByInput
+  stockAdjustments?: Prisma.StockAdjustmentCreateNestedManyWithoutAdjustedByInput
+  acceptedOrders?: Prisma.OrderCreateNestedManyWithoutAcceptedByUserInput
+  processingOrders?: Prisma.OrderCreateNestedManyWithoutProcessingByUserInput
+  completedOrders?: Prisma.OrderCreateNestedManyWithoutCompletedByUserInput
+}
+
+export type UserUncheckedCreateWithoutCreatedOrdersInput = {
+  id?: string
+  name: string
+  email: string
+  role?: $Enums.Role
+  passwordHash: string
+  pinHash?: string | null
+  isActive?: boolean
+  mustChangePwd?: boolean
+  failedPinAttempts?: number
+  lastFailedPinAt?: Date | string | null
+  lockedUntil?: Date | string | null
+  lastLoginAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  restockBatches?: Prisma.RestockBatchUncheckedCreateNestedManyWithoutRestockedByInput
+  lossRecords?: Prisma.LossRecordUncheckedCreateNestedManyWithoutDeclaredByInput
+  stockAdjustments?: Prisma.StockAdjustmentUncheckedCreateNestedManyWithoutAdjustedByInput
+  acceptedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutAcceptedByUserInput
+  processingOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutProcessingByUserInput
+  completedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCompletedByUserInput
+}
+
+export type UserCreateOrConnectWithoutCreatedOrdersInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutCreatedOrdersInput, Prisma.UserUncheckedCreateWithoutCreatedOrdersInput>
+}
+
+export type UserCreateWithoutAcceptedOrdersInput = {
+  id?: string
+  name: string
+  email: string
+  role?: $Enums.Role
+  passwordHash: string
+  pinHash?: string | null
+  isActive?: boolean
+  mustChangePwd?: boolean
+  failedPinAttempts?: number
+  lastFailedPinAt?: Date | string | null
+  lockedUntil?: Date | string | null
+  lastLoginAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  restockBatches?: Prisma.RestockBatchCreateNestedManyWithoutRestockedByInput
+  lossRecords?: Prisma.LossRecordCreateNestedManyWithoutDeclaredByInput
+  stockAdjustments?: Prisma.StockAdjustmentCreateNestedManyWithoutAdjustedByInput
+  createdOrders?: Prisma.OrderCreateNestedManyWithoutCreatorInput
+  processingOrders?: Prisma.OrderCreateNestedManyWithoutProcessingByUserInput
+  completedOrders?: Prisma.OrderCreateNestedManyWithoutCompletedByUserInput
+}
+
+export type UserUncheckedCreateWithoutAcceptedOrdersInput = {
+  id?: string
+  name: string
+  email: string
+  role?: $Enums.Role
+  passwordHash: string
+  pinHash?: string | null
+  isActive?: boolean
+  mustChangePwd?: boolean
+  failedPinAttempts?: number
+  lastFailedPinAt?: Date | string | null
+  lockedUntil?: Date | string | null
+  lastLoginAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  restockBatches?: Prisma.RestockBatchUncheckedCreateNestedManyWithoutRestockedByInput
+  lossRecords?: Prisma.LossRecordUncheckedCreateNestedManyWithoutDeclaredByInput
+  stockAdjustments?: Prisma.StockAdjustmentUncheckedCreateNestedManyWithoutAdjustedByInput
+  createdOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCreatorInput
+  processingOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutProcessingByUserInput
+  completedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCompletedByUserInput
+}
+
+export type UserCreateOrConnectWithoutAcceptedOrdersInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutAcceptedOrdersInput, Prisma.UserUncheckedCreateWithoutAcceptedOrdersInput>
+}
+
+export type UserCreateWithoutProcessingOrdersInput = {
+  id?: string
+  name: string
+  email: string
+  role?: $Enums.Role
+  passwordHash: string
+  pinHash?: string | null
+  isActive?: boolean
+  mustChangePwd?: boolean
+  failedPinAttempts?: number
+  lastFailedPinAt?: Date | string | null
+  lockedUntil?: Date | string | null
+  lastLoginAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  restockBatches?: Prisma.RestockBatchCreateNestedManyWithoutRestockedByInput
+  lossRecords?: Prisma.LossRecordCreateNestedManyWithoutDeclaredByInput
+  stockAdjustments?: Prisma.StockAdjustmentCreateNestedManyWithoutAdjustedByInput
+  createdOrders?: Prisma.OrderCreateNestedManyWithoutCreatorInput
+  acceptedOrders?: Prisma.OrderCreateNestedManyWithoutAcceptedByUserInput
+  completedOrders?: Prisma.OrderCreateNestedManyWithoutCompletedByUserInput
+}
+
+export type UserUncheckedCreateWithoutProcessingOrdersInput = {
+  id?: string
+  name: string
+  email: string
+  role?: $Enums.Role
+  passwordHash: string
+  pinHash?: string | null
+  isActive?: boolean
+  mustChangePwd?: boolean
+  failedPinAttempts?: number
+  lastFailedPinAt?: Date | string | null
+  lockedUntil?: Date | string | null
+  lastLoginAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  restockBatches?: Prisma.RestockBatchUncheckedCreateNestedManyWithoutRestockedByInput
+  lossRecords?: Prisma.LossRecordUncheckedCreateNestedManyWithoutDeclaredByInput
+  stockAdjustments?: Prisma.StockAdjustmentUncheckedCreateNestedManyWithoutAdjustedByInput
+  createdOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCreatorInput
+  acceptedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutAcceptedByUserInput
+  completedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCompletedByUserInput
+}
+
+export type UserCreateOrConnectWithoutProcessingOrdersInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutProcessingOrdersInput, Prisma.UserUncheckedCreateWithoutProcessingOrdersInput>
+}
+
+export type UserCreateWithoutCompletedOrdersInput = {
+  id?: string
+  name: string
+  email: string
+  role?: $Enums.Role
+  passwordHash: string
+  pinHash?: string | null
+  isActive?: boolean
+  mustChangePwd?: boolean
+  failedPinAttempts?: number
+  lastFailedPinAt?: Date | string | null
+  lockedUntil?: Date | string | null
+  lastLoginAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  restockBatches?: Prisma.RestockBatchCreateNestedManyWithoutRestockedByInput
+  lossRecords?: Prisma.LossRecordCreateNestedManyWithoutDeclaredByInput
+  stockAdjustments?: Prisma.StockAdjustmentCreateNestedManyWithoutAdjustedByInput
+  createdOrders?: Prisma.OrderCreateNestedManyWithoutCreatorInput
+  acceptedOrders?: Prisma.OrderCreateNestedManyWithoutAcceptedByUserInput
+  processingOrders?: Prisma.OrderCreateNestedManyWithoutProcessingByUserInput
+}
+
+export type UserUncheckedCreateWithoutCompletedOrdersInput = {
+  id?: string
+  name: string
+  email: string
+  role?: $Enums.Role
+  passwordHash: string
+  pinHash?: string | null
+  isActive?: boolean
+  mustChangePwd?: boolean
+  failedPinAttempts?: number
+  lastFailedPinAt?: Date | string | null
+  lockedUntil?: Date | string | null
+  lastLoginAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  restockBatches?: Prisma.RestockBatchUncheckedCreateNestedManyWithoutRestockedByInput
+  lossRecords?: Prisma.LossRecordUncheckedCreateNestedManyWithoutDeclaredByInput
+  stockAdjustments?: Prisma.StockAdjustmentUncheckedCreateNestedManyWithoutAdjustedByInput
+  createdOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCreatorInput
+  acceptedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutAcceptedByUserInput
+  processingOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutProcessingByUserInput
+}
+
+export type UserCreateOrConnectWithoutCompletedOrdersInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutCompletedOrdersInput, Prisma.UserUncheckedCreateWithoutCompletedOrdersInput>
+}
+
+export type UserUpsertWithoutCreatedOrdersInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutCreatedOrdersInput, Prisma.UserUncheckedUpdateWithoutCreatedOrdersInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutCreatedOrdersInput, Prisma.UserUncheckedCreateWithoutCreatedOrdersInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutCreatedOrdersInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutCreatedOrdersInput, Prisma.UserUncheckedUpdateWithoutCreatedOrdersInput>
+}
+
+export type UserUpdateWithoutCreatedOrdersInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lastFailedPinAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  restockBatches?: Prisma.RestockBatchUpdateManyWithoutRestockedByNestedInput
+  lossRecords?: Prisma.LossRecordUpdateManyWithoutDeclaredByNestedInput
+  stockAdjustments?: Prisma.StockAdjustmentUpdateManyWithoutAdjustedByNestedInput
+  acceptedOrders?: Prisma.OrderUpdateManyWithoutAcceptedByUserNestedInput
+  processingOrders?: Prisma.OrderUpdateManyWithoutProcessingByUserNestedInput
+  completedOrders?: Prisma.OrderUpdateManyWithoutCompletedByUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutCreatedOrdersInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lastFailedPinAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  restockBatches?: Prisma.RestockBatchUncheckedUpdateManyWithoutRestockedByNestedInput
+  lossRecords?: Prisma.LossRecordUncheckedUpdateManyWithoutDeclaredByNestedInput
+  stockAdjustments?: Prisma.StockAdjustmentUncheckedUpdateManyWithoutAdjustedByNestedInput
+  acceptedOrders?: Prisma.OrderUncheckedUpdateManyWithoutAcceptedByUserNestedInput
+  processingOrders?: Prisma.OrderUncheckedUpdateManyWithoutProcessingByUserNestedInput
+  completedOrders?: Prisma.OrderUncheckedUpdateManyWithoutCompletedByUserNestedInput
+}
+
+export type UserUpsertWithoutAcceptedOrdersInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutAcceptedOrdersInput, Prisma.UserUncheckedUpdateWithoutAcceptedOrdersInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutAcceptedOrdersInput, Prisma.UserUncheckedCreateWithoutAcceptedOrdersInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutAcceptedOrdersInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutAcceptedOrdersInput, Prisma.UserUncheckedUpdateWithoutAcceptedOrdersInput>
+}
+
+export type UserUpdateWithoutAcceptedOrdersInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lastFailedPinAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  restockBatches?: Prisma.RestockBatchUpdateManyWithoutRestockedByNestedInput
+  lossRecords?: Prisma.LossRecordUpdateManyWithoutDeclaredByNestedInput
+  stockAdjustments?: Prisma.StockAdjustmentUpdateManyWithoutAdjustedByNestedInput
+  createdOrders?: Prisma.OrderUpdateManyWithoutCreatorNestedInput
+  processingOrders?: Prisma.OrderUpdateManyWithoutProcessingByUserNestedInput
+  completedOrders?: Prisma.OrderUpdateManyWithoutCompletedByUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutAcceptedOrdersInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lastFailedPinAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  restockBatches?: Prisma.RestockBatchUncheckedUpdateManyWithoutRestockedByNestedInput
+  lossRecords?: Prisma.LossRecordUncheckedUpdateManyWithoutDeclaredByNestedInput
+  stockAdjustments?: Prisma.StockAdjustmentUncheckedUpdateManyWithoutAdjustedByNestedInput
+  createdOrders?: Prisma.OrderUncheckedUpdateManyWithoutCreatorNestedInput
+  processingOrders?: Prisma.OrderUncheckedUpdateManyWithoutProcessingByUserNestedInput
+  completedOrders?: Prisma.OrderUncheckedUpdateManyWithoutCompletedByUserNestedInput
+}
+
+export type UserUpsertWithoutProcessingOrdersInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutProcessingOrdersInput, Prisma.UserUncheckedUpdateWithoutProcessingOrdersInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutProcessingOrdersInput, Prisma.UserUncheckedCreateWithoutProcessingOrdersInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutProcessingOrdersInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutProcessingOrdersInput, Prisma.UserUncheckedUpdateWithoutProcessingOrdersInput>
+}
+
+export type UserUpdateWithoutProcessingOrdersInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lastFailedPinAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  restockBatches?: Prisma.RestockBatchUpdateManyWithoutRestockedByNestedInput
+  lossRecords?: Prisma.LossRecordUpdateManyWithoutDeclaredByNestedInput
+  stockAdjustments?: Prisma.StockAdjustmentUpdateManyWithoutAdjustedByNestedInput
+  createdOrders?: Prisma.OrderUpdateManyWithoutCreatorNestedInput
+  acceptedOrders?: Prisma.OrderUpdateManyWithoutAcceptedByUserNestedInput
+  completedOrders?: Prisma.OrderUpdateManyWithoutCompletedByUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutProcessingOrdersInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lastFailedPinAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  restockBatches?: Prisma.RestockBatchUncheckedUpdateManyWithoutRestockedByNestedInput
+  lossRecords?: Prisma.LossRecordUncheckedUpdateManyWithoutDeclaredByNestedInput
+  stockAdjustments?: Prisma.StockAdjustmentUncheckedUpdateManyWithoutAdjustedByNestedInput
+  createdOrders?: Prisma.OrderUncheckedUpdateManyWithoutCreatorNestedInput
+  acceptedOrders?: Prisma.OrderUncheckedUpdateManyWithoutAcceptedByUserNestedInput
+  completedOrders?: Prisma.OrderUncheckedUpdateManyWithoutCompletedByUserNestedInput
+}
+
+export type UserUpsertWithoutCompletedOrdersInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutCompletedOrdersInput, Prisma.UserUncheckedUpdateWithoutCompletedOrdersInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutCompletedOrdersInput, Prisma.UserUncheckedCreateWithoutCompletedOrdersInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutCompletedOrdersInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutCompletedOrdersInput, Prisma.UserUncheckedUpdateWithoutCompletedOrdersInput>
+}
+
+export type UserUpdateWithoutCompletedOrdersInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lastFailedPinAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  restockBatches?: Prisma.RestockBatchUpdateManyWithoutRestockedByNestedInput
+  lossRecords?: Prisma.LossRecordUpdateManyWithoutDeclaredByNestedInput
+  stockAdjustments?: Prisma.StockAdjustmentUpdateManyWithoutAdjustedByNestedInput
+  createdOrders?: Prisma.OrderUpdateManyWithoutCreatorNestedInput
+  acceptedOrders?: Prisma.OrderUpdateManyWithoutAcceptedByUserNestedInput
+  processingOrders?: Prisma.OrderUpdateManyWithoutProcessingByUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutCompletedOrdersInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lastFailedPinAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  restockBatches?: Prisma.RestockBatchUncheckedUpdateManyWithoutRestockedByNestedInput
+  lossRecords?: Prisma.LossRecordUncheckedUpdateManyWithoutDeclaredByNestedInput
+  stockAdjustments?: Prisma.StockAdjustmentUncheckedUpdateManyWithoutAdjustedByNestedInput
+  createdOrders?: Prisma.OrderUncheckedUpdateManyWithoutCreatorNestedInput
+  acceptedOrders?: Prisma.OrderUncheckedUpdateManyWithoutAcceptedByUserNestedInput
+  processingOrders?: Prisma.OrderUncheckedUpdateManyWithoutProcessingByUserNestedInput
 }
 
 
@@ -932,12 +1507,20 @@ export type UserCountOutputType = {
   restockBatches: number
   lossRecords: number
   stockAdjustments: number
+  createdOrders: number
+  acceptedOrders: number
+  processingOrders: number
+  completedOrders: number
 }
 
 export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   restockBatches?: boolean | UserCountOutputTypeCountRestockBatchesArgs
   lossRecords?: boolean | UserCountOutputTypeCountLossRecordsArgs
   stockAdjustments?: boolean | UserCountOutputTypeCountStockAdjustmentsArgs
+  createdOrders?: boolean | UserCountOutputTypeCountCreatedOrdersArgs
+  acceptedOrders?: boolean | UserCountOutputTypeCountAcceptedOrdersArgs
+  processingOrders?: boolean | UserCountOutputTypeCountProcessingOrdersArgs
+  completedOrders?: boolean | UserCountOutputTypeCountCompletedOrdersArgs
 }
 
 /**
@@ -971,6 +1554,34 @@ export type UserCountOutputTypeCountStockAdjustmentsArgs<ExtArgs extends runtime
   where?: Prisma.StockAdjustmentWhereInput
 }
 
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountCreatedOrdersArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.OrderWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountAcceptedOrdersArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.OrderWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountProcessingOrdersArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.OrderWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountCompletedOrdersArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.OrderWhereInput
+}
+
 
 export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -990,6 +1601,10 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   restockBatches?: boolean | Prisma.User$restockBatchesArgs<ExtArgs>
   lossRecords?: boolean | Prisma.User$lossRecordsArgs<ExtArgs>
   stockAdjustments?: boolean | Prisma.User$stockAdjustmentsArgs<ExtArgs>
+  createdOrders?: boolean | Prisma.User$createdOrdersArgs<ExtArgs>
+  acceptedOrders?: boolean | Prisma.User$acceptedOrdersArgs<ExtArgs>
+  processingOrders?: boolean | Prisma.User$processingOrdersArgs<ExtArgs>
+  completedOrders?: boolean | Prisma.User$completedOrdersArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
 
@@ -1049,6 +1664,10 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   restockBatches?: boolean | Prisma.User$restockBatchesArgs<ExtArgs>
   lossRecords?: boolean | Prisma.User$lossRecordsArgs<ExtArgs>
   stockAdjustments?: boolean | Prisma.User$stockAdjustmentsArgs<ExtArgs>
+  createdOrders?: boolean | Prisma.User$createdOrdersArgs<ExtArgs>
+  acceptedOrders?: boolean | Prisma.User$acceptedOrdersArgs<ExtArgs>
+  processingOrders?: boolean | Prisma.User$processingOrdersArgs<ExtArgs>
+  completedOrders?: boolean | Prisma.User$completedOrdersArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -1060,6 +1679,10 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     restockBatches: Prisma.$RestockBatchPayload<ExtArgs>[]
     lossRecords: Prisma.$LossRecordPayload<ExtArgs>[]
     stockAdjustments: Prisma.$StockAdjustmentPayload<ExtArgs>[]
+    createdOrders: Prisma.$OrderPayload<ExtArgs>[]
+    acceptedOrders: Prisma.$OrderPayload<ExtArgs>[]
+    processingOrders: Prisma.$OrderPayload<ExtArgs>[]
+    completedOrders: Prisma.$OrderPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1473,6 +2096,10 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   restockBatches<T extends Prisma.User$restockBatchesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$restockBatchesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RestockBatchPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   lossRecords<T extends Prisma.User$lossRecordsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$lossRecordsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$LossRecordPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   stockAdjustments<T extends Prisma.User$stockAdjustmentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$stockAdjustmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$StockAdjustmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  createdOrders<T extends Prisma.User$createdOrdersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$createdOrdersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$OrderPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  acceptedOrders<T extends Prisma.User$acceptedOrdersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$acceptedOrdersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$OrderPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  processingOrders<T extends Prisma.User$processingOrdersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$processingOrdersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$OrderPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  completedOrders<T extends Prisma.User$completedOrdersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$completedOrdersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$OrderPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1978,6 +2605,102 @@ export type User$stockAdjustmentsArgs<ExtArgs extends runtime.Types.Extensions.I
   take?: number
   skip?: number
   distinct?: Prisma.StockAdjustmentScalarFieldEnum | Prisma.StockAdjustmentScalarFieldEnum[]
+}
+
+/**
+ * User.createdOrders
+ */
+export type User$createdOrdersArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Order
+   */
+  select?: Prisma.OrderSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Order
+   */
+  omit?: Prisma.OrderOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.OrderInclude<ExtArgs> | null
+  where?: Prisma.OrderWhereInput
+  orderBy?: Prisma.OrderOrderByWithRelationInput | Prisma.OrderOrderByWithRelationInput[]
+  cursor?: Prisma.OrderWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.OrderScalarFieldEnum | Prisma.OrderScalarFieldEnum[]
+}
+
+/**
+ * User.acceptedOrders
+ */
+export type User$acceptedOrdersArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Order
+   */
+  select?: Prisma.OrderSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Order
+   */
+  omit?: Prisma.OrderOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.OrderInclude<ExtArgs> | null
+  where?: Prisma.OrderWhereInput
+  orderBy?: Prisma.OrderOrderByWithRelationInput | Prisma.OrderOrderByWithRelationInput[]
+  cursor?: Prisma.OrderWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.OrderScalarFieldEnum | Prisma.OrderScalarFieldEnum[]
+}
+
+/**
+ * User.processingOrders
+ */
+export type User$processingOrdersArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Order
+   */
+  select?: Prisma.OrderSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Order
+   */
+  omit?: Prisma.OrderOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.OrderInclude<ExtArgs> | null
+  where?: Prisma.OrderWhereInput
+  orderBy?: Prisma.OrderOrderByWithRelationInput | Prisma.OrderOrderByWithRelationInput[]
+  cursor?: Prisma.OrderWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.OrderScalarFieldEnum | Prisma.OrderScalarFieldEnum[]
+}
+
+/**
+ * User.completedOrders
+ */
+export type User$completedOrdersArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Order
+   */
+  select?: Prisma.OrderSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Order
+   */
+  omit?: Prisma.OrderOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.OrderInclude<ExtArgs> | null
+  where?: Prisma.OrderWhereInput
+  orderBy?: Prisma.OrderOrderByWithRelationInput | Prisma.OrderOrderByWithRelationInput[]
+  cursor?: Prisma.OrderWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.OrderScalarFieldEnum | Prisma.OrderScalarFieldEnum[]
 }
 
 /**

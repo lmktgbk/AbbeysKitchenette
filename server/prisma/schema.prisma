@@ -31,6 +31,10 @@ model User {
   restockBatches    RestockBatch[]
   lossRecords       LossRecord[]
   stockAdjustments  StockAdjustment[]
+  createdOrders     Order[]          @relation("OrderCreator")
+  acceptedOrders    Order[]          @relation("OrderAcceptedBy")
+  processingOrders  Order[]          @relation("OrderProcessingBy")
+  completedOrders   Order[]          @relation("OrderCompletedBy")
 }
 
 model SystemSettings {
@@ -82,6 +86,7 @@ model Product {
   category Category @relation(fields: [categoryId], references: [categoryId])
 
   variants ProductVariant[]
+  orderItems OrderItem[]
 
   @@map("products")
 }
@@ -96,6 +101,7 @@ model ProductVariant {
 
   product  Product  @relation(fields: [productId], references: [productId], onDelete: Cascade)
   recipes  Recipe[]
+  orderItems OrderItem[]
 
   @@unique([productId, sizeName])
   @@map("product_variants")
@@ -117,6 +123,7 @@ model Ingredient {
   lossRecords        LossRecord[]
   stockAdjustments   StockAdjustment[]
   stockAlerts        StockAlert[]
+  orderDeductions    OrderIngredientDeduction[]
 
   @@map("ingredients")
 }
@@ -152,6 +159,7 @@ model RestockBatch {
 
   ingredient   Ingredient @relation(fields: [ingredientId], references: [ingredientId], onDelete: Cascade)
   restockedBy  User       @relation(fields: [restockedById], references: [id])
+  orderDeductions OrderIngredientDeduction[]
 
   @@map("restock_batches")
 }
@@ -235,4 +243,137 @@ enum AlertType {
   out_of_stock
 
   @@map("alert_type_enum")
+}
+
+// ── Orders ────────────────────────────────────────────────
+
+enum OrderSource {
+  walk_in
+  online
+
+  @@map("order_source_enum")
+}
+
+enum OrderStatus {
+  pending
+  accepted
+  next_in_line
+  processing
+  completed
+  cancelled
+
+  @@map("order_status_enum")
+}
+
+// Auto-incrementing order number per day
+model OrderCounter {
+  date    DateTime @id @db.Date
+  counter Int      @default(0)
+
+  @@map("order_counters")
+}
+
+model Order {
+  orderId       String      @id @default(uuid()) @map("order_id") @db.Uuid
+  orderNumber   Int         @map("order_number")
+  orderDate     DateTime    @map("order_date") @db.Date
+  customerName  String      @map("customer_name") @db.VarChar(100)
+  tableNumber   String      @map("table_number") @db.VarChar(20)
+  orderSource   OrderSource @map("order_source")
+  status        OrderStatus @default(pending) @map("status")
+
+  // Status timestamps + actors
+  acceptedAt    DateTime?   @map("accepted_at") @db.Timestamptz
+  acceptedBy    String?     @map("accepted_by") @db.Uuid
+  nextInLineAt  DateTime?   @map("next_in_line_at") @db.Timestamptz
+  processingAt  DateTime?   @map("processing_at") @db.Timestamptz
+  processingBy  String?     @map("processing_by") @db.Uuid
+  completedAt   DateTime?   @map("completed_at") @db.Timestamptz
+  completedBy   String?     @map("completed_by") @db.Uuid
+
+  // Payment
+  totalAmount   Decimal     @default(0) @map("total_amount") @db.Decimal(10, 2)
+  amountPaid    Decimal?    @map("amount_paid") @db.Decimal(10, 2)
+  change        Decimal?    @db.Decimal(10, 2)
+
+  // Guest tracking (online orders)
+  guestToken    String?     @unique @map("guest_token") @db.Uuid
+
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime    @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy     String      @map("created_by") @db.Uuid
+
+  // Relations
+  creator       User        @relation("OrderCreator", fields: [createdBy], references: [id])
+  acceptedByUser User?      @relation("OrderAcceptedBy", fields: [acceptedBy], references: [id])
+  processingByUser User?    @relation("OrderProcessingBy", fields: [processingBy], references: [id])
+  completedByUser  User?    @relation("OrderCompletedBy", fields: [completedBy], references: [id])
+
+  items         OrderItem[]
+  cancellation  OrderCancellation?
+  deductions    OrderIngredientDeduction[]
+  receipt       Receipt?
+
+  @@index([status])
+  @@index([orderDate])
+  @@index([createdBy])
+  @@map("orders")
+}
+
+model OrderItem {
+  orderItemId  Int      @id @default(autoincrement()) @map("order_item_id")
+  orderId      String   @map("order_id") @db.Uuid
+  productId    String   @map("product_id") @db.Uuid
+  variantId    Int      @map("variant_id")
+  quantity     Int
+  unitPrice    Decimal  @map("unit_price") @db.Decimal(10, 2)
+  subtotal     Decimal? @db.Decimal(10, 2)
+
+  order    Order           @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  product  Product         @relation(fields: [productId], references: [productId])
+  variant  ProductVariant  @relation(fields: [variantId], references: [variantId])
+
+  @@map("order_items")
+}
+
+model OrderCancellation {
+  cancellationId Int      @id @default(autoincrement()) @map("cancellation_id")
+  orderId        String   @unique @map("order_id") @db.Uuid
+  cancelledBy    String   @map("cancelled_by") @db.Uuid
+  reason         String?
+  cancelledAt    DateTime @default(now()) @map("cancelled_at") @db.Timestamptz
+
+  order          Order @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+
+  @@map("order_cancellations")
+}
+
+model OrderIngredientDeduction {
+  id               Int       @id @default(autoincrement()) @map("id")
+  orderId          String    @map("order_id") @db.Uuid
+  ingredientId     String    @map("ingredient_id") @db.Uuid
+  restockBatchId   Int       @map("restock_batch_id")
+  quantityDeducted Decimal   @map("quantity_deducted") @db.Decimal(10, 3)
+  reversedAt       DateTime? @map("reversed_at") @db.Timestamptz
+  reversedBy       String?   @map("reversed_by") @db.Uuid
+
+  order      Order        @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  ingredient Ingredient   @relation(fields: [ingredientId], references: [ingredientId])
+  batch      RestockBatch @relation(fields: [restockBatchId], references: [restockId])
+
+  @@index([orderId])
+  @@index([ingredientId])
+  @@map("order_ingredient_deductions")
+}
+
+model Receipt {
+  receiptId   String   @id @default(uuid()) @map("receipt_id") @db.Uuid
+  orderId     String   @unique @map("order_id") @db.Uuid
+  issuedBy    String?  @map("issued_by") @db.Uuid
+  totalAmount Decimal  @map("total_amount") @db.Decimal(10, 2)
+  issuedAt    DateTime @default(now()) @map("issued_at") @db.Timestamptz
+
+  order  Order @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+
+  @@map("receipts")
 }

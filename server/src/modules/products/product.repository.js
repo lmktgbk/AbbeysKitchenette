@@ -398,4 +398,44 @@ export const productRepository = {
     });
     return count > 0;
   },
+
+  /* ── Variant Availability Recompute ──── */
+
+  /**
+   * Find all variants that use any of the given ingredients (via recipes).
+   * Used by recomputeVariantAvailability to determine which variants are affected.
+   * @param {string[]} ingredientIds - array of ingredient UUIDs
+   * @returns {Array<object>} - variants with their recipes
+   */
+  async findVariantsByIngredientIds(ingredientIds) {
+    if (ingredientIds.length === 0) return [];
+    return prisma.productVariant.findMany({
+      where: {
+        recipes: { some: { ingredientId: { in: ingredientIds } } },
+      },
+      select: {
+        variantId: true,
+        productId: true,
+        recipes: {
+          select: { ingredientId: true, quantityNeeded: true },
+        },
+      },
+    });
+  },
+
+  /**
+   * Bulk update isAvailable for multiple variants in a single transaction.
+   * @param {Array<{ variantId: number, isAvailable: boolean }>} updates
+   */
+  async bulkUpdateVariantAvailability(updates) {
+    if (updates.length === 0) return;
+    await prisma.$transaction(
+      updates.map((u) =>
+        prisma.productVariant.update({
+          where: { variantId: u.variantId },
+          data: { isAvailable: u.isAvailable },
+        })
+      )
+    );
+  },
 };

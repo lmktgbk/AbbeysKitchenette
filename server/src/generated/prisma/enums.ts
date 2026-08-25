@@ -44,3 +44,23 @@ export const AlertType = {
 } as const
 
 export type AlertType = (typeof AlertType)[keyof typeof AlertType]
+
+
+export const OrderSource = {
+  walk_in: 'walk_in',
+  online: 'online'
+} as const
+
+export type OrderSource = (typeof OrderSource)[keyof typeof OrderSource]
+
+
+export const OrderStatus = {
+  pending: 'pending',
+  accepted: 'accepted',
+  next_in_line: 'next_in_line',
+  processing: 'processing',
+  completed: 'completed',
+  cancelled: 'cancelled'
+} as const
+
+export type OrderStatus = (typeof OrderStatus)[keyof typeof OrderStatus]

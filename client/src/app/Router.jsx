@@ -10,7 +10,8 @@
  *   /dashboard       → Dashboard (protected, admin layout)
  *   /products        → Products (protected, admin layout)
  *   /inventory       → Inventory (protected, admin layout)
- *   /pos             → POS (protected, full-screen)
+ *   /pos             → POS terminal (protected, full-screen, nested)
+ *   /pos/orders      → Orders view inside POS terminal
  *   /kitchen         → Kitchen display (protected, full-screen)
  *   /staff           → Staff (protected, admin layout)
  *   /forecasting     → Forecasting (protected, admin layout)
@@ -31,6 +32,9 @@ import ResetPasswordPage from "@/features/auth/pages/ResetPasswordPage";
 import ChangePinPage from "@/features/auth/pages/ChangePinPage";
 import IngredientsPage from "@/features/ingredients/pages/InventoryPage";
 import ProductsPage from "@/features/products/pages/ProductsPage";
+import OrdersPage from "@/features/orders/pages/OrdersPage";
+import PosTerminal from "@/features/orders/pages/PosTerminal";
+import PosInterface from "@/features/orders/pages/PosInterface";
 
 /* ── Placeholder Pages ───────────────── */
 
@@ -57,9 +61,6 @@ function AuditLogsPlaceholder() {
 }
 function SettingsPlaceholder() {
     return <div className="p-6"><h1 className="text-2xl font-bold">Settings</h1></div>;
-}
-function PosPlaceholder() {
-    return <div className="flex h-screen items-center justify-center"><h1 className="text-2xl font-bold">POS</h1></div>;
 }
 function KitchenPlaceholder() {
     return <div className="flex h-screen items-center justify-center"><h1 className="text-2xl font-bold">Kitchen Display</h1></div>;
@@ -102,6 +103,7 @@ const router = createBrowserRouter([
             { path: "/dashboard", element: <DashboardPlaceholder /> },
             { path: "/products", element: <ProductsPage /> },
             { path: "/inventory", element: <IngredientsPage /> },
+            { path: "/orders", element: <OrdersPage /> },
             { path: "/inventory", element: <InventoryPlaceholder /> },
             { path: "/staff", element: <StaffPlaceholder /> },
             { path: "/forecasting", element: <ForecastingPlaceholder /> },
@@ -119,7 +121,14 @@ const router = createBrowserRouter([
             </ProtectedRoute>
         ),
         children: [
-            { path: "/pos", element: <PosPlaceholder /> },
+            {
+                path: "/pos",
+                element: <PosTerminal />,
+                children: [
+                    { index: true, element: <PosInterface /> },
+                    { path: "orders", element: <OrdersPage embedded /> },
+                ],
+            },
             { path: "/kitchen", element: <KitchenPlaceholder /> },
             { path: "/change-pin", element: <ChangePinPage /> },
         ],

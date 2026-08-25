@@ -15,6 +15,8 @@ import authRoutes from "./modules/auth/auth.routes.js";
 import categoryRoutes from "./modules/categories/category.routes.js";
 import ingredientRoutes from "./modules/ingredients/ingredient.routes.js";
 import productRoutes from "./modules/products/product.routes.js";
+import orderRoutes from "./modules/orders/order.routes.js";
+import guestRoutes from "./modules/guest/guest.routes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -61,6 +63,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/ingredients", ingredientRoutes);
 app.use("/api/products", productRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/guest", guestRoutes);
 
 // Health check endpoint (used by hosting platforms to verify server is running)
 app.get("/api/health", (req, res) => {

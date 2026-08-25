@@ -61,7 +61,13 @@ export const ModelName = {
   RestockBatch: 'RestockBatch',
   LossRecord: 'LossRecord',
   StockAdjustment: 'StockAdjustment',
-  StockAlert: 'StockAlert'
+  StockAlert: 'StockAlert',
+  OrderCounter: 'OrderCounter',
+  Order: 'Order',
+  OrderItem: 'OrderItem',
+  OrderCancellation: 'OrderCancellation',
+  OrderIngredientDeduction: 'OrderIngredientDeduction',
+  Receipt: 'Receipt'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -242,6 +248,89 @@ export const StockAlertScalarFieldEnum = {
 } as const
 
 export type StockAlertScalarFieldEnum = (typeof StockAlertScalarFieldEnum)[keyof typeof StockAlertScalarFieldEnum]
+
+
+export const OrderCounterScalarFieldEnum = {
+  date: 'date',
+  counter: 'counter'
+} as const
+
+export type OrderCounterScalarFieldEnum = (typeof OrderCounterScalarFieldEnum)[keyof typeof OrderCounterScalarFieldEnum]
+
+
+export const OrderScalarFieldEnum = {
+  orderId: 'orderId',
+  orderNumber: 'orderNumber',
+  orderDate: 'orderDate',
+  customerName: 'customerName',
+  tableNumber: 'tableNumber',
+  orderSource: 'orderSource',
+  status: 'status',
+  acceptedAt: 'acceptedAt',
+  acceptedBy: 'acceptedBy',
+  nextInLineAt: 'nextInLineAt',
+  processingAt: 'processingAt',
+  processingBy: 'processingBy',
+  completedAt: 'completedAt',
+  completedBy: 'completedBy',
+  totalAmount: 'totalAmount',
+  amountPaid: 'amountPaid',
+  change: 'change',
+  guestToken: 'guestToken',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  createdBy: 'createdBy'
+} as const
+
+export type OrderScalarFieldEnum = (typeof OrderScalarFieldEnum)[keyof typeof OrderScalarFieldEnum]
+
+
+export const OrderItemScalarFieldEnum = {
+  orderItemId: 'orderItemId',
+  orderId: 'orderId',
+  productId: 'productId',
+  variantId: 'variantId',
+  quantity: 'quantity',
+  unitPrice: 'unitPrice',
+  subtotal: 'subtotal'
+} as const
+
+export type OrderItemScalarFieldEnum = (typeof OrderItemScalarFieldEnum)[keyof typeof OrderItemScalarFieldEnum]
+
+
+export const OrderCancellationScalarFieldEnum = {
+  cancellationId: 'cancellationId',
+  orderId: 'orderId',
+  cancelledBy: 'cancelledBy',
+  reason: 'reason',
+  cancelledAt: 'cancelledAt'
+} as const
+
+export type OrderCancellationScalarFieldEnum = (typeof OrderCancellationScalarFieldEnum)[keyof typeof OrderCancellationScalarFieldEnum]
+
+
+export const OrderIngredientDeductionScalarFieldEnum = {
+  id: 'id',
+  orderId: 'orderId',
+  ingredientId: 'ingredientId',
+  restockBatchId: 'restockBatchId',
+  quantityDeducted: 'quantityDeducted',
+  reversedAt: 'reversedAt',
+  reversedBy: 'reversedBy'
+} as const
+
+export type OrderIngredientDeductionScalarFieldEnum = (typeof OrderIngredientDeductionScalarFieldEnum)[keyof typeof OrderIngredientDeductionScalarFieldEnum]
+
+
+export const ReceiptScalarFieldEnum = {
+  receiptId: 'receiptId',
+  orderId: 'orderId',
+  issuedBy: 'issuedBy',
+  totalAmount: 'totalAmount',
+  issuedAt: 'issuedAt'
+} as const
+
+export type ReceiptScalarFieldEnum = (typeof ReceiptScalarFieldEnum)[keyof typeof ReceiptScalarFieldEnum]
 
 
 export const SortOrder = {

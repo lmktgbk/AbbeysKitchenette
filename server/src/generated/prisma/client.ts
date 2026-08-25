@@ -96,3 +96,33 @@ export type StockAdjustment = Prisma.StockAdjustmentModel
  * 
  */
 export type StockAlert = Prisma.StockAlertModel
+/**
+ * Model OrderCounter
+ * 
+ */
+export type OrderCounter = Prisma.OrderCounterModel
+/**
+ * Model Order
+ * 
+ */
+export type Order = Prisma.OrderModel
+/**
+ * Model OrderItem
+ * 
+ */
+export type OrderItem = Prisma.OrderItemModel
+/**
+ * Model OrderCancellation
+ * 
+ */
+export type OrderCancellation = Prisma.OrderCancellationModel
+/**
+ * Model OrderIngredientDeduction
+ * 
+ */
+export type OrderIngredientDeduction = Prisma.OrderIngredientDeductionModel
+/**
+ * Model Receipt
+ * 
+ */
+export type Receipt = Prisma.ReceiptModel

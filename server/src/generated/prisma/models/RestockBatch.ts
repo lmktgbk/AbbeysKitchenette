@@ -294,6 +294,7 @@ export type RestockBatchWhereInput = {
   restockedAt?: Prisma.DateTimeFilter<"RestockBatch"> | Date | string
   ingredient?: Prisma.XOR<Prisma.IngredientScalarRelationFilter, Prisma.IngredientWhereInput>
   restockedBy?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
+  orderDeductions?: Prisma.OrderIngredientDeductionListRelationFilter
 }
 
 export type RestockBatchOrderByWithRelationInput = {
@@ -311,6 +312,7 @@ export type RestockBatchOrderByWithRelationInput = {
   restockedAt?: Prisma.SortOrder
   ingredient?: Prisma.IngredientOrderByWithRelationInput
   restockedBy?: Prisma.UserOrderByWithRelationInput
+  orderDeductions?: Prisma.OrderIngredientDeductionOrderByRelationAggregateInput
 }
 
 export type RestockBatchWhereUniqueInput = Prisma.AtLeast<{
@@ -331,6 +333,7 @@ export type RestockBatchWhereUniqueInput = Prisma.AtLeast<{
   restockedAt?: Prisma.DateTimeFilter<"RestockBatch"> | Date | string
   ingredient?: Prisma.XOR<Prisma.IngredientScalarRelationFilter, Prisma.IngredientWhereInput>
   restockedBy?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
+  orderDeductions?: Prisma.OrderIngredientDeductionListRelationFilter
 }, "restockId">
 
 export type RestockBatchOrderByWithAggregationInput = {
@@ -383,6 +386,7 @@ export type RestockBatchCreateInput = {
   restockedAt?: Date | string
   ingredient: Prisma.IngredientCreateNestedOneWithoutRestockBatchesInput
   restockedBy: Prisma.UserCreateNestedOneWithoutRestockBatchesInput
+  orderDeductions?: Prisma.OrderIngredientDeductionCreateNestedManyWithoutBatchInput
 }
 
 export type RestockBatchUncheckedCreateInput = {
@@ -398,6 +402,7 @@ export type RestockBatchUncheckedCreateInput = {
   supplierName?: string | null
   notes?: string | null
   restockedAt?: Date | string
+  orderDeductions?: Prisma.OrderIngredientDeductionUncheckedCreateNestedManyWithoutBatchInput
 }
 
 export type RestockBatchUpdateInput = {
@@ -412,6 +417,7 @@ export type RestockBatchUpdateInput = {
   restockedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   ingredient?: Prisma.IngredientUpdateOneRequiredWithoutRestockBatchesNestedInput
   restockedBy?: Prisma.UserUpdateOneRequiredWithoutRestockBatchesNestedInput
+  orderDeductions?: Prisma.OrderIngredientDeductionUpdateManyWithoutBatchNestedInput
 }
 
 export type RestockBatchUncheckedUpdateInput = {
@@ -427,6 +433,7 @@ export type RestockBatchUncheckedUpdateInput = {
   supplierName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   restockedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  orderDeductions?: Prisma.OrderIngredientDeductionUncheckedUpdateManyWithoutBatchNestedInput
 }
 
 export type RestockBatchCreateManyInput = {
@@ -544,6 +551,11 @@ export type RestockBatchSumOrderByAggregateInput = {
   version?: Prisma.SortOrder
 }
 
+export type RestockBatchScalarRelationFilter = {
+  is?: Prisma.RestockBatchWhereInput
+  isNot?: Prisma.RestockBatchWhereInput
+}
+
 export type RestockBatchCreateNestedManyWithoutRestockedByInput = {
   create?: Prisma.XOR<Prisma.RestockBatchCreateWithoutRestockedByInput, Prisma.RestockBatchUncheckedCreateWithoutRestockedByInput> | Prisma.RestockBatchCreateWithoutRestockedByInput[] | Prisma.RestockBatchUncheckedCreateWithoutRestockedByInput[]
   connectOrCreate?: Prisma.RestockBatchCreateOrConnectWithoutRestockedByInput | Prisma.RestockBatchCreateOrConnectWithoutRestockedByInput[]
@@ -628,6 +640,20 @@ export type RestockBatchUncheckedUpdateManyWithoutIngredientNestedInput = {
   deleteMany?: Prisma.RestockBatchScalarWhereInput | Prisma.RestockBatchScalarWhereInput[]
 }
 
+export type RestockBatchCreateNestedOneWithoutOrderDeductionsInput = {
+  create?: Prisma.XOR<Prisma.RestockBatchCreateWithoutOrderDeductionsInput, Prisma.RestockBatchUncheckedCreateWithoutOrderDeductionsInput>
+  connectOrCreate?: Prisma.RestockBatchCreateOrConnectWithoutOrderDeductionsInput
+  connect?: Prisma.RestockBatchWhereUniqueInput
+}
+
+export type RestockBatchUpdateOneRequiredWithoutOrderDeductionsNestedInput = {
+  create?: Prisma.XOR<Prisma.RestockBatchCreateWithoutOrderDeductionsInput, Prisma.RestockBatchUncheckedCreateWithoutOrderDeductionsInput>
+  connectOrCreate?: Prisma.RestockBatchCreateOrConnectWithoutOrderDeductionsInput
+  upsert?: Prisma.RestockBatchUpsertWithoutOrderDeductionsInput
+  connect?: Prisma.RestockBatchWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.RestockBatchUpdateToOneWithWhereWithoutOrderDeductionsInput, Prisma.RestockBatchUpdateWithoutOrderDeductionsInput>, Prisma.RestockBatchUncheckedUpdateWithoutOrderDeductionsInput>
+}
+
 export type RestockBatchCreateWithoutRestockedByInput = {
   quantityAdded: runtime.Decimal | runtime.DecimalJsLike | number | string
   quantityLeft: runtime.Decimal | runtime.DecimalJsLike | number | string
@@ -639,6 +665,7 @@ export type RestockBatchCreateWithoutRestockedByInput = {
   notes?: string | null
   restockedAt?: Date | string
   ingredient: Prisma.IngredientCreateNestedOneWithoutRestockBatchesInput
+  orderDeductions?: Prisma.OrderIngredientDeductionCreateNestedManyWithoutBatchInput
 }
 
 export type RestockBatchUncheckedCreateWithoutRestockedByInput = {
@@ -653,6 +680,7 @@ export type RestockBatchUncheckedCreateWithoutRestockedByInput = {
   supplierName?: string | null
   notes?: string | null
   restockedAt?: Date | string
+  orderDeductions?: Prisma.OrderIngredientDeductionUncheckedCreateNestedManyWithoutBatchInput
 }
 
 export type RestockBatchCreateOrConnectWithoutRestockedByInput = {
@@ -710,6 +738,7 @@ export type RestockBatchCreateWithoutIngredientInput = {
   notes?: string | null
   restockedAt?: Date | string
   restockedBy: Prisma.UserCreateNestedOneWithoutRestockBatchesInput
+  orderDeductions?: Prisma.OrderIngredientDeductionCreateNestedManyWithoutBatchInput
 }
 
 export type RestockBatchUncheckedCreateWithoutIngredientInput = {
@@ -724,6 +753,7 @@ export type RestockBatchUncheckedCreateWithoutIngredientInput = {
   supplierName?: string | null
   notes?: string | null
   restockedAt?: Date | string
+  orderDeductions?: Prisma.OrderIngredientDeductionUncheckedCreateNestedManyWithoutBatchInput
 }
 
 export type RestockBatchCreateOrConnectWithoutIngredientInput = {
@@ -752,6 +782,80 @@ export type RestockBatchUpdateManyWithWhereWithoutIngredientInput = {
   data: Prisma.XOR<Prisma.RestockBatchUpdateManyMutationInput, Prisma.RestockBatchUncheckedUpdateManyWithoutIngredientInput>
 }
 
+export type RestockBatchCreateWithoutOrderDeductionsInput = {
+  quantityAdded: runtime.Decimal | runtime.DecimalJsLike | number | string
+  quantityLeft: runtime.Decimal | runtime.DecimalJsLike | number | string
+  costPerUnit: runtime.Decimal | runtime.DecimalJsLike | number | string
+  totalCost: runtime.Decimal | runtime.DecimalJsLike | number | string
+  isPriority?: boolean
+  version?: number
+  supplierName?: string | null
+  notes?: string | null
+  restockedAt?: Date | string
+  ingredient: Prisma.IngredientCreateNestedOneWithoutRestockBatchesInput
+  restockedBy: Prisma.UserCreateNestedOneWithoutRestockBatchesInput
+}
+
+export type RestockBatchUncheckedCreateWithoutOrderDeductionsInput = {
+  restockId?: number
+  ingredientId: string
+  restockedById: string
+  quantityAdded: runtime.Decimal | runtime.DecimalJsLike | number | string
+  quantityLeft: runtime.Decimal | runtime.DecimalJsLike | number | string
+  costPerUnit: runtime.Decimal | runtime.DecimalJsLike | number | string
+  totalCost: runtime.Decimal | runtime.DecimalJsLike | number | string
+  isPriority?: boolean
+  version?: number
+  supplierName?: string | null
+  notes?: string | null
+  restockedAt?: Date | string
+}
+
+export type RestockBatchCreateOrConnectWithoutOrderDeductionsInput = {
+  where: Prisma.RestockBatchWhereUniqueInput
+  create: Prisma.XOR<Prisma.RestockBatchCreateWithoutOrderDeductionsInput, Prisma.RestockBatchUncheckedCreateWithoutOrderDeductionsInput>
+}
+
+export type RestockBatchUpsertWithoutOrderDeductionsInput = {
+  update: Prisma.XOR<Prisma.RestockBatchUpdateWithoutOrderDeductionsInput, Prisma.RestockBatchUncheckedUpdateWithoutOrderDeductionsInput>
+  create: Prisma.XOR<Prisma.RestockBatchCreateWithoutOrderDeductionsInput, Prisma.RestockBatchUncheckedCreateWithoutOrderDeductionsInput>
+  where?: Prisma.RestockBatchWhereInput
+}
+
+export type RestockBatchUpdateToOneWithWhereWithoutOrderDeductionsInput = {
+  where?: Prisma.RestockBatchWhereInput
+  data: Prisma.XOR<Prisma.RestockBatchUpdateWithoutOrderDeductionsInput, Prisma.RestockBatchUncheckedUpdateWithoutOrderDeductionsInput>
+}
+
+export type RestockBatchUpdateWithoutOrderDeductionsInput = {
+  quantityAdded?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  quantityLeft?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  costPerUnit?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  totalCost?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  isPriority?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  supplierName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  restockedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  ingredient?: Prisma.IngredientUpdateOneRequiredWithoutRestockBatchesNestedInput
+  restockedBy?: Prisma.UserUpdateOneRequiredWithoutRestockBatchesNestedInput
+}
+
+export type RestockBatchUncheckedUpdateWithoutOrderDeductionsInput = {
+  restockId?: Prisma.IntFieldUpdateOperationsInput | number
+  ingredientId?: Prisma.StringFieldUpdateOperationsInput | string
+  restockedById?: Prisma.StringFieldUpdateOperationsInput | string
+  quantityAdded?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  quantityLeft?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  costPerUnit?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  totalCost?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  isPriority?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  supplierName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  restockedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
 export type RestockBatchCreateManyRestockedByInput = {
   restockId?: number
   ingredientId: string
@@ -777,6 +881,7 @@ export type RestockBatchUpdateWithoutRestockedByInput = {
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   restockedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   ingredient?: Prisma.IngredientUpdateOneRequiredWithoutRestockBatchesNestedInput
+  orderDeductions?: Prisma.OrderIngredientDeductionUpdateManyWithoutBatchNestedInput
 }
 
 export type RestockBatchUncheckedUpdateWithoutRestockedByInput = {
@@ -791,6 +896,7 @@ export type RestockBatchUncheckedUpdateWithoutRestockedByInput = {
   supplierName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   restockedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  orderDeductions?: Prisma.OrderIngredientDeductionUncheckedUpdateManyWithoutBatchNestedInput
 }
 
 export type RestockBatchUncheckedUpdateManyWithoutRestockedByInput = {
@@ -832,6 +938,7 @@ export type RestockBatchUpdateWithoutIngredientInput = {
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   restockedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   restockedBy?: Prisma.UserUpdateOneRequiredWithoutRestockBatchesNestedInput
+  orderDeductions?: Prisma.OrderIngredientDeductionUpdateManyWithoutBatchNestedInput
 }
 
 export type RestockBatchUncheckedUpdateWithoutIngredientInput = {
@@ -846,6 +953,7 @@ export type RestockBatchUncheckedUpdateWithoutIngredientInput = {
   supplierName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   restockedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  orderDeductions?: Prisma.OrderIngredientDeductionUncheckedUpdateManyWithoutBatchNestedInput
 }
 
 export type RestockBatchUncheckedUpdateManyWithoutIngredientInput = {
@@ -863,6 +971,35 @@ export type RestockBatchUncheckedUpdateManyWithoutIngredientInput = {
 }
 
 
+/**
+ * Count Type RestockBatchCountOutputType
+ */
+
+export type RestockBatchCountOutputType = {
+  orderDeductions: number
+}
+
+export type RestockBatchCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  orderDeductions?: boolean | RestockBatchCountOutputTypeCountOrderDeductionsArgs
+}
+
+/**
+ * RestockBatchCountOutputType without action
+ */
+export type RestockBatchCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the RestockBatchCountOutputType
+   */
+  select?: Prisma.RestockBatchCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * RestockBatchCountOutputType without action
+ */
+export type RestockBatchCountOutputTypeCountOrderDeductionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.OrderIngredientDeductionWhereInput
+}
+
 
 export type RestockBatchSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   restockId?: boolean
@@ -879,6 +1016,8 @@ export type RestockBatchSelect<ExtArgs extends runtime.Types.Extensions.Internal
   restockedAt?: boolean
   ingredient?: boolean | Prisma.IngredientDefaultArgs<ExtArgs>
   restockedBy?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  orderDeductions?: boolean | Prisma.RestockBatch$orderDeductionsArgs<ExtArgs>
+  _count?: boolean | Prisma.RestockBatchCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["restockBatch"]>
 
 export type RestockBatchSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -934,6 +1073,8 @@ export type RestockBatchOmit<ExtArgs extends runtime.Types.Extensions.InternalAr
 export type RestockBatchInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   ingredient?: boolean | Prisma.IngredientDefaultArgs<ExtArgs>
   restockedBy?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  orderDeductions?: boolean | Prisma.RestockBatch$orderDeductionsArgs<ExtArgs>
+  _count?: boolean | Prisma.RestockBatchCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type RestockBatchIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   ingredient?: boolean | Prisma.IngredientDefaultArgs<ExtArgs>
@@ -949,6 +1090,7 @@ export type $RestockBatchPayload<ExtArgs extends runtime.Types.Extensions.Intern
   objects: {
     ingredient: Prisma.$IngredientPayload<ExtArgs>
     restockedBy: Prisma.$UserPayload<ExtArgs>
+    orderDeductions: Prisma.$OrderIngredientDeductionPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     restockId: number
@@ -1359,6 +1501,7 @@ export interface Prisma__RestockBatchClient<T, Null = never, ExtArgs extends run
   readonly [Symbol.toStringTag]: "PrismaPromise"
   ingredient<T extends Prisma.IngredientDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.IngredientDefaultArgs<ExtArgs>>): Prisma.Prisma__IngredientClient<runtime.Types.Result.GetResult<Prisma.$IngredientPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   restockedBy<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  orderDeductions<T extends Prisma.RestockBatch$orderDeductionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.RestockBatch$orderDeductionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$OrderIngredientDeductionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1798,6 +1941,30 @@ export type RestockBatchDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.
    * Limit how many RestockBatches to delete.
    */
   limit?: number
+}
+
+/**
+ * RestockBatch.orderDeductions
+ */
+export type RestockBatch$orderDeductionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the OrderIngredientDeduction
+   */
+  select?: Prisma.OrderIngredientDeductionSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the OrderIngredientDeduction
+   */
+  omit?: Prisma.OrderIngredientDeductionOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.OrderIngredientDeductionInclude<ExtArgs> | null
+  where?: Prisma.OrderIngredientDeductionWhereInput
+  orderBy?: Prisma.OrderIngredientDeductionOrderByWithRelationInput | Prisma.OrderIngredientDeductionOrderByWithRelationInput[]
+  cursor?: Prisma.OrderIngredientDeductionWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.OrderIngredientDeductionScalarFieldEnum | Prisma.OrderIngredientDeductionScalarFieldEnum[]
 }
 
 /**

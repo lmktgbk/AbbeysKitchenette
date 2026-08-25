@@ -43,6 +43,10 @@ import {
     Pencil,
     Trash2,
     Plus,
+    Check,
+    CheckCircle,
+    Receipt,
+    Calendar,
 } from "lucide-react";
 
 const iconMap = {
@@ -90,6 +94,10 @@ const iconMap = {
     pencil: Pencil,
     trash2: Trash2,
     plus: Plus,
+    check: Check,
+    checkCircle: CheckCircle,
+    receipt: Receipt,
+    calendar: Calendar,
 };
 
 /**

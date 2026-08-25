@@ -17,7 +17,7 @@ const NAV_GROUPS = [
         items: [
             { icon: "package", label: "Products", href: "/products" },
             { icon: "warehouse", label: "Inventory", href: "/inventory" },
-            { icon: "cart", label: "POS", href: "/pos" },
+            { icon: "receipt", label: "Orders", href: "/orders" },
             { icon: "chefHat", label: "Kitchen", href: "/kitchen" },
         ],
     },

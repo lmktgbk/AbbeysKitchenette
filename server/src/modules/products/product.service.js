@@ -142,6 +142,38 @@ export const productService = {
     };
   },
 
+  /* ── Variant Availability Recompute ──── */
+
+  /**
+   * Recompute is_available for all variants that use the given ingredients.
+   * Called after restock, loss, order deduction, or order cancellation.
+   * @param {string[]} ingredientIds - ingredient UUIDs that changed stock
+   */
+  async recomputeVariantAvailability(ingredientIds) {
+    if (!ingredientIds || ingredientIds.length === 0) return;
+
+    // Step 1: Find all variants affected by these ingredients
+    const variants = await productRepository.findVariantsByIngredientIds(ingredientIds);
+    if (variants.length === 0) return;
+
+    // Step 2: Get current stock for all involved ingredients
+    const allIngredientIds = [...new Set(
+      variants.flatMap((v) => v.recipes.map((r) => r.ingredientId))
+    )];
+    const stockMap = await productRepository.getStockByIngredientIds(allIngredientIds);
+
+    // Step 3: Compute new isAvailable for each variant
+    const updates = variants.map((v) => {
+      const isAvailable =
+        v.recipes.length > 0 &&
+        v.recipes.every((r) => (stockMap[r.ingredientId] ?? 0) >= Number(r.quantityNeeded));
+      return { variantId: v.variantId, isAvailable };
+    });
+
+    // Step 4: Bulk update
+    await productRepository.bulkUpdateVariantAvailability(updates);
+  },
+
   /* ── Mutations ───────────────────────── */
 
   /**
