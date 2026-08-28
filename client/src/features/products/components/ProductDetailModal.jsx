@@ -133,15 +133,15 @@ export default function ProductDetailModal({
                 <div className="flex items-center gap-2">
                   <span
                     className={`h-2 w-2 rounded-full ${
-                      data.is_available ? "bg-green-500" : "bg-red-500"
+                      data.is_available ? "bg-success" : "bg-destructive"
                     }`}
                   />
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-xs font-medium text-muted-foreground">
                     {data.is_available ? "Active" : "Unavailable"}
                   </span>
                 </div>
 
-                <p className="text-sm font-medium text-foreground">{priceLabel}</p>
+                <p className="text-sm font-semibold text-foreground">{priceLabel}</p>
 
                 <p className="text-xs text-muted-foreground">
                   {variants.length} variant{variants.length !== 1 ? "s" : ""}
@@ -255,24 +255,29 @@ export default function ProductDetailModal({
 
         {/* Action buttons */}
         <DialogFooter>
-          <Button size="sm" variant="secondary" onClick={handleEdit}>
+          <Button size="sm" variant="outline" onClick={handleEdit}>
             <Icon name="pencil" size={14} className="mr-1" />
             Edit
           </Button>
 
           {data.is_available ? (
-            <Button size="sm" variant="secondary" onClick={handleDeactivate}>
+            <Button size="sm" variant="outline" onClick={handleDeactivate}>
               <Icon name="eyeOff" size={14} className="mr-1" />
               Deactivate
             </Button>
           ) : (
-            <Button size="sm" variant="secondary" onClick={handleActivate}>
+            <Button size="sm" variant="outline" onClick={handleActivate}>
               <Icon name="eye" size={14} className="mr-1" />
               Activate
             </Button>
           )}
 
-          <Button size="sm" variant="destructive" onClick={handleDelete}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleDelete}
+            className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+          >
             <Icon name="trash2" size={14} className="mr-1" />
             Delete
           </Button>

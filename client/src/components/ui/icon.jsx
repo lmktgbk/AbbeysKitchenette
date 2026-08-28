@@ -47,6 +47,9 @@ import {
     CheckCircle,
     Receipt,
     Calendar,
+    Archive,
+    CircleArrowRight,
+    Key
 } from "lucide-react";
 
 const iconMap = {
@@ -98,6 +101,9 @@ const iconMap = {
     checkCircle: CheckCircle,
     receipt: Receipt,
     calendar: Calendar,
+    archive: Archive,
+    circleArrowRight: CircleArrowRight,
+    key: Key
 };
 
 /**

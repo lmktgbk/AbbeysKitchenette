@@ -1913,6 +1913,7 @@ export const OrderScalarFieldEnum = {
   acceptedAt: 'acceptedAt',
   acceptedBy: 'acceptedBy',
   nextInLineAt: 'nextInLineAt',
+  nextInLineBy: 'nextInLineBy',
   processingAt: 'processingAt',
   processingBy: 'processingBy',
   completedAt: 'completedAt',

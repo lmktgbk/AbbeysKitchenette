@@ -89,6 +89,7 @@ export const orderRepository = {
         },
         creator: { select: { id: true, name: true, role: true } },
         acceptedByUser: { select: { id: true, name: true, role: true } },
+        nextInLineByUser: { select: { id: true, name: true, role: true } },
         processingByUser: { select: { id: true, name: true, role: true } },
         completedByUser: { select: { id: true, name: true, role: true } },
         cancellation: true,
@@ -216,6 +217,7 @@ export const orderRepository = {
       if (meta.change !== undefined) data.change = meta.change;
     } else if (status === "next_in_line") {
       data.nextInLineAt = new Date();
+      if (meta.userId) data.nextInLineBy = meta.userId;
     } else if (status === "processing") {
       data.processingAt = new Date();
       data.processingBy = meta.userId;

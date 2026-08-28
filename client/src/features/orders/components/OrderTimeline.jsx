@@ -35,9 +35,13 @@ export default function OrderTimeline({ order }) {
   const currentIdx = STATUS_INDEX[order.status] ?? -1;
   const isCancelled = order.status === "cancelled";
 
+  const visibleSteps = isCancelled
+    ? ORDER_FLOW.filter((s) => s.status !== "completed")
+    : ORDER_FLOW;
+
   return (
     <div className="flex flex-col">
-      {ORDER_FLOW.map((step, idx) => {
+      {visibleSteps.map((step, idx) => {
         const isCompleted = idx < currentIdx;
         const isCurrent = idx === currentIdx;
         const timestamp = order[step.timestampField];
@@ -49,26 +53,24 @@ export default function OrderTimeline({ order }) {
             {/* Dot + connector */}
             <div className="flex flex-col items-center">
               <div
-                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
-                  isCompleted
-                    ? "border-green-500 bg-green-500 text-white"
-                    : isCurrent
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-muted text-muted-foreground"
-                }`}
+                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${isCompleted
+                  ? "border-green-500 bg-green-500 text-white"
+                  : isCurrent
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-muted text-muted-foreground"
+                  }`}
               >
                 <Icon name={step.icon} size={10} />
               </div>
-              {idx < ORDER_FLOW.length - 1 && (
+              {idx < visibleSteps.length - 1 && (
                 <div className={`w-0.5 h-4 ${isCompleted ? "bg-green-500" : "bg-border"}`} />
               )}
             </div>
 
             {/* Label + detail */}
             <div className="min-w-0 flex-1 pt-0.5">
-              <p className={`text-xs font-medium leading-tight ${
-                isCurrent ? "text-foreground" : isCompleted ? "text-green-600 dark:text-green-400" : "text-muted-foreground"
-              }`}>
+              <p className={`text-xs font-medium leading-tight ${isCurrent ? "text-foreground" : isCompleted ? "text-green-600 dark:text-green-400" : "text-muted-foreground"
+                }`}>
                 {step.label}
                 {isCurrent && !isCancelled && (
                   <span className="ml-1.5 inline-flex items-center rounded-full bg-primary/10 px-1.5 py-px text-[10px] font-medium text-primary">
@@ -94,6 +96,8 @@ export default function OrderTimeline({ order }) {
       {isCancelled && (
         <div className="flex items-start gap-2.5">
           <div className="flex flex-col items-center">
+            {/* Connector from Processing to Cancelled */}
+            <div className="w-0.5 h-4 bg-border" />
             <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-red-500 bg-red-500 text-white">
               <Icon name="x" size={10} />
             </div>

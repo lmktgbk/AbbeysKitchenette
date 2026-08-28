@@ -35,6 +35,7 @@ import ProductsPage from "@/features/products/pages/ProductsPage";
 import OrdersPage from "@/features/orders/pages/OrdersPage";
 import PosTerminal from "@/features/orders/pages/PosTerminal";
 import PosInterface from "@/features/orders/pages/PosInterface";
+import StaffPage from "@/features/staff/pages/StaffPage";
 
 /* ── Placeholder Pages ───────────────── */
 
@@ -89,6 +90,14 @@ const router = createBrowserRouter([
             },
             { path: "/forgot-password", element: <ForgotPasswordPage /> },
             { path: "/reset-password", element: <ResetPasswordPage /> },
+            {
+                path: "/change-pin",
+                element: (
+                    <ProtectedRoute>
+                        <ChangePinPage />
+                    </ProtectedRoute>
+                ),
+            },
         ],
     },
 
@@ -105,7 +114,7 @@ const router = createBrowserRouter([
             { path: "/inventory", element: <IngredientsPage /> },
             { path: "/orders", element: <OrdersPage /> },
             { path: "/inventory", element: <InventoryPlaceholder /> },
-            { path: "/staff", element: <StaffPlaceholder /> },
+            { path: "/staff", element: <StaffPage /> },
             { path: "/forecasting", element: <ForecastingPlaceholder /> },
             { path: "/market-basket", element: <MarketBasketPlaceholder /> },
             { path: "/audit-logs", element: <AuditLogsPlaceholder /> },
@@ -130,7 +139,6 @@ const router = createBrowserRouter([
                 ],
             },
             { path: "/kitchen", element: <KitchenPlaceholder /> },
-            { path: "/change-pin", element: <ChangePinPage /> },
         ],
     },
 

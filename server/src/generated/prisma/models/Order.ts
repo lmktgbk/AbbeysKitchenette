@@ -51,6 +51,7 @@ export type OrderMinAggregateOutputType = {
   acceptedAt: Date | null
   acceptedBy: string | null
   nextInLineAt: Date | null
+  nextInLineBy: string | null
   processingAt: Date | null
   processingBy: string | null
   completedAt: Date | null
@@ -75,6 +76,7 @@ export type OrderMaxAggregateOutputType = {
   acceptedAt: Date | null
   acceptedBy: string | null
   nextInLineAt: Date | null
+  nextInLineBy: string | null
   processingAt: Date | null
   processingBy: string | null
   completedAt: Date | null
@@ -99,6 +101,7 @@ export type OrderCountAggregateOutputType = {
   acceptedAt: number
   acceptedBy: number
   nextInLineAt: number
+  nextInLineBy: number
   processingAt: number
   processingBy: number
   completedAt: number
@@ -139,6 +142,7 @@ export type OrderMinAggregateInputType = {
   acceptedAt?: true
   acceptedBy?: true
   nextInLineAt?: true
+  nextInLineBy?: true
   processingAt?: true
   processingBy?: true
   completedAt?: true
@@ -163,6 +167,7 @@ export type OrderMaxAggregateInputType = {
   acceptedAt?: true
   acceptedBy?: true
   nextInLineAt?: true
+  nextInLineBy?: true
   processingAt?: true
   processingBy?: true
   completedAt?: true
@@ -187,6 +192,7 @@ export type OrderCountAggregateInputType = {
   acceptedAt?: true
   acceptedBy?: true
   nextInLineAt?: true
+  nextInLineBy?: true
   processingAt?: true
   processingBy?: true
   completedAt?: true
@@ -298,6 +304,7 @@ export type OrderGroupByOutputType = {
   acceptedAt: Date | null
   acceptedBy: string | null
   nextInLineAt: Date | null
+  nextInLineBy: string | null
   processingAt: Date | null
   processingBy: string | null
   completedAt: Date | null
@@ -345,6 +352,7 @@ export type OrderWhereInput = {
   acceptedAt?: Prisma.DateTimeNullableFilter<"Order"> | Date | string | null
   acceptedBy?: Prisma.UuidNullableFilter<"Order"> | string | null
   nextInLineAt?: Prisma.DateTimeNullableFilter<"Order"> | Date | string | null
+  nextInLineBy?: Prisma.UuidNullableFilter<"Order"> | string | null
   processingAt?: Prisma.DateTimeNullableFilter<"Order"> | Date | string | null
   processingBy?: Prisma.UuidNullableFilter<"Order"> | string | null
   completedAt?: Prisma.DateTimeNullableFilter<"Order"> | Date | string | null
@@ -358,6 +366,7 @@ export type OrderWhereInput = {
   createdBy?: Prisma.UuidFilter<"Order"> | string
   creator?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   acceptedByUser?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
+  nextInLineByUser?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   processingByUser?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   completedByUser?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   items?: Prisma.OrderItemListRelationFilter
@@ -377,6 +386,7 @@ export type OrderOrderByWithRelationInput = {
   acceptedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   acceptedBy?: Prisma.SortOrderInput | Prisma.SortOrder
   nextInLineAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  nextInLineBy?: Prisma.SortOrderInput | Prisma.SortOrder
   processingAt?: Prisma.SortOrderInput | Prisma.SortOrder
   processingBy?: Prisma.SortOrderInput | Prisma.SortOrder
   completedAt?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -390,6 +400,7 @@ export type OrderOrderByWithRelationInput = {
   createdBy?: Prisma.SortOrder
   creator?: Prisma.UserOrderByWithRelationInput
   acceptedByUser?: Prisma.UserOrderByWithRelationInput
+  nextInLineByUser?: Prisma.UserOrderByWithRelationInput
   processingByUser?: Prisma.UserOrderByWithRelationInput
   completedByUser?: Prisma.UserOrderByWithRelationInput
   items?: Prisma.OrderItemOrderByRelationAggregateInput
@@ -413,6 +424,7 @@ export type OrderWhereUniqueInput = Prisma.AtLeast<{
   acceptedAt?: Prisma.DateTimeNullableFilter<"Order"> | Date | string | null
   acceptedBy?: Prisma.UuidNullableFilter<"Order"> | string | null
   nextInLineAt?: Prisma.DateTimeNullableFilter<"Order"> | Date | string | null
+  nextInLineBy?: Prisma.UuidNullableFilter<"Order"> | string | null
   processingAt?: Prisma.DateTimeNullableFilter<"Order"> | Date | string | null
   processingBy?: Prisma.UuidNullableFilter<"Order"> | string | null
   completedAt?: Prisma.DateTimeNullableFilter<"Order"> | Date | string | null
@@ -425,6 +437,7 @@ export type OrderWhereUniqueInput = Prisma.AtLeast<{
   createdBy?: Prisma.UuidFilter<"Order"> | string
   creator?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   acceptedByUser?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
+  nextInLineByUser?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   processingByUser?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   completedByUser?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   items?: Prisma.OrderItemListRelationFilter
@@ -444,6 +457,7 @@ export type OrderOrderByWithAggregationInput = {
   acceptedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   acceptedBy?: Prisma.SortOrderInput | Prisma.SortOrder
   nextInLineAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  nextInLineBy?: Prisma.SortOrderInput | Prisma.SortOrder
   processingAt?: Prisma.SortOrderInput | Prisma.SortOrder
   processingBy?: Prisma.SortOrderInput | Prisma.SortOrder
   completedAt?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -476,6 +490,7 @@ export type OrderScalarWhereWithAggregatesInput = {
   acceptedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Order"> | Date | string | null
   acceptedBy?: Prisma.UuidNullableWithAggregatesFilter<"Order"> | string | null
   nextInLineAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Order"> | Date | string | null
+  nextInLineBy?: Prisma.UuidNullableWithAggregatesFilter<"Order"> | string | null
   processingAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Order"> | Date | string | null
   processingBy?: Prisma.UuidNullableWithAggregatesFilter<"Order"> | string | null
   completedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Order"> | Date | string | null
@@ -509,6 +524,7 @@ export type OrderCreateInput = {
   updatedAt?: Date | string
   creator: Prisma.UserCreateNestedOneWithoutCreatedOrdersInput
   acceptedByUser?: Prisma.UserCreateNestedOneWithoutAcceptedOrdersInput
+  nextInLineByUser?: Prisma.UserCreateNestedOneWithoutNextInlinedOrdersInput
   processingByUser?: Prisma.UserCreateNestedOneWithoutProcessingOrdersInput
   completedByUser?: Prisma.UserCreateNestedOneWithoutCompletedOrdersInput
   items?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
@@ -528,6 +544,7 @@ export type OrderUncheckedCreateInput = {
   acceptedAt?: Date | string | null
   acceptedBy?: string | null
   nextInLineAt?: Date | string | null
+  nextInLineBy?: string | null
   processingAt?: Date | string | null
   processingBy?: string | null
   completedAt?: Date | string | null
@@ -565,6 +582,7 @@ export type OrderUpdateInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   creator?: Prisma.UserUpdateOneRequiredWithoutCreatedOrdersNestedInput
   acceptedByUser?: Prisma.UserUpdateOneWithoutAcceptedOrdersNestedInput
+  nextInLineByUser?: Prisma.UserUpdateOneWithoutNextInlinedOrdersNestedInput
   processingByUser?: Prisma.UserUpdateOneWithoutProcessingOrdersNestedInput
   completedByUser?: Prisma.UserUpdateOneWithoutCompletedOrdersNestedInput
   items?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
@@ -584,6 +602,7 @@ export type OrderUncheckedUpdateInput = {
   acceptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   acceptedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   nextInLineAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  nextInLineBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   processingAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   processingBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -612,6 +631,7 @@ export type OrderCreateManyInput = {
   acceptedAt?: Date | string | null
   acceptedBy?: string | null
   nextInLineAt?: Date | string | null
+  nextInLineBy?: string | null
   processingAt?: Date | string | null
   processingBy?: string | null
   completedAt?: Date | string | null
@@ -656,6 +676,7 @@ export type OrderUncheckedUpdateManyInput = {
   acceptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   acceptedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   nextInLineAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  nextInLineBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   processingAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   processingBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -690,6 +711,7 @@ export type OrderCountOrderByAggregateInput = {
   acceptedAt?: Prisma.SortOrder
   acceptedBy?: Prisma.SortOrder
   nextInLineAt?: Prisma.SortOrder
+  nextInLineBy?: Prisma.SortOrder
   processingAt?: Prisma.SortOrder
   processingBy?: Prisma.SortOrder
   completedAt?: Prisma.SortOrder
@@ -721,6 +743,7 @@ export type OrderMaxOrderByAggregateInput = {
   acceptedAt?: Prisma.SortOrder
   acceptedBy?: Prisma.SortOrder
   nextInLineAt?: Prisma.SortOrder
+  nextInLineBy?: Prisma.SortOrder
   processingAt?: Prisma.SortOrder
   processingBy?: Prisma.SortOrder
   completedAt?: Prisma.SortOrder
@@ -745,6 +768,7 @@ export type OrderMinOrderByAggregateInput = {
   acceptedAt?: Prisma.SortOrder
   acceptedBy?: Prisma.SortOrder
   nextInLineAt?: Prisma.SortOrder
+  nextInLineBy?: Prisma.SortOrder
   processingAt?: Prisma.SortOrder
   processingBy?: Prisma.SortOrder
   completedAt?: Prisma.SortOrder
@@ -784,6 +808,13 @@ export type OrderCreateNestedManyWithoutAcceptedByUserInput = {
   connect?: Prisma.OrderWhereUniqueInput | Prisma.OrderWhereUniqueInput[]
 }
 
+export type OrderCreateNestedManyWithoutNextInLineByUserInput = {
+  create?: Prisma.XOR<Prisma.OrderCreateWithoutNextInLineByUserInput, Prisma.OrderUncheckedCreateWithoutNextInLineByUserInput> | Prisma.OrderCreateWithoutNextInLineByUserInput[] | Prisma.OrderUncheckedCreateWithoutNextInLineByUserInput[]
+  connectOrCreate?: Prisma.OrderCreateOrConnectWithoutNextInLineByUserInput | Prisma.OrderCreateOrConnectWithoutNextInLineByUserInput[]
+  createMany?: Prisma.OrderCreateManyNextInLineByUserInputEnvelope
+  connect?: Prisma.OrderWhereUniqueInput | Prisma.OrderWhereUniqueInput[]
+}
+
 export type OrderCreateNestedManyWithoutProcessingByUserInput = {
   create?: Prisma.XOR<Prisma.OrderCreateWithoutProcessingByUserInput, Prisma.OrderUncheckedCreateWithoutProcessingByUserInput> | Prisma.OrderCreateWithoutProcessingByUserInput[] | Prisma.OrderUncheckedCreateWithoutProcessingByUserInput[]
   connectOrCreate?: Prisma.OrderCreateOrConnectWithoutProcessingByUserInput | Prisma.OrderCreateOrConnectWithoutProcessingByUserInput[]
@@ -809,6 +840,13 @@ export type OrderUncheckedCreateNestedManyWithoutAcceptedByUserInput = {
   create?: Prisma.XOR<Prisma.OrderCreateWithoutAcceptedByUserInput, Prisma.OrderUncheckedCreateWithoutAcceptedByUserInput> | Prisma.OrderCreateWithoutAcceptedByUserInput[] | Prisma.OrderUncheckedCreateWithoutAcceptedByUserInput[]
   connectOrCreate?: Prisma.OrderCreateOrConnectWithoutAcceptedByUserInput | Prisma.OrderCreateOrConnectWithoutAcceptedByUserInput[]
   createMany?: Prisma.OrderCreateManyAcceptedByUserInputEnvelope
+  connect?: Prisma.OrderWhereUniqueInput | Prisma.OrderWhereUniqueInput[]
+}
+
+export type OrderUncheckedCreateNestedManyWithoutNextInLineByUserInput = {
+  create?: Prisma.XOR<Prisma.OrderCreateWithoutNextInLineByUserInput, Prisma.OrderUncheckedCreateWithoutNextInLineByUserInput> | Prisma.OrderCreateWithoutNextInLineByUserInput[] | Prisma.OrderUncheckedCreateWithoutNextInLineByUserInput[]
+  connectOrCreate?: Prisma.OrderCreateOrConnectWithoutNextInLineByUserInput | Prisma.OrderCreateOrConnectWithoutNextInLineByUserInput[]
+  createMany?: Prisma.OrderCreateManyNextInLineByUserInputEnvelope
   connect?: Prisma.OrderWhereUniqueInput | Prisma.OrderWhereUniqueInput[]
 }
 
@@ -851,6 +889,20 @@ export type OrderUpdateManyWithoutAcceptedByUserNestedInput = {
   connect?: Prisma.OrderWhereUniqueInput | Prisma.OrderWhereUniqueInput[]
   update?: Prisma.OrderUpdateWithWhereUniqueWithoutAcceptedByUserInput | Prisma.OrderUpdateWithWhereUniqueWithoutAcceptedByUserInput[]
   updateMany?: Prisma.OrderUpdateManyWithWhereWithoutAcceptedByUserInput | Prisma.OrderUpdateManyWithWhereWithoutAcceptedByUserInput[]
+  deleteMany?: Prisma.OrderScalarWhereInput | Prisma.OrderScalarWhereInput[]
+}
+
+export type OrderUpdateManyWithoutNextInLineByUserNestedInput = {
+  create?: Prisma.XOR<Prisma.OrderCreateWithoutNextInLineByUserInput, Prisma.OrderUncheckedCreateWithoutNextInLineByUserInput> | Prisma.OrderCreateWithoutNextInLineByUserInput[] | Prisma.OrderUncheckedCreateWithoutNextInLineByUserInput[]
+  connectOrCreate?: Prisma.OrderCreateOrConnectWithoutNextInLineByUserInput | Prisma.OrderCreateOrConnectWithoutNextInLineByUserInput[]
+  upsert?: Prisma.OrderUpsertWithWhereUniqueWithoutNextInLineByUserInput | Prisma.OrderUpsertWithWhereUniqueWithoutNextInLineByUserInput[]
+  createMany?: Prisma.OrderCreateManyNextInLineByUserInputEnvelope
+  set?: Prisma.OrderWhereUniqueInput | Prisma.OrderWhereUniqueInput[]
+  disconnect?: Prisma.OrderWhereUniqueInput | Prisma.OrderWhereUniqueInput[]
+  delete?: Prisma.OrderWhereUniqueInput | Prisma.OrderWhereUniqueInput[]
+  connect?: Prisma.OrderWhereUniqueInput | Prisma.OrderWhereUniqueInput[]
+  update?: Prisma.OrderUpdateWithWhereUniqueWithoutNextInLineByUserInput | Prisma.OrderUpdateWithWhereUniqueWithoutNextInLineByUserInput[]
+  updateMany?: Prisma.OrderUpdateManyWithWhereWithoutNextInLineByUserInput | Prisma.OrderUpdateManyWithWhereWithoutNextInLineByUserInput[]
   deleteMany?: Prisma.OrderScalarWhereInput | Prisma.OrderScalarWhereInput[]
 }
 
@@ -907,6 +959,20 @@ export type OrderUncheckedUpdateManyWithoutAcceptedByUserNestedInput = {
   connect?: Prisma.OrderWhereUniqueInput | Prisma.OrderWhereUniqueInput[]
   update?: Prisma.OrderUpdateWithWhereUniqueWithoutAcceptedByUserInput | Prisma.OrderUpdateWithWhereUniqueWithoutAcceptedByUserInput[]
   updateMany?: Prisma.OrderUpdateManyWithWhereWithoutAcceptedByUserInput | Prisma.OrderUpdateManyWithWhereWithoutAcceptedByUserInput[]
+  deleteMany?: Prisma.OrderScalarWhereInput | Prisma.OrderScalarWhereInput[]
+}
+
+export type OrderUncheckedUpdateManyWithoutNextInLineByUserNestedInput = {
+  create?: Prisma.XOR<Prisma.OrderCreateWithoutNextInLineByUserInput, Prisma.OrderUncheckedCreateWithoutNextInLineByUserInput> | Prisma.OrderCreateWithoutNextInLineByUserInput[] | Prisma.OrderUncheckedCreateWithoutNextInLineByUserInput[]
+  connectOrCreate?: Prisma.OrderCreateOrConnectWithoutNextInLineByUserInput | Prisma.OrderCreateOrConnectWithoutNextInLineByUserInput[]
+  upsert?: Prisma.OrderUpsertWithWhereUniqueWithoutNextInLineByUserInput | Prisma.OrderUpsertWithWhereUniqueWithoutNextInLineByUserInput[]
+  createMany?: Prisma.OrderCreateManyNextInLineByUserInputEnvelope
+  set?: Prisma.OrderWhereUniqueInput | Prisma.OrderWhereUniqueInput[]
+  disconnect?: Prisma.OrderWhereUniqueInput | Prisma.OrderWhereUniqueInput[]
+  delete?: Prisma.OrderWhereUniqueInput | Prisma.OrderWhereUniqueInput[]
+  connect?: Prisma.OrderWhereUniqueInput | Prisma.OrderWhereUniqueInput[]
+  update?: Prisma.OrderUpdateWithWhereUniqueWithoutNextInLineByUserInput | Prisma.OrderUpdateWithWhereUniqueWithoutNextInLineByUserInput[]
+  updateMany?: Prisma.OrderUpdateManyWithWhereWithoutNextInLineByUserInput | Prisma.OrderUpdateManyWithWhereWithoutNextInLineByUserInput[]
   deleteMany?: Prisma.OrderScalarWhereInput | Prisma.OrderScalarWhereInput[]
 }
 
@@ -1029,6 +1095,7 @@ export type OrderCreateWithoutCreatorInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   acceptedByUser?: Prisma.UserCreateNestedOneWithoutAcceptedOrdersInput
+  nextInLineByUser?: Prisma.UserCreateNestedOneWithoutNextInlinedOrdersInput
   processingByUser?: Prisma.UserCreateNestedOneWithoutProcessingOrdersInput
   completedByUser?: Prisma.UserCreateNestedOneWithoutCompletedOrdersInput
   items?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
@@ -1048,6 +1115,7 @@ export type OrderUncheckedCreateWithoutCreatorInput = {
   acceptedAt?: Date | string | null
   acceptedBy?: string | null
   nextInLineAt?: Date | string | null
+  nextInLineBy?: string | null
   processingAt?: Date | string | null
   processingBy?: string | null
   completedAt?: Date | string | null
@@ -1093,6 +1161,7 @@ export type OrderCreateWithoutAcceptedByUserInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   creator: Prisma.UserCreateNestedOneWithoutCreatedOrdersInput
+  nextInLineByUser?: Prisma.UserCreateNestedOneWithoutNextInlinedOrdersInput
   processingByUser?: Prisma.UserCreateNestedOneWithoutProcessingOrdersInput
   completedByUser?: Prisma.UserCreateNestedOneWithoutCompletedOrdersInput
   items?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
@@ -1111,6 +1180,7 @@ export type OrderUncheckedCreateWithoutAcceptedByUserInput = {
   status?: $Enums.OrderStatus
   acceptedAt?: Date | string | null
   nextInLineAt?: Date | string | null
+  nextInLineBy?: string | null
   processingAt?: Date | string | null
   processingBy?: string | null
   completedAt?: Date | string | null
@@ -1138,6 +1208,72 @@ export type OrderCreateManyAcceptedByUserInputEnvelope = {
   skipDuplicates?: boolean
 }
 
+export type OrderCreateWithoutNextInLineByUserInput = {
+  orderId?: string
+  orderNumber: number
+  orderDate: Date | string
+  customerName: string
+  tableNumber: string
+  orderSource: $Enums.OrderSource
+  status?: $Enums.OrderStatus
+  acceptedAt?: Date | string | null
+  nextInLineAt?: Date | string | null
+  processingAt?: Date | string | null
+  completedAt?: Date | string | null
+  totalAmount?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  amountPaid?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  change?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  guestToken?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  creator: Prisma.UserCreateNestedOneWithoutCreatedOrdersInput
+  acceptedByUser?: Prisma.UserCreateNestedOneWithoutAcceptedOrdersInput
+  processingByUser?: Prisma.UserCreateNestedOneWithoutProcessingOrdersInput
+  completedByUser?: Prisma.UserCreateNestedOneWithoutCompletedOrdersInput
+  items?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
+  cancellation?: Prisma.OrderCancellationCreateNestedOneWithoutOrderInput
+  deductions?: Prisma.OrderIngredientDeductionCreateNestedManyWithoutOrderInput
+  receipt?: Prisma.ReceiptCreateNestedOneWithoutOrderInput
+}
+
+export type OrderUncheckedCreateWithoutNextInLineByUserInput = {
+  orderId?: string
+  orderNumber: number
+  orderDate: Date | string
+  customerName: string
+  tableNumber: string
+  orderSource: $Enums.OrderSource
+  status?: $Enums.OrderStatus
+  acceptedAt?: Date | string | null
+  acceptedBy?: string | null
+  nextInLineAt?: Date | string | null
+  processingAt?: Date | string | null
+  processingBy?: string | null
+  completedAt?: Date | string | null
+  completedBy?: string | null
+  totalAmount?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  amountPaid?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  change?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  guestToken?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  createdBy: string
+  items?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
+  cancellation?: Prisma.OrderCancellationUncheckedCreateNestedOneWithoutOrderInput
+  deductions?: Prisma.OrderIngredientDeductionUncheckedCreateNestedManyWithoutOrderInput
+  receipt?: Prisma.ReceiptUncheckedCreateNestedOneWithoutOrderInput
+}
+
+export type OrderCreateOrConnectWithoutNextInLineByUserInput = {
+  where: Prisma.OrderWhereUniqueInput
+  create: Prisma.XOR<Prisma.OrderCreateWithoutNextInLineByUserInput, Prisma.OrderUncheckedCreateWithoutNextInLineByUserInput>
+}
+
+export type OrderCreateManyNextInLineByUserInputEnvelope = {
+  data: Prisma.OrderCreateManyNextInLineByUserInput | Prisma.OrderCreateManyNextInLineByUserInput[]
+  skipDuplicates?: boolean
+}
+
 export type OrderCreateWithoutProcessingByUserInput = {
   orderId?: string
   orderNumber: number
@@ -1158,6 +1294,7 @@ export type OrderCreateWithoutProcessingByUserInput = {
   updatedAt?: Date | string
   creator: Prisma.UserCreateNestedOneWithoutCreatedOrdersInput
   acceptedByUser?: Prisma.UserCreateNestedOneWithoutAcceptedOrdersInput
+  nextInLineByUser?: Prisma.UserCreateNestedOneWithoutNextInlinedOrdersInput
   completedByUser?: Prisma.UserCreateNestedOneWithoutCompletedOrdersInput
   items?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
   cancellation?: Prisma.OrderCancellationCreateNestedOneWithoutOrderInput
@@ -1176,6 +1313,7 @@ export type OrderUncheckedCreateWithoutProcessingByUserInput = {
   acceptedAt?: Date | string | null
   acceptedBy?: string | null
   nextInLineAt?: Date | string | null
+  nextInLineBy?: string | null
   processingAt?: Date | string | null
   completedAt?: Date | string | null
   completedBy?: string | null
@@ -1222,6 +1360,7 @@ export type OrderCreateWithoutCompletedByUserInput = {
   updatedAt?: Date | string
   creator: Prisma.UserCreateNestedOneWithoutCreatedOrdersInput
   acceptedByUser?: Prisma.UserCreateNestedOneWithoutAcceptedOrdersInput
+  nextInLineByUser?: Prisma.UserCreateNestedOneWithoutNextInlinedOrdersInput
   processingByUser?: Prisma.UserCreateNestedOneWithoutProcessingOrdersInput
   items?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
   cancellation?: Prisma.OrderCancellationCreateNestedOneWithoutOrderInput
@@ -1240,6 +1379,7 @@ export type OrderUncheckedCreateWithoutCompletedByUserInput = {
   acceptedAt?: Date | string | null
   acceptedBy?: string | null
   nextInLineAt?: Date | string | null
+  nextInLineBy?: string | null
   processingAt?: Date | string | null
   processingBy?: string | null
   completedAt?: Date | string | null
@@ -1296,6 +1436,7 @@ export type OrderScalarWhereInput = {
   acceptedAt?: Prisma.DateTimeNullableFilter<"Order"> | Date | string | null
   acceptedBy?: Prisma.UuidNullableFilter<"Order"> | string | null
   nextInLineAt?: Prisma.DateTimeNullableFilter<"Order"> | Date | string | null
+  nextInLineBy?: Prisma.UuidNullableFilter<"Order"> | string | null
   processingAt?: Prisma.DateTimeNullableFilter<"Order"> | Date | string | null
   processingBy?: Prisma.UuidNullableFilter<"Order"> | string | null
   completedAt?: Prisma.DateTimeNullableFilter<"Order"> | Date | string | null
@@ -1323,6 +1464,22 @@ export type OrderUpdateWithWhereUniqueWithoutAcceptedByUserInput = {
 export type OrderUpdateManyWithWhereWithoutAcceptedByUserInput = {
   where: Prisma.OrderScalarWhereInput
   data: Prisma.XOR<Prisma.OrderUpdateManyMutationInput, Prisma.OrderUncheckedUpdateManyWithoutAcceptedByUserInput>
+}
+
+export type OrderUpsertWithWhereUniqueWithoutNextInLineByUserInput = {
+  where: Prisma.OrderWhereUniqueInput
+  update: Prisma.XOR<Prisma.OrderUpdateWithoutNextInLineByUserInput, Prisma.OrderUncheckedUpdateWithoutNextInLineByUserInput>
+  create: Prisma.XOR<Prisma.OrderCreateWithoutNextInLineByUserInput, Prisma.OrderUncheckedCreateWithoutNextInLineByUserInput>
+}
+
+export type OrderUpdateWithWhereUniqueWithoutNextInLineByUserInput = {
+  where: Prisma.OrderWhereUniqueInput
+  data: Prisma.XOR<Prisma.OrderUpdateWithoutNextInLineByUserInput, Prisma.OrderUncheckedUpdateWithoutNextInLineByUserInput>
+}
+
+export type OrderUpdateManyWithWhereWithoutNextInLineByUserInput = {
+  where: Prisma.OrderScalarWhereInput
+  data: Prisma.XOR<Prisma.OrderUpdateManyMutationInput, Prisma.OrderUncheckedUpdateManyWithoutNextInLineByUserInput>
 }
 
 export type OrderUpsertWithWhereUniqueWithoutProcessingByUserInput = {
@@ -1377,6 +1534,7 @@ export type OrderCreateWithoutItemsInput = {
   updatedAt?: Date | string
   creator: Prisma.UserCreateNestedOneWithoutCreatedOrdersInput
   acceptedByUser?: Prisma.UserCreateNestedOneWithoutAcceptedOrdersInput
+  nextInLineByUser?: Prisma.UserCreateNestedOneWithoutNextInlinedOrdersInput
   processingByUser?: Prisma.UserCreateNestedOneWithoutProcessingOrdersInput
   completedByUser?: Prisma.UserCreateNestedOneWithoutCompletedOrdersInput
   cancellation?: Prisma.OrderCancellationCreateNestedOneWithoutOrderInput
@@ -1395,6 +1553,7 @@ export type OrderUncheckedCreateWithoutItemsInput = {
   acceptedAt?: Date | string | null
   acceptedBy?: string | null
   nextInLineAt?: Date | string | null
+  nextInLineBy?: string | null
   processingAt?: Date | string | null
   processingBy?: string | null
   completedAt?: Date | string | null
@@ -1447,6 +1606,7 @@ export type OrderUpdateWithoutItemsInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   creator?: Prisma.UserUpdateOneRequiredWithoutCreatedOrdersNestedInput
   acceptedByUser?: Prisma.UserUpdateOneWithoutAcceptedOrdersNestedInput
+  nextInLineByUser?: Prisma.UserUpdateOneWithoutNextInlinedOrdersNestedInput
   processingByUser?: Prisma.UserUpdateOneWithoutProcessingOrdersNestedInput
   completedByUser?: Prisma.UserUpdateOneWithoutCompletedOrdersNestedInput
   cancellation?: Prisma.OrderCancellationUpdateOneWithoutOrderNestedInput
@@ -1465,6 +1625,7 @@ export type OrderUncheckedUpdateWithoutItemsInput = {
   acceptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   acceptedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   nextInLineAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  nextInLineBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   processingAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   processingBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1501,6 +1662,7 @@ export type OrderCreateWithoutCancellationInput = {
   updatedAt?: Date | string
   creator: Prisma.UserCreateNestedOneWithoutCreatedOrdersInput
   acceptedByUser?: Prisma.UserCreateNestedOneWithoutAcceptedOrdersInput
+  nextInLineByUser?: Prisma.UserCreateNestedOneWithoutNextInlinedOrdersInput
   processingByUser?: Prisma.UserCreateNestedOneWithoutProcessingOrdersInput
   completedByUser?: Prisma.UserCreateNestedOneWithoutCompletedOrdersInput
   items?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
@@ -1519,6 +1681,7 @@ export type OrderUncheckedCreateWithoutCancellationInput = {
   acceptedAt?: Date | string | null
   acceptedBy?: string | null
   nextInLineAt?: Date | string | null
+  nextInLineBy?: string | null
   processingAt?: Date | string | null
   processingBy?: string | null
   completedAt?: Date | string | null
@@ -1571,6 +1734,7 @@ export type OrderUpdateWithoutCancellationInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   creator?: Prisma.UserUpdateOneRequiredWithoutCreatedOrdersNestedInput
   acceptedByUser?: Prisma.UserUpdateOneWithoutAcceptedOrdersNestedInput
+  nextInLineByUser?: Prisma.UserUpdateOneWithoutNextInlinedOrdersNestedInput
   processingByUser?: Prisma.UserUpdateOneWithoutProcessingOrdersNestedInput
   completedByUser?: Prisma.UserUpdateOneWithoutCompletedOrdersNestedInput
   items?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
@@ -1589,6 +1753,7 @@ export type OrderUncheckedUpdateWithoutCancellationInput = {
   acceptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   acceptedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   nextInLineAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  nextInLineBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   processingAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   processingBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1625,6 +1790,7 @@ export type OrderCreateWithoutDeductionsInput = {
   updatedAt?: Date | string
   creator: Prisma.UserCreateNestedOneWithoutCreatedOrdersInput
   acceptedByUser?: Prisma.UserCreateNestedOneWithoutAcceptedOrdersInput
+  nextInLineByUser?: Prisma.UserCreateNestedOneWithoutNextInlinedOrdersInput
   processingByUser?: Prisma.UserCreateNestedOneWithoutProcessingOrdersInput
   completedByUser?: Prisma.UserCreateNestedOneWithoutCompletedOrdersInput
   items?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
@@ -1643,6 +1809,7 @@ export type OrderUncheckedCreateWithoutDeductionsInput = {
   acceptedAt?: Date | string | null
   acceptedBy?: string | null
   nextInLineAt?: Date | string | null
+  nextInLineBy?: string | null
   processingAt?: Date | string | null
   processingBy?: string | null
   completedAt?: Date | string | null
@@ -1695,6 +1862,7 @@ export type OrderUpdateWithoutDeductionsInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   creator?: Prisma.UserUpdateOneRequiredWithoutCreatedOrdersNestedInput
   acceptedByUser?: Prisma.UserUpdateOneWithoutAcceptedOrdersNestedInput
+  nextInLineByUser?: Prisma.UserUpdateOneWithoutNextInlinedOrdersNestedInput
   processingByUser?: Prisma.UserUpdateOneWithoutProcessingOrdersNestedInput
   completedByUser?: Prisma.UserUpdateOneWithoutCompletedOrdersNestedInput
   items?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
@@ -1713,6 +1881,7 @@ export type OrderUncheckedUpdateWithoutDeductionsInput = {
   acceptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   acceptedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   nextInLineAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  nextInLineBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   processingAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   processingBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1749,6 +1918,7 @@ export type OrderCreateWithoutReceiptInput = {
   updatedAt?: Date | string
   creator: Prisma.UserCreateNestedOneWithoutCreatedOrdersInput
   acceptedByUser?: Prisma.UserCreateNestedOneWithoutAcceptedOrdersInput
+  nextInLineByUser?: Prisma.UserCreateNestedOneWithoutNextInlinedOrdersInput
   processingByUser?: Prisma.UserCreateNestedOneWithoutProcessingOrdersInput
   completedByUser?: Prisma.UserCreateNestedOneWithoutCompletedOrdersInput
   items?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
@@ -1767,6 +1937,7 @@ export type OrderUncheckedCreateWithoutReceiptInput = {
   acceptedAt?: Date | string | null
   acceptedBy?: string | null
   nextInLineAt?: Date | string | null
+  nextInLineBy?: string | null
   processingAt?: Date | string | null
   processingBy?: string | null
   completedAt?: Date | string | null
@@ -1819,6 +1990,7 @@ export type OrderUpdateWithoutReceiptInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   creator?: Prisma.UserUpdateOneRequiredWithoutCreatedOrdersNestedInput
   acceptedByUser?: Prisma.UserUpdateOneWithoutAcceptedOrdersNestedInput
+  nextInLineByUser?: Prisma.UserUpdateOneWithoutNextInlinedOrdersNestedInput
   processingByUser?: Prisma.UserUpdateOneWithoutProcessingOrdersNestedInput
   completedByUser?: Prisma.UserUpdateOneWithoutCompletedOrdersNestedInput
   items?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
@@ -1837,6 +2009,7 @@ export type OrderUncheckedUpdateWithoutReceiptInput = {
   acceptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   acceptedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   nextInLineAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  nextInLineBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   processingAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   processingBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1864,6 +2037,7 @@ export type OrderCreateManyCreatorInput = {
   acceptedAt?: Date | string | null
   acceptedBy?: string | null
   nextInLineAt?: Date | string | null
+  nextInLineBy?: string | null
   processingAt?: Date | string | null
   processingBy?: string | null
   completedAt?: Date | string | null
@@ -1885,6 +2059,31 @@ export type OrderCreateManyAcceptedByUserInput = {
   orderSource: $Enums.OrderSource
   status?: $Enums.OrderStatus
   acceptedAt?: Date | string | null
+  nextInLineAt?: Date | string | null
+  nextInLineBy?: string | null
+  processingAt?: Date | string | null
+  processingBy?: string | null
+  completedAt?: Date | string | null
+  completedBy?: string | null
+  totalAmount?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  amountPaid?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  change?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  guestToken?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  createdBy: string
+}
+
+export type OrderCreateManyNextInLineByUserInput = {
+  orderId?: string
+  orderNumber: number
+  orderDate: Date | string
+  customerName: string
+  tableNumber: string
+  orderSource: $Enums.OrderSource
+  status?: $Enums.OrderStatus
+  acceptedAt?: Date | string | null
+  acceptedBy?: string | null
   nextInLineAt?: Date | string | null
   processingAt?: Date | string | null
   processingBy?: string | null
@@ -1910,6 +2109,7 @@ export type OrderCreateManyProcessingByUserInput = {
   acceptedAt?: Date | string | null
   acceptedBy?: string | null
   nextInLineAt?: Date | string | null
+  nextInLineBy?: string | null
   processingAt?: Date | string | null
   completedAt?: Date | string | null
   completedBy?: string | null
@@ -1933,6 +2133,7 @@ export type OrderCreateManyCompletedByUserInput = {
   acceptedAt?: Date | string | null
   acceptedBy?: string | null
   nextInLineAt?: Date | string | null
+  nextInLineBy?: string | null
   processingAt?: Date | string | null
   processingBy?: string | null
   completedAt?: Date | string | null
@@ -1964,6 +2165,7 @@ export type OrderUpdateWithoutCreatorInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   acceptedByUser?: Prisma.UserUpdateOneWithoutAcceptedOrdersNestedInput
+  nextInLineByUser?: Prisma.UserUpdateOneWithoutNextInlinedOrdersNestedInput
   processingByUser?: Prisma.UserUpdateOneWithoutProcessingOrdersNestedInput
   completedByUser?: Prisma.UserUpdateOneWithoutCompletedOrdersNestedInput
   items?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
@@ -1983,6 +2185,7 @@ export type OrderUncheckedUpdateWithoutCreatorInput = {
   acceptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   acceptedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   nextInLineAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  nextInLineBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   processingAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   processingBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2010,6 +2213,7 @@ export type OrderUncheckedUpdateManyWithoutCreatorInput = {
   acceptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   acceptedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   nextInLineAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  nextInLineBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   processingAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   processingBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2041,6 +2245,7 @@ export type OrderUpdateWithoutAcceptedByUserInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   creator?: Prisma.UserUpdateOneRequiredWithoutCreatedOrdersNestedInput
+  nextInLineByUser?: Prisma.UserUpdateOneWithoutNextInlinedOrdersNestedInput
   processingByUser?: Prisma.UserUpdateOneWithoutProcessingOrdersNestedInput
   completedByUser?: Prisma.UserUpdateOneWithoutCompletedOrdersNestedInput
   items?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
@@ -2059,6 +2264,7 @@ export type OrderUncheckedUpdateWithoutAcceptedByUserInput = {
   status?: Prisma.EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
   acceptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   nextInLineAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  nextInLineBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   processingAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   processingBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2085,6 +2291,87 @@ export type OrderUncheckedUpdateManyWithoutAcceptedByUserInput = {
   orderSource?: Prisma.EnumOrderSourceFieldUpdateOperationsInput | $Enums.OrderSource
   status?: Prisma.EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
   acceptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  nextInLineAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  nextInLineBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  processingAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  processingBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  completedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totalAmount?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  amountPaid?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  change?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  guestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdBy?: Prisma.StringFieldUpdateOperationsInput | string
+}
+
+export type OrderUpdateWithoutNextInLineByUserInput = {
+  orderId?: Prisma.StringFieldUpdateOperationsInput | string
+  orderNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  orderDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerName?: Prisma.StringFieldUpdateOperationsInput | string
+  tableNumber?: Prisma.StringFieldUpdateOperationsInput | string
+  orderSource?: Prisma.EnumOrderSourceFieldUpdateOperationsInput | $Enums.OrderSource
+  status?: Prisma.EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
+  acceptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  nextInLineAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  processingAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totalAmount?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  amountPaid?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  change?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  guestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  creator?: Prisma.UserUpdateOneRequiredWithoutCreatedOrdersNestedInput
+  acceptedByUser?: Prisma.UserUpdateOneWithoutAcceptedOrdersNestedInput
+  processingByUser?: Prisma.UserUpdateOneWithoutProcessingOrdersNestedInput
+  completedByUser?: Prisma.UserUpdateOneWithoutCompletedOrdersNestedInput
+  items?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
+  cancellation?: Prisma.OrderCancellationUpdateOneWithoutOrderNestedInput
+  deductions?: Prisma.OrderIngredientDeductionUpdateManyWithoutOrderNestedInput
+  receipt?: Prisma.ReceiptUpdateOneWithoutOrderNestedInput
+}
+
+export type OrderUncheckedUpdateWithoutNextInLineByUserInput = {
+  orderId?: Prisma.StringFieldUpdateOperationsInput | string
+  orderNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  orderDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerName?: Prisma.StringFieldUpdateOperationsInput | string
+  tableNumber?: Prisma.StringFieldUpdateOperationsInput | string
+  orderSource?: Prisma.EnumOrderSourceFieldUpdateOperationsInput | $Enums.OrderSource
+  status?: Prisma.EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
+  acceptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  acceptedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  nextInLineAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  processingAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  processingBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  completedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totalAmount?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  amountPaid?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  change?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  guestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdBy?: Prisma.StringFieldUpdateOperationsInput | string
+  items?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
+  cancellation?: Prisma.OrderCancellationUncheckedUpdateOneWithoutOrderNestedInput
+  deductions?: Prisma.OrderIngredientDeductionUncheckedUpdateManyWithoutOrderNestedInput
+  receipt?: Prisma.ReceiptUncheckedUpdateOneWithoutOrderNestedInput
+}
+
+export type OrderUncheckedUpdateManyWithoutNextInLineByUserInput = {
+  orderId?: Prisma.StringFieldUpdateOperationsInput | string
+  orderNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  orderDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerName?: Prisma.StringFieldUpdateOperationsInput | string
+  tableNumber?: Prisma.StringFieldUpdateOperationsInput | string
+  orderSource?: Prisma.EnumOrderSourceFieldUpdateOperationsInput | $Enums.OrderSource
+  status?: Prisma.EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
+  acceptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  acceptedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   nextInLineAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   processingAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   processingBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2119,6 +2406,7 @@ export type OrderUpdateWithoutProcessingByUserInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   creator?: Prisma.UserUpdateOneRequiredWithoutCreatedOrdersNestedInput
   acceptedByUser?: Prisma.UserUpdateOneWithoutAcceptedOrdersNestedInput
+  nextInLineByUser?: Prisma.UserUpdateOneWithoutNextInlinedOrdersNestedInput
   completedByUser?: Prisma.UserUpdateOneWithoutCompletedOrdersNestedInput
   items?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
   cancellation?: Prisma.OrderCancellationUpdateOneWithoutOrderNestedInput
@@ -2137,6 +2425,7 @@ export type OrderUncheckedUpdateWithoutProcessingByUserInput = {
   acceptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   acceptedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   nextInLineAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  nextInLineBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   processingAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2164,6 +2453,7 @@ export type OrderUncheckedUpdateManyWithoutProcessingByUserInput = {
   acceptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   acceptedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   nextInLineAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  nextInLineBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   processingAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2196,6 +2486,7 @@ export type OrderUpdateWithoutCompletedByUserInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   creator?: Prisma.UserUpdateOneRequiredWithoutCreatedOrdersNestedInput
   acceptedByUser?: Prisma.UserUpdateOneWithoutAcceptedOrdersNestedInput
+  nextInLineByUser?: Prisma.UserUpdateOneWithoutNextInlinedOrdersNestedInput
   processingByUser?: Prisma.UserUpdateOneWithoutProcessingOrdersNestedInput
   items?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
   cancellation?: Prisma.OrderCancellationUpdateOneWithoutOrderNestedInput
@@ -2214,6 +2505,7 @@ export type OrderUncheckedUpdateWithoutCompletedByUserInput = {
   acceptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   acceptedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   nextInLineAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  nextInLineBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   processingAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   processingBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2241,6 +2533,7 @@ export type OrderUncheckedUpdateManyWithoutCompletedByUserInput = {
   acceptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   acceptedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   nextInLineAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  nextInLineBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   processingAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   processingBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2304,6 +2597,7 @@ export type OrderSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   acceptedAt?: boolean
   acceptedBy?: boolean
   nextInLineAt?: boolean
+  nextInLineBy?: boolean
   processingAt?: boolean
   processingBy?: boolean
   completedAt?: boolean
@@ -2317,6 +2611,7 @@ export type OrderSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   createdBy?: boolean
   creator?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   acceptedByUser?: boolean | Prisma.Order$acceptedByUserArgs<ExtArgs>
+  nextInLineByUser?: boolean | Prisma.Order$nextInLineByUserArgs<ExtArgs>
   processingByUser?: boolean | Prisma.Order$processingByUserArgs<ExtArgs>
   completedByUser?: boolean | Prisma.Order$completedByUserArgs<ExtArgs>
   items?: boolean | Prisma.Order$itemsArgs<ExtArgs>
@@ -2337,6 +2632,7 @@ export type OrderSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   acceptedAt?: boolean
   acceptedBy?: boolean
   nextInLineAt?: boolean
+  nextInLineBy?: boolean
   processingAt?: boolean
   processingBy?: boolean
   completedAt?: boolean
@@ -2350,6 +2646,7 @@ export type OrderSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   createdBy?: boolean
   creator?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   acceptedByUser?: boolean | Prisma.Order$acceptedByUserArgs<ExtArgs>
+  nextInLineByUser?: boolean | Prisma.Order$nextInLineByUserArgs<ExtArgs>
   processingByUser?: boolean | Prisma.Order$processingByUserArgs<ExtArgs>
   completedByUser?: boolean | Prisma.Order$completedByUserArgs<ExtArgs>
 }, ExtArgs["result"]["order"]>
@@ -2365,6 +2662,7 @@ export type OrderSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   acceptedAt?: boolean
   acceptedBy?: boolean
   nextInLineAt?: boolean
+  nextInLineBy?: boolean
   processingAt?: boolean
   processingBy?: boolean
   completedAt?: boolean
@@ -2378,6 +2676,7 @@ export type OrderSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   createdBy?: boolean
   creator?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   acceptedByUser?: boolean | Prisma.Order$acceptedByUserArgs<ExtArgs>
+  nextInLineByUser?: boolean | Prisma.Order$nextInLineByUserArgs<ExtArgs>
   processingByUser?: boolean | Prisma.Order$processingByUserArgs<ExtArgs>
   completedByUser?: boolean | Prisma.Order$completedByUserArgs<ExtArgs>
 }, ExtArgs["result"]["order"]>
@@ -2393,6 +2692,7 @@ export type OrderSelectScalar = {
   acceptedAt?: boolean
   acceptedBy?: boolean
   nextInLineAt?: boolean
+  nextInLineBy?: boolean
   processingAt?: boolean
   processingBy?: boolean
   completedAt?: boolean
@@ -2406,10 +2706,11 @@ export type OrderSelectScalar = {
   createdBy?: boolean
 }
 
-export type OrderOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"orderId" | "orderNumber" | "orderDate" | "customerName" | "tableNumber" | "orderSource" | "status" | "acceptedAt" | "acceptedBy" | "nextInLineAt" | "processingAt" | "processingBy" | "completedAt" | "completedBy" | "totalAmount" | "amountPaid" | "change" | "guestToken" | "createdAt" | "updatedAt" | "createdBy", ExtArgs["result"]["order"]>
+export type OrderOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"orderId" | "orderNumber" | "orderDate" | "customerName" | "tableNumber" | "orderSource" | "status" | "acceptedAt" | "acceptedBy" | "nextInLineAt" | "nextInLineBy" | "processingAt" | "processingBy" | "completedAt" | "completedBy" | "totalAmount" | "amountPaid" | "change" | "guestToken" | "createdAt" | "updatedAt" | "createdBy", ExtArgs["result"]["order"]>
 export type OrderInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   creator?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   acceptedByUser?: boolean | Prisma.Order$acceptedByUserArgs<ExtArgs>
+  nextInLineByUser?: boolean | Prisma.Order$nextInLineByUserArgs<ExtArgs>
   processingByUser?: boolean | Prisma.Order$processingByUserArgs<ExtArgs>
   completedByUser?: boolean | Prisma.Order$completedByUserArgs<ExtArgs>
   items?: boolean | Prisma.Order$itemsArgs<ExtArgs>
@@ -2421,12 +2722,14 @@ export type OrderInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs =
 export type OrderIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   creator?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   acceptedByUser?: boolean | Prisma.Order$acceptedByUserArgs<ExtArgs>
+  nextInLineByUser?: boolean | Prisma.Order$nextInLineByUserArgs<ExtArgs>
   processingByUser?: boolean | Prisma.Order$processingByUserArgs<ExtArgs>
   completedByUser?: boolean | Prisma.Order$completedByUserArgs<ExtArgs>
 }
 export type OrderIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   creator?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   acceptedByUser?: boolean | Prisma.Order$acceptedByUserArgs<ExtArgs>
+  nextInLineByUser?: boolean | Prisma.Order$nextInLineByUserArgs<ExtArgs>
   processingByUser?: boolean | Prisma.Order$processingByUserArgs<ExtArgs>
   completedByUser?: boolean | Prisma.Order$completedByUserArgs<ExtArgs>
 }
@@ -2436,6 +2739,7 @@ export type $OrderPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   objects: {
     creator: Prisma.$UserPayload<ExtArgs>
     acceptedByUser: Prisma.$UserPayload<ExtArgs> | null
+    nextInLineByUser: Prisma.$UserPayload<ExtArgs> | null
     processingByUser: Prisma.$UserPayload<ExtArgs> | null
     completedByUser: Prisma.$UserPayload<ExtArgs> | null
     items: Prisma.$OrderItemPayload<ExtArgs>[]
@@ -2454,6 +2758,7 @@ export type $OrderPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     acceptedAt: Date | null
     acceptedBy: string | null
     nextInLineAt: Date | null
+    nextInLineBy: string | null
     processingAt: Date | null
     processingBy: string | null
     completedAt: Date | null
@@ -2861,6 +3166,7 @@ export interface Prisma__OrderClient<T, Null = never, ExtArgs extends runtime.Ty
   readonly [Symbol.toStringTag]: "PrismaPromise"
   creator<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   acceptedByUser<T extends Prisma.Order$acceptedByUserArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Order$acceptedByUserArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  nextInLineByUser<T extends Prisma.Order$nextInLineByUserArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Order$nextInLineByUserArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   processingByUser<T extends Prisma.Order$processingByUserArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Order$processingByUserArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   completedByUser<T extends Prisma.Order$completedByUserArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Order$completedByUserArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   items<T extends Prisma.Order$itemsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Order$itemsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$OrderItemPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -2906,6 +3212,7 @@ export interface OrderFieldRefs {
   readonly acceptedAt: Prisma.FieldRef<"Order", 'DateTime'>
   readonly acceptedBy: Prisma.FieldRef<"Order", 'String'>
   readonly nextInLineAt: Prisma.FieldRef<"Order", 'DateTime'>
+  readonly nextInLineBy: Prisma.FieldRef<"Order", 'String'>
   readonly processingAt: Prisma.FieldRef<"Order", 'DateTime'>
   readonly processingBy: Prisma.FieldRef<"Order", 'String'>
   readonly completedAt: Prisma.FieldRef<"Order", 'DateTime'>
@@ -3321,6 +3628,25 @@ export type OrderDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Interna
  * Order.acceptedByUser
  */
 export type Order$acceptedByUserArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the User
+   */
+  select?: Prisma.UserSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the User
+   */
+  omit?: Prisma.UserOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.UserInclude<ExtArgs> | null
+  where?: Prisma.UserWhereInput
+}
+
+/**
+ * Order.nextInLineByUser
+ */
+export type Order$nextInLineByUserArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   /**
    * Select specific fields to fetch from the User
    */

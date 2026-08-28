@@ -1,4 +1,5 @@
 import Swal from "sweetalert2";
+import { toast } from "sonner";
 
 const VARIANTS = {
     danger: { confirmColor: "var(--destructive)", icon: "warning" },
@@ -49,11 +50,8 @@ export async function confirm({ title, message, note, confirmLabel = "Confirm", 
                 try {
                     await onConfirm();
                 } catch (err) {
-                    btn.disabled = false;
-                    btn.textContent = loadingText || confirmLabel;
-                    Swal.showValidationMessage(
-                        err?.response?.data?.message || "Operation failed"
-                    );
+                    Swal.close();
+                    toast.error(err?.response?.data?.message || "Operation failed");
                     return false;
                 }
             },

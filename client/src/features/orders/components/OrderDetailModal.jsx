@@ -7,9 +7,9 @@ import { formatDate } from "@/lib/date";
 
 const STATUS_CONFIG = {
   pending: { label: "Pending", variant: "warning" },
-  accepted: { label: "Accepted", variant: "default" },
-  next_in_line: { label: "Next in Line", variant: "default" },
-  processing: { label: "Processing", variant: "default" },
+  accepted: { label: "Accepted", variant: "info" },
+  next_in_line: { label: "Next in Line", variant: "purple" },
+  processing: { label: "Processing", variant: "orange" },
   completed: { label: "Completed", variant: "success" },
   cancelled: { label: "Cancelled", variant: "destructive" },
 };
@@ -168,6 +168,7 @@ export default function OrderDetailModal({
                 )}
                 {canAdvance && (
                   <Button
+                    variant="primary"
                     size="sm"
                     onClick={() => onAdvance?.(order)}
                   >
@@ -186,8 +187,8 @@ export default function OrderDetailModal({
 function InfoRow({ label, value }) {
   return (
     <div>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="font-medium">{value || "—"}</p>
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="font-semibold">{value || "—"}</p>
     </div>
   );
 }

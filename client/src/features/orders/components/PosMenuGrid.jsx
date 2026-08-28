@@ -21,25 +21,28 @@ export default function PosMenuGrid({ onAddItem }) {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
 
-  const { data: menuData, isLoading } = useGuestMenu({
+  const { data: menuData, isPending, isFetching } = useGuestMenu({
     search: search || undefined,
-    category: activeCategory !== "all" ? activeCategory : undefined,
   });
 
-  const products = menuData?.data?.menu ?? [];
+  const allProducts = menuData?.data?.menu ?? [];
 
   const categories = [
     { id: "all", name: "All" },
     ...Array.from(
       new Map(
-        products
+        allProducts
           .filter((p) => p.category_name)
           .map((p) => [p.category_name, p.category_name])
       ).entries()
     ).map(([, name]) => ({ id: name, name })),
   ];
 
-  if (isLoading) {
+  const products = activeCategory === "all"
+    ? allProducts
+    : allProducts.filter((p) => p.category_name === activeCategory);
+
+  if (isPending) {
     return (
       <div className="flex flex-col gap-3">
         <Skeleton className="h-10 w-full" />
@@ -86,7 +89,12 @@ export default function PosMenuGrid({ onAddItem }) {
       </div>
 
       {/* Product grid */}
-      <div className="grid grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      <div className="relative grid grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        {isFetching && (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-background/50">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          </div>
+        )}
         {products.map((product) => (
           <ProductCard
             key={product.product_id}

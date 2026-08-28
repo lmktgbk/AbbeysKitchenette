@@ -27,16 +27,16 @@ export default function OrdersPage({ embedded = false }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState(null);
   const [dateTo, setDateTo] = useState(null);
-  const limit = 50;
+  const [pageSize, setPageSize] = useState(50);
 
   const queryParams = useMemo(() => ({
     page: String(page),
-    limit: String(limit),
+    limit: String(pageSize),
     search: search || undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
     date_from: dateFrom || undefined,
     date_to: dateTo || undefined,
-  }), [page, search, statusFilter, dateFrom, dateTo]);
+  }), [page, search, statusFilter, dateFrom, dateTo, pageSize]);
 
   // ── Data ───────────────────────────
   const { data: ordersData, isLoading } = useOrderList(queryParams);
@@ -123,7 +123,7 @@ export default function OrdersPage({ embedded = false }) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className={`flex flex-col gap-4 ${embedded ? "p-6 h-full overflow-y-auto" : ""}`}>
       {/* KPI Stats */}
       <OrderStats activeStatus={statusFilter} onStatusClick={setStatusFilter} />
 
@@ -170,8 +170,12 @@ export default function OrdersPage({ embedded = false }) {
       <Pagination
         currentPage={page}
         totalItems={totalItems}
-        pageSize={limit}
+        pageSize={pageSize}
         onPageChange={setPage}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPage(1);
+        }}
         itemLabel="orders"
       />
 

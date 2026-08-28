@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import Icon from "@/components/ui/icon";
 import { formatDate } from "@/lib/date";
@@ -8,9 +9,9 @@ import { formatDate } from "@/lib/date";
  */
 const STATUS_CONFIG = {
   pending: { label: "Pending", variant: "warning" },
-  accepted: { label: "Accepted", variant: "default" },
-  next_in_line: { label: "Next in Line", variant: "default" },
-  processing: { label: "Processing", variant: "default" },
+  accepted: { label: "Accepted", variant: "info" },
+  next_in_line: { label: "Next in Line", variant: "purple" },
+  processing: { label: "Processing", variant: "orange" },
   completed: { label: "Completed", variant: "success" },
   cancelled: { label: "Cancelled", variant: "destructive" },
 };
@@ -116,22 +117,25 @@ export default function OrderTable({ orders, isLoading, onView, onAdvance, onCan
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                     {order.status !== "completed" && order.status !== "cancelled" && (
-                      <button
+                      <Button
+                        variant="outline"
+                        size="icon"
                         onClick={() => onAdvance?.(order)}
-                        className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                         title="Advance"
                       >
-                        <Icon name="chevronRight" size={16} />
-                      </button>
+                        <Icon name="circleArrowRight" size={16} />
+                      </Button>
                     )}
                     {(order.status === "accepted" || order.status === "next_in_line" || order.status === "pending") && (
-                      <button
+                      <Button
+                        variant="outline"
+                        size="icon"
                         onClick={() => onCancel?.(order)}
-                        className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                         title="Cancel"
+                        className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
                       >
                         <Icon name="trash2" size={16} />
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </TableCell>

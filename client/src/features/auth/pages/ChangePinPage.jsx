@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { changePinRequest } from "../api";
 import { changePinSchema } from "../authValidation";
+import useAuthStore from "@/features/auth/authStore";
 import AuthBranding from "../components/AuthBranding";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,8 @@ import { toast } from "sonner";
 export default function ChangePinPage() {
     const navigate = useNavigate();
     const [serverError, setServerError] = useState("");
+    const user = useAuthStore((s) => s.user);
+    const setUser = useAuthStore((s) => s.setUser);
 
     const {
         register,
@@ -26,6 +29,7 @@ export default function ChangePinPage() {
         setServerError("");
         try {
             await changePinRequest(data.newPin);
+            setUser({ ...user, mustChangePwd: false });
             toast.success("PIN Changed", { description: "Your new PIN is now active." });
             navigate("/pos");
         } catch (err) {

@@ -56,6 +56,7 @@ export const orderService = {
       ...formatOrderResponse(order),
       creator_name: order.creator?.name ?? null,
       accepted_by: order.acceptedByUser ? { name: order.acceptedByUser.name, role: order.acceptedByUser.role } : null,
+      next_in_line_by: order.nextInLineByUser ? { name: order.nextInLineByUser.name, role: order.nextInLineByUser.role } : null,
       processing_by: order.processingByUser ? { name: order.processingByUser.name, role: order.processingByUser.role } : null,
       completed_by: order.completedByUser ? { name: order.completedByUser.name, role: order.completedByUser.role } : null,
       cancel_reason: order.cancellation?.reason ?? null,
@@ -113,7 +114,7 @@ export const orderService = {
       const now = new Date();
       // Use client-provided date (user's local YYYY-MM-DD) or fallback to UTC today
       const orderDate = orderDateStr
-        ? new Date(orderDateStr + "T00:00:00")
+        ? new Date(orderDateStr + "T00:00:00Z")
         : new Date(now.toISOString().split("T")[0]);
 
       // Create order (status: accepted)
@@ -167,7 +168,7 @@ export const orderService = {
       const orderNumber = await orderRepository.getNextOrderNumber();
       const now = new Date();
       const orderDate = orderDateStr
-        ? new Date(orderDateStr + "T00:00:00")
+        ? new Date(orderDateStr + "T00:00:00Z")
         : new Date(now.toISOString().split("T")[0]);
 
       const newOrder = await orderRepository.createOrder({

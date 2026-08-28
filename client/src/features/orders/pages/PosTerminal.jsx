@@ -114,7 +114,9 @@ export default function PosTerminal() {
       </header>
 
       {/* Content */}
-      <Outlet />
+      <main className="flex flex-1 flex-col overflow-hidden">
+        <Outlet />
+      </main>
     </div>
   );
 }

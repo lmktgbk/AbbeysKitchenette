@@ -57,8 +57,8 @@ export default function ProductCard({ product, onViewDetail }) {
           <span
             className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${
               product.is_available
-                ? "bg-green-500"
-                : "bg-red-500"
+                ? "bg-success"
+                : "bg-destructive"
             }`}
             title={product.is_available ? "Available" : "Unavailable"}
           />

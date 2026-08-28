@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useIngredientTable, useIngredientBatches } from "../query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -102,15 +102,11 @@ export default function IngredientTable({
   const ingredients = ingredientsData?.data?.ingredients ?? [];
   const totalItems = ingredientsData?.data?.totalItems ?? 0;
 
-  useEffect(() => {
-    setCurrentPage(1);
-    setActiveSort(showArchived ? "ingredient_name_asc" : "status_asc");
-  }, [search, showArchived, activeFilters.status]);
-
   const hasData = totalItems > 0;
   const isRefetching = isLoading && hasData;
 
   function handleFilterApply(sort, filters) {
+    setCurrentPage(1);
     setActiveSort(sort);
     setActiveFilters(filters);
   }
@@ -124,7 +120,7 @@ export default function IngredientTable({
         <div className="flex items-center gap-2">
           <SearchBar
             value={search}
-            onChange={setSearch}
+            onChange={(val) => { setSearch(val); setCurrentPage(1); }}
             placeholder="Search ingredients..."
             onFilterClick={() => setFilterOpen(true)}
             filterActive={filterActive}
@@ -138,7 +134,12 @@ export default function IngredientTable({
               { value: "archived", label: "Archived" },
             ]}
             value={showArchived ? "archived" : "active"}
-            onChange={(val) => setShowArchived(val === "archived")}
+            onChange={(val) => {
+              const archived = val === "archived";
+              setShowArchived(archived);
+              setCurrentPage(1);
+              setActiveSort(archived ? "ingredient_name_asc" : "status_asc");
+            }}
           />
 
           <Button
@@ -297,9 +298,9 @@ function IngredientRow({
   }
 
   let stockColor = "text-foreground";
-  if (stock === 0) stockColor = "text-red-600 dark:text-red-400";
+  if (stock === 0) stockColor = "text-destructive";
   else if (stock <= threshold)
-    stockColor = "text-yellow-600 dark:text-yellow-400";
+    stockColor = "text-warning";
 
   return (
     <>
@@ -362,9 +363,6 @@ function ExpandedRow({ ingredient, onRestock, onLoss, onBatches, onEdit, onArchi
   const stock = ingredient.stock_quantity;
   const threshold = ingredient.minimum_threshold;
   const unit = ingredient.unit;
-
-  const hasTransactions = ingredient.has_transactions ?? true;
-  const isLinkedToProducts = ingredient.is_linked_to_products ?? true;
 
   let statusLabel = "Healthy";
   let statusVariant = "success";
@@ -436,16 +434,14 @@ function ExpandedRow({ ingredient, onRestock, onLoss, onBatches, onEdit, onArchi
                 <div className="flex flex-wrap justify-end gap-2">
                   {showArchived ? (
                     <>
-                      <Button size="sm" variant="outline" onClick={() => onRestore(ingredient)} className="text-green-600 border-green-600/30 hover:bg-green-50 hover:text-green-700 dark:text-green-400 dark:border-green-400/30 dark:hover:bg-green-500/10">
+                      <Button size="sm" variant="outline" onClick={() => onRestore(ingredient)} className="text-success border-success/30 hover:bg-success/10 hover:text-success">
                         <Icon name="package" size={14} />
                         Restore
                       </Button>
-                      {!hasTransactions && (
-                        <Button size="sm" variant="outline" onClick={() => onDelete(ingredient)} className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive">
-                          <Icon name="x" size={14} />
-                          Delete
-                        </Button>
-                      )}
+                      <Button size="sm" variant="outline" onClick={() => onDelete(ingredient)} className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive">
+                        <Icon name="x" size={14} />
+                        Delete
+                      </Button>
                     </>
                   ) : (
                     <>
@@ -465,18 +461,14 @@ function ExpandedRow({ ingredient, onRestock, onLoss, onBatches, onEdit, onArchi
                         <Icon name="edit" size={14} />
                         Edit
                       </Button>
-                      {!hasTransactions && !isLinkedToProducts && (
-                        <Button size="sm" variant="outline" onClick={() => onDelete(ingredient)} className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive">
-                          <Icon name="x" size={14} />
-                          Delete
-                        </Button>
-                      )}
-                      {hasTransactions && !isLinkedToProducts && (
-                        <Button size="sm" variant="outline" onClick={() => onArchive(ingredient)} className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive">
-                          <Icon name="settings" size={14} />
-                          Archive
-                        </Button>
-                      )}
+                      <Button size="sm" variant="outline" onClick={() => onArchive(ingredient)}>
+                        <Icon name="archive" size={14} />
+                        Archive
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => onDelete(ingredient)} className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive">
+                        <Icon name="x" size={14} />
+                        Delete
+                      </Button>
                     </>
                   )}
                 </div>
@@ -531,8 +523,8 @@ function CurrentBatch({ batch, unit }) {
 function DetailRow({ label, value }) {
   return (
     <div className="flex items-center justify-between text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium text-right">{value}</span>
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <span className="font-semibold text-right">{value}</span>
     </div>
   );
 }

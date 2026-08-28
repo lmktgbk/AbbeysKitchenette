@@ -293,6 +293,7 @@ export type UserWhereInput = {
   stockAdjustments?: Prisma.StockAdjustmentListRelationFilter
   createdOrders?: Prisma.OrderListRelationFilter
   acceptedOrders?: Prisma.OrderListRelationFilter
+  nextInlinedOrders?: Prisma.OrderListRelationFilter
   processingOrders?: Prisma.OrderListRelationFilter
   completedOrders?: Prisma.OrderListRelationFilter
 }
@@ -317,6 +318,7 @@ export type UserOrderByWithRelationInput = {
   stockAdjustments?: Prisma.StockAdjustmentOrderByRelationAggregateInput
   createdOrders?: Prisma.OrderOrderByRelationAggregateInput
   acceptedOrders?: Prisma.OrderOrderByRelationAggregateInput
+  nextInlinedOrders?: Prisma.OrderOrderByRelationAggregateInput
   processingOrders?: Prisma.OrderOrderByRelationAggregateInput
   completedOrders?: Prisma.OrderOrderByRelationAggregateInput
 }
@@ -344,6 +346,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   stockAdjustments?: Prisma.StockAdjustmentListRelationFilter
   createdOrders?: Prisma.OrderListRelationFilter
   acceptedOrders?: Prisma.OrderListRelationFilter
+  nextInlinedOrders?: Prisma.OrderListRelationFilter
   processingOrders?: Prisma.OrderListRelationFilter
   completedOrders?: Prisma.OrderListRelationFilter
 }, "id" | "email">
@@ -410,6 +413,7 @@ export type UserCreateInput = {
   stockAdjustments?: Prisma.StockAdjustmentCreateNestedManyWithoutAdjustedByInput
   createdOrders?: Prisma.OrderCreateNestedManyWithoutCreatorInput
   acceptedOrders?: Prisma.OrderCreateNestedManyWithoutAcceptedByUserInput
+  nextInlinedOrders?: Prisma.OrderCreateNestedManyWithoutNextInLineByUserInput
   processingOrders?: Prisma.OrderCreateNestedManyWithoutProcessingByUserInput
   completedOrders?: Prisma.OrderCreateNestedManyWithoutCompletedByUserInput
 }
@@ -434,6 +438,7 @@ export type UserUncheckedCreateInput = {
   stockAdjustments?: Prisma.StockAdjustmentUncheckedCreateNestedManyWithoutAdjustedByInput
   createdOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCreatorInput
   acceptedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutAcceptedByUserInput
+  nextInlinedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutNextInLineByUserInput
   processingOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutProcessingByUserInput
   completedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCompletedByUserInput
 }
@@ -458,6 +463,7 @@ export type UserUpdateInput = {
   stockAdjustments?: Prisma.StockAdjustmentUpdateManyWithoutAdjustedByNestedInput
   createdOrders?: Prisma.OrderUpdateManyWithoutCreatorNestedInput
   acceptedOrders?: Prisma.OrderUpdateManyWithoutAcceptedByUserNestedInput
+  nextInlinedOrders?: Prisma.OrderUpdateManyWithoutNextInLineByUserNestedInput
   processingOrders?: Prisma.OrderUpdateManyWithoutProcessingByUserNestedInput
   completedOrders?: Prisma.OrderUpdateManyWithoutCompletedByUserNestedInput
 }
@@ -482,6 +488,7 @@ export type UserUncheckedUpdateInput = {
   stockAdjustments?: Prisma.StockAdjustmentUncheckedUpdateManyWithoutAdjustedByNestedInput
   createdOrders?: Prisma.OrderUncheckedUpdateManyWithoutCreatorNestedInput
   acceptedOrders?: Prisma.OrderUncheckedUpdateManyWithoutAcceptedByUserNestedInput
+  nextInlinedOrders?: Prisma.OrderUncheckedUpdateManyWithoutNextInLineByUserNestedInput
   processingOrders?: Prisma.OrderUncheckedUpdateManyWithoutProcessingByUserNestedInput
   completedOrders?: Prisma.OrderUncheckedUpdateManyWithoutCompletedByUserNestedInput
 }
@@ -692,6 +699,12 @@ export type UserCreateNestedOneWithoutAcceptedOrdersInput = {
   connect?: Prisma.UserWhereUniqueInput
 }
 
+export type UserCreateNestedOneWithoutNextInlinedOrdersInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutNextInlinedOrdersInput, Prisma.UserUncheckedCreateWithoutNextInlinedOrdersInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutNextInlinedOrdersInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
 export type UserCreateNestedOneWithoutProcessingOrdersInput = {
   create?: Prisma.XOR<Prisma.UserCreateWithoutProcessingOrdersInput, Prisma.UserUncheckedCreateWithoutProcessingOrdersInput>
   connectOrCreate?: Prisma.UserCreateOrConnectWithoutProcessingOrdersInput
@@ -720,6 +733,16 @@ export type UserUpdateOneWithoutAcceptedOrdersNestedInput = {
   delete?: Prisma.UserWhereInput | boolean
   connect?: Prisma.UserWhereUniqueInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutAcceptedOrdersInput, Prisma.UserUpdateWithoutAcceptedOrdersInput>, Prisma.UserUncheckedUpdateWithoutAcceptedOrdersInput>
+}
+
+export type UserUpdateOneWithoutNextInlinedOrdersNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutNextInlinedOrdersInput, Prisma.UserUncheckedCreateWithoutNextInlinedOrdersInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutNextInlinedOrdersInput
+  upsert?: Prisma.UserUpsertWithoutNextInlinedOrdersInput
+  disconnect?: Prisma.UserWhereInput | boolean
+  delete?: Prisma.UserWhereInput | boolean
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutNextInlinedOrdersInput, Prisma.UserUpdateWithoutNextInlinedOrdersInput>, Prisma.UserUncheckedUpdateWithoutNextInlinedOrdersInput>
 }
 
 export type UserUpdateOneWithoutProcessingOrdersNestedInput = {
@@ -761,6 +784,7 @@ export type UserCreateWithoutRestockBatchesInput = {
   stockAdjustments?: Prisma.StockAdjustmentCreateNestedManyWithoutAdjustedByInput
   createdOrders?: Prisma.OrderCreateNestedManyWithoutCreatorInput
   acceptedOrders?: Prisma.OrderCreateNestedManyWithoutAcceptedByUserInput
+  nextInlinedOrders?: Prisma.OrderCreateNestedManyWithoutNextInLineByUserInput
   processingOrders?: Prisma.OrderCreateNestedManyWithoutProcessingByUserInput
   completedOrders?: Prisma.OrderCreateNestedManyWithoutCompletedByUserInput
 }
@@ -784,6 +808,7 @@ export type UserUncheckedCreateWithoutRestockBatchesInput = {
   stockAdjustments?: Prisma.StockAdjustmentUncheckedCreateNestedManyWithoutAdjustedByInput
   createdOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCreatorInput
   acceptedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutAcceptedByUserInput
+  nextInlinedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutNextInLineByUserInput
   processingOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutProcessingByUserInput
   completedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCompletedByUserInput
 }
@@ -823,6 +848,7 @@ export type UserUpdateWithoutRestockBatchesInput = {
   stockAdjustments?: Prisma.StockAdjustmentUpdateManyWithoutAdjustedByNestedInput
   createdOrders?: Prisma.OrderUpdateManyWithoutCreatorNestedInput
   acceptedOrders?: Prisma.OrderUpdateManyWithoutAcceptedByUserNestedInput
+  nextInlinedOrders?: Prisma.OrderUpdateManyWithoutNextInLineByUserNestedInput
   processingOrders?: Prisma.OrderUpdateManyWithoutProcessingByUserNestedInput
   completedOrders?: Prisma.OrderUpdateManyWithoutCompletedByUserNestedInput
 }
@@ -846,6 +872,7 @@ export type UserUncheckedUpdateWithoutRestockBatchesInput = {
   stockAdjustments?: Prisma.StockAdjustmentUncheckedUpdateManyWithoutAdjustedByNestedInput
   createdOrders?: Prisma.OrderUncheckedUpdateManyWithoutCreatorNestedInput
   acceptedOrders?: Prisma.OrderUncheckedUpdateManyWithoutAcceptedByUserNestedInput
+  nextInlinedOrders?: Prisma.OrderUncheckedUpdateManyWithoutNextInLineByUserNestedInput
   processingOrders?: Prisma.OrderUncheckedUpdateManyWithoutProcessingByUserNestedInput
   completedOrders?: Prisma.OrderUncheckedUpdateManyWithoutCompletedByUserNestedInput
 }
@@ -869,6 +896,7 @@ export type UserCreateWithoutLossRecordsInput = {
   stockAdjustments?: Prisma.StockAdjustmentCreateNestedManyWithoutAdjustedByInput
   createdOrders?: Prisma.OrderCreateNestedManyWithoutCreatorInput
   acceptedOrders?: Prisma.OrderCreateNestedManyWithoutAcceptedByUserInput
+  nextInlinedOrders?: Prisma.OrderCreateNestedManyWithoutNextInLineByUserInput
   processingOrders?: Prisma.OrderCreateNestedManyWithoutProcessingByUserInput
   completedOrders?: Prisma.OrderCreateNestedManyWithoutCompletedByUserInput
 }
@@ -892,6 +920,7 @@ export type UserUncheckedCreateWithoutLossRecordsInput = {
   stockAdjustments?: Prisma.StockAdjustmentUncheckedCreateNestedManyWithoutAdjustedByInput
   createdOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCreatorInput
   acceptedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutAcceptedByUserInput
+  nextInlinedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutNextInLineByUserInput
   processingOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutProcessingByUserInput
   completedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCompletedByUserInput
 }
@@ -931,6 +960,7 @@ export type UserUpdateWithoutLossRecordsInput = {
   stockAdjustments?: Prisma.StockAdjustmentUpdateManyWithoutAdjustedByNestedInput
   createdOrders?: Prisma.OrderUpdateManyWithoutCreatorNestedInput
   acceptedOrders?: Prisma.OrderUpdateManyWithoutAcceptedByUserNestedInput
+  nextInlinedOrders?: Prisma.OrderUpdateManyWithoutNextInLineByUserNestedInput
   processingOrders?: Prisma.OrderUpdateManyWithoutProcessingByUserNestedInput
   completedOrders?: Prisma.OrderUpdateManyWithoutCompletedByUserNestedInput
 }
@@ -954,6 +984,7 @@ export type UserUncheckedUpdateWithoutLossRecordsInput = {
   stockAdjustments?: Prisma.StockAdjustmentUncheckedUpdateManyWithoutAdjustedByNestedInput
   createdOrders?: Prisma.OrderUncheckedUpdateManyWithoutCreatorNestedInput
   acceptedOrders?: Prisma.OrderUncheckedUpdateManyWithoutAcceptedByUserNestedInput
+  nextInlinedOrders?: Prisma.OrderUncheckedUpdateManyWithoutNextInLineByUserNestedInput
   processingOrders?: Prisma.OrderUncheckedUpdateManyWithoutProcessingByUserNestedInput
   completedOrders?: Prisma.OrderUncheckedUpdateManyWithoutCompletedByUserNestedInput
 }
@@ -977,6 +1008,7 @@ export type UserCreateWithoutStockAdjustmentsInput = {
   lossRecords?: Prisma.LossRecordCreateNestedManyWithoutDeclaredByInput
   createdOrders?: Prisma.OrderCreateNestedManyWithoutCreatorInput
   acceptedOrders?: Prisma.OrderCreateNestedManyWithoutAcceptedByUserInput
+  nextInlinedOrders?: Prisma.OrderCreateNestedManyWithoutNextInLineByUserInput
   processingOrders?: Prisma.OrderCreateNestedManyWithoutProcessingByUserInput
   completedOrders?: Prisma.OrderCreateNestedManyWithoutCompletedByUserInput
 }
@@ -1000,6 +1032,7 @@ export type UserUncheckedCreateWithoutStockAdjustmentsInput = {
   lossRecords?: Prisma.LossRecordUncheckedCreateNestedManyWithoutDeclaredByInput
   createdOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCreatorInput
   acceptedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutAcceptedByUserInput
+  nextInlinedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutNextInLineByUserInput
   processingOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutProcessingByUserInput
   completedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCompletedByUserInput
 }
@@ -1039,6 +1072,7 @@ export type UserUpdateWithoutStockAdjustmentsInput = {
   lossRecords?: Prisma.LossRecordUpdateManyWithoutDeclaredByNestedInput
   createdOrders?: Prisma.OrderUpdateManyWithoutCreatorNestedInput
   acceptedOrders?: Prisma.OrderUpdateManyWithoutAcceptedByUserNestedInput
+  nextInlinedOrders?: Prisma.OrderUpdateManyWithoutNextInLineByUserNestedInput
   processingOrders?: Prisma.OrderUpdateManyWithoutProcessingByUserNestedInput
   completedOrders?: Prisma.OrderUpdateManyWithoutCompletedByUserNestedInput
 }
@@ -1062,6 +1096,7 @@ export type UserUncheckedUpdateWithoutStockAdjustmentsInput = {
   lossRecords?: Prisma.LossRecordUncheckedUpdateManyWithoutDeclaredByNestedInput
   createdOrders?: Prisma.OrderUncheckedUpdateManyWithoutCreatorNestedInput
   acceptedOrders?: Prisma.OrderUncheckedUpdateManyWithoutAcceptedByUserNestedInput
+  nextInlinedOrders?: Prisma.OrderUncheckedUpdateManyWithoutNextInLineByUserNestedInput
   processingOrders?: Prisma.OrderUncheckedUpdateManyWithoutProcessingByUserNestedInput
   completedOrders?: Prisma.OrderUncheckedUpdateManyWithoutCompletedByUserNestedInput
 }
@@ -1085,6 +1120,7 @@ export type UserCreateWithoutCreatedOrdersInput = {
   lossRecords?: Prisma.LossRecordCreateNestedManyWithoutDeclaredByInput
   stockAdjustments?: Prisma.StockAdjustmentCreateNestedManyWithoutAdjustedByInput
   acceptedOrders?: Prisma.OrderCreateNestedManyWithoutAcceptedByUserInput
+  nextInlinedOrders?: Prisma.OrderCreateNestedManyWithoutNextInLineByUserInput
   processingOrders?: Prisma.OrderCreateNestedManyWithoutProcessingByUserInput
   completedOrders?: Prisma.OrderCreateNestedManyWithoutCompletedByUserInput
 }
@@ -1108,6 +1144,7 @@ export type UserUncheckedCreateWithoutCreatedOrdersInput = {
   lossRecords?: Prisma.LossRecordUncheckedCreateNestedManyWithoutDeclaredByInput
   stockAdjustments?: Prisma.StockAdjustmentUncheckedCreateNestedManyWithoutAdjustedByInput
   acceptedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutAcceptedByUserInput
+  nextInlinedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutNextInLineByUserInput
   processingOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutProcessingByUserInput
   completedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCompletedByUserInput
 }
@@ -1136,6 +1173,7 @@ export type UserCreateWithoutAcceptedOrdersInput = {
   lossRecords?: Prisma.LossRecordCreateNestedManyWithoutDeclaredByInput
   stockAdjustments?: Prisma.StockAdjustmentCreateNestedManyWithoutAdjustedByInput
   createdOrders?: Prisma.OrderCreateNestedManyWithoutCreatorInput
+  nextInlinedOrders?: Prisma.OrderCreateNestedManyWithoutNextInLineByUserInput
   processingOrders?: Prisma.OrderCreateNestedManyWithoutProcessingByUserInput
   completedOrders?: Prisma.OrderCreateNestedManyWithoutCompletedByUserInput
 }
@@ -1159,6 +1197,7 @@ export type UserUncheckedCreateWithoutAcceptedOrdersInput = {
   lossRecords?: Prisma.LossRecordUncheckedCreateNestedManyWithoutDeclaredByInput
   stockAdjustments?: Prisma.StockAdjustmentUncheckedCreateNestedManyWithoutAdjustedByInput
   createdOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCreatorInput
+  nextInlinedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutNextInLineByUserInput
   processingOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutProcessingByUserInput
   completedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCompletedByUserInput
 }
@@ -1166,6 +1205,59 @@ export type UserUncheckedCreateWithoutAcceptedOrdersInput = {
 export type UserCreateOrConnectWithoutAcceptedOrdersInput = {
   where: Prisma.UserWhereUniqueInput
   create: Prisma.XOR<Prisma.UserCreateWithoutAcceptedOrdersInput, Prisma.UserUncheckedCreateWithoutAcceptedOrdersInput>
+}
+
+export type UserCreateWithoutNextInlinedOrdersInput = {
+  id?: string
+  name: string
+  email: string
+  role?: $Enums.Role
+  passwordHash: string
+  pinHash?: string | null
+  isActive?: boolean
+  mustChangePwd?: boolean
+  failedPinAttempts?: number
+  lastFailedPinAt?: Date | string | null
+  lockedUntil?: Date | string | null
+  lastLoginAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  restockBatches?: Prisma.RestockBatchCreateNestedManyWithoutRestockedByInput
+  lossRecords?: Prisma.LossRecordCreateNestedManyWithoutDeclaredByInput
+  stockAdjustments?: Prisma.StockAdjustmentCreateNestedManyWithoutAdjustedByInput
+  createdOrders?: Prisma.OrderCreateNestedManyWithoutCreatorInput
+  acceptedOrders?: Prisma.OrderCreateNestedManyWithoutAcceptedByUserInput
+  processingOrders?: Prisma.OrderCreateNestedManyWithoutProcessingByUserInput
+  completedOrders?: Prisma.OrderCreateNestedManyWithoutCompletedByUserInput
+}
+
+export type UserUncheckedCreateWithoutNextInlinedOrdersInput = {
+  id?: string
+  name: string
+  email: string
+  role?: $Enums.Role
+  passwordHash: string
+  pinHash?: string | null
+  isActive?: boolean
+  mustChangePwd?: boolean
+  failedPinAttempts?: number
+  lastFailedPinAt?: Date | string | null
+  lockedUntil?: Date | string | null
+  lastLoginAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  restockBatches?: Prisma.RestockBatchUncheckedCreateNestedManyWithoutRestockedByInput
+  lossRecords?: Prisma.LossRecordUncheckedCreateNestedManyWithoutDeclaredByInput
+  stockAdjustments?: Prisma.StockAdjustmentUncheckedCreateNestedManyWithoutAdjustedByInput
+  createdOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCreatorInput
+  acceptedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutAcceptedByUserInput
+  processingOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutProcessingByUserInput
+  completedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCompletedByUserInput
+}
+
+export type UserCreateOrConnectWithoutNextInlinedOrdersInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutNextInlinedOrdersInput, Prisma.UserUncheckedCreateWithoutNextInlinedOrdersInput>
 }
 
 export type UserCreateWithoutProcessingOrdersInput = {
@@ -1188,6 +1280,7 @@ export type UserCreateWithoutProcessingOrdersInput = {
   stockAdjustments?: Prisma.StockAdjustmentCreateNestedManyWithoutAdjustedByInput
   createdOrders?: Prisma.OrderCreateNestedManyWithoutCreatorInput
   acceptedOrders?: Prisma.OrderCreateNestedManyWithoutAcceptedByUserInput
+  nextInlinedOrders?: Prisma.OrderCreateNestedManyWithoutNextInLineByUserInput
   completedOrders?: Prisma.OrderCreateNestedManyWithoutCompletedByUserInput
 }
 
@@ -1211,6 +1304,7 @@ export type UserUncheckedCreateWithoutProcessingOrdersInput = {
   stockAdjustments?: Prisma.StockAdjustmentUncheckedCreateNestedManyWithoutAdjustedByInput
   createdOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCreatorInput
   acceptedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutAcceptedByUserInput
+  nextInlinedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutNextInLineByUserInput
   completedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCompletedByUserInput
 }
 
@@ -1239,6 +1333,7 @@ export type UserCreateWithoutCompletedOrdersInput = {
   stockAdjustments?: Prisma.StockAdjustmentCreateNestedManyWithoutAdjustedByInput
   createdOrders?: Prisma.OrderCreateNestedManyWithoutCreatorInput
   acceptedOrders?: Prisma.OrderCreateNestedManyWithoutAcceptedByUserInput
+  nextInlinedOrders?: Prisma.OrderCreateNestedManyWithoutNextInLineByUserInput
   processingOrders?: Prisma.OrderCreateNestedManyWithoutProcessingByUserInput
 }
 
@@ -1262,6 +1357,7 @@ export type UserUncheckedCreateWithoutCompletedOrdersInput = {
   stockAdjustments?: Prisma.StockAdjustmentUncheckedCreateNestedManyWithoutAdjustedByInput
   createdOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutCreatorInput
   acceptedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutAcceptedByUserInput
+  nextInlinedOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutNextInLineByUserInput
   processingOrders?: Prisma.OrderUncheckedCreateNestedManyWithoutProcessingByUserInput
 }
 
@@ -1300,6 +1396,7 @@ export type UserUpdateWithoutCreatedOrdersInput = {
   lossRecords?: Prisma.LossRecordUpdateManyWithoutDeclaredByNestedInput
   stockAdjustments?: Prisma.StockAdjustmentUpdateManyWithoutAdjustedByNestedInput
   acceptedOrders?: Prisma.OrderUpdateManyWithoutAcceptedByUserNestedInput
+  nextInlinedOrders?: Prisma.OrderUpdateManyWithoutNextInLineByUserNestedInput
   processingOrders?: Prisma.OrderUpdateManyWithoutProcessingByUserNestedInput
   completedOrders?: Prisma.OrderUpdateManyWithoutCompletedByUserNestedInput
 }
@@ -1323,6 +1420,7 @@ export type UserUncheckedUpdateWithoutCreatedOrdersInput = {
   lossRecords?: Prisma.LossRecordUncheckedUpdateManyWithoutDeclaredByNestedInput
   stockAdjustments?: Prisma.StockAdjustmentUncheckedUpdateManyWithoutAdjustedByNestedInput
   acceptedOrders?: Prisma.OrderUncheckedUpdateManyWithoutAcceptedByUserNestedInput
+  nextInlinedOrders?: Prisma.OrderUncheckedUpdateManyWithoutNextInLineByUserNestedInput
   processingOrders?: Prisma.OrderUncheckedUpdateManyWithoutProcessingByUserNestedInput
   completedOrders?: Prisma.OrderUncheckedUpdateManyWithoutCompletedByUserNestedInput
 }
@@ -1357,6 +1455,7 @@ export type UserUpdateWithoutAcceptedOrdersInput = {
   lossRecords?: Prisma.LossRecordUpdateManyWithoutDeclaredByNestedInput
   stockAdjustments?: Prisma.StockAdjustmentUpdateManyWithoutAdjustedByNestedInput
   createdOrders?: Prisma.OrderUpdateManyWithoutCreatorNestedInput
+  nextInlinedOrders?: Prisma.OrderUpdateManyWithoutNextInLineByUserNestedInput
   processingOrders?: Prisma.OrderUpdateManyWithoutProcessingByUserNestedInput
   completedOrders?: Prisma.OrderUpdateManyWithoutCompletedByUserNestedInput
 }
@@ -1380,6 +1479,66 @@ export type UserUncheckedUpdateWithoutAcceptedOrdersInput = {
   lossRecords?: Prisma.LossRecordUncheckedUpdateManyWithoutDeclaredByNestedInput
   stockAdjustments?: Prisma.StockAdjustmentUncheckedUpdateManyWithoutAdjustedByNestedInput
   createdOrders?: Prisma.OrderUncheckedUpdateManyWithoutCreatorNestedInput
+  nextInlinedOrders?: Prisma.OrderUncheckedUpdateManyWithoutNextInLineByUserNestedInput
+  processingOrders?: Prisma.OrderUncheckedUpdateManyWithoutProcessingByUserNestedInput
+  completedOrders?: Prisma.OrderUncheckedUpdateManyWithoutCompletedByUserNestedInput
+}
+
+export type UserUpsertWithoutNextInlinedOrdersInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutNextInlinedOrdersInput, Prisma.UserUncheckedUpdateWithoutNextInlinedOrdersInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutNextInlinedOrdersInput, Prisma.UserUncheckedCreateWithoutNextInlinedOrdersInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutNextInlinedOrdersInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutNextInlinedOrdersInput, Prisma.UserUncheckedUpdateWithoutNextInlinedOrdersInput>
+}
+
+export type UserUpdateWithoutNextInlinedOrdersInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lastFailedPinAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  restockBatches?: Prisma.RestockBatchUpdateManyWithoutRestockedByNestedInput
+  lossRecords?: Prisma.LossRecordUpdateManyWithoutDeclaredByNestedInput
+  stockAdjustments?: Prisma.StockAdjustmentUpdateManyWithoutAdjustedByNestedInput
+  createdOrders?: Prisma.OrderUpdateManyWithoutCreatorNestedInput
+  acceptedOrders?: Prisma.OrderUpdateManyWithoutAcceptedByUserNestedInput
+  processingOrders?: Prisma.OrderUpdateManyWithoutProcessingByUserNestedInput
+  completedOrders?: Prisma.OrderUpdateManyWithoutCompletedByUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutNextInlinedOrdersInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lastFailedPinAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  restockBatches?: Prisma.RestockBatchUncheckedUpdateManyWithoutRestockedByNestedInput
+  lossRecords?: Prisma.LossRecordUncheckedUpdateManyWithoutDeclaredByNestedInput
+  stockAdjustments?: Prisma.StockAdjustmentUncheckedUpdateManyWithoutAdjustedByNestedInput
+  createdOrders?: Prisma.OrderUncheckedUpdateManyWithoutCreatorNestedInput
+  acceptedOrders?: Prisma.OrderUncheckedUpdateManyWithoutAcceptedByUserNestedInput
   processingOrders?: Prisma.OrderUncheckedUpdateManyWithoutProcessingByUserNestedInput
   completedOrders?: Prisma.OrderUncheckedUpdateManyWithoutCompletedByUserNestedInput
 }
@@ -1415,6 +1574,7 @@ export type UserUpdateWithoutProcessingOrdersInput = {
   stockAdjustments?: Prisma.StockAdjustmentUpdateManyWithoutAdjustedByNestedInput
   createdOrders?: Prisma.OrderUpdateManyWithoutCreatorNestedInput
   acceptedOrders?: Prisma.OrderUpdateManyWithoutAcceptedByUserNestedInput
+  nextInlinedOrders?: Prisma.OrderUpdateManyWithoutNextInLineByUserNestedInput
   completedOrders?: Prisma.OrderUpdateManyWithoutCompletedByUserNestedInput
 }
 
@@ -1438,6 +1598,7 @@ export type UserUncheckedUpdateWithoutProcessingOrdersInput = {
   stockAdjustments?: Prisma.StockAdjustmentUncheckedUpdateManyWithoutAdjustedByNestedInput
   createdOrders?: Prisma.OrderUncheckedUpdateManyWithoutCreatorNestedInput
   acceptedOrders?: Prisma.OrderUncheckedUpdateManyWithoutAcceptedByUserNestedInput
+  nextInlinedOrders?: Prisma.OrderUncheckedUpdateManyWithoutNextInLineByUserNestedInput
   completedOrders?: Prisma.OrderUncheckedUpdateManyWithoutCompletedByUserNestedInput
 }
 
@@ -1472,6 +1633,7 @@ export type UserUpdateWithoutCompletedOrdersInput = {
   stockAdjustments?: Prisma.StockAdjustmentUpdateManyWithoutAdjustedByNestedInput
   createdOrders?: Prisma.OrderUpdateManyWithoutCreatorNestedInput
   acceptedOrders?: Prisma.OrderUpdateManyWithoutAcceptedByUserNestedInput
+  nextInlinedOrders?: Prisma.OrderUpdateManyWithoutNextInLineByUserNestedInput
   processingOrders?: Prisma.OrderUpdateManyWithoutProcessingByUserNestedInput
 }
 
@@ -1495,6 +1657,7 @@ export type UserUncheckedUpdateWithoutCompletedOrdersInput = {
   stockAdjustments?: Prisma.StockAdjustmentUncheckedUpdateManyWithoutAdjustedByNestedInput
   createdOrders?: Prisma.OrderUncheckedUpdateManyWithoutCreatorNestedInput
   acceptedOrders?: Prisma.OrderUncheckedUpdateManyWithoutAcceptedByUserNestedInput
+  nextInlinedOrders?: Prisma.OrderUncheckedUpdateManyWithoutNextInLineByUserNestedInput
   processingOrders?: Prisma.OrderUncheckedUpdateManyWithoutProcessingByUserNestedInput
 }
 
@@ -1509,6 +1672,7 @@ export type UserCountOutputType = {
   stockAdjustments: number
   createdOrders: number
   acceptedOrders: number
+  nextInlinedOrders: number
   processingOrders: number
   completedOrders: number
 }
@@ -1519,6 +1683,7 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   stockAdjustments?: boolean | UserCountOutputTypeCountStockAdjustmentsArgs
   createdOrders?: boolean | UserCountOutputTypeCountCreatedOrdersArgs
   acceptedOrders?: boolean | UserCountOutputTypeCountAcceptedOrdersArgs
+  nextInlinedOrders?: boolean | UserCountOutputTypeCountNextInlinedOrdersArgs
   processingOrders?: boolean | UserCountOutputTypeCountProcessingOrdersArgs
   completedOrders?: boolean | UserCountOutputTypeCountCompletedOrdersArgs
 }
@@ -1571,6 +1736,13 @@ export type UserCountOutputTypeCountAcceptedOrdersArgs<ExtArgs extends runtime.T
 /**
  * UserCountOutputType without action
  */
+export type UserCountOutputTypeCountNextInlinedOrdersArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.OrderWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
 export type UserCountOutputTypeCountProcessingOrdersArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.OrderWhereInput
 }
@@ -1603,6 +1775,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   stockAdjustments?: boolean | Prisma.User$stockAdjustmentsArgs<ExtArgs>
   createdOrders?: boolean | Prisma.User$createdOrdersArgs<ExtArgs>
   acceptedOrders?: boolean | Prisma.User$acceptedOrdersArgs<ExtArgs>
+  nextInlinedOrders?: boolean | Prisma.User$nextInlinedOrdersArgs<ExtArgs>
   processingOrders?: boolean | Prisma.User$processingOrdersArgs<ExtArgs>
   completedOrders?: boolean | Prisma.User$completedOrdersArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
@@ -1666,6 +1839,7 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   stockAdjustments?: boolean | Prisma.User$stockAdjustmentsArgs<ExtArgs>
   createdOrders?: boolean | Prisma.User$createdOrdersArgs<ExtArgs>
   acceptedOrders?: boolean | Prisma.User$acceptedOrdersArgs<ExtArgs>
+  nextInlinedOrders?: boolean | Prisma.User$nextInlinedOrdersArgs<ExtArgs>
   processingOrders?: boolean | Prisma.User$processingOrdersArgs<ExtArgs>
   completedOrders?: boolean | Prisma.User$completedOrdersArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
@@ -1681,6 +1855,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     stockAdjustments: Prisma.$StockAdjustmentPayload<ExtArgs>[]
     createdOrders: Prisma.$OrderPayload<ExtArgs>[]
     acceptedOrders: Prisma.$OrderPayload<ExtArgs>[]
+    nextInlinedOrders: Prisma.$OrderPayload<ExtArgs>[]
     processingOrders: Prisma.$OrderPayload<ExtArgs>[]
     completedOrders: Prisma.$OrderPayload<ExtArgs>[]
   }
@@ -2098,6 +2273,7 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   stockAdjustments<T extends Prisma.User$stockAdjustmentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$stockAdjustmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$StockAdjustmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   createdOrders<T extends Prisma.User$createdOrdersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$createdOrdersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$OrderPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   acceptedOrders<T extends Prisma.User$acceptedOrdersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$acceptedOrdersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$OrderPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  nextInlinedOrders<T extends Prisma.User$nextInlinedOrdersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$nextInlinedOrdersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$OrderPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   processingOrders<T extends Prisma.User$processingOrdersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$processingOrdersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$OrderPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   completedOrders<T extends Prisma.User$completedOrdersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$completedOrdersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$OrderPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
@@ -2635,6 +2811,30 @@ export type User$createdOrdersArgs<ExtArgs extends runtime.Types.Extensions.Inte
  * User.acceptedOrders
  */
 export type User$acceptedOrdersArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Order
+   */
+  select?: Prisma.OrderSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Order
+   */
+  omit?: Prisma.OrderOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.OrderInclude<ExtArgs> | null
+  where?: Prisma.OrderWhereInput
+  orderBy?: Prisma.OrderOrderByWithRelationInput | Prisma.OrderOrderByWithRelationInput[]
+  cursor?: Prisma.OrderWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.OrderScalarFieldEnum | Prisma.OrderScalarFieldEnum[]
+}
+
+/**
+ * User.nextInlinedOrders
+ */
+export type User$nextInlinedOrdersArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   /**
    * Select specific fields to fetch from the Order
    */

@@ -33,6 +33,7 @@ model User {
   stockAdjustments  StockAdjustment[]
   createdOrders     Order[]          @relation("OrderCreator")
   acceptedOrders    Order[]          @relation("OrderAcceptedBy")
+  nextInlinedOrders Order[]          @relation("OrderNextInLineBy")
   processingOrders  Order[]          @relation("OrderProcessingBy")
   completedOrders   Order[]          @relation("OrderCompletedBy")
 }
@@ -283,13 +284,14 @@ model Order {
   status        OrderStatus @default(pending) @map("status")
 
   // Status timestamps + actors
-  acceptedAt    DateTime?   @map("accepted_at") @db.Timestamptz
-  acceptedBy    String?     @map("accepted_by") @db.Uuid
-  nextInLineAt  DateTime?   @map("next_in_line_at") @db.Timestamptz
-  processingAt  DateTime?   @map("processing_at") @db.Timestamptz
-  processingBy  String?     @map("processing_by") @db.Uuid
-  completedAt   DateTime?   @map("completed_at") @db.Timestamptz
-  completedBy   String?     @map("completed_by") @db.Uuid
+  acceptedAt      DateTime?   @map("accepted_at") @db.Timestamptz
+  acceptedBy      String?     @map("accepted_by") @db.Uuid
+  nextInLineAt    DateTime?   @map("next_in_line_at") @db.Timestamptz
+  nextInLineBy    String?     @map("next_in_line_by") @db.Uuid
+  processingAt    DateTime?   @map("processing_at") @db.Timestamptz
+  processingBy    String?     @map("processing_by") @db.Uuid
+  completedAt     DateTime?   @map("completed_at") @db.Timestamptz
+  completedBy     String?     @map("completed_by") @db.Uuid
 
   // Payment
   totalAmount   Decimal     @default(0) @map("total_amount") @db.Decimal(10, 2)
@@ -304,10 +306,11 @@ model Order {
   createdBy     String      @map("created_by") @db.Uuid
 
   // Relations
-  creator       User        @relation("OrderCreator", fields: [createdBy], references: [id])
-  acceptedByUser User?      @relation("OrderAcceptedBy", fields: [acceptedBy], references: [id])
-  processingByUser User?    @relation("OrderProcessingBy", fields: [processingBy], references: [id])
-  completedByUser  User?    @relation("OrderCompletedBy", fields: [completedBy], references: [id])
+  creator         User        @relation("OrderCreator", fields: [createdBy], references: [id])
+  acceptedByUser  User?       @relation("OrderAcceptedBy", fields: [acceptedBy], references: [id])
+  nextInLineByUser User?      @relation("OrderNextInLineBy", fields: [nextInLineBy], references: [id])
+  processingByUser User?      @relation("OrderProcessingBy", fields: [processingBy], references: [id])
+  completedByUser  User?      @relation("OrderCompletedBy", fields: [completedBy], references: [id])
 
   items         OrderItem[]
   cancellation  OrderCancellation?

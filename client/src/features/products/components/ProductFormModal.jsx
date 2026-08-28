@@ -287,7 +287,7 @@ export default function ProductFormModal({
             </section>
 
             <DialogFooter>
-              <Button type="button" variant="secondary" onClick={handleClose}>
+              <Button type="button" variant="outline" onClick={handleClose}>
                 Cancel
               </Button>
               <Button type="submit" disabled={isLoading}>
