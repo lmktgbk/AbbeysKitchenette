@@ -119,6 +119,11 @@ export default function OrderTimeline({ order }) {
                 {order.cancel_reason}
               </p>
             )}
+            {order.cancelled_by && (
+              <p className="text-[11px] text-muted-foreground leading-tight">
+                by {order.cancelled_by.name} ({order.cancelled_by.role})
+              </p>
+            )}
           </div>
         </div>
       )}

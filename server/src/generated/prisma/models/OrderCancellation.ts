@@ -217,6 +217,7 @@ export type OrderCancellationWhereInput = {
   reason?: Prisma.StringNullableFilter<"OrderCancellation"> | string | null
   cancelledAt?: Prisma.DateTimeFilter<"OrderCancellation"> | Date | string
   order?: Prisma.XOR<Prisma.OrderScalarRelationFilter, Prisma.OrderWhereInput>
+  cancelledByUser?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
 }
 
 export type OrderCancellationOrderByWithRelationInput = {
@@ -226,6 +227,7 @@ export type OrderCancellationOrderByWithRelationInput = {
   reason?: Prisma.SortOrderInput | Prisma.SortOrder
   cancelledAt?: Prisma.SortOrder
   order?: Prisma.OrderOrderByWithRelationInput
+  cancelledByUser?: Prisma.UserOrderByWithRelationInput
 }
 
 export type OrderCancellationWhereUniqueInput = Prisma.AtLeast<{
@@ -238,6 +240,7 @@ export type OrderCancellationWhereUniqueInput = Prisma.AtLeast<{
   reason?: Prisma.StringNullableFilter<"OrderCancellation"> | string | null
   cancelledAt?: Prisma.DateTimeFilter<"OrderCancellation"> | Date | string
   order?: Prisma.XOR<Prisma.OrderScalarRelationFilter, Prisma.OrderWhereInput>
+  cancelledByUser?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
 }, "cancellationId" | "orderId">
 
 export type OrderCancellationOrderByWithAggregationInput = {
@@ -265,10 +268,10 @@ export type OrderCancellationScalarWhereWithAggregatesInput = {
 }
 
 export type OrderCancellationCreateInput = {
-  cancelledBy: string
   reason?: string | null
   cancelledAt?: Date | string
   order: Prisma.OrderCreateNestedOneWithoutCancellationInput
+  cancelledByUser: Prisma.UserCreateNestedOneWithoutCancelledCancellationsInput
 }
 
 export type OrderCancellationUncheckedCreateInput = {
@@ -280,10 +283,10 @@ export type OrderCancellationUncheckedCreateInput = {
 }
 
 export type OrderCancellationUpdateInput = {
-  cancelledBy?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cancelledAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   order?: Prisma.OrderUpdateOneRequiredWithoutCancellationNestedInput
+  cancelledByUser?: Prisma.UserUpdateOneRequiredWithoutCancelledCancellationsNestedInput
 }
 
 export type OrderCancellationUncheckedUpdateInput = {
@@ -303,7 +306,6 @@ export type OrderCancellationCreateManyInput = {
 }
 
 export type OrderCancellationUpdateManyMutationInput = {
-  cancelledBy?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cancelledAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -314,6 +316,16 @@ export type OrderCancellationUncheckedUpdateManyInput = {
   cancelledBy?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cancelledAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type OrderCancellationListRelationFilter = {
+  every?: Prisma.OrderCancellationWhereInput
+  some?: Prisma.OrderCancellationWhereInput
+  none?: Prisma.OrderCancellationWhereInput
+}
+
+export type OrderCancellationOrderByRelationAggregateInput = {
+  _count?: Prisma.SortOrder
 }
 
 export type OrderCancellationNullableScalarRelationFilter = {
@@ -353,6 +365,48 @@ export type OrderCancellationSumOrderByAggregateInput = {
   cancellationId?: Prisma.SortOrder
 }
 
+export type OrderCancellationCreateNestedManyWithoutCancelledByUserInput = {
+  create?: Prisma.XOR<Prisma.OrderCancellationCreateWithoutCancelledByUserInput, Prisma.OrderCancellationUncheckedCreateWithoutCancelledByUserInput> | Prisma.OrderCancellationCreateWithoutCancelledByUserInput[] | Prisma.OrderCancellationUncheckedCreateWithoutCancelledByUserInput[]
+  connectOrCreate?: Prisma.OrderCancellationCreateOrConnectWithoutCancelledByUserInput | Prisma.OrderCancellationCreateOrConnectWithoutCancelledByUserInput[]
+  createMany?: Prisma.OrderCancellationCreateManyCancelledByUserInputEnvelope
+  connect?: Prisma.OrderCancellationWhereUniqueInput | Prisma.OrderCancellationWhereUniqueInput[]
+}
+
+export type OrderCancellationUncheckedCreateNestedManyWithoutCancelledByUserInput = {
+  create?: Prisma.XOR<Prisma.OrderCancellationCreateWithoutCancelledByUserInput, Prisma.OrderCancellationUncheckedCreateWithoutCancelledByUserInput> | Prisma.OrderCancellationCreateWithoutCancelledByUserInput[] | Prisma.OrderCancellationUncheckedCreateWithoutCancelledByUserInput[]
+  connectOrCreate?: Prisma.OrderCancellationCreateOrConnectWithoutCancelledByUserInput | Prisma.OrderCancellationCreateOrConnectWithoutCancelledByUserInput[]
+  createMany?: Prisma.OrderCancellationCreateManyCancelledByUserInputEnvelope
+  connect?: Prisma.OrderCancellationWhereUniqueInput | Prisma.OrderCancellationWhereUniqueInput[]
+}
+
+export type OrderCancellationUpdateManyWithoutCancelledByUserNestedInput = {
+  create?: Prisma.XOR<Prisma.OrderCancellationCreateWithoutCancelledByUserInput, Prisma.OrderCancellationUncheckedCreateWithoutCancelledByUserInput> | Prisma.OrderCancellationCreateWithoutCancelledByUserInput[] | Prisma.OrderCancellationUncheckedCreateWithoutCancelledByUserInput[]
+  connectOrCreate?: Prisma.OrderCancellationCreateOrConnectWithoutCancelledByUserInput | Prisma.OrderCancellationCreateOrConnectWithoutCancelledByUserInput[]
+  upsert?: Prisma.OrderCancellationUpsertWithWhereUniqueWithoutCancelledByUserInput | Prisma.OrderCancellationUpsertWithWhereUniqueWithoutCancelledByUserInput[]
+  createMany?: Prisma.OrderCancellationCreateManyCancelledByUserInputEnvelope
+  set?: Prisma.OrderCancellationWhereUniqueInput | Prisma.OrderCancellationWhereUniqueInput[]
+  disconnect?: Prisma.OrderCancellationWhereUniqueInput | Prisma.OrderCancellationWhereUniqueInput[]
+  delete?: Prisma.OrderCancellationWhereUniqueInput | Prisma.OrderCancellationWhereUniqueInput[]
+  connect?: Prisma.OrderCancellationWhereUniqueInput | Prisma.OrderCancellationWhereUniqueInput[]
+  update?: Prisma.OrderCancellationUpdateWithWhereUniqueWithoutCancelledByUserInput | Prisma.OrderCancellationUpdateWithWhereUniqueWithoutCancelledByUserInput[]
+  updateMany?: Prisma.OrderCancellationUpdateManyWithWhereWithoutCancelledByUserInput | Prisma.OrderCancellationUpdateManyWithWhereWithoutCancelledByUserInput[]
+  deleteMany?: Prisma.OrderCancellationScalarWhereInput | Prisma.OrderCancellationScalarWhereInput[]
+}
+
+export type OrderCancellationUncheckedUpdateManyWithoutCancelledByUserNestedInput = {
+  create?: Prisma.XOR<Prisma.OrderCancellationCreateWithoutCancelledByUserInput, Prisma.OrderCancellationUncheckedCreateWithoutCancelledByUserInput> | Prisma.OrderCancellationCreateWithoutCancelledByUserInput[] | Prisma.OrderCancellationUncheckedCreateWithoutCancelledByUserInput[]
+  connectOrCreate?: Prisma.OrderCancellationCreateOrConnectWithoutCancelledByUserInput | Prisma.OrderCancellationCreateOrConnectWithoutCancelledByUserInput[]
+  upsert?: Prisma.OrderCancellationUpsertWithWhereUniqueWithoutCancelledByUserInput | Prisma.OrderCancellationUpsertWithWhereUniqueWithoutCancelledByUserInput[]
+  createMany?: Prisma.OrderCancellationCreateManyCancelledByUserInputEnvelope
+  set?: Prisma.OrderCancellationWhereUniqueInput | Prisma.OrderCancellationWhereUniqueInput[]
+  disconnect?: Prisma.OrderCancellationWhereUniqueInput | Prisma.OrderCancellationWhereUniqueInput[]
+  delete?: Prisma.OrderCancellationWhereUniqueInput | Prisma.OrderCancellationWhereUniqueInput[]
+  connect?: Prisma.OrderCancellationWhereUniqueInput | Prisma.OrderCancellationWhereUniqueInput[]
+  update?: Prisma.OrderCancellationUpdateWithWhereUniqueWithoutCancelledByUserInput | Prisma.OrderCancellationUpdateWithWhereUniqueWithoutCancelledByUserInput[]
+  updateMany?: Prisma.OrderCancellationUpdateManyWithWhereWithoutCancelledByUserInput | Prisma.OrderCancellationUpdateManyWithWhereWithoutCancelledByUserInput[]
+  deleteMany?: Prisma.OrderCancellationScalarWhereInput | Prisma.OrderCancellationScalarWhereInput[]
+}
+
 export type OrderCancellationCreateNestedOneWithoutOrderInput = {
   create?: Prisma.XOR<Prisma.OrderCancellationCreateWithoutOrderInput, Prisma.OrderCancellationUncheckedCreateWithoutOrderInput>
   connectOrCreate?: Prisma.OrderCancellationCreateOrConnectWithoutOrderInput
@@ -385,10 +439,60 @@ export type OrderCancellationUncheckedUpdateOneWithoutOrderNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.OrderCancellationUpdateToOneWithWhereWithoutOrderInput, Prisma.OrderCancellationUpdateWithoutOrderInput>, Prisma.OrderCancellationUncheckedUpdateWithoutOrderInput>
 }
 
-export type OrderCancellationCreateWithoutOrderInput = {
-  cancelledBy: string
+export type OrderCancellationCreateWithoutCancelledByUserInput = {
   reason?: string | null
   cancelledAt?: Date | string
+  order: Prisma.OrderCreateNestedOneWithoutCancellationInput
+}
+
+export type OrderCancellationUncheckedCreateWithoutCancelledByUserInput = {
+  cancellationId?: number
+  orderId: string
+  reason?: string | null
+  cancelledAt?: Date | string
+}
+
+export type OrderCancellationCreateOrConnectWithoutCancelledByUserInput = {
+  where: Prisma.OrderCancellationWhereUniqueInput
+  create: Prisma.XOR<Prisma.OrderCancellationCreateWithoutCancelledByUserInput, Prisma.OrderCancellationUncheckedCreateWithoutCancelledByUserInput>
+}
+
+export type OrderCancellationCreateManyCancelledByUserInputEnvelope = {
+  data: Prisma.OrderCancellationCreateManyCancelledByUserInput | Prisma.OrderCancellationCreateManyCancelledByUserInput[]
+  skipDuplicates?: boolean
+}
+
+export type OrderCancellationUpsertWithWhereUniqueWithoutCancelledByUserInput = {
+  where: Prisma.OrderCancellationWhereUniqueInput
+  update: Prisma.XOR<Prisma.OrderCancellationUpdateWithoutCancelledByUserInput, Prisma.OrderCancellationUncheckedUpdateWithoutCancelledByUserInput>
+  create: Prisma.XOR<Prisma.OrderCancellationCreateWithoutCancelledByUserInput, Prisma.OrderCancellationUncheckedCreateWithoutCancelledByUserInput>
+}
+
+export type OrderCancellationUpdateWithWhereUniqueWithoutCancelledByUserInput = {
+  where: Prisma.OrderCancellationWhereUniqueInput
+  data: Prisma.XOR<Prisma.OrderCancellationUpdateWithoutCancelledByUserInput, Prisma.OrderCancellationUncheckedUpdateWithoutCancelledByUserInput>
+}
+
+export type OrderCancellationUpdateManyWithWhereWithoutCancelledByUserInput = {
+  where: Prisma.OrderCancellationScalarWhereInput
+  data: Prisma.XOR<Prisma.OrderCancellationUpdateManyMutationInput, Prisma.OrderCancellationUncheckedUpdateManyWithoutCancelledByUserInput>
+}
+
+export type OrderCancellationScalarWhereInput = {
+  AND?: Prisma.OrderCancellationScalarWhereInput | Prisma.OrderCancellationScalarWhereInput[]
+  OR?: Prisma.OrderCancellationScalarWhereInput[]
+  NOT?: Prisma.OrderCancellationScalarWhereInput | Prisma.OrderCancellationScalarWhereInput[]
+  cancellationId?: Prisma.IntFilter<"OrderCancellation"> | number
+  orderId?: Prisma.UuidFilter<"OrderCancellation"> | string
+  cancelledBy?: Prisma.UuidFilter<"OrderCancellation"> | string
+  reason?: Prisma.StringNullableFilter<"OrderCancellation"> | string | null
+  cancelledAt?: Prisma.DateTimeFilter<"OrderCancellation"> | Date | string
+}
+
+export type OrderCancellationCreateWithoutOrderInput = {
+  reason?: string | null
+  cancelledAt?: Date | string
+  cancelledByUser: Prisma.UserCreateNestedOneWithoutCancelledCancellationsInput
 }
 
 export type OrderCancellationUncheckedCreateWithoutOrderInput = {
@@ -415,14 +519,41 @@ export type OrderCancellationUpdateToOneWithWhereWithoutOrderInput = {
 }
 
 export type OrderCancellationUpdateWithoutOrderInput = {
-  cancelledBy?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cancelledAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  cancelledByUser?: Prisma.UserUpdateOneRequiredWithoutCancelledCancellationsNestedInput
 }
 
 export type OrderCancellationUncheckedUpdateWithoutOrderInput = {
   cancellationId?: Prisma.IntFieldUpdateOperationsInput | number
   cancelledBy?: Prisma.StringFieldUpdateOperationsInput | string
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cancelledAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type OrderCancellationCreateManyCancelledByUserInput = {
+  cancellationId?: number
+  orderId: string
+  reason?: string | null
+  cancelledAt?: Date | string
+}
+
+export type OrderCancellationUpdateWithoutCancelledByUserInput = {
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cancelledAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  order?: Prisma.OrderUpdateOneRequiredWithoutCancellationNestedInput
+}
+
+export type OrderCancellationUncheckedUpdateWithoutCancelledByUserInput = {
+  cancellationId?: Prisma.IntFieldUpdateOperationsInput | number
+  orderId?: Prisma.StringFieldUpdateOperationsInput | string
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cancelledAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type OrderCancellationUncheckedUpdateManyWithoutCancelledByUserInput = {
+  cancellationId?: Prisma.IntFieldUpdateOperationsInput | number
+  orderId?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cancelledAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -436,6 +567,7 @@ export type OrderCancellationSelect<ExtArgs extends runtime.Types.Extensions.Int
   reason?: boolean
   cancelledAt?: boolean
   order?: boolean | Prisma.OrderDefaultArgs<ExtArgs>
+  cancelledByUser?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["orderCancellation"]>
 
 export type OrderCancellationSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -445,6 +577,7 @@ export type OrderCancellationSelectCreateManyAndReturn<ExtArgs extends runtime.T
   reason?: boolean
   cancelledAt?: boolean
   order?: boolean | Prisma.OrderDefaultArgs<ExtArgs>
+  cancelledByUser?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["orderCancellation"]>
 
 export type OrderCancellationSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -454,6 +587,7 @@ export type OrderCancellationSelectUpdateManyAndReturn<ExtArgs extends runtime.T
   reason?: boolean
   cancelledAt?: boolean
   order?: boolean | Prisma.OrderDefaultArgs<ExtArgs>
+  cancelledByUser?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["orderCancellation"]>
 
 export type OrderCancellationSelectScalar = {
@@ -467,18 +601,22 @@ export type OrderCancellationSelectScalar = {
 export type OrderCancellationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"cancellationId" | "orderId" | "cancelledBy" | "reason" | "cancelledAt", ExtArgs["result"]["orderCancellation"]>
 export type OrderCancellationInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   order?: boolean | Prisma.OrderDefaultArgs<ExtArgs>
+  cancelledByUser?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }
 export type OrderCancellationIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   order?: boolean | Prisma.OrderDefaultArgs<ExtArgs>
+  cancelledByUser?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }
 export type OrderCancellationIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   order?: boolean | Prisma.OrderDefaultArgs<ExtArgs>
+  cancelledByUser?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }
 
 export type $OrderCancellationPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "OrderCancellation"
   objects: {
     order: Prisma.$OrderPayload<ExtArgs>
+    cancelledByUser: Prisma.$UserPayload<ExtArgs>
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     cancellationId: number
@@ -881,6 +1019,7 @@ readonly fields: OrderCancellationFieldRefs;
 export interface Prisma__OrderCancellationClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   order<T extends Prisma.OrderDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.OrderDefaultArgs<ExtArgs>>): Prisma.Prisma__OrderClient<runtime.Types.Result.GetResult<Prisma.$OrderPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  cancelledByUser<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.

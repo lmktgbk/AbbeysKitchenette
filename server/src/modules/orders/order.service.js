@@ -61,6 +61,9 @@ export const orderService = {
       completed_by: order.completedByUser ? { name: order.completedByUser.name, role: order.completedByUser.role } : null,
       cancel_reason: order.cancellation?.reason ?? null,
       cancelled_at: order.cancellation?.cancelledAt ?? null,
+      cancelled_by: order.cancellation?.cancelledByUser
+        ? { name: order.cancellation.cancelledByUser.name, role: order.cancellation.cancelledByUser.role }
+        : null,
       items: order.items.map((item) => formatOrderItemResponse({
         ...item,
         productName: item.product?.productName ?? null,
@@ -319,10 +322,10 @@ export const orderService = {
         cancelledBy: userId,
         reason: reason || null,
       }, tx);
-
-      // Trigger auto-promotion (fill vacated queue slots)
-      await this._advanceQueue();
     });
+
+    // Trigger auto-promotion (fill vacated queue slots)
+    await this._advanceQueue();
 
     // Recompute variant availability for affected ingredients
     if (affectedIngredientIds.length > 0) {

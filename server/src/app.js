@@ -18,6 +18,7 @@ import productRoutes from "./modules/products/product.routes.js";
 import orderRoutes from "./modules/orders/order.routes.js";
 import guestRoutes from "./modules/guest/guest.routes.js";
 import staffRoutes from "./modules/staff/staff.routes.js";
+import forecastingRoutes from "./modules/forecasting/forecasting.routes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -67,6 +68,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/guest", guestRoutes);
 app.use("/api/staff", staffRoutes);
+app.use("/api/forecasting", forecastingRoutes);
 
 // Health check endpoint (used by hosting platforms to verify server is running)
 app.get("/api/health", (req, res) => {

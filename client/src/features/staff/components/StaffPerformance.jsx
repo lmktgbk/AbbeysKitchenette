@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useStaffPerformance } from "../query";
 import { ROLE_CONFIG } from "../staffValidation";
-import { formatDate } from "@/lib/date";
 import { DropDown } from "@/components/filters/DropDown";
 import DateRangeFilter from "@/components/filters/DateRangeFilter";
 import { Badge } from "@/components/ui/badge";
@@ -11,8 +10,10 @@ import Icon from "@/components/ui/icon";
 /**
  * StaffPerformance
  *
- * Comparative analytics view showing staff metrics.
- * Filters: date range, role.
+ * Role-specific performance analytics.
+ * Cashier: orders created, revenue, avg order value.
+ * Kitchen: orders completed, avg prep time.
+ * Admin excluded.
  */
 export default function StaffPerformance() {
   const [roleFilter, setRoleFilter] = useState("all");
@@ -28,7 +29,6 @@ export default function StaffPerformance() {
   const { data, isLoading } = useStaffPerformance(queryParams);
   const performance = data?.data?.performance ?? [];
 
-  // Group by role
   const grouped = {};
   for (const p of performance) {
     if (!grouped[p.role]) grouped[p.role] = [];
@@ -39,10 +39,9 @@ export default function StaffPerformance() {
     { value: "all", label: "All Roles" },
     { value: "cashier", label: "Cashier" },
     { value: "kitchen", label: "Kitchen" },
-    { value: "admin", label: "Admin" },
   ];
 
-  const roleOrder = ["admin", "cashier", "kitchen"];
+  const roleOrder = ["cashier", "kitchen"];
 
   return (
     <div className="flex flex-col gap-4">
@@ -98,6 +97,7 @@ export default function StaffPerformance() {
           .map((role) => {
             const config = ROLE_CONFIG[role];
             const members = grouped[role];
+            const isCashier = role === "cashier";
 
             return (
               <div key={role} className="rounded-xl border border-border bg-card">
@@ -109,56 +109,59 @@ export default function StaffPerformance() {
                   </span>
                 </div>
 
-                {/* Performance Table */}
+                {/* Role-specific Table */}
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/30">
                       <TableHead>Name</TableHead>
-                      <TableHead className="text-center">Created</TableHead>
-                      <TableHead className="text-center">Accepted</TableHead>
-                      <TableHead className="text-center">Processed</TableHead>
-                      <TableHead className="text-center">Completed</TableHead>
-                      <TableHead className="text-right">Revenue</TableHead>
-                      <TableHead className="text-center">Restocks</TableHead>
-                      <TableHead className="text-center">Losses</TableHead>
-                      <TableHead className="text-center">Avg Time</TableHead>
+                      <TableHead>Email</TableHead>
+                      {isCashier ? (
+                        <>
+                          <TableHead className="text-center">Orders Created</TableHead>
+                          <TableHead className="text-right">Total Revenue</TableHead>
+                          <TableHead className="text-right">Avg Order Value</TableHead>
+                        </>
+                      ) : (
+                        <>
+                          <TableHead className="text-center">Orders Completed</TableHead>
+                          <TableHead className="text-center">Avg Prep Time</TableHead>
+                        </>
+                      )}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {members.map((m) => (
                       <TableRow key={m.user_id}>
                         <TableCell>
-                          <div>
-                            <p className="font-medium">{m.name}</p>
-                            <p className="text-xs text-muted-foreground">{m.email}</p>
-                          </div>
+                          <p className="font-medium">{m.name}</p>
                         </TableCell>
-                        <TableCell className="text-center font-mono text-sm">
-                          {m.orders_created}
+                        <TableCell className="text-sm text-muted-foreground">
+                          {m.email}
                         </TableCell>
-                        <TableCell className="text-center font-mono text-sm">
-                          {m.orders_accepted}
-                        </TableCell>
-                        <TableCell className="text-center font-mono text-sm">
-                          {m.orders_processed}
-                        </TableCell>
-                        <TableCell className="text-center font-mono text-sm">
-                          {m.orders_completed}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm font-medium">
-                          ₱{Number(m.total_revenue).toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-center font-mono text-sm">
-                          {m.restocks_done}
-                        </TableCell>
-                        <TableCell className="text-center font-mono text-sm">
-                          {m.losses_declared}
-                        </TableCell>
-                        <TableCell className="text-center text-xs text-muted-foreground">
-                          {m.avg_completion_minutes != null
-                            ? `${m.avg_completion_minutes} min`
-                            : "—"}
-                        </TableCell>
+                        {isCashier ? (
+                          <>
+                            <TableCell className="text-center font-mono text-sm">
+                              {m.orders_created}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-sm font-medium">
+                              ₱{Number(m.total_revenue).toLocaleString()}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-sm text-muted-foreground">
+                              ₱{Number(m.avg_order_value).toLocaleString()}
+                            </TableCell>
+                          </>
+                        ) : (
+                          <>
+                            <TableCell className="text-center font-mono text-sm">
+                              {m.orders_completed}
+                            </TableCell>
+                            <TableCell className="text-center text-sm text-muted-foreground">
+                              {m.avg_prep_time != null
+                                ? `${m.avg_prep_time} min`
+                                : "—"}
+                            </TableCell>
+                          </>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>

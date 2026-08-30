@@ -160,143 +160,125 @@ export const staffRepository = {
 
   /**
    * Get performance metrics for staff.
+   * Cashier: orders created, revenue, avg order value.
+   * Kitchen: orders completed, avg prep time.
+   * Admin is excluded.
    */
   async getPerformance({ role, dateFrom, dateTo }) {
-    const userWhere = role && role !== "all" ? { role } : {};
-    const dateFilter = {};
-    if (dateFrom) dateFilter.gte = new Date(dateFrom);
-    if (dateTo) {
-      const endDate = new Date(dateTo);
-      endDate.setHours(23, 59, 59, 999);
-      dateFilter.lte = endDate;
-    }
-
-    const dateCondition =
-      Object.keys(dateFilter).length > 0 ? { createdAt: dateFilter } : {};
+    const roleFilter = role && role !== "all" ? { role } : { role: { in: ["cashier", "kitchen"] } };
 
     const users = await prisma.user.findMany({
-      where: userWhere,
+      where: roleFilter,
       select: {
         id: true,
         name: true,
         email: true,
         role: true,
-        isActive: true,
-        lastLoginAt: true,
-        createdAt: true,
       },
       orderBy: { name: "asc" },
     });
 
     const userIds = users.map((u) => u.id);
-
     if (userIds.length === 0) return [];
 
-    const orderWhere = {
-      OR: [
-        { createdBy: { in: userIds } },
-        { acceptedBy: { in: userIds } },
-        { processingBy: { in: userIds } },
-        { completedBy: { in: userIds } },
-        { nextInLineBy: { in: userIds } },
-      ],
-      ...dateCondition,
-    };
+    const cashierIds = users.filter((u) => u.role === "cashier").map((u) => u.id);
+    const kitchenIds = users.filter((u) => u.role === "kitchen").map((u) => u.id);
 
-    const orders = await prisma.order.findMany({
-      where: orderWhere,
-      select: {
-        orderId: true,
-        totalAmount: true,
-        status: true,
-        createdBy: true,
-        acceptedBy: true,
-        processingBy: true,
-        completedBy: true,
-        nextInLineBy: true,
-        createdAt: true,
-        completedAt: true,
-        processingAt: true,
-      },
-    });
+    const results = [];
 
-    const restockWhere = {
-      restockedById: { in: userIds },
-      ...(Object.keys(dateFilter).length > 0
-        ? { restockedAt: dateFilter }
-        : {}),
-    };
-
-    const lossWhere = {
-      declaredById: { in: userIds },
-      ...(Object.keys(dateFilter).length > 0
-        ? { declaredAt: dateFilter }
-        : {}),
-    };
-
-    const [restockCounts, lossCounts] = await Promise.all([
-      prisma.restockBatch.groupBy({
-        by: ["restockedById"],
-        where: restockWhere,
-        _count: true,
-      }),
-      prisma.lossRecord.groupBy({
-        by: ["declaredById"],
-        where: lossWhere,
-        _count: true,
-      }),
-    ]);
-
-    const restockMap = {};
-    for (const r of restockCounts) restockMap[r.restockedById] = r._count;
-    const lossMap = {};
-    for (const l of lossCounts) lossMap[l.declaredById] = l._count;
-
-    return users.map((user) => {
-      const created = orders.filter((o) => o.createdBy === user.id);
-      const accepted = orders.filter((o) => o.acceptedBy === user.id);
-      const processed = orders.filter((o) => o.processingBy === user.id);
-      const completed = orders.filter((o) => o.completedBy === user.id);
-      const nextInLined = orders.filter((o) => o.nextInLineBy === user.id);
-
-      const totalRevenue = created.reduce(
-        (sum, o) => sum + Number(o.totalAmount),
-        0
-      );
-
-      let avgCompletionMinutes = null;
-      const completionTimes = completed
-        .filter((o) => o.processingAt && o.completedAt)
-        .map(
-          (o) =>
-            (new Date(o.completedAt) - new Date(o.processingAt)) / 60000
-        );
-      if (completionTimes.length > 0) {
-        avgCompletionMinutes =
-          completionTimes.reduce((a, b) => a + b, 0) / completionTimes.length;
+    // ── Cashier metrics ──────────────────────────
+    if (cashierIds.length > 0) {
+      const createdWhere = {
+        createdBy: { in: cashierIds },
+        status: { not: "cancelled" },
+      };
+      if (dateFrom || dateTo) {
+        createdWhere.createdAt = {};
+        if (dateFrom) createdWhere.createdAt.gte = new Date(dateFrom);
+        if (dateTo) {
+          const end = new Date(dateTo);
+          end.setHours(23, 59, 59, 999);
+          createdWhere.createdAt.lte = end;
+        }
       }
 
-      return {
-        user_id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        is_active: user.isActive,
-        last_login_at: user.lastLoginAt,
-        created_at: user.createdAt,
-        orders_created: created.length,
-        orders_accepted: accepted.length,
-        orders_processed: processed.length,
-        orders_completed: completed.length,
-        orders_next_in_line: nextInLined.length,
-        total_revenue: totalRevenue,
-        avg_completion_minutes: avgCompletionMinutes
-          ? Math.round(avgCompletionMinutes)
-          : null,
-        restocks_done: restockMap[user.id] || 0,
-        losses_declared: lossMap[user.id] || 0,
+      const cashierOrders = await prisma.order.findMany({
+        where: createdWhere,
+        select: {
+          createdBy: true,
+          totalAmount: true,
+        },
+      });
+
+      const cashierAgg = {};
+      for (const o of cashierOrders) {
+        if (!cashierAgg[o.createdBy]) cashierAgg[o.createdBy] = { count: 0, revenue: 0 };
+        cashierAgg[o.createdBy].count += 1;
+        cashierAgg[o.createdBy].revenue += Number(o.totalAmount);
+      }
+
+      for (const user of users.filter((u) => u.role === "cashier")) {
+        const agg = cashierAgg[user.id] || { count: 0, revenue: 0 };
+        results.push({
+          user_id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          orders_created: agg.count,
+          total_revenue: agg.revenue,
+          avg_order_value: agg.count > 0 ? Math.round(agg.revenue / agg.count) : 0,
+        });
+      }
+    }
+
+    // ── Kitchen metrics ──────────────────────────
+    if (kitchenIds.length > 0) {
+      const completedWhere = {
+        completedBy: { in: kitchenIds },
+        status: "completed",
       };
-    });
+      if (dateFrom || dateTo) {
+        completedWhere.completedAt = {};
+        if (dateFrom) completedWhere.completedAt.gte = new Date(dateFrom);
+        if (dateTo) {
+          const end = new Date(dateTo);
+          end.setHours(23, 59, 59, 999);
+          completedWhere.completedAt.lte = end;
+        }
+      }
+
+      const kitchenOrders = await prisma.order.findMany({
+        where: completedWhere,
+        select: {
+          completedBy: true,
+          processingAt: true,
+          completedAt: true,
+        },
+      });
+
+      const kitchenAgg = {};
+      for (const o of kitchenOrders) {
+        if (!kitchenAgg[o.completedBy]) kitchenAgg[o.completedBy] = { count: 0, totalMinutes: 0 };
+        kitchenAgg[o.completedBy].count += 1;
+        if (o.processingAt && o.completedAt) {
+          kitchenAgg[o.completedBy].totalMinutes += (new Date(o.completedAt) - new Date(o.processingAt)) / 60000;
+        }
+      }
+
+      for (const user of users.filter((u) => u.role === "kitchen")) {
+        const agg = kitchenAgg[user.id] || { count: 0, totalMinutes: 0 };
+        results.push({
+          user_id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          orders_completed: agg.count,
+          avg_prep_time: agg.count > 0 ? Math.round(agg.totalMinutes / agg.count) : null,
+        });
+      }
+    }
+
+    return results;
   },
 
   /* ── Private Helpers ──────────────── */

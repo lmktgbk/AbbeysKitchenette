@@ -36,6 +36,7 @@ import OrdersPage from "@/features/orders/pages/OrdersPage";
 import PosTerminal from "@/features/orders/pages/PosTerminal";
 import PosInterface from "@/features/orders/pages/PosInterface";
 import StaffPage from "@/features/staff/pages/StaffPage";
+import ForecastingPage from "@/features/forecasting/pages/ForecastingPage";
 
 /* ── Placeholder Pages ───────────────── */
 
@@ -115,7 +116,7 @@ const router = createBrowserRouter([
             { path: "/orders", element: <OrdersPage /> },
             { path: "/inventory", element: <InventoryPlaceholder /> },
             { path: "/staff", element: <StaffPage /> },
-            { path: "/forecasting", element: <ForecastingPlaceholder /> },
+            { path: "/forecasting", element: <ForecastingPage /> },
             { path: "/market-basket", element: <MarketBasketPlaceholder /> },
             { path: "/audit-logs", element: <AuditLogsPlaceholder /> },
             { path: "/settings", element: <SettingsPlaceholder /> },

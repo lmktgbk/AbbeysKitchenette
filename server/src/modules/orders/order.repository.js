@@ -92,7 +92,9 @@ export const orderRepository = {
         nextInLineByUser: { select: { id: true, name: true, role: true } },
         processingByUser: { select: { id: true, name: true, role: true } },
         completedByUser: { select: { id: true, name: true, role: true } },
-        cancellation: true,
+        cancellation: {
+          include: { cancelledByUser: { select: { id: true, name: true, role: true } } },
+        },
       },
     });
   },
@@ -183,14 +185,15 @@ export const orderRepository = {
    * @returns {object} - { pending, accepted, next_in_line, processing, completed, cancelled }
    */
   async countByStatus() {
-    const result = await prisma.$queryRaw`
-      SELECT status, COUNT(*)::int AS count
-      FROM orders
-      WHERE order_date = CURRENT_DATE
-      GROUP BY status
-    `;
+    const result = await prisma.order.groupBy({
+      by: ["status"],
+      _count: { _all: true },
+    });
+
     const counts = { pending: 0, accepted: 0, next_in_line: 0, processing: 0, completed: 0, cancelled: 0 };
-    for (const row of result) counts[row.status] = row.count;
+    for (const row of result) {
+      counts[row.status] = row._count._all;
+    }
     return counts;
   },
 
