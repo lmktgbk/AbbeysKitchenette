@@ -1,33 +1,64 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as api from "./api";
 
 const forecastKeys = {
   all: ["forecasting"],
-  sales: (params) => ["forecasting", "sales", params],
-  restock: ["forecasting", "restock"],
-  popularity: (params) => ["forecasting", "popularity", params],
+  demandStatus: (jobId) => ["forecasting", "demand", "status", jobId],
+  demandResults: (jobId) => ["forecasting", "demand", "results", jobId],
+  demandHistory: ["forecasting", "demand", "history"],
+  demandIngredients: (jobId) => ["forecasting", "demand", "ingredients", jobId],
 };
 
-export function useSalesForecast(params = {}) {
+export function useRunDemandForecast() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.runDemandForecast(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: forecastKeys.demandHistory });
+    },
+  });
+}
+
+export function useDemandStatus(jobId, options = {}) {
   return useQuery({
-    queryKey: forecastKeys.sales(params),
-    queryFn: () => api.getSalesForecastRequest(params),
+    queryKey: forecastKeys.demandStatus(jobId),
+    queryFn: () => api.getDemandStatus(jobId),
+    enabled: !!jobId,
+    refetchInterval: (query) => {
+      const data = query.state.data?.data;
+      if (data?.status === "completed" || data?.status === "failed" || data?.status === "not_found") {
+        return false;
+      }
+      return 2000;
+    },
+    ...options,
+  });
+}
+
+export function useDemandResults(jobId, options = {}) {
+  return useQuery({
+    queryKey: forecastKeys.demandResults(jobId),
+    queryFn: () => api.getDemandResults(jobId),
+    enabled: !!jobId,
+    retry: false,
+    ...options,
+  });
+}
+
+export function useDemandHistory() {
+  return useQuery({
+    queryKey: forecastKeys.demandHistory,
+    queryFn: api.getDemandHistory,
     retry: false,
   });
 }
 
-export function useRestockForecast() {
+export function useDemandIngredients(jobId, options = {}) {
   return useQuery({
-    queryKey: forecastKeys.restock,
-    queryFn: api.getRestockForecastRequest,
+    queryKey: forecastKeys.demandIngredients(jobId),
+    queryFn: () => api.getDemandIngredients(jobId),
+    enabled: !!jobId,
     retry: false,
-  });
-}
-
-export function usePopularity(params = {}) {
-  return useQuery({
-    queryKey: forecastKeys.popularity(params),
-    queryFn: () => api.getPopularityRequest(params),
-    retry: false,
+    ...options,
   });
 }

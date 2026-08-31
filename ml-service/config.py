@@ -1,11 +1,12 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.path.dirname(__file__), "..", "server", ".env"))
+load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 CLIENT_URL = os.getenv("CLIENT_URL", "http://localhost:5173")
 FORECAST_PORT = int(os.getenv("FORECAST_PORT", "8000"))
+FORECASTER_URL = os.getenv("FORECASTER_URL", "http://localhost:5000")
 
 # Prophet defaults — tunable as data grows
 PROPHET_CONFIG = {

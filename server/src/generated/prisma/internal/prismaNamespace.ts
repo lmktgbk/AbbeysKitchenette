@@ -413,7 +413,9 @@ export const ModelName = {
   OrderItem: 'OrderItem',
   OrderCancellation: 'OrderCancellation',
   OrderIngredientDeduction: 'OrderIngredientDeduction',
-  Receipt: 'Receipt'
+  Receipt: 'Receipt',
+  ForecastJob: 'ForecastJob',
+  ForecastResult: 'ForecastResult'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -429,7 +431,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "systemSettings" | "category" | "product" | "productVariant" | "ingredient" | "recipe" | "restockBatch" | "lossRecord" | "stockAdjustment" | "stockAlert" | "orderCounter" | "order" | "orderItem" | "orderCancellation" | "orderIngredientDeduction" | "receipt"
+    modelProps: "user" | "systemSettings" | "category" | "product" | "productVariant" | "ingredient" | "recipe" | "restockBatch" | "lossRecord" | "stockAdjustment" | "stockAlert" | "orderCounter" | "order" | "orderItem" | "orderCancellation" | "orderIngredientDeduction" | "receipt" | "forecastJob" | "forecastResult"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1691,6 +1693,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    ForecastJob: {
+      payload: Prisma.$ForecastJobPayload<ExtArgs>
+      fields: Prisma.ForecastJobFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ForecastJobFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ForecastJobPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ForecastJobFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ForecastJobPayload>
+        }
+        findFirst: {
+          args: Prisma.ForecastJobFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ForecastJobPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ForecastJobFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ForecastJobPayload>
+        }
+        findMany: {
+          args: Prisma.ForecastJobFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ForecastJobPayload>[]
+        }
+        create: {
+          args: Prisma.ForecastJobCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ForecastJobPayload>
+        }
+        createMany: {
+          args: Prisma.ForecastJobCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ForecastJobCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ForecastJobPayload>[]
+        }
+        delete: {
+          args: Prisma.ForecastJobDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ForecastJobPayload>
+        }
+        update: {
+          args: Prisma.ForecastJobUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ForecastJobPayload>
+        }
+        deleteMany: {
+          args: Prisma.ForecastJobDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ForecastJobUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ForecastJobUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ForecastJobPayload>[]
+        }
+        upsert: {
+          args: Prisma.ForecastJobUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ForecastJobPayload>
+        }
+        aggregate: {
+          args: Prisma.ForecastJobAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateForecastJob>
+        }
+        groupBy: {
+          args: Prisma.ForecastJobGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ForecastJobGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ForecastJobCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ForecastJobCountAggregateOutputType> | number
+        }
+      }
+    }
+    ForecastResult: {
+      payload: Prisma.$ForecastResultPayload<ExtArgs>
+      fields: Prisma.ForecastResultFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ForecastResultFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ForecastResultPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ForecastResultFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ForecastResultPayload>
+        }
+        findFirst: {
+          args: Prisma.ForecastResultFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ForecastResultPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ForecastResultFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ForecastResultPayload>
+        }
+        findMany: {
+          args: Prisma.ForecastResultFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ForecastResultPayload>[]
+        }
+        create: {
+          args: Prisma.ForecastResultCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ForecastResultPayload>
+        }
+        createMany: {
+          args: Prisma.ForecastResultCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ForecastResultCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ForecastResultPayload>[]
+        }
+        delete: {
+          args: Prisma.ForecastResultDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ForecastResultPayload>
+        }
+        update: {
+          args: Prisma.ForecastResultUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ForecastResultPayload>
+        }
+        deleteMany: {
+          args: Prisma.ForecastResultDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ForecastResultUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ForecastResultUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ForecastResultPayload>[]
+        }
+        upsert: {
+          args: Prisma.ForecastResultUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ForecastResultPayload>
+        }
+        aggregate: {
+          args: Prisma.ForecastResultAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateForecastResult>
+        }
+        groupBy: {
+          args: Prisma.ForecastResultGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ForecastResultGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ForecastResultCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ForecastResultCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -1978,12 +2128,55 @@ export const ReceiptScalarFieldEnum = {
 export type ReceiptScalarFieldEnum = (typeof ReceiptScalarFieldEnum)[keyof typeof ReceiptScalarFieldEnum]
 
 
+export const ForecastJobScalarFieldEnum = {
+  id: 'id',
+  status: 'status',
+  totalVariants: 'totalVariants',
+  completed: 'completed',
+  failed: 'failed',
+  failedSkips: 'failedSkips',
+  period: 'period',
+  startedAt: 'startedAt',
+  completedAt: 'completedAt',
+  errorMessage: 'errorMessage'
+} as const
+
+export type ForecastJobScalarFieldEnum = (typeof ForecastJobScalarFieldEnum)[keyof typeof ForecastJobScalarFieldEnum]
+
+
+export const ForecastResultScalarFieldEnum = {
+  id: 'id',
+  jobId: 'jobId',
+  variantId: 'variantId',
+  productName: 'productName',
+  sizeName: 'sizeName',
+  price: 'price',
+  categoryId: 'categoryId',
+  dailyData: 'dailyData',
+  totalUnits: 'totalUnits',
+  totalRevenue: 'totalRevenue',
+  trend: 'trend',
+  daysOfData: 'daysOfData',
+  skipped: 'skipped',
+  skipReason: 'skipReason'
+} as const
+
+export type ForecastResultScalarFieldEnum = (typeof ForecastResultScalarFieldEnum)[keyof typeof ForecastResultScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
 } as const
 
 export type SortOrder = (typeof SortOrder)[keyof typeof SortOrder]
+
+
+export const JsonNullValueInput = {
+  JsonNull: JsonNull
+} as const
+
+export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
 
 
 export const QueryMode = {
@@ -2000,6 +2193,15 @@ export const NullsOrder = {
 } as const
 
 export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
+
+
+export const JsonNullValueFilter = {
+  DbNull: DbNull,
+  JsonNull: JsonNull,
+  AnyNull: AnyNull
+} as const
+
+export type JsonNullValueFilter = (typeof JsonNullValueFilter)[keyof typeof JsonNullValueFilter]
 
 
 
@@ -2166,6 +2368,20 @@ export type EnumOrderStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$Pris
  * Reference to a field of type 'OrderStatus[]'
  */
 export type ListEnumOrderStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'OrderStatus[]'>
+    
+
+
+/**
+ * Reference to a field of type 'Json'
+ */
+export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
+    
+
+
+/**
+ * Reference to a field of type 'QueryMode'
+ */
+export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
     
 
 /**
@@ -2336,6 +2552,8 @@ export type GlobalOmitConfig = {
   orderCancellation?: Prisma.OrderCancellationOmit
   orderIngredientDeduction?: Prisma.OrderIngredientDeductionOmit
   receipt?: Prisma.ReceiptOmit
+  forecastJob?: Prisma.ForecastJobOmit
+  forecastResult?: Prisma.ForecastResultOmit
 }
 
 /* Types for Logging */

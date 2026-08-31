@@ -1,13 +1,15 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from config import CLIENT_URL, FORECAST_PORT
+from config import CLIENT_URL, FORECAST_PORT, FORECASTER_URL
 from database import close_pool
-from forecasting.routers import sales, restock, popularity
+from forecasting.routers import demand
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from forecasting.services.demand_forecast import cleanup_stale_jobs
+    await cleanup_stale_jobs()
     yield
     await close_pool()
 
@@ -20,16 +22,14 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[CLIENT_URL],
+    allow_origins=[CLIENT_URL, FORECASTER_URL, "*"],
     allow_credentials=True,
-    allow_methods=["GET"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # ── Forecasting routers ────────────────────────
-app.include_router(sales.router)
-app.include_router(restock.router)
-app.include_router(popularity.router)
+app.include_router(demand.router)
 
 # ── MBA routers (uncomment when built) ─────────
 # from mba.routers import association

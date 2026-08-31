@@ -382,3 +382,43 @@ model Receipt {
 
   @@map("receipts")
 }
+
+// ── Forecasting ──────────────────────────────────────────────
+model ForecastJob {
+  id            Int       @id @default(autoincrement()) @map("id")
+  status        String    @default("running") @db.VarChar(20) // running | completed | failed
+  totalVariants Int       @default(0) @map("total_variants")
+  completed     Int       @default(0)
+  failed        Int       @default(0)
+  failedSkips   String[]  @default([]) @map("failed_skips")
+  period        Int       @default(14)
+  startedAt     DateTime  @default(now()) @map("started_at") @db.Timestamptz
+  completedAt   DateTime? @map("completed_at") @db.Timestamptz
+  errorMessage  String?   @map("error_message") @db.VarChar(500)
+
+  results ForecastResult[]
+
+  @@map("forecast_jobs")
+}
+
+model ForecastResult {
+  id          Int     @id @default(autoincrement()) @map("id")
+  jobId       Int     @map("job_id")
+  variantId   Int     @map("variant_id")
+  productName String  @map("product_name") @db.VarChar(150)
+  sizeName    String  @map("size_name") @db.VarChar(50)
+  price       Decimal @db.Decimal(10, 2)
+  categoryId  Int     @map("category_id")
+  dailyData   Json    @map("daily_data")
+  totalUnits  Int     @default(0) @map("total_units")
+  totalRevenue Float  @default(0) @map("total_revenue")
+  trend       String  @default("stable") @db.VarChar(20)
+  daysOfData  Int     @default(0) @map("days_of_data")
+  skipped     Boolean @default(false)
+  skipReason  String? @map("skip_reason") @db.VarChar(200)
+
+  job ForecastJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, variantId])
+  @@map("forecast_results")
+}

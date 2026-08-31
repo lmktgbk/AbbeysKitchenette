@@ -49,7 +49,13 @@ import {
     Calendar,
     Archive,
     CircleArrowRight,
-    Key
+    Key,
+    DollarSign,
+    CloudOff,
+    BarChart2,
+    Info,
+    AlertCircle,
+    Table,
 } from "lucide-react";
 
 const iconMap = {
@@ -103,7 +109,13 @@ const iconMap = {
     calendar: Calendar,
     archive: Archive,
     circleArrowRight: CircleArrowRight,
-    key: Key
+    key: Key,
+    dollarSign: DollarSign,
+    cloudOff: CloudOff,
+    barChart2: BarChart2,
+    info: Info,
+    alertCircle: AlertCircle,
+    table: Table,
 };
 
 /**

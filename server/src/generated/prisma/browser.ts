@@ -102,3 +102,13 @@ export type OrderIngredientDeduction = Prisma.OrderIngredientDeductionModel
  * 
  */
 export type Receipt = Prisma.ReceiptModel
+/**
+ * Model ForecastJob
+ * 
+ */
+export type ForecastJob = Prisma.ForecastJobModel
+/**
+ * Model ForecastResult
+ * 
+ */
+export type ForecastResult = Prisma.ForecastResultModel

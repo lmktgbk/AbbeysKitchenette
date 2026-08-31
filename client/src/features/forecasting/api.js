@@ -1,25 +1,37 @@
 import api from "@/config/axios";
 
 /**
- * Forecasting API
+ * Demand Forecasting API
  *
  * All requests go through Express proxy → Python FastAPI service.
  */
 
-// GET /api/forecasting/sales
-export async function getSalesForecastRequest(params = {}) {
-  const res = await api.get("/forecasting/sales", { params });
+// POST /api/forecasting/demand/run
+export async function runDemandForecast() {
+  const res = await api.post("/forecasting/demand/run");
   return res.data;
 }
 
-// GET /api/forecasting/restock
-export async function getRestockForecastRequest() {
-  const res = await api.get("/forecasting/restock");
+// GET /api/forecasting/demand/status?jobId=X
+export async function getDemandStatus(jobId) {
+  const res = await api.get("/forecasting/demand/status", { params: { jobId } });
   return res.data;
 }
 
-// GET /api/forecasting/popularity
-export async function getPopularityRequest(params = {}) {
-  const res = await api.get("/forecasting/popularity", { params });
+// GET /api/forecasting/demand/results?jobId=X
+export async function getDemandResults(jobId) {
+  const res = await api.get("/forecasting/demand/results", { params: { jobId } });
+  return res.data;
+}
+
+// GET /api/forecasting/demand/history
+export async function getDemandHistory() {
+  const res = await api.get("/forecasting/demand/history");
+  return res.data;
+}
+
+// GET /api/forecasting/demand/ingredients?jobId=X
+export async function getDemandIngredients(jobId) {
+  const res = await api.get("/forecasting/demand/ingredients", { params: { jobId } });
   return res.data;
 }
