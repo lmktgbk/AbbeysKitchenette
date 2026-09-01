@@ -113,3 +113,55 @@ export async function deleteIngredientRequest(id) {
   const res = await api.delete(`/ingredients/${id}`);
   return res.data;
 }
+
+// ── Reorder Suggestions ─────────────
+
+// GET /api/reorder-suggestions — list pending suggestions
+export async function getReorderSuggestionsRequest() {
+  const res = await api.get("/reorder-suggestions");
+  return res.data;
+}
+
+// POST /api/reorder-suggestions/generate — generate new via AI
+export async function generateReorderSuggestionsRequest() {
+  const res = await api.post("/reorder-suggestions/generate");
+  return res.data;
+}
+
+// POST /api/reorder-suggestions/:id/accept
+export async function acceptReorderSuggestionRequest(id) {
+  const res = await api.post(`/reorder-suggestions/${id}/accept`);
+  return res.data;
+}
+
+// POST /api/reorder-suggestions/:id/reject
+export async function rejectReorderSuggestionRequest(id) {
+  const res = await api.post(`/reorder-suggestions/${id}/reject`);
+  return res.data;
+}
+
+// ── Waste Reduction ─────────────────
+
+// GET /api/waste-reduction — list pending insights
+export async function getWasteReductionsRequest() {
+  const res = await api.get("/waste-reduction");
+  return res.data;
+}
+
+// POST /api/waste-reduction/generate — generate new via AI
+export async function generateWasteReductionsRequest() {
+  const res = await api.post("/waste-reduction/generate");
+  return res.data;
+}
+
+// POST /api/waste-reduction/:id/accept
+export async function acceptWasteReductionRequest(id) {
+  const res = await api.post(`/waste-reduction/${id}/accept`);
+  return res.data;
+}
+
+// POST /api/waste-reduction/:id/reject
+export async function rejectWasteReductionRequest(id) {
+  const res = await api.post(`/waste-reduction/${id}/reject`);
+  return res.data;
+}

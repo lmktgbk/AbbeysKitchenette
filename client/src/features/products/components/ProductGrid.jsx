@@ -34,11 +34,13 @@ const STATUS_OPTIONS = [
  * Props:
  * - onAdd: callback to open add product modal
  * - onViewDetail: callback to open product detail modal
+ * - onOptimizePrice: callback to open price optimization modal
  * - categories: array of { category_id, category_name }
  */
 export default function ProductGrid({
   onAdd,
   onViewDetail,
+  onOptimizePrice,
   categories = [],
 }) {
   const [search, setSearch] = useState("");
@@ -176,6 +178,7 @@ export default function ProductGrid({
                 key={product.product_id}
                 product={product}
                 onViewDetail={onViewDetail}
+                onOptimizePrice={onOptimizePrice}
               />
             ))}
           </div>

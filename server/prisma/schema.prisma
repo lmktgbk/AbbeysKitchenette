@@ -104,6 +104,7 @@ model ProductVariant {
   product  Product  @relation(fields: [productId], references: [productId], onDelete: Cascade)
   recipes  Recipe[]
   orderItems OrderItem[]
+  priceOptimizations PriceOptimization[]
 
   @@unique([productId, sizeName])
   @@map("product_variants")
@@ -126,6 +127,8 @@ model Ingredient {
   stockAdjustments   StockAdjustment[]
   stockAlerts        StockAlert[]
   orderDeductions    OrderIngredientDeduction[]
+  reorderSuggestions ReorderSuggestion[]
+  wasteReductions    WasteReduction[]
 
   @@map("ingredients")
 }
@@ -421,4 +424,79 @@ model ForecastResult {
 
   @@unique([jobId, variantId])
   @@map("forecast_results")
+}
+
+// ── Intelligence: Reorder Suggestions ────────────────────────
+model ReorderSuggestion {
+  id                String    @id @default(uuid()) @db.Uuid
+  ingredientId      String    @map("ingredient_id") @db.Uuid
+  currentStock      Decimal   @map("current_stock") @db.Decimal(10, 3)
+  unit              String    @db.VarChar(50)
+  suggestedQuantity Decimal   @map("suggested_quantity") @db.Decimal(10, 3)
+  urgency           String    @db.VarChar(20) // high | medium | low
+  reasoning         String    @db.Text
+  estimatedStockout DateTime? @map("estimated_stockout")
+  confidence        Float
+  status            String    @default("pending") @db.VarChar(20) // pending | accepted | rejected
+  metadata          Json?
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  ingredient Ingredient @relation(fields: [ingredientId], references: [ingredientId], onDelete: Cascade)
+
+  @@index([status])
+  @@index([ingredientId])
+  @@map("reorder_suggestions")
+}
+
+// ── Intelligence: Waste Reduction ────────────────────────────
+model WasteReduction {
+  id              String    @id @default(uuid()) @db.Uuid
+  ingredientId    String    @map("ingredient_id") @db.Uuid
+  currentStock    Decimal   @map("current_stock") @db.Decimal(10, 3)
+  forecastedUsage Decimal   @map("forecasted_usage") @db.Decimal(10, 3)
+  unit            String    @db.VarChar(50)
+  overstockAmount Decimal   @map("overstock_amount") @db.Decimal(10, 3)
+  wasteRisk       String    @db.VarChar(20) // high | medium | low
+  reasoning       String    @db.Text
+  suggestion      String    @db.Text
+  potentialSavings Decimal? @map("potential_savings") @db.Decimal(10, 2)
+  confidence      Float
+  status          String    @default("pending") @db.VarChar(20) // pending | accepted | rejected
+  metadata        Json?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  ingredient Ingredient @relation(fields: [ingredientId], references: [ingredientId], onDelete: Cascade)
+
+  @@index([status])
+  @@index([ingredientId])
+  @@map("waste_reductions")
+}
+
+// ── Price Optimization ─────────────────────────────────────
+model PriceOptimization {
+  id               Int      @id @default(autoincrement())
+  variantId        Int      @map("variant_id")
+  productName      String   @map("product_name") @db.VarChar(150)
+  sizeName         String   @map("size_name") @db.VarChar(50)
+  currentPrice     Decimal  @map("current_price") @db.Decimal(10, 2)
+  recommendedPrice Decimal  @map("recommended_price") @db.Decimal(10, 2)
+  priceChange      Decimal  @map("price_change") @db.Decimal(10, 2)
+  changePercent    Float    @map("change_percent")
+  direction        String   @db.VarChar(10) // increase | decrease | keep
+  confidence       Float
+  reasoning        String   @db.Text
+  marginBefore     Float    @map("margin_before")
+  marginAfter      Float    @map("margin_after")
+  competitorAvg    Float?   @map("competitor_avg")
+  status           String   @default("pending") @db.VarChar(20) // pending | accepted | rejected
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  variant ProductVariant @relation(fields: [variantId], references: [variantId], onDelete: Cascade)
+
+  @@index([status])
+  @@index([variantId])
+  @@map("price_optimizations")
 }

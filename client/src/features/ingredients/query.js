@@ -28,6 +28,8 @@ const ingredientKeys = {
   alerts: ["ingredients", "alerts"],
   batches: (id) => ["ingredients", "batches", id],
   history: (id, params) => ["ingredients", "history", id, params],
+  reorderSuggestions: ["reorderSuggestions"],
+  wasteReductions: ["wasteReductions"],
 };
 
 /* ── Query Hooks ───────────────────────────────── */
@@ -134,6 +136,26 @@ export function useIngredientHistory(id, params = {}, options = {}) {
   });
 }
 
+/**
+ * useReorderSuggestions — pending reorder suggestions.
+ */
+export function useReorderSuggestions() {
+  return useQuery({
+    queryKey: ingredientKeys.reorderSuggestions,
+    queryFn: api.getReorderSuggestionsRequest,
+  });
+}
+
+/**
+ * useWasteReductions — pending waste reduction insights.
+ */
+export function useWasteReductions() {
+  return useQuery({
+    queryKey: ingredientKeys.wasteReductions,
+    queryFn: api.getWasteReductionsRequest,
+  });
+}
+
 /* ── Mutation Hook ─────────────────────────────── */
 
 /**
@@ -149,7 +171,7 @@ export function useIngredientHistory(id, params = {}, options = {}) {
  *     onError: (err) => { toast.error(err.message); },
  *   });
  *
- * @returns {object} - { create, update, restock, loss, archive, restore, remove, togglePriority, followFifo }
+ * @returns {object} - { create, update, restock, loss, archive, restore, remove, togglePriority, followFifo, generateReorder, acceptReorder, rejectReorder, generateWaste, acceptWaste, rejectWaste }
  */
 export function useIngredientMutations() {
   const queryClient = useQueryClient();
@@ -157,6 +179,16 @@ export function useIngredientMutations() {
   /** Invalidate all ingredient queries (list, archived, summary, alerts, batches, history) */
   function invalidateAll() {
     queryClient.invalidateQueries({ queryKey: ingredientKeys.all });
+  }
+
+  /** Invalidate reorder suggestions */
+  function invalidateReorder() {
+    queryClient.invalidateQueries({ queryKey: ingredientKeys.reorderSuggestions });
+  }
+
+  /** Invalidate waste reductions */
+  function invalidateWaste() {
+    queryClient.invalidateQueries({ queryKey: ingredientKeys.wasteReductions });
   }
 
   return {
@@ -221,6 +253,46 @@ export function useIngredientMutations() {
           queryKey: ingredientKeys.batches(ingredientId),
         });
       },
+    }),
+
+    // ── Reorder Suggestions ───────────────────────
+
+    /** Generate reorder suggestions via AI */
+    generateReorder: useMutation({
+      mutationFn: api.generateReorderSuggestionsRequest,
+      onSuccess: () => invalidateReorder(),
+    }),
+
+    /** Accept a reorder suggestion */
+    acceptReorder: useMutation({
+      mutationFn: api.acceptReorderSuggestionRequest,
+      onSuccess: () => invalidateReorder(),
+    }),
+
+    /** Reject a reorder suggestion */
+    rejectReorder: useMutation({
+      mutationFn: api.rejectReorderSuggestionRequest,
+      onSuccess: () => invalidateReorder(),
+    }),
+
+    // ── Waste Reduction ───────────────────────────
+
+    /** Generate waste reduction insights via AI */
+    generateWaste: useMutation({
+      mutationFn: api.generateWasteReductionsRequest,
+      onSuccess: () => invalidateWaste(),
+    }),
+
+    /** Accept a waste reduction insight */
+    acceptWaste: useMutation({
+      mutationFn: api.acceptWasteReductionRequest,
+      onSuccess: () => invalidateWaste(),
+    }),
+
+    /** Reject a waste reduction insight */
+    rejectWaste: useMutation({
+      mutationFn: api.rejectWasteReductionRequest,
+      onSuccess: () => invalidateWaste(),
     }),
   };
 }

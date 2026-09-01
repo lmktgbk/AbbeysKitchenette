@@ -223,6 +223,7 @@ export type ProductVariantWhereInput = {
   product?: Prisma.XOR<Prisma.ProductScalarRelationFilter, Prisma.ProductWhereInput>
   recipes?: Prisma.RecipeListRelationFilter
   orderItems?: Prisma.OrderItemListRelationFilter
+  priceOptimizations?: Prisma.PriceOptimizationListRelationFilter
 }
 
 export type ProductVariantOrderByWithRelationInput = {
@@ -234,6 +235,7 @@ export type ProductVariantOrderByWithRelationInput = {
   product?: Prisma.ProductOrderByWithRelationInput
   recipes?: Prisma.RecipeOrderByRelationAggregateInput
   orderItems?: Prisma.OrderItemOrderByRelationAggregateInput
+  priceOptimizations?: Prisma.PriceOptimizationOrderByRelationAggregateInput
 }
 
 export type ProductVariantWhereUniqueInput = Prisma.AtLeast<{
@@ -249,6 +251,7 @@ export type ProductVariantWhereUniqueInput = Prisma.AtLeast<{
   product?: Prisma.XOR<Prisma.ProductScalarRelationFilter, Prisma.ProductWhereInput>
   recipes?: Prisma.RecipeListRelationFilter
   orderItems?: Prisma.OrderItemListRelationFilter
+  priceOptimizations?: Prisma.PriceOptimizationListRelationFilter
 }, "variantId" | "productId_sizeName">
 
 export type ProductVariantOrderByWithAggregationInput = {
@@ -282,6 +285,7 @@ export type ProductVariantCreateInput = {
   product: Prisma.ProductCreateNestedOneWithoutVariantsInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutVariantInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutVariantInput
+  priceOptimizations?: Prisma.PriceOptimizationCreateNestedManyWithoutVariantInput
 }
 
 export type ProductVariantUncheckedCreateInput = {
@@ -292,6 +296,7 @@ export type ProductVariantUncheckedCreateInput = {
   isAvailable?: boolean
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutVariantInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutVariantInput
+  priceOptimizations?: Prisma.PriceOptimizationUncheckedCreateNestedManyWithoutVariantInput
 }
 
 export type ProductVariantUpdateInput = {
@@ -301,6 +306,7 @@ export type ProductVariantUpdateInput = {
   product?: Prisma.ProductUpdateOneRequiredWithoutVariantsNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutVariantNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutVariantNestedInput
+  priceOptimizations?: Prisma.PriceOptimizationUpdateManyWithoutVariantNestedInput
 }
 
 export type ProductVariantUncheckedUpdateInput = {
@@ -311,6 +317,7 @@ export type ProductVariantUncheckedUpdateInput = {
   isAvailable?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutVariantNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutVariantNestedInput
+  priceOptimizations?: Prisma.PriceOptimizationUncheckedUpdateManyWithoutVariantNestedInput
 }
 
 export type ProductVariantCreateManyInput = {
@@ -467,12 +474,27 @@ export type ProductVariantUpdateOneRequiredWithoutOrderItemsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.ProductVariantUpdateToOneWithWhereWithoutOrderItemsInput, Prisma.ProductVariantUpdateWithoutOrderItemsInput>, Prisma.ProductVariantUncheckedUpdateWithoutOrderItemsInput>
 }
 
+export type ProductVariantCreateNestedOneWithoutPriceOptimizationsInput = {
+  create?: Prisma.XOR<Prisma.ProductVariantCreateWithoutPriceOptimizationsInput, Prisma.ProductVariantUncheckedCreateWithoutPriceOptimizationsInput>
+  connectOrCreate?: Prisma.ProductVariantCreateOrConnectWithoutPriceOptimizationsInput
+  connect?: Prisma.ProductVariantWhereUniqueInput
+}
+
+export type ProductVariantUpdateOneRequiredWithoutPriceOptimizationsNestedInput = {
+  create?: Prisma.XOR<Prisma.ProductVariantCreateWithoutPriceOptimizationsInput, Prisma.ProductVariantUncheckedCreateWithoutPriceOptimizationsInput>
+  connectOrCreate?: Prisma.ProductVariantCreateOrConnectWithoutPriceOptimizationsInput
+  upsert?: Prisma.ProductVariantUpsertWithoutPriceOptimizationsInput
+  connect?: Prisma.ProductVariantWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.ProductVariantUpdateToOneWithWhereWithoutPriceOptimizationsInput, Prisma.ProductVariantUpdateWithoutPriceOptimizationsInput>, Prisma.ProductVariantUncheckedUpdateWithoutPriceOptimizationsInput>
+}
+
 export type ProductVariantCreateWithoutProductInput = {
   sizeName: string
   price: runtime.Decimal | runtime.DecimalJsLike | number | string
   isAvailable?: boolean
   recipes?: Prisma.RecipeCreateNestedManyWithoutVariantInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutVariantInput
+  priceOptimizations?: Prisma.PriceOptimizationCreateNestedManyWithoutVariantInput
 }
 
 export type ProductVariantUncheckedCreateWithoutProductInput = {
@@ -482,6 +504,7 @@ export type ProductVariantUncheckedCreateWithoutProductInput = {
   isAvailable?: boolean
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutVariantInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutVariantInput
+  priceOptimizations?: Prisma.PriceOptimizationUncheckedCreateNestedManyWithoutVariantInput
 }
 
 export type ProductVariantCreateOrConnectWithoutProductInput = {
@@ -527,6 +550,7 @@ export type ProductVariantCreateWithoutRecipesInput = {
   isAvailable?: boolean
   product: Prisma.ProductCreateNestedOneWithoutVariantsInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutVariantInput
+  priceOptimizations?: Prisma.PriceOptimizationCreateNestedManyWithoutVariantInput
 }
 
 export type ProductVariantUncheckedCreateWithoutRecipesInput = {
@@ -536,6 +560,7 @@ export type ProductVariantUncheckedCreateWithoutRecipesInput = {
   price: runtime.Decimal | runtime.DecimalJsLike | number | string
   isAvailable?: boolean
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutVariantInput
+  priceOptimizations?: Prisma.PriceOptimizationUncheckedCreateNestedManyWithoutVariantInput
 }
 
 export type ProductVariantCreateOrConnectWithoutRecipesInput = {
@@ -560,6 +585,7 @@ export type ProductVariantUpdateWithoutRecipesInput = {
   isAvailable?: Prisma.BoolFieldUpdateOperationsInput | boolean
   product?: Prisma.ProductUpdateOneRequiredWithoutVariantsNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutVariantNestedInput
+  priceOptimizations?: Prisma.PriceOptimizationUpdateManyWithoutVariantNestedInput
 }
 
 export type ProductVariantUncheckedUpdateWithoutRecipesInput = {
@@ -569,6 +595,7 @@ export type ProductVariantUncheckedUpdateWithoutRecipesInput = {
   price?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   isAvailable?: Prisma.BoolFieldUpdateOperationsInput | boolean
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutVariantNestedInput
+  priceOptimizations?: Prisma.PriceOptimizationUncheckedUpdateManyWithoutVariantNestedInput
 }
 
 export type ProductVariantCreateWithoutOrderItemsInput = {
@@ -577,6 +604,7 @@ export type ProductVariantCreateWithoutOrderItemsInput = {
   isAvailable?: boolean
   product: Prisma.ProductCreateNestedOneWithoutVariantsInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutVariantInput
+  priceOptimizations?: Prisma.PriceOptimizationCreateNestedManyWithoutVariantInput
 }
 
 export type ProductVariantUncheckedCreateWithoutOrderItemsInput = {
@@ -586,6 +614,7 @@ export type ProductVariantUncheckedCreateWithoutOrderItemsInput = {
   price: runtime.Decimal | runtime.DecimalJsLike | number | string
   isAvailable?: boolean
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutVariantInput
+  priceOptimizations?: Prisma.PriceOptimizationUncheckedCreateNestedManyWithoutVariantInput
 }
 
 export type ProductVariantCreateOrConnectWithoutOrderItemsInput = {
@@ -610,6 +639,7 @@ export type ProductVariantUpdateWithoutOrderItemsInput = {
   isAvailable?: Prisma.BoolFieldUpdateOperationsInput | boolean
   product?: Prisma.ProductUpdateOneRequiredWithoutVariantsNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutVariantNestedInput
+  priceOptimizations?: Prisma.PriceOptimizationUpdateManyWithoutVariantNestedInput
 }
 
 export type ProductVariantUncheckedUpdateWithoutOrderItemsInput = {
@@ -619,6 +649,61 @@ export type ProductVariantUncheckedUpdateWithoutOrderItemsInput = {
   price?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   isAvailable?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutVariantNestedInput
+  priceOptimizations?: Prisma.PriceOptimizationUncheckedUpdateManyWithoutVariantNestedInput
+}
+
+export type ProductVariantCreateWithoutPriceOptimizationsInput = {
+  sizeName: string
+  price: runtime.Decimal | runtime.DecimalJsLike | number | string
+  isAvailable?: boolean
+  product: Prisma.ProductCreateNestedOneWithoutVariantsInput
+  recipes?: Prisma.RecipeCreateNestedManyWithoutVariantInput
+  orderItems?: Prisma.OrderItemCreateNestedManyWithoutVariantInput
+}
+
+export type ProductVariantUncheckedCreateWithoutPriceOptimizationsInput = {
+  variantId?: number
+  productId: string
+  sizeName: string
+  price: runtime.Decimal | runtime.DecimalJsLike | number | string
+  isAvailable?: boolean
+  recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutVariantInput
+  orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutVariantInput
+}
+
+export type ProductVariantCreateOrConnectWithoutPriceOptimizationsInput = {
+  where: Prisma.ProductVariantWhereUniqueInput
+  create: Prisma.XOR<Prisma.ProductVariantCreateWithoutPriceOptimizationsInput, Prisma.ProductVariantUncheckedCreateWithoutPriceOptimizationsInput>
+}
+
+export type ProductVariantUpsertWithoutPriceOptimizationsInput = {
+  update: Prisma.XOR<Prisma.ProductVariantUpdateWithoutPriceOptimizationsInput, Prisma.ProductVariantUncheckedUpdateWithoutPriceOptimizationsInput>
+  create: Prisma.XOR<Prisma.ProductVariantCreateWithoutPriceOptimizationsInput, Prisma.ProductVariantUncheckedCreateWithoutPriceOptimizationsInput>
+  where?: Prisma.ProductVariantWhereInput
+}
+
+export type ProductVariantUpdateToOneWithWhereWithoutPriceOptimizationsInput = {
+  where?: Prisma.ProductVariantWhereInput
+  data: Prisma.XOR<Prisma.ProductVariantUpdateWithoutPriceOptimizationsInput, Prisma.ProductVariantUncheckedUpdateWithoutPriceOptimizationsInput>
+}
+
+export type ProductVariantUpdateWithoutPriceOptimizationsInput = {
+  sizeName?: Prisma.StringFieldUpdateOperationsInput | string
+  price?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  isAvailable?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  product?: Prisma.ProductUpdateOneRequiredWithoutVariantsNestedInput
+  recipes?: Prisma.RecipeUpdateManyWithoutVariantNestedInput
+  orderItems?: Prisma.OrderItemUpdateManyWithoutVariantNestedInput
+}
+
+export type ProductVariantUncheckedUpdateWithoutPriceOptimizationsInput = {
+  variantId?: Prisma.IntFieldUpdateOperationsInput | number
+  productId?: Prisma.StringFieldUpdateOperationsInput | string
+  sizeName?: Prisma.StringFieldUpdateOperationsInput | string
+  price?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  isAvailable?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  recipes?: Prisma.RecipeUncheckedUpdateManyWithoutVariantNestedInput
+  orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutVariantNestedInput
 }
 
 export type ProductVariantCreateManyProductInput = {
@@ -634,6 +719,7 @@ export type ProductVariantUpdateWithoutProductInput = {
   isAvailable?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipes?: Prisma.RecipeUpdateManyWithoutVariantNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutVariantNestedInput
+  priceOptimizations?: Prisma.PriceOptimizationUpdateManyWithoutVariantNestedInput
 }
 
 export type ProductVariantUncheckedUpdateWithoutProductInput = {
@@ -643,6 +729,7 @@ export type ProductVariantUncheckedUpdateWithoutProductInput = {
   isAvailable?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutVariantNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutVariantNestedInput
+  priceOptimizations?: Prisma.PriceOptimizationUncheckedUpdateManyWithoutVariantNestedInput
 }
 
 export type ProductVariantUncheckedUpdateManyWithoutProductInput = {
@@ -660,11 +747,13 @@ export type ProductVariantUncheckedUpdateManyWithoutProductInput = {
 export type ProductVariantCountOutputType = {
   recipes: number
   orderItems: number
+  priceOptimizations: number
 }
 
 export type ProductVariantCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   recipes?: boolean | ProductVariantCountOutputTypeCountRecipesArgs
   orderItems?: boolean | ProductVariantCountOutputTypeCountOrderItemsArgs
+  priceOptimizations?: boolean | ProductVariantCountOutputTypeCountPriceOptimizationsArgs
 }
 
 /**
@@ -691,6 +780,13 @@ export type ProductVariantCountOutputTypeCountOrderItemsArgs<ExtArgs extends run
   where?: Prisma.OrderItemWhereInput
 }
 
+/**
+ * ProductVariantCountOutputType without action
+ */
+export type ProductVariantCountOutputTypeCountPriceOptimizationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.PriceOptimizationWhereInput
+}
+
 
 export type ProductVariantSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   variantId?: boolean
@@ -701,6 +797,7 @@ export type ProductVariantSelect<ExtArgs extends runtime.Types.Extensions.Intern
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
   recipes?: boolean | Prisma.ProductVariant$recipesArgs<ExtArgs>
   orderItems?: boolean | Prisma.ProductVariant$orderItemsArgs<ExtArgs>
+  priceOptimizations?: boolean | Prisma.ProductVariant$priceOptimizationsArgs<ExtArgs>
   _count?: boolean | Prisma.ProductVariantCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["productVariant"]>
 
@@ -735,6 +832,7 @@ export type ProductVariantInclude<ExtArgs extends runtime.Types.Extensions.Inter
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
   recipes?: boolean | Prisma.ProductVariant$recipesArgs<ExtArgs>
   orderItems?: boolean | Prisma.ProductVariant$orderItemsArgs<ExtArgs>
+  priceOptimizations?: boolean | Prisma.ProductVariant$priceOptimizationsArgs<ExtArgs>
   _count?: boolean | Prisma.ProductVariantCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type ProductVariantIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -750,6 +848,7 @@ export type $ProductVariantPayload<ExtArgs extends runtime.Types.Extensions.Inte
     product: Prisma.$ProductPayload<ExtArgs>
     recipes: Prisma.$RecipePayload<ExtArgs>[]
     orderItems: Prisma.$OrderItemPayload<ExtArgs>[]
+    priceOptimizations: Prisma.$PriceOptimizationPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     variantId: number
@@ -1154,6 +1253,7 @@ export interface Prisma__ProductVariantClient<T, Null = never, ExtArgs extends r
   product<T extends Prisma.ProductDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ProductDefaultArgs<ExtArgs>>): Prisma.Prisma__ProductClient<runtime.Types.Result.GetResult<Prisma.$ProductPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   recipes<T extends Prisma.ProductVariant$recipesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ProductVariant$recipesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RecipePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   orderItems<T extends Prisma.ProductVariant$orderItemsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ProductVariant$orderItemsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$OrderItemPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  priceOptimizations<T extends Prisma.ProductVariant$priceOptimizationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ProductVariant$priceOptimizationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PriceOptimizationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1634,6 +1734,30 @@ export type ProductVariant$orderItemsArgs<ExtArgs extends runtime.Types.Extensio
   take?: number
   skip?: number
   distinct?: Prisma.OrderItemScalarFieldEnum | Prisma.OrderItemScalarFieldEnum[]
+}
+
+/**
+ * ProductVariant.priceOptimizations
+ */
+export type ProductVariant$priceOptimizationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the PriceOptimization
+   */
+  select?: Prisma.PriceOptimizationSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the PriceOptimization
+   */
+  omit?: Prisma.PriceOptimizationOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.PriceOptimizationInclude<ExtArgs> | null
+  where?: Prisma.PriceOptimizationWhereInput
+  orderBy?: Prisma.PriceOptimizationOrderByWithRelationInput | Prisma.PriceOptimizationOrderByWithRelationInput[]
+  cursor?: Prisma.PriceOptimizationWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.PriceOptimizationScalarFieldEnum | Prisma.PriceOptimizationScalarFieldEnum[]
 }
 
 /**

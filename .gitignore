@@ -2,3 +2,6 @@ node_modules/
 docs/
 .env
 .opencode/
+ml-service/venv/
+__pycache__/
+*.pyc

@@ -1,9 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import Icon from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
 import { SearchBar } from "@/components/filters/SearchBar";
-import { DropDown } from "@/components/filters/DropDown";
+import { Pagination } from "@/components/filters/Pagination";
+import SingleDatePicker from "@/components/filters/SingleDatePicker";
 
 const TREND_CONFIG = {
   increasing: { icon: "trendingUp", className: "text-green-600", label: "Increasing" },
@@ -12,25 +13,14 @@ const TREND_CONFIG = {
 };
 
 /**
- * DemandTable — variant-level demand forecast table.
- * Shows per-variant units, revenue, trend, filterable by date and search.
+ * DemandTable — variant-level demand forecast table with pagination.
+ * Accepts selectedVariant prop from parent. When set, filters to that variant only.
  */
-export default function DemandTable({ results, skipped = [], previousResults, viewPeriod = 14 }) {
+export default function DemandTable({ results, skipped = [], previousResults, viewPeriod = 7, selectedVariant }) {
   const [search, setSearch] = useState("");
   const [selectedDate, setSelectedDate] = useState("all");
-
-  const dates = useMemo(() => {
-    if (!results?.length) return [];
-    const dateSet = new Set();
-    for (const v of results) {
-      for (const d of v.daily_data) dateSet.add(d.date);
-    }
-    return Array.from(dateSet).sort().slice(0, viewPeriod);
-  }, [results, viewPeriod]);
-
-  const dateOptions = useMemo(() => {
-    return [{ value: "all", label: "All dates" }, ...dates.map((d) => ({ value: d, label: d }))];
-  }, [dates]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const prevMap = useMemo(() => {
     if (!previousResults?.length) return {};
@@ -45,7 +35,11 @@ export default function DemandTable({ results, skipped = [], previousResults, vi
     if (!results?.length) return [];
     let list = results.filter((v) => !v.skipped);
 
-    if (search) {
+    if (selectedVariant && selectedVariant !== "all") {
+      list = list.filter((v) => String(v.variant_id) === String(selectedVariant));
+    }
+
+    if (search && (!selectedVariant || selectedVariant === "all")) {
       const q = search.toLowerCase();
       list = list.filter(
         (v) =>
@@ -55,7 +49,16 @@ export default function DemandTable({ results, skipped = [], previousResults, vi
     }
 
     return list;
-  }, [results, search]);
+  }, [results, search, selectedVariant]);
+
+  const dates = useMemo(() => {
+    if (!filteredResults?.length) return [];
+    const dateSet = new Set();
+    for (const v of filteredResults) {
+      for (const d of v.daily_data) dateSet.add(d.date);
+    }
+    return Array.from(dateSet).sort().slice(0, viewPeriod);
+  }, [filteredResults, viewPeriod]);
 
   const displayData = useMemo(() => {
     return filteredResults.map((v) => {
@@ -88,6 +91,14 @@ export default function DemandTable({ results, skipped = [], previousResults, vi
   }, [filteredResults, selectedDate, prevMap, dates]);
 
   const totalSkipped = skipped.length;
+  const isFiltered = selectedVariant && selectedVariant !== "all";
+
+  // Reset to page 1 when filters change
+  useEffect(() => { setCurrentPage(1); }, [search, selectedDate, selectedVariant]);
+
+  // Pagination
+  const startIdx = (currentPage - 1) * pageSize;
+  const pagedData = displayData.slice(startIdx, startIdx + pageSize);
 
   // ── Empty: no results at all ────────────────────────
   if (!results?.length) {
@@ -102,17 +113,62 @@ export default function DemandTable({ results, skipped = [], previousResults, vi
     );
   }
 
-  // ── All skipped ─────────────────────────────────────
-  if (displayData.length === 0 && totalSkipped > 0) {
+  // ── All skipped (only when no search active) ──────────
+  if (displayData.length === 0 && totalSkipped > 0 && !search) {
     return (
       <div className="rounded-xl border border-border bg-card p-6">
         <div className="flex h-32 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
           <Icon name="alertCircle" size={28} className="text-muted-foreground/30" />
           <p className="font-medium text-foreground/70">
-            All {totalSkipped} variant{totalSkipped !== 1 ? "s were" : " was"} skipped
+            {isFiltered
+              ? "Selected variant was skipped"
+              : `All ${totalSkipped} variant${totalSkipped !== 1 ? "s were" : " was"} skipped`
+            }
           </p>
           <p className="text-xs text-center max-w-sm">
-            Insufficient sales data — each variant needs at least 7 days of completed order history.
+            {isFiltered
+              ? "This variant has insufficient sales data for forecasting."
+              : "Insufficient sales data — each variant needs at least 7 days of completed order history."
+            }
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── No results from search ─────────────────────────
+  if (displayData.length === 0 && search) {
+    return (
+      <div className="rounded-xl border border-border bg-card">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+          <h3 className="text-sm font-semibold text-foreground">Demand by Variant</h3>
+          <div className="flex items-center gap-2">
+            <SearchBar value={search} onChange={setSearch} placeholder="Search variant..." className="w-48" />
+          </div>
+        </div>
+        <div className="flex h-32 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+          <Icon name="search" size={28} className="text-muted-foreground/30" />
+          <p className="font-medium text-foreground/70">No variants match &quot;{search}&quot;</p>
+          <button
+            onClick={() => setSearch("")}
+            className="text-xs font-medium text-primary hover:underline"
+          >
+            Clear search
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Filtered variant not found in forecasted ────────
+  if (displayData.length === 0 && isFiltered) {
+    return (
+      <div className="rounded-xl border border-border bg-card p-6">
+        <div className="flex h-32 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+          <Icon name="search" size={28} className="text-muted-foreground/30" />
+          <p className="font-medium text-foreground/70">Variant not found in forecast</p>
+          <p className="text-xs text-center max-w-sm">
+            The selected variant may have been skipped due to insufficient data.
           </p>
         </div>
       </div>
@@ -129,12 +185,12 @@ export default function DemandTable({ results, skipped = [], previousResults, vi
           </span>
         </h3>
         <div className="flex items-center gap-2">
-          <SearchBar value={search} onChange={setSearch} placeholder="Search variant..." className="w-48" />
-          <DropDown
-            options={dateOptions}
-            value={selectedDate}
-            onChange={setSelectedDate}
-            size="sm"
+          {!isFiltered && (
+            <SearchBar value={search} onChange={setSearch} placeholder="Search variant..." className="w-48" />
+          )}
+          <SingleDatePicker
+            value={selectedDate === "all" ? null : selectedDate}
+            onChange={(val) => setSelectedDate(val || "all")}
           />
         </div>
       </div>
@@ -157,7 +213,7 @@ export default function DemandTable({ results, skipped = [], previousResults, vi
             </tr>
           </thead>
           <tbody>
-            {displayData.map((v) => {
+            {pagedData.map((v) => {
               const tc = TREND_CONFIG[v.trend] || TREND_CONFIG.stable;
               const delta = v.prev ? v.displayUnits - v.prev.units : null;
               return (
@@ -198,13 +254,23 @@ export default function DemandTable({ results, skipped = [], previousResults, vi
         </table>
       </div>
 
-      {totalSkipped > 0 && (
-        <div className="border-t border-border px-4 py-3">
+      {totalSkipped > 0 && !isFiltered && (
+        <div className="border-t border-border px-4 py-2">
           <p className="text-xs font-medium text-muted-foreground">
             Skipped: {totalSkipped} variant{totalSkipped !== 1 ? "s" : ""} (insufficient data)
           </p>
         </div>
       )}
+
+      <Pagination
+        currentPage={currentPage}
+        totalItems={displayData.length}
+        pageSize={pageSize}
+        onPageChange={setCurrentPage}
+        onPageSizeChange={setPageSize}
+        pageSizeOptions={[10, 25, 50]}
+        itemLabel="variants"
+      />
     </div>
   );
 }

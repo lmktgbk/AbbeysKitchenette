@@ -7,6 +7,7 @@ import KpiCards from "../components/KpiCards";
 import ProductGrid from "../components/ProductGrid";
 import ProductFormModal from "../components/ProductFormModal";
 import ProductDetailModal from "../components/ProductDetailModal";
+import PriceOptimizationModal from "../components/PriceOptimizationModal";
 
 /**
  * ProductsPage
@@ -27,6 +28,8 @@ export default function ProductsPage() {
   const [showFormModal, setShowFormModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [showPriceModal, setShowPriceModal] = useState(false);
+  const [priceModalProduct, setPriceModalProduct] = useState(null);
 
   // ── Detail modal state ──────────────
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -130,6 +133,11 @@ export default function ProductsPage() {
     setEditProductId(product.product_id);  // triggers useProductDetail
   }
 
+  function handleOptimizePrice(product) {
+    setPriceModalProduct(product);
+    setShowPriceModal(true);
+  }
+
   async function handleDeactivate(product) {
     const ok = await confirm({
       title: "Deactivate Product?",
@@ -187,6 +195,7 @@ export default function ProductsPage() {
       <ProductGrid
         onAdd={handleAdd}
         onViewDetail={handleViewDetail}
+        onOptimizePrice={handleOptimizePrice}
         categories={categories}
       />
 
@@ -228,6 +237,13 @@ export default function ProductsPage() {
         categories={categories}
         ingredients={ingredients}
         onUploadImage={mutations.uploadImage.mutateAsync}
+      />
+
+      {/* Price Optimization Modal */}
+      <PriceOptimizationModal
+        open={showPriceModal}
+        onOpenChange={setShowPriceModal}
+        product={priceModalProduct}
       />
     </div>
   );

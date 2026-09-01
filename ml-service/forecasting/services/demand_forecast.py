@@ -114,18 +114,31 @@ async def save_skipped(job_id, variant_id, product_name, size_name, price,
 
 # ── Trend computation ─────────────────────────────────────────
 
-def compute_trend(daily_series: list) -> str:
-    if len(daily_series) < 4:
+def compute_trend(pred_df) -> str:
+    """Compare first-half vs second-half of Prophet's forecast (yhat).
+
+    Uses median instead of mean to be robust against single-day outliers.
+    Threshold raised to 15% to avoid false positives from daily oscillation.
+    """
+    import numpy as np
+
+    yhat = pred_df["yhat"].values
+
+    if len(yhat) < 4:
         return "stable"
-    mid = len(daily_series) // 2
-    first_half = sum(d["units"] for d in daily_series[:mid]) / mid
-    second_half = sum(d["units"] for d in daily_series[mid:]) / (len(daily_series) - mid)
+
+    mid = len(yhat) // 2
+    first_half = float(np.median(yhat[:mid]))
+    second_half = float(np.median(yhat[mid:]))
+
     if first_half == 0:
         return "stable"
+
     pct = ((second_half - first_half) / first_half) * 100
-    if pct > 5:
+
+    if pct > 15:
         return "increasing"
-    elif pct < -5:
+    elif pct < -15:
         return "decreasing"
     return "stable"
 
@@ -211,7 +224,7 @@ async def run_demand_forecast(job_id: int | None = None) -> dict:
                     total_units += units
                     total_revenue += revenue
 
-                trend = compute_trend(daily_data)
+                trend = compute_trend(pred)
 
                 await save_result(
                     job_id, variant_id, product_name, size_name, price,

@@ -415,7 +415,10 @@ export const ModelName = {
   OrderIngredientDeduction: 'OrderIngredientDeduction',
   Receipt: 'Receipt',
   ForecastJob: 'ForecastJob',
-  ForecastResult: 'ForecastResult'
+  ForecastResult: 'ForecastResult',
+  ReorderSuggestion: 'ReorderSuggestion',
+  WasteReduction: 'WasteReduction',
+  PriceOptimization: 'PriceOptimization'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -431,7 +434,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "systemSettings" | "category" | "product" | "productVariant" | "ingredient" | "recipe" | "restockBatch" | "lossRecord" | "stockAdjustment" | "stockAlert" | "orderCounter" | "order" | "orderItem" | "orderCancellation" | "orderIngredientDeduction" | "receipt" | "forecastJob" | "forecastResult"
+    modelProps: "user" | "systemSettings" | "category" | "product" | "productVariant" | "ingredient" | "recipe" | "restockBatch" | "lossRecord" | "stockAdjustment" | "stockAlert" | "orderCounter" | "order" | "orderItem" | "orderCancellation" | "orderIngredientDeduction" | "receipt" | "forecastJob" | "forecastResult" | "reorderSuggestion" | "wasteReduction" | "priceOptimization"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1841,6 +1844,228 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    ReorderSuggestion: {
+      payload: Prisma.$ReorderSuggestionPayload<ExtArgs>
+      fields: Prisma.ReorderSuggestionFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ReorderSuggestionFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReorderSuggestionPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ReorderSuggestionFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReorderSuggestionPayload>
+        }
+        findFirst: {
+          args: Prisma.ReorderSuggestionFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReorderSuggestionPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ReorderSuggestionFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReorderSuggestionPayload>
+        }
+        findMany: {
+          args: Prisma.ReorderSuggestionFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReorderSuggestionPayload>[]
+        }
+        create: {
+          args: Prisma.ReorderSuggestionCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReorderSuggestionPayload>
+        }
+        createMany: {
+          args: Prisma.ReorderSuggestionCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ReorderSuggestionCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReorderSuggestionPayload>[]
+        }
+        delete: {
+          args: Prisma.ReorderSuggestionDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReorderSuggestionPayload>
+        }
+        update: {
+          args: Prisma.ReorderSuggestionUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReorderSuggestionPayload>
+        }
+        deleteMany: {
+          args: Prisma.ReorderSuggestionDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ReorderSuggestionUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ReorderSuggestionUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReorderSuggestionPayload>[]
+        }
+        upsert: {
+          args: Prisma.ReorderSuggestionUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReorderSuggestionPayload>
+        }
+        aggregate: {
+          args: Prisma.ReorderSuggestionAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateReorderSuggestion>
+        }
+        groupBy: {
+          args: Prisma.ReorderSuggestionGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ReorderSuggestionGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ReorderSuggestionCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ReorderSuggestionCountAggregateOutputType> | number
+        }
+      }
+    }
+    WasteReduction: {
+      payload: Prisma.$WasteReductionPayload<ExtArgs>
+      fields: Prisma.WasteReductionFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.WasteReductionFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WasteReductionPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.WasteReductionFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WasteReductionPayload>
+        }
+        findFirst: {
+          args: Prisma.WasteReductionFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WasteReductionPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.WasteReductionFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WasteReductionPayload>
+        }
+        findMany: {
+          args: Prisma.WasteReductionFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WasteReductionPayload>[]
+        }
+        create: {
+          args: Prisma.WasteReductionCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WasteReductionPayload>
+        }
+        createMany: {
+          args: Prisma.WasteReductionCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.WasteReductionCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WasteReductionPayload>[]
+        }
+        delete: {
+          args: Prisma.WasteReductionDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WasteReductionPayload>
+        }
+        update: {
+          args: Prisma.WasteReductionUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WasteReductionPayload>
+        }
+        deleteMany: {
+          args: Prisma.WasteReductionDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.WasteReductionUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.WasteReductionUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WasteReductionPayload>[]
+        }
+        upsert: {
+          args: Prisma.WasteReductionUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WasteReductionPayload>
+        }
+        aggregate: {
+          args: Prisma.WasteReductionAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateWasteReduction>
+        }
+        groupBy: {
+          args: Prisma.WasteReductionGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.WasteReductionGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.WasteReductionCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.WasteReductionCountAggregateOutputType> | number
+        }
+      }
+    }
+    PriceOptimization: {
+      payload: Prisma.$PriceOptimizationPayload<ExtArgs>
+      fields: Prisma.PriceOptimizationFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.PriceOptimizationFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PriceOptimizationPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.PriceOptimizationFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PriceOptimizationPayload>
+        }
+        findFirst: {
+          args: Prisma.PriceOptimizationFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PriceOptimizationPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.PriceOptimizationFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PriceOptimizationPayload>
+        }
+        findMany: {
+          args: Prisma.PriceOptimizationFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PriceOptimizationPayload>[]
+        }
+        create: {
+          args: Prisma.PriceOptimizationCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PriceOptimizationPayload>
+        }
+        createMany: {
+          args: Prisma.PriceOptimizationCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.PriceOptimizationCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PriceOptimizationPayload>[]
+        }
+        delete: {
+          args: Prisma.PriceOptimizationDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PriceOptimizationPayload>
+        }
+        update: {
+          args: Prisma.PriceOptimizationUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PriceOptimizationPayload>
+        }
+        deleteMany: {
+          args: Prisma.PriceOptimizationDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.PriceOptimizationUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.PriceOptimizationUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PriceOptimizationPayload>[]
+        }
+        upsert: {
+          args: Prisma.PriceOptimizationUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PriceOptimizationPayload>
+        }
+        aggregate: {
+          args: Prisma.PriceOptimizationAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregatePriceOptimization>
+        }
+        groupBy: {
+          args: Prisma.PriceOptimizationGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PriceOptimizationGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.PriceOptimizationCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PriceOptimizationCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -2164,6 +2389,69 @@ export const ForecastResultScalarFieldEnum = {
 export type ForecastResultScalarFieldEnum = (typeof ForecastResultScalarFieldEnum)[keyof typeof ForecastResultScalarFieldEnum]
 
 
+export const ReorderSuggestionScalarFieldEnum = {
+  id: 'id',
+  ingredientId: 'ingredientId',
+  currentStock: 'currentStock',
+  unit: 'unit',
+  suggestedQuantity: 'suggestedQuantity',
+  urgency: 'urgency',
+  reasoning: 'reasoning',
+  estimatedStockout: 'estimatedStockout',
+  confidence: 'confidence',
+  status: 'status',
+  metadata: 'metadata',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ReorderSuggestionScalarFieldEnum = (typeof ReorderSuggestionScalarFieldEnum)[keyof typeof ReorderSuggestionScalarFieldEnum]
+
+
+export const WasteReductionScalarFieldEnum = {
+  id: 'id',
+  ingredientId: 'ingredientId',
+  currentStock: 'currentStock',
+  forecastedUsage: 'forecastedUsage',
+  unit: 'unit',
+  overstockAmount: 'overstockAmount',
+  wasteRisk: 'wasteRisk',
+  reasoning: 'reasoning',
+  suggestion: 'suggestion',
+  potentialSavings: 'potentialSavings',
+  confidence: 'confidence',
+  status: 'status',
+  metadata: 'metadata',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type WasteReductionScalarFieldEnum = (typeof WasteReductionScalarFieldEnum)[keyof typeof WasteReductionScalarFieldEnum]
+
+
+export const PriceOptimizationScalarFieldEnum = {
+  id: 'id',
+  variantId: 'variantId',
+  productName: 'productName',
+  sizeName: 'sizeName',
+  currentPrice: 'currentPrice',
+  recommendedPrice: 'recommendedPrice',
+  priceChange: 'priceChange',
+  changePercent: 'changePercent',
+  direction: 'direction',
+  confidence: 'confidence',
+  reasoning: 'reasoning',
+  marginBefore: 'marginBefore',
+  marginAfter: 'marginAfter',
+  competitorAvg: 'competitorAvg',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PriceOptimizationScalarFieldEnum = (typeof PriceOptimizationScalarFieldEnum)[keyof typeof PriceOptimizationScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -2177,6 +2465,14 @@ export const JsonNullValueInput = {
 } as const
 
 export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
+
+
+export const NullableJsonNullValueInput = {
+  DbNull: DbNull,
+  JsonNull: JsonNull
+} as const
+
+export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
 
 
 export const QueryMode = {
@@ -2554,6 +2850,9 @@ export type GlobalOmitConfig = {
   receipt?: Prisma.ReceiptOmit
   forecastJob?: Prisma.ForecastJobOmit
   forecastResult?: Prisma.ForecastResultOmit
+  reorderSuggestion?: Prisma.ReorderSuggestionOmit
+  wasteReduction?: Prisma.WasteReductionOmit
+  priceOptimization?: Prisma.PriceOptimizationOmit
 }
 
 /* Types for Logging */

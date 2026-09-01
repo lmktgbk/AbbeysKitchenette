@@ -35,6 +35,8 @@ export default function InventoryPage() {
   const [batchModalIngredient, setBatchModalIngredient] = useState(null);
   const [selectedIngredient, setSelectedIngredient] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [restockDraftQuantity, setRestockDraftQuantity] = useState(null);
+  const [acceptedSuggestionId, setAcceptedSuggestionId] = useState(null);
 
   // ── Mutations (hook handles invalidation; component handles toast + UI state) ──
 
@@ -71,6 +73,12 @@ export default function InventoryPage() {
           toast.success("Ingredient restocked");
           setShowRestockModal(false);
           setSelectedIngredient(null);
+          setRestockDraftQuantity(null);
+          // If this restock came from accepting a suggestion, mark it as accepted
+          if (acceptedSuggestionId) {
+            mutations.acceptReorder.mutate(acceptedSuggestionId);
+            setAcceptedSuggestionId(null);
+          }
         },
         onError: (err) => toast.error(err.response?.data?.message || "Failed to restock ingredient"),
       }),
@@ -140,6 +148,27 @@ export default function InventoryPage() {
   function handleRestock(ingredient) {
     setSelectedIngredient(ingredient);
     setShowRestockModal(true);
+  }
+
+  function handleAcceptSuggestion(suggestion) {
+    // Pre-fill restock modal with AI suggestion data
+    setSelectedIngredient({
+      ingredient_id: suggestion.ingredient_id,
+      ingredient_name: suggestion.ingredient_name,
+      unit: suggestion.unit,
+      stock_quantity: suggestion.current_stock,
+    });
+    setRestockDraftQuantity(suggestion.suggested_quantity);
+    setAcceptedSuggestionId(suggestion.id);
+    setShowRestockModal(true);
+  }
+
+  function handleRestockModalClose(open) {
+    setShowRestockModal(open);
+    if (!open) {
+      setRestockDraftQuantity(null);
+      setAcceptedSuggestionId(null);
+    }
   }
 
   function handleLoss(ingredient) {
@@ -223,7 +252,7 @@ export default function InventoryPage() {
         {/* Right — Sidebar panels */}
         <div className="flex flex-col gap-4">
           <StockAlerts onRestock={handleRestock} />
-          <ReorderSuggestions />
+          <ReorderSuggestions onAccept={handleAcceptSuggestion} />
           <WasteInsights />
         </div>
       </div>
@@ -243,8 +272,9 @@ export default function InventoryPage() {
       {/* Restock Modal */}
       <RestockModal
         open={showRestockModal}
-        onOpenChange={setShowRestockModal}
+        onOpenChange={handleRestockModalClose}
         ingredient={selectedIngredient}
+        initialQuantity={restockDraftQuantity}
         onSubmit={(data) =>
           restockMutation.mutate({
             id: selectedIngredient?.ingredient_id,

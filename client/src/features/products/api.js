@@ -106,3 +106,30 @@ export async function deleteCategoryRequest(id) {
   const res = await api.delete(`/categories/${id}`);
   return res.data;
 }
+
+// ── Price Optimization ─────────────────
+
+// GET /api/price-optimization?productId= — get pending suggestions
+export async function getPriceSuggestionsRequest(productId) {
+  const params = productId ? { productId } : {};
+  const res = await api.get("/price-optimization", { params });
+  return res.data;
+}
+
+// POST /api/price-optimization/generate — generate suggestions for a product
+export async function generatePriceSuggestionsRequest(productId) {
+  const res = await api.post("/price-optimization/generate", { productId });
+  return res.data;
+}
+
+// POST /api/price-optimization/:id/apply — apply recommended price
+export async function applyPriceRequest(id) {
+  const res = await api.post(`/price-optimization/${id}/apply`);
+  return res.data;
+}
+
+// POST /api/price-optimization/:id/dismiss — dismiss suggestion
+export async function dismissPriceSuggestionRequest(id) {
+  const res = await api.post(`/price-optimization/${id}/dismiss`);
+  return res.data;
+}

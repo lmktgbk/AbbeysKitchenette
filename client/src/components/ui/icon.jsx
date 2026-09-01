@@ -56,6 +56,8 @@ import {
     Info,
     AlertCircle,
     Table,
+    Sparkles,
+    Loader,
 } from "lucide-react";
 
 const iconMap = {
@@ -116,6 +118,8 @@ const iconMap = {
     info: Info,
     alertCircle: AlertCircle,
     table: Table,
+    sparkles: Sparkles,
+    loader: Loader,
 };
 
 /**

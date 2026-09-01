@@ -135,6 +135,23 @@ export const ingredientService = {
     return ingredientRepository.countByStatus();
   },
 
+  /**
+   * Get all active (unresolved) stock alerts.
+   * @returns {Array<object>} - alerts with ingredient details
+   */
+  async getActiveAlerts() {
+    const rows = await ingredientRepository.getActiveAlerts();
+    return rows.map((r) => ({
+      alert_id: r.alertId,
+      ingredient_id: r.ingredientId,
+      alert_type: r.alertType,
+      stock_at_trigger: Number(r.stockAtTrigger),
+      triggered_at: r.triggeredAt?.toISOString?.() ?? r.triggeredAt,
+      ingredient_name: r.ingredient?.ingredientName,
+      unit: r.ingredient?.unit,
+    }));
+  },
+
   /* ── Mutations ───────────────────────── */
 
   /**

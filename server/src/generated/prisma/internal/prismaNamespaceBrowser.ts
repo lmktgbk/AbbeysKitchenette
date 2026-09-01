@@ -69,7 +69,10 @@ export const ModelName = {
   OrderIngredientDeduction: 'OrderIngredientDeduction',
   Receipt: 'Receipt',
   ForecastJob: 'ForecastJob',
-  ForecastResult: 'ForecastResult'
+  ForecastResult: 'ForecastResult',
+  ReorderSuggestion: 'ReorderSuggestion',
+  WasteReduction: 'WasteReduction',
+  PriceOptimization: 'PriceOptimization'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -372,6 +375,69 @@ export const ForecastResultScalarFieldEnum = {
 export type ForecastResultScalarFieldEnum = (typeof ForecastResultScalarFieldEnum)[keyof typeof ForecastResultScalarFieldEnum]
 
 
+export const ReorderSuggestionScalarFieldEnum = {
+  id: 'id',
+  ingredientId: 'ingredientId',
+  currentStock: 'currentStock',
+  unit: 'unit',
+  suggestedQuantity: 'suggestedQuantity',
+  urgency: 'urgency',
+  reasoning: 'reasoning',
+  estimatedStockout: 'estimatedStockout',
+  confidence: 'confidence',
+  status: 'status',
+  metadata: 'metadata',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ReorderSuggestionScalarFieldEnum = (typeof ReorderSuggestionScalarFieldEnum)[keyof typeof ReorderSuggestionScalarFieldEnum]
+
+
+export const WasteReductionScalarFieldEnum = {
+  id: 'id',
+  ingredientId: 'ingredientId',
+  currentStock: 'currentStock',
+  forecastedUsage: 'forecastedUsage',
+  unit: 'unit',
+  overstockAmount: 'overstockAmount',
+  wasteRisk: 'wasteRisk',
+  reasoning: 'reasoning',
+  suggestion: 'suggestion',
+  potentialSavings: 'potentialSavings',
+  confidence: 'confidence',
+  status: 'status',
+  metadata: 'metadata',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type WasteReductionScalarFieldEnum = (typeof WasteReductionScalarFieldEnum)[keyof typeof WasteReductionScalarFieldEnum]
+
+
+export const PriceOptimizationScalarFieldEnum = {
+  id: 'id',
+  variantId: 'variantId',
+  productName: 'productName',
+  sizeName: 'sizeName',
+  currentPrice: 'currentPrice',
+  recommendedPrice: 'recommendedPrice',
+  priceChange: 'priceChange',
+  changePercent: 'changePercent',
+  direction: 'direction',
+  confidence: 'confidence',
+  reasoning: 'reasoning',
+  marginBefore: 'marginBefore',
+  marginAfter: 'marginAfter',
+  competitorAvg: 'competitorAvg',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PriceOptimizationScalarFieldEnum = (typeof PriceOptimizationScalarFieldEnum)[keyof typeof PriceOptimizationScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -385,6 +451,14 @@ export const JsonNullValueInput = {
 } as const
 
 export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
+
+
+export const NullableJsonNullValueInput = {
+  DbNull: DbNull,
+  JsonNull: JsonNull
+} as const
+
+export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
 
 
 export const QueryMode = {

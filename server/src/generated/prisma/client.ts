@@ -136,3 +136,18 @@ export type ForecastJob = Prisma.ForecastJobModel
  * 
  */
 export type ForecastResult = Prisma.ForecastResultModel
+/**
+ * Model ReorderSuggestion
+ * 
+ */
+export type ReorderSuggestion = Prisma.ReorderSuggestionModel
+/**
+ * Model WasteReduction
+ * 
+ */
+export type WasteReduction = Prisma.WasteReductionModel
+/**
+ * Model PriceOptimization
+ * 
+ */
+export type PriceOptimization = Prisma.PriceOptimizationModel

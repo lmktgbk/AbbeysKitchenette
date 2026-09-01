@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as api from "./api";
 
-const forecastKeys = {
+export const forecastKeys = {
   all: ["forecasting"],
   demandStatus: (jobId) => ["forecasting", "demand", "status", jobId],
   demandResults: (jobId) => ["forecasting", "demand", "results", jobId],

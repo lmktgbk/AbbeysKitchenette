@@ -26,6 +26,7 @@ const router = Router();
  * GET    /api/ingredients              — List all ingredients
  * GET    /api/ingredients/archived     — List archived ingredients
  * GET    /api/ingredients/summary      — Status counts for KPI cards
+ * GET    /api/ingredients/alerts       — Active stock alerts for sidebar
  * POST   /api/ingredients              — Create ingredient
  * POST   /api/ingredients/:id/restock  — Restock ingredient
  * GET    /api/ingredients/:id/batches  — Get restock batches
@@ -43,6 +44,14 @@ router.get(
   authenticate,
   authorize("admin"),
   ingredientController.getSummary,
+);
+
+// GET /api/ingredients/alerts — active stock alerts (must be before /:id)
+router.get(
+  "/alerts",
+  authenticate,
+  authorize("admin"),
+  ingredientController.getActiveAlerts,
 );
 
 // GET /api/ingredients/archived — archived list (must be before /:id)

@@ -25,6 +25,7 @@ import { restockSchema } from "../ingredientValidation";
  * - open: boolean
  * - onOpenChange: (open) => void
  * - ingredient: object (the ingredient being restocked)
+ * - initialQuantity: number (optional — pre-fill quantity from AI suggestion)
  * - onSubmit: (data) => void
  * - isLoading: boolean
  */
@@ -32,6 +33,7 @@ export default function RestockModal({
   open,
   onOpenChange,
   ingredient,
+  initialQuantity,
   onSubmit,
   isLoading,
 }) {
@@ -59,13 +61,13 @@ export default function RestockModal({
   useEffect(() => {
     if (open) {
       reset({
-        quantity_added: 0,
+        quantity_added: initialQuantity || 0,
         total_cost: 0,
         supplier_name: "",
-        notes: "",
+        notes: initialQuantity ? `Restock per AI suggestion` : "",
       });
     }
-  }, [open, reset]);
+  }, [open, reset, initialQuantity]);
 
   function handleClose() {
     reset();

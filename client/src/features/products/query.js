@@ -26,6 +26,11 @@ const categoryKeys = {
   all: ["categories"],
 };
 
+const priceKeys = {
+  all: ["priceOptimization"],
+  suggestions: (productId) => ["priceOptimization", "suggestions", productId],
+};
+
 /* ── Query Hooks ───────────────────────────────── */
 
 /**
@@ -165,6 +170,55 @@ export function useCategoryMutations() {
     remove: useMutation({
       mutationFn: api.deleteCategoryRequest,
       onSuccess: () => invalidateAll(),
+    }),
+  };
+}
+
+/* ── Price Optimization Hooks ────────────────────── */
+
+/**
+ * usePriceSuggestions — pending price suggestions for a product.
+ * @param {string} productId - product UUID
+ */
+export function usePriceSuggestions(productId) {
+  return useQuery({
+    queryKey: priceKeys.suggestions(productId),
+    queryFn: () => api.getPriceSuggestionsRequest(productId),
+    enabled: !!productId,
+  });
+}
+
+/**
+ * usePriceOptimizationMutations — generate, apply, dismiss.
+ *
+ * @returns {object} - { generate, apply, dismiss }
+ */
+export function usePriceOptimizationMutations() {
+  const queryClient = useQueryClient();
+
+  function invalidatePrice(productId) {
+    queryClient.invalidateQueries({ queryKey: priceKeys.suggestions(productId) });
+    queryClient.invalidateQueries({ queryKey: productKeys.all });
+  }
+
+  return {
+    generate: useMutation({
+      mutationFn: api.generatePriceSuggestionsRequest,
+      onSuccess: (_data, productId) => {
+        invalidatePrice(productId);
+      },
+    }),
+
+    apply: useMutation({
+      mutationFn: api.applyPriceRequest,
+      onSuccess: (_data, vars) => {
+        queryClient.invalidateQueries({ queryKey: priceKeys.all });
+        queryClient.invalidateQueries({ queryKey: productKeys.all });
+      },
+    }),
+
+    dismiss: useMutation({
+      mutationFn: api.dismissPriceSuggestionRequest,
     }),
   };
 }

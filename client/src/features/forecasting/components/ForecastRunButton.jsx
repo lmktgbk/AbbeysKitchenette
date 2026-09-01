@@ -8,12 +8,14 @@ const STORAGE_KEY = "forecastJobId";
 /**
  * ForecastRunButton — triggers forecast and shows progress bar.
  * Persists active job ID in localStorage so progress survives navigation.
+ * Shows spinner immediately on click (optimistic UI).
  */
 export default function ForecastRunButton({ onJobComplete }) {
   const [activeJobId, setActiveJobId] = useState(() => {
     try { return localStorage.getItem(STORAGE_KEY) || null; }
     catch { return null; }
   });
+  const [optimisticPending, setOptimisticPending] = useState(false);
 
   const runMutation = useRunDemandForecast();
   const { data: statusData } = useDemandStatus(activeJobId);
@@ -27,6 +29,8 @@ export default function ForecastRunButton({ onJobComplete }) {
     ? Math.round(((status.completed + status.failed) / status.total_variants) * 100)
     : 0;
 
+  const showSpinner = optimisticPending || runMutation.isPending || isRunning;
+
   // Persist job ID to localStorage
   useEffect(() => {
     if (activeJobId) {
@@ -38,6 +42,7 @@ export default function ForecastRunButton({ onJobComplete }) {
   // Clear localStorage and notify parent on terminal states
   useEffect(() => {
     if (isComplete || isFailed || isNotFound) {
+      setOptimisticPending(false);
       try { localStorage.removeItem(STORAGE_KEY); }
       catch { /* ignore */ }
     }
@@ -45,6 +50,13 @@ export default function ForecastRunButton({ onJobComplete }) {
       onJobComplete?.(activeJobId);
     }
   }, [isComplete, isFailed, isNotFound, activeJobId, onJobComplete]);
+
+  // Clear optimistic spinner when status polling confirms running
+  useEffect(() => {
+    if (isRunning) {
+      setOptimisticPending(false);
+    }
+  }, [isRunning]);
 
   // If stored job ID returns not_found (e.g. server restarted), clear it
   useEffect(() => {
@@ -54,17 +66,23 @@ export default function ForecastRunButton({ onJobComplete }) {
   }, [isNotFound, activeJobId]);
 
   const handleRun = async () => {
-    if (isRunning) return;
+    if (showSpinner) return;
     setActiveJobId(null);
+    setOptimisticPending(true);
     try {
       const res = await runMutation.mutateAsync();
       const jobId = res?.data?.job_id;
       if (jobId) {
         setActiveJobId(jobId);
-      } else if (res?.data?.status === "busy") {
-        toast.error("A forecast is already running. Please wait.");
+        // Don't clear optimisticPending here — let isRunning take over
+      } else {
+        setOptimisticPending(false);
+        if (res?.data?.status === "busy") {
+          toast.error("A forecast is already running. Please wait.");
+        }
       }
     } catch (err) {
+      setOptimisticPending(false);
       const msg =
         err?.response?.data?.message ||
         err?.message ||
@@ -77,15 +95,15 @@ export default function ForecastRunButton({ onJobComplete }) {
     <div className="flex flex-wrap items-center gap-3">
       <button
         onClick={handleRun}
-        disabled={isRunning || runMutation.isPending}
+        disabled={showSpinner}
         className={cn(
           "inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
-          isRunning || runMutation.isPending
+          showSpinner
             ? "bg-muted text-muted-foreground cursor-not-allowed"
             : "bg-primary text-primary-foreground hover:bg-primary/90"
         )}
       >
-        {isRunning || runMutation.isPending ? (
+        {showSpinner ? (
           <>
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
             Running...

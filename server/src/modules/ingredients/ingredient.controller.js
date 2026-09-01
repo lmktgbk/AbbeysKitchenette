@@ -64,6 +64,19 @@ export const ingredientController = {
   },
 
   /**
+   * GET /api/ingredients/alerts
+   * Get all active (unresolved) stock alerts for sidebar.
+   */
+  async getActiveAlerts(req, res) {
+    try {
+      const alerts = await ingredientService.getActiveAlerts();
+      return successResponse(res, "Alerts retrieved", { alerts });
+    } catch (error) {
+      return handleError(res, error, "GET_ALERTS_ERROR");
+    }
+  },
+
+  /**
    * POST /api/ingredients
    * Create a new ingredient.
    * Stock starts at 0 — admin must restock separately.

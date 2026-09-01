@@ -493,6 +493,20 @@ export const ingredientRepository = {
     });
   },
 
+  /* ── Stock Alerts (GET) ────────────────── */
+
+  /**
+   * Fetch all unresolved stock alerts with ingredient info.
+   * @returns {Array<object>} - list of open alerts with ingredient name/unit
+   */
+  async getActiveAlerts() {
+    return prisma.stockAlert.findMany({
+      where: { isResolved: false },
+      include: { ingredient: true },
+      orderBy: { triggeredAt: "desc" },
+    });
+  },
+
   /* ── Batches ─────────────────────────── */
 
   /**

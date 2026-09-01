@@ -1,17 +1,21 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import Icon from "@/components/ui/icon";
 import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
 
 /**
  * ProductCard
  *
  * Image-heavy product card with click-to-view detail modal.
- * Shows product image, name, category, price range, and variant count.
+ * Shows product image, name, category, price range, variant count,
+ * and an "Optimize Price" sparkles button.
  *
  * Props:
  * - product: { product_id, product_name, category_name, image_url, is_available, variant_count, min_price, max_price }
  * - onViewDetail: (product) => void
+ * - onOptimizePrice: (product) => void
  */
-export default function ProductCard({ product, onViewDetail }) {
+export default function ProductCard({ product, onViewDetail, onOptimizePrice }) {
   const minPrice = product.min_price ?? 0;
   const maxPrice = product.max_price ?? 0;
   const hasPrice = minPrice != null || maxPrice != null;
@@ -21,6 +25,11 @@ export default function ProductCard({ product, onViewDetail }) {
       : minPrice === maxPrice
         ? `₱${minPrice.toLocaleString()}`
         : `₱${minPrice.toLocaleString()} – ₱${maxPrice.toLocaleString()}`;
+
+  function handleOptimizeClick(e) {
+    e.stopPropagation();
+    if (onOptimizePrice) onOptimizePrice(product);
+  }
 
   return (
     <div
@@ -44,6 +53,19 @@ export default function ProductCard({ product, onViewDetail }) {
               Unavailable
             </span>
           </div>
+        )}
+
+        {/* Optimize Price button (top-right) */}
+        {product.is_available && (
+          <Button
+            variant="secondary"
+            size="sm"
+            className="absolute top-2 right-2 h-7 w-7 p-0"
+            onClick={handleOptimizeClick}
+            title="Optimize Price"
+          >
+            <Icon name="sparkles" size={14} />
+          </Button>
         )}
       </div>
 
