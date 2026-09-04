@@ -97,7 +97,7 @@ export default function ForecastSidebar({ forecasted, skipped, viewPeriod }) {
                   <Badge
                     variant={
                       v.trend === "increasing" ? "success" :
-                      v.trend === "decreasing" ? "destructive" : "outline"
+                        v.trend === "decreasing" ? "destructive" : "outline"
                     }
                   >
                     {v.trend}

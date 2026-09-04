@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { useIngredientMutations } from "../../query";
 import { useWasteReductions } from "../../query";
 import { confirm } from "@/components/alerts/ConfirmDialog";
@@ -20,11 +21,23 @@ export default function WasteInsights() {
   const insights = insightsData?.data?.insights ?? [];
 
   function handleGenerate() {
-    mutations.generateWaste.mutate();
+    mutations.generateWaste.mutate(undefined, {
+      onSuccess: (res) => {
+        const count = res?.data?.insights?.length ?? 0;
+        toast.success(`Generated ${count} waste insight${count !== 1 ? "s" : ""}`);
+      },
+      onError: (err) => {
+        toast.error(err.response?.data?.message || "Failed to generate waste insights");
+      },
+    });
   }
 
   function handleAccept(id) {
-    mutations.acceptWaste.mutate(id);
+    mutations.acceptWaste.mutate(id, {
+      onError: (err) => {
+        toast.error(err.response?.data?.message || "Failed to accept insight");
+      },
+    });
   }
 
   async function handleReject(id) {
@@ -35,7 +48,11 @@ export default function WasteInsights() {
       variant: "warning",
     });
     if (ok) {
-      mutations.rejectWaste.mutate(id);
+      mutations.rejectWaste.mutate(id, {
+        onError: (err) => {
+          toast.error(err.response?.data?.message || "Failed to dismiss insight");
+        },
+      });
     }
   }
 

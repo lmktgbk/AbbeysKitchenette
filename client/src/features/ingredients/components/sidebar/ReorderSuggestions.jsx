@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { useIngredientMutations } from "../../query";
 import { useReorderSuggestions } from "../../query";
 import { confirm } from "@/components/alerts/ConfirmDialog";
@@ -23,7 +24,15 @@ export default function ReorderSuggestions({ onAccept }) {
   const suggestions = suggestionsData?.data?.suggestions ?? [];
 
   function handleGenerate() {
-    mutations.generateReorder.mutate();
+    mutations.generateReorder.mutate(undefined, {
+      onSuccess: (res) => {
+        const count = res?.data?.suggestions?.length ?? 0;
+        toast.success(`Generated ${count} reorder suggestion${count !== 1 ? "s" : ""}`);
+      },
+      onError: (err) => {
+        toast.error(err.response?.data?.message || "Failed to generate reorder suggestions");
+      },
+    });
   }
 
   function handleAccept(suggestion) {
@@ -40,7 +49,11 @@ export default function ReorderSuggestions({ onAccept }) {
       variant: "warning",
     });
     if (ok) {
-      mutations.rejectReorder.mutate(id);
+      mutations.rejectReorder.mutate(id, {
+        onError: (err) => {
+          toast.error(err.response?.data?.message || "Failed to dismiss suggestion");
+        },
+      });
     }
   }
 

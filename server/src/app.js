@@ -22,6 +22,7 @@ import forecastingRoutes from "./modules/forecasting/forecasting.routes.js";
 import reorderSuggestionsRoutes from "./modules/reorderSuggestions/reorderSuggestions.routes.js";
 import wasteReductionRoutes from "./modules/wasteReduction/wasteReduction.routes.js";
 import priceOptimizationRoutes from "./modules/priceOptimization/priceOptimization.routes.js";
+import marketBasketRoutes from "./modules/marketBasket/marketBasket.routes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -75,6 +76,7 @@ app.use("/api/forecasting", forecastingRoutes);
 app.use("/api/reorder-suggestions", reorderSuggestionsRoutes);
 app.use("/api/waste-reduction", wasteReductionRoutes);
 app.use("/api/price-optimization", priceOptimizationRoutes);
+app.use("/api/market-basket", marketBasketRoutes);
 
 // Health check endpoint (used by hosting platforms to verify server is running)
 app.get("/api/health", (req, res) => {

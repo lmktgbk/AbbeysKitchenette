@@ -40,16 +40,19 @@ model User {
 }
 
 model SystemSettings {
-  id               Int      @id @default(1)
-  storeName        String   @default("Abbey's Kitchenette")
-  storeAddress     String?
-  storePhone       String?
-  storeEmail       String?
-  storeIpWhitelist String?
-  currency         String   @default("PHP")
-  taxRate          Float    @default(0)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                   Int      @id @default(1)
+  storeName            String   @default("Abbey's Kitchenette")
+  storeAddress         String?
+  storePhone           String?
+  storeEmail           String?
+  storeIpWhitelist     String?
+  currency             String   @default("PHP")
+  taxRate              Float    @default(0)
+  comboDiscountPercent Float    @default(15) @map("combo_discount_percent")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@map("system_settings")
 }
 
 enum Role {
@@ -499,4 +502,57 @@ model PriceOptimization {
   @@index([status])
   @@index([variantId])
   @@map("price_optimizations")
+}
+
+// ── Market Basket Analytics ───────────────────────────────────
+model MBAJob {
+  id               Int      @id @default(autoincrement()) @map("id")
+  status           String   @default("running") @db.VarChar(20) // running | completed | failed
+  totalOrders      Int      @default(0) @map("total_orders")
+  productsAnalyzed Int      @default(0) @map("products_analyzed")
+  combosFound      Int      @default(0) @map("combos_found")
+  startedAt        DateTime @default(now()) @map("started_at") @db.Timestamptz
+  completedAt      DateTime? @map("completed_at") @db.Timestamptz
+  errorMessage     String?  @map("error_message") @db.VarChar(500)
+
+  rules MBARule[]
+
+  @@map("mba_jobs")
+}
+
+model MBARule {
+  id                Int      @id @default(autoincrement()) @map("id")
+  jobId             Int      @map("job_id")
+  productNameA      String   @map("product_name_a") @db.VarChar(150)
+  productNameB      String   @map("product_name_b") @db.VarChar(150)
+  productIdA        String?  @map("product_id_a") @db.Uuid
+  productIdB        String?  @map("product_id_b") @db.Uuid
+  variantIdA        Int?     @map("variant_id_a")
+  variantIdB        Int?     @map("variant_id_b")
+  sizeNameA         String?  @map("size_name_a") @db.VarChar(50)
+  sizeNameB         String?  @map("size_name_b") @db.VarChar(50)
+  support           Float
+  confidence        Float
+  lift              Float
+  isCombo           Boolean  @default(false) @map("is_combo")
+  explanation       String?  @db.Text
+  suggestedName     String?  @map("suggested_name") @db.VarChar(200)
+  mergedIngredients Json?    @map("merged_ingredients")
+  pricing           Json?
+
+  job MBAJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@map("mba_rules")
+}
+
+model ComboCreatedPair {
+  id             Int      @id @default(autoincrement()) @map("id")
+  productNameA   String   @map("product_name_a") @db.VarChar(150)
+  productNameB   String   @map("product_name_b") @db.VarChar(150)
+  productId      String   @map("product_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([productNameA, productNameB])
+  @@map("combo_created_pairs")
 }

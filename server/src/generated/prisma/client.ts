@@ -151,3 +151,13 @@ export type WasteReduction = Prisma.WasteReductionModel
  * 
  */
 export type PriceOptimization = Prisma.PriceOptimizationModel
+/**
+ * Model MBAJob
+ * 
+ */
+export type MBAJob = Prisma.MBAJobModel
+/**
+ * Model MBARule
+ * 
+ */
+export type MBARule = Prisma.MBARuleModel

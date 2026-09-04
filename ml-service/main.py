@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from config import CLIENT_URL, FORECAST_PORT, FORECASTER_URL
 from database import close_pool
 from forecasting.routers import demand
+from mba.routers import association
 
 
 @asynccontextmanager
@@ -31,9 +32,8 @@ app.add_middleware(
 # ── Forecasting routers ────────────────────────
 app.include_router(demand.router)
 
-# ── MBA routers (uncomment when built) ─────────
-# from mba.routers import association
-# app.include_router(association.router)
+# ── MBA routers ────────────────────────────────
+app.include_router(association.router)
 
 
 @app.get("/health")

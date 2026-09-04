@@ -72,7 +72,9 @@ export const ModelName = {
   ForecastResult: 'ForecastResult',
   ReorderSuggestion: 'ReorderSuggestion',
   WasteReduction: 'WasteReduction',
-  PriceOptimization: 'PriceOptimization'
+  PriceOptimization: 'PriceOptimization',
+  MBAJob: 'MBAJob',
+  MBARule: 'MBARule'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -120,6 +122,7 @@ export const SystemSettingsScalarFieldEnum = {
   storeIpWhitelist: 'storeIpWhitelist',
   currency: 'currency',
   taxRate: 'taxRate',
+  comboDiscountPercent: 'comboDiscountPercent',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -436,6 +439,44 @@ export const PriceOptimizationScalarFieldEnum = {
 } as const
 
 export type PriceOptimizationScalarFieldEnum = (typeof PriceOptimizationScalarFieldEnum)[keyof typeof PriceOptimizationScalarFieldEnum]
+
+
+export const MBAJobScalarFieldEnum = {
+  id: 'id',
+  status: 'status',
+  totalOrders: 'totalOrders',
+  productsAnalyzed: 'productsAnalyzed',
+  combosFound: 'combosFound',
+  startedAt: 'startedAt',
+  completedAt: 'completedAt',
+  errorMessage: 'errorMessage'
+} as const
+
+export type MBAJobScalarFieldEnum = (typeof MBAJobScalarFieldEnum)[keyof typeof MBAJobScalarFieldEnum]
+
+
+export const MBARuleScalarFieldEnum = {
+  id: 'id',
+  jobId: 'jobId',
+  productNameA: 'productNameA',
+  productNameB: 'productNameB',
+  productIdA: 'productIdA',
+  productIdB: 'productIdB',
+  variantIdA: 'variantIdA',
+  variantIdB: 'variantIdB',
+  sizeNameA: 'sizeNameA',
+  sizeNameB: 'sizeNameB',
+  support: 'support',
+  confidence: 'confidence',
+  lift: 'lift',
+  isCombo: 'isCombo',
+  explanation: 'explanation',
+  suggestedName: 'suggestedName',
+  mergedIngredients: 'mergedIngredients',
+  pricing: 'pricing'
+} as const
+
+export type MBARuleScalarFieldEnum = (typeof MBARuleScalarFieldEnum)[keyof typeof MBARuleScalarFieldEnum]
 
 
 export const SortOrder = {

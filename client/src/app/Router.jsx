@@ -37,6 +37,7 @@ import PosTerminal from "@/features/orders/pages/PosTerminal";
 import PosInterface from "@/features/orders/pages/PosInterface";
 import StaffPage from "@/features/staff/pages/StaffPage";
 import ForecastingPage from "@/features/forecasting/pages/ForecastingPage";
+import MarketBasketPage from "@/features/marketBasket/pages/MarketBasketPage";
 
 /* ── Placeholder Pages ───────────────── */
 
@@ -54,9 +55,6 @@ function StaffPlaceholder() {
 }
 function ForecastingPlaceholder() {
     return <div className="p-6"><h1 className="text-2xl font-bold">Forecasting</h1></div>;
-}
-function MarketBasketPlaceholder() {
-    return <div className="p-6"><h1 className="text-2xl font-bold">Market Basket</h1></div>;
 }
 function AuditLogsPlaceholder() {
     return <div className="p-6"><h1 className="text-2xl font-bold">Audit Logs</h1></div>;
@@ -117,7 +115,7 @@ const router = createBrowserRouter([
             { path: "/inventory", element: <InventoryPlaceholder /> },
             { path: "/staff", element: <StaffPage /> },
             { path: "/forecasting", element: <ForecastingPage /> },
-            { path: "/market-basket", element: <MarketBasketPlaceholder /> },
+            { path: "/market-basket", element: <MarketBasketPage /> },
             { path: "/audit-logs", element: <AuditLogsPlaceholder /> },
             { path: "/settings", element: <SettingsPlaceholder /> },
         ],

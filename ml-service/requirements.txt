@@ -6,3 +6,5 @@ numpy>=2.2.0
 asyncpg>=0.30.0
 python-dotenv>=1.0.1
 pydantic>=2.10.0
+mlxtend>=0.23.0
+google-genai>=1.0.0

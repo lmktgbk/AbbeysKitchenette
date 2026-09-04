@@ -418,7 +418,9 @@ export const ModelName = {
   ForecastResult: 'ForecastResult',
   ReorderSuggestion: 'ReorderSuggestion',
   WasteReduction: 'WasteReduction',
-  PriceOptimization: 'PriceOptimization'
+  PriceOptimization: 'PriceOptimization',
+  MBAJob: 'MBAJob',
+  MBARule: 'MBARule'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -434,7 +436,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "systemSettings" | "category" | "product" | "productVariant" | "ingredient" | "recipe" | "restockBatch" | "lossRecord" | "stockAdjustment" | "stockAlert" | "orderCounter" | "order" | "orderItem" | "orderCancellation" | "orderIngredientDeduction" | "receipt" | "forecastJob" | "forecastResult" | "reorderSuggestion" | "wasteReduction" | "priceOptimization"
+    modelProps: "user" | "systemSettings" | "category" | "product" | "productVariant" | "ingredient" | "recipe" | "restockBatch" | "lossRecord" | "stockAdjustment" | "stockAlert" | "orderCounter" | "order" | "orderItem" | "orderCancellation" | "orderIngredientDeduction" | "receipt" | "forecastJob" | "forecastResult" | "reorderSuggestion" | "wasteReduction" | "priceOptimization" | "mBAJob" | "mBARule"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2066,6 +2068,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    MBAJob: {
+      payload: Prisma.$MBAJobPayload<ExtArgs>
+      fields: Prisma.MBAJobFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.MBAJobFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MBAJobPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.MBAJobFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MBAJobPayload>
+        }
+        findFirst: {
+          args: Prisma.MBAJobFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MBAJobPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.MBAJobFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MBAJobPayload>
+        }
+        findMany: {
+          args: Prisma.MBAJobFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MBAJobPayload>[]
+        }
+        create: {
+          args: Prisma.MBAJobCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MBAJobPayload>
+        }
+        createMany: {
+          args: Prisma.MBAJobCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.MBAJobCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MBAJobPayload>[]
+        }
+        delete: {
+          args: Prisma.MBAJobDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MBAJobPayload>
+        }
+        update: {
+          args: Prisma.MBAJobUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MBAJobPayload>
+        }
+        deleteMany: {
+          args: Prisma.MBAJobDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.MBAJobUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.MBAJobUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MBAJobPayload>[]
+        }
+        upsert: {
+          args: Prisma.MBAJobUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MBAJobPayload>
+        }
+        aggregate: {
+          args: Prisma.MBAJobAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateMBAJob>
+        }
+        groupBy: {
+          args: Prisma.MBAJobGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MBAJobGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.MBAJobCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MBAJobCountAggregateOutputType> | number
+        }
+      }
+    }
+    MBARule: {
+      payload: Prisma.$MBARulePayload<ExtArgs>
+      fields: Prisma.MBARuleFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.MBARuleFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MBARulePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.MBARuleFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MBARulePayload>
+        }
+        findFirst: {
+          args: Prisma.MBARuleFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MBARulePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.MBARuleFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MBARulePayload>
+        }
+        findMany: {
+          args: Prisma.MBARuleFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MBARulePayload>[]
+        }
+        create: {
+          args: Prisma.MBARuleCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MBARulePayload>
+        }
+        createMany: {
+          args: Prisma.MBARuleCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.MBARuleCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MBARulePayload>[]
+        }
+        delete: {
+          args: Prisma.MBARuleDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MBARulePayload>
+        }
+        update: {
+          args: Prisma.MBARuleUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MBARulePayload>
+        }
+        deleteMany: {
+          args: Prisma.MBARuleDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.MBARuleUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.MBARuleUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MBARulePayload>[]
+        }
+        upsert: {
+          args: Prisma.MBARuleUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MBARulePayload>
+        }
+        aggregate: {
+          args: Prisma.MBARuleAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateMBARule>
+        }
+        groupBy: {
+          args: Prisma.MBARuleGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MBARuleGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.MBARuleCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MBARuleCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -2134,6 +2284,7 @@ export const SystemSettingsScalarFieldEnum = {
   storeIpWhitelist: 'storeIpWhitelist',
   currency: 'currency',
   taxRate: 'taxRate',
+  comboDiscountPercent: 'comboDiscountPercent',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -2450,6 +2601,44 @@ export const PriceOptimizationScalarFieldEnum = {
 } as const
 
 export type PriceOptimizationScalarFieldEnum = (typeof PriceOptimizationScalarFieldEnum)[keyof typeof PriceOptimizationScalarFieldEnum]
+
+
+export const MBAJobScalarFieldEnum = {
+  id: 'id',
+  status: 'status',
+  totalOrders: 'totalOrders',
+  productsAnalyzed: 'productsAnalyzed',
+  combosFound: 'combosFound',
+  startedAt: 'startedAt',
+  completedAt: 'completedAt',
+  errorMessage: 'errorMessage'
+} as const
+
+export type MBAJobScalarFieldEnum = (typeof MBAJobScalarFieldEnum)[keyof typeof MBAJobScalarFieldEnum]
+
+
+export const MBARuleScalarFieldEnum = {
+  id: 'id',
+  jobId: 'jobId',
+  productNameA: 'productNameA',
+  productNameB: 'productNameB',
+  productIdA: 'productIdA',
+  productIdB: 'productIdB',
+  variantIdA: 'variantIdA',
+  variantIdB: 'variantIdB',
+  sizeNameA: 'sizeNameA',
+  sizeNameB: 'sizeNameB',
+  support: 'support',
+  confidence: 'confidence',
+  lift: 'lift',
+  isCombo: 'isCombo',
+  explanation: 'explanation',
+  suggestedName: 'suggestedName',
+  mergedIngredients: 'mergedIngredients',
+  pricing: 'pricing'
+} as const
+
+export type MBARuleScalarFieldEnum = (typeof MBARuleScalarFieldEnum)[keyof typeof MBARuleScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -2853,6 +3042,8 @@ export type GlobalOmitConfig = {
   reorderSuggestion?: Prisma.ReorderSuggestionOmit
   wasteReduction?: Prisma.WasteReductionOmit
   priceOptimization?: Prisma.PriceOptimizationOmit
+  mBAJob?: Prisma.MBAJobOmit
+  mBARule?: Prisma.MBARuleOmit
 }
 
 /* Types for Logging */

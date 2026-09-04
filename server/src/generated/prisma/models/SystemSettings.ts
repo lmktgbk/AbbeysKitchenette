@@ -29,11 +29,13 @@ export type AggregateSystemSettings = {
 export type SystemSettingsAvgAggregateOutputType = {
   id: number | null
   taxRate: number | null
+  comboDiscountPercent: number | null
 }
 
 export type SystemSettingsSumAggregateOutputType = {
   id: number | null
   taxRate: number | null
+  comboDiscountPercent: number | null
 }
 
 export type SystemSettingsMinAggregateOutputType = {
@@ -45,6 +47,7 @@ export type SystemSettingsMinAggregateOutputType = {
   storeIpWhitelist: string | null
   currency: string | null
   taxRate: number | null
+  comboDiscountPercent: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -58,6 +61,7 @@ export type SystemSettingsMaxAggregateOutputType = {
   storeIpWhitelist: string | null
   currency: string | null
   taxRate: number | null
+  comboDiscountPercent: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -71,6 +75,7 @@ export type SystemSettingsCountAggregateOutputType = {
   storeIpWhitelist: number
   currency: number
   taxRate: number
+  comboDiscountPercent: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -80,11 +85,13 @@ export type SystemSettingsCountAggregateOutputType = {
 export type SystemSettingsAvgAggregateInputType = {
   id?: true
   taxRate?: true
+  comboDiscountPercent?: true
 }
 
 export type SystemSettingsSumAggregateInputType = {
   id?: true
   taxRate?: true
+  comboDiscountPercent?: true
 }
 
 export type SystemSettingsMinAggregateInputType = {
@@ -96,6 +103,7 @@ export type SystemSettingsMinAggregateInputType = {
   storeIpWhitelist?: true
   currency?: true
   taxRate?: true
+  comboDiscountPercent?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -109,6 +117,7 @@ export type SystemSettingsMaxAggregateInputType = {
   storeIpWhitelist?: true
   currency?: true
   taxRate?: true
+  comboDiscountPercent?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -122,6 +131,7 @@ export type SystemSettingsCountAggregateInputType = {
   storeIpWhitelist?: true
   currency?: true
   taxRate?: true
+  comboDiscountPercent?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -222,6 +232,7 @@ export type SystemSettingsGroupByOutputType = {
   storeIpWhitelist: string | null
   currency: string
   taxRate: number
+  comboDiscountPercent: number
   createdAt: Date
   updatedAt: Date
   _count: SystemSettingsCountAggregateOutputType | null
@@ -258,6 +269,7 @@ export type SystemSettingsWhereInput = {
   storeIpWhitelist?: Prisma.StringNullableFilter<"SystemSettings"> | string | null
   currency?: Prisma.StringFilter<"SystemSettings"> | string
   taxRate?: Prisma.FloatFilter<"SystemSettings"> | number
+  comboDiscountPercent?: Prisma.FloatFilter<"SystemSettings"> | number
   createdAt?: Prisma.DateTimeFilter<"SystemSettings"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"SystemSettings"> | Date | string
 }
@@ -271,6 +283,7 @@ export type SystemSettingsOrderByWithRelationInput = {
   storeIpWhitelist?: Prisma.SortOrderInput | Prisma.SortOrder
   currency?: Prisma.SortOrder
   taxRate?: Prisma.SortOrder
+  comboDiscountPercent?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -287,6 +300,7 @@ export type SystemSettingsWhereUniqueInput = Prisma.AtLeast<{
   storeIpWhitelist?: Prisma.StringNullableFilter<"SystemSettings"> | string | null
   currency?: Prisma.StringFilter<"SystemSettings"> | string
   taxRate?: Prisma.FloatFilter<"SystemSettings"> | number
+  comboDiscountPercent?: Prisma.FloatFilter<"SystemSettings"> | number
   createdAt?: Prisma.DateTimeFilter<"SystemSettings"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"SystemSettings"> | Date | string
 }, "id">
@@ -300,6 +314,7 @@ export type SystemSettingsOrderByWithAggregationInput = {
   storeIpWhitelist?: Prisma.SortOrderInput | Prisma.SortOrder
   currency?: Prisma.SortOrder
   taxRate?: Prisma.SortOrder
+  comboDiscountPercent?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.SystemSettingsCountOrderByAggregateInput
@@ -321,6 +336,7 @@ export type SystemSettingsScalarWhereWithAggregatesInput = {
   storeIpWhitelist?: Prisma.StringNullableWithAggregatesFilter<"SystemSettings"> | string | null
   currency?: Prisma.StringWithAggregatesFilter<"SystemSettings"> | string
   taxRate?: Prisma.FloatWithAggregatesFilter<"SystemSettings"> | number
+  comboDiscountPercent?: Prisma.FloatWithAggregatesFilter<"SystemSettings"> | number
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"SystemSettings"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"SystemSettings"> | Date | string
 }
@@ -334,6 +350,7 @@ export type SystemSettingsCreateInput = {
   storeIpWhitelist?: string | null
   currency?: string
   taxRate?: number
+  comboDiscountPercent?: number
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -347,6 +364,7 @@ export type SystemSettingsUncheckedCreateInput = {
   storeIpWhitelist?: string | null
   currency?: string
   taxRate?: number
+  comboDiscountPercent?: number
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -360,6 +378,7 @@ export type SystemSettingsUpdateInput = {
   storeIpWhitelist?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   currency?: Prisma.StringFieldUpdateOperationsInput | string
   taxRate?: Prisma.FloatFieldUpdateOperationsInput | number
+  comboDiscountPercent?: Prisma.FloatFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -373,6 +392,7 @@ export type SystemSettingsUncheckedUpdateInput = {
   storeIpWhitelist?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   currency?: Prisma.StringFieldUpdateOperationsInput | string
   taxRate?: Prisma.FloatFieldUpdateOperationsInput | number
+  comboDiscountPercent?: Prisma.FloatFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -386,6 +406,7 @@ export type SystemSettingsCreateManyInput = {
   storeIpWhitelist?: string | null
   currency?: string
   taxRate?: number
+  comboDiscountPercent?: number
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -399,6 +420,7 @@ export type SystemSettingsUpdateManyMutationInput = {
   storeIpWhitelist?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   currency?: Prisma.StringFieldUpdateOperationsInput | string
   taxRate?: Prisma.FloatFieldUpdateOperationsInput | number
+  comboDiscountPercent?: Prisma.FloatFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -412,6 +434,7 @@ export type SystemSettingsUncheckedUpdateManyInput = {
   storeIpWhitelist?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   currency?: Prisma.StringFieldUpdateOperationsInput | string
   taxRate?: Prisma.FloatFieldUpdateOperationsInput | number
+  comboDiscountPercent?: Prisma.FloatFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -425,6 +448,7 @@ export type SystemSettingsCountOrderByAggregateInput = {
   storeIpWhitelist?: Prisma.SortOrder
   currency?: Prisma.SortOrder
   taxRate?: Prisma.SortOrder
+  comboDiscountPercent?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -432,6 +456,7 @@ export type SystemSettingsCountOrderByAggregateInput = {
 export type SystemSettingsAvgOrderByAggregateInput = {
   id?: Prisma.SortOrder
   taxRate?: Prisma.SortOrder
+  comboDiscountPercent?: Prisma.SortOrder
 }
 
 export type SystemSettingsMaxOrderByAggregateInput = {
@@ -443,6 +468,7 @@ export type SystemSettingsMaxOrderByAggregateInput = {
   storeIpWhitelist?: Prisma.SortOrder
   currency?: Prisma.SortOrder
   taxRate?: Prisma.SortOrder
+  comboDiscountPercent?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -456,6 +482,7 @@ export type SystemSettingsMinOrderByAggregateInput = {
   storeIpWhitelist?: Prisma.SortOrder
   currency?: Prisma.SortOrder
   taxRate?: Prisma.SortOrder
+  comboDiscountPercent?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -463,6 +490,7 @@ export type SystemSettingsMinOrderByAggregateInput = {
 export type SystemSettingsSumOrderByAggregateInput = {
   id?: Prisma.SortOrder
   taxRate?: Prisma.SortOrder
+  comboDiscountPercent?: Prisma.SortOrder
 }
 
 export type FloatFieldUpdateOperationsInput = {
@@ -484,6 +512,7 @@ export type SystemSettingsSelect<ExtArgs extends runtime.Types.Extensions.Intern
   storeIpWhitelist?: boolean
   currency?: boolean
   taxRate?: boolean
+  comboDiscountPercent?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["systemSettings"]>
@@ -497,6 +526,7 @@ export type SystemSettingsSelectCreateManyAndReturn<ExtArgs extends runtime.Type
   storeIpWhitelist?: boolean
   currency?: boolean
   taxRate?: boolean
+  comboDiscountPercent?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["systemSettings"]>
@@ -510,6 +540,7 @@ export type SystemSettingsSelectUpdateManyAndReturn<ExtArgs extends runtime.Type
   storeIpWhitelist?: boolean
   currency?: boolean
   taxRate?: boolean
+  comboDiscountPercent?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["systemSettings"]>
@@ -523,11 +554,12 @@ export type SystemSettingsSelectScalar = {
   storeIpWhitelist?: boolean
   currency?: boolean
   taxRate?: boolean
+  comboDiscountPercent?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type SystemSettingsOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "storeName" | "storeAddress" | "storePhone" | "storeEmail" | "storeIpWhitelist" | "currency" | "taxRate" | "createdAt" | "updatedAt", ExtArgs["result"]["systemSettings"]>
+export type SystemSettingsOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "storeName" | "storeAddress" | "storePhone" | "storeEmail" | "storeIpWhitelist" | "currency" | "taxRate" | "comboDiscountPercent" | "createdAt" | "updatedAt", ExtArgs["result"]["systemSettings"]>
 
 export type $SystemSettingsPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "SystemSettings"
@@ -541,6 +573,7 @@ export type $SystemSettingsPayload<ExtArgs extends runtime.Types.Extensions.Inte
     storeIpWhitelist: string | null
     currency: string
     taxRate: number
+    comboDiscountPercent: number
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["systemSettings"]>
@@ -974,6 +1007,7 @@ export interface SystemSettingsFieldRefs {
   readonly storeIpWhitelist: Prisma.FieldRef<"SystemSettings", 'String'>
   readonly currency: Prisma.FieldRef<"SystemSettings", 'String'>
   readonly taxRate: Prisma.FieldRef<"SystemSettings", 'Float'>
+  readonly comboDiscountPercent: Prisma.FieldRef<"SystemSettings", 'Float'>
   readonly createdAt: Prisma.FieldRef<"SystemSettings", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"SystemSettings", 'DateTime'>
 }

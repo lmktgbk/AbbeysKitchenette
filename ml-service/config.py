@@ -7,6 +7,8 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 CLIENT_URL = os.getenv("CLIENT_URL", "http://localhost:5173")
 FORECAST_PORT = int(os.getenv("FORECAST_PORT", "8000"))
 FORECASTER_URL = os.getenv("FORECASTER_URL", "http://localhost:5000")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
 
 # Prophet defaults — tunable as data grows
 PROPHET_CONFIG = {
