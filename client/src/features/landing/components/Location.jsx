@@ -3,7 +3,8 @@ import Icon from "@/components/ui/icon";
 /**
  * Location
  * Location and contact info section.
- * Two-column layout: info + image.
+ * Two-column layout: info cards (left) + photo (right) on desktop.
+ * Uses .lp-reveal for scroll-driven animations.
  */
 export default function Location() {
     const details = [
@@ -30,18 +31,19 @@ export default function Location() {
     ];
 
     return (
-        <section id="location" className="landing-section bg-background">
-            <div className="text-center">
+        <section id="location" className="landing-section">
+            <div className="text-center lp-reveal">
                 <h2 className="landing-title">Visit Us</h2>
-                <p className="landing-subtitle">
-                    We'd love to see you! Come dine in and experience
-                    the Abbey's Kitchenette difference.
+                <p className="landing-subtitle" style={{ marginTop: "0.75rem" }}>
+                    We'd love to see you! Come dine in and experience the Abbey's
+                    Kitchenette difference.
                 </p>
+                <span className="landing-title-line" />
             </div>
 
-            <div className="location-grid mt-10">
+            <div className="location-grid" style={{ marginTop: "3.5rem" }}>
                 {/* Info */}
-                <div className="location-info">
+                <div className="location-info lp-reveal lp-reveal-delay-1">
                     {details.map((item) => (
                         <div key={item.label} className="location-item">
                             <div className="location-icon">
@@ -56,12 +58,14 @@ export default function Location() {
                 </div>
 
                 {/* Image */}
-                <img
-                    src="/landing/outdoor_tent.jpg"
-                    alt="Abbey's Kitchenette outdoor seating area"
-                    className="location-image"
-                    loading="lazy"
-                />
+                <div className="lp-reveal lp-reveal-delay-2">
+                    <img
+                        src="/landing/outdoor_tent.jpg"
+                        alt="Abbey's Kitchenette outdoor seating area"
+                        className="location-image"
+                        loading="lazy"
+                    />
+                </div>
             </div>
         </section>
     );

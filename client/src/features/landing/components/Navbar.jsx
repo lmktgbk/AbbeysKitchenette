@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import Icon from "@/components/ui/icon";
 
 /**
  * Navbar
  * Fixed top navigation bar for the landing page.
- * Transparent on hero, solid on scroll.
- * Mobile: hamburger menu.
+ * Transparent on hero, solid (glassmorphism) on scroll.
+ * Mobile: animated slide-down hamburger menu.
+ * Desktop: inline "Order Online" CTA button.
  */
 export default function Navbar() {
     const [scrolled, setScrolled] = useState(false);
@@ -17,34 +19,56 @@ export default function Navbar() {
         return () => window.removeEventListener("scroll", onScroll);
     }, []);
 
+    // Close mobile menu on resize to desktop
+    useEffect(() => {
+        const onResize = () => {
+            if (window.innerWidth >= 768) setMobileOpen(false);
+        };
+        window.addEventListener("resize", onResize);
+        return () => window.removeEventListener("resize", onResize);
+    }, []);
+
     const links = [
-        { label: "Home", href: "#home" },
-        { label: "About", href: "#about" },
-        { label: "Menu", href: "#menu" },
+        { label: "Home",     href: "#home" },
+        { label: "About",    href: "#about" },
+        { label: "Menu",     href: "#menu" },
         { label: "Location", href: "#location" },
-        { label: "Contact", href: "#contact" },
+        { label: "Contact",  href: "#contact" },
     ];
 
     const handleNavClick = (e, href) => {
         e.preventDefault();
         setMobileOpen(false);
         const el = document.querySelector(href);
-        if (el) {
-            el.scrollIntoView({ behavior: "smooth" });
-        }
+        if (el) el.scrollIntoView({ behavior: "smooth" });
     };
 
     return (
         <nav className={`navbar ${scrolled ? "navbar-solid" : "navbar-transparent"}`}>
-            <div className="mx-auto flex max-w-7xl items-center justify-between">
+            <div className="mx-auto flex w-full max-w-7xl items-center justify-between">
                 {/* Logo */}
-                <a href="#home" className="flex items-center gap-2.5" onClick={(e) => handleNavClick(e, "#home")}>
+                <a
+                    href="#home"
+                    className="flex items-center gap-2.5 text-decoration-none"
+                    onClick={(e) => handleNavClick(e, "#home")}
+                >
                     <img
                         src="/favicon.png"
                         alt="Abbey's Kitchenette"
                         className="h-9 w-9 rounded-full"
+                        style={{ objectFit: "cover" }}
                     />
-                    <span className="text-lg font-bold tracking-tight text-white dark:text-foreground">
+                    <span
+                        className="navbar-brand-text"
+                        style={{
+                            fontFamily: "'Space Grotesk', sans-serif",
+                            fontSize: "1.0625rem",
+                            fontWeight: 700,
+                            letterSpacing: "-0.01em",
+                            color: scrolled ? "#1c1008" : "#fff",
+                            transition: "color 0.28s",
+                        }}
+                    >
                         Abbey's Kitchenette
                     </span>
                 </a>
@@ -63,30 +87,47 @@ export default function Navbar() {
                     ))}
                 </div>
 
+                {/* Desktop CTA */}
+                <div className="hidden items-center gap-3 md:flex">
+                    <Link to="/order" className="navbar-cta">
+                        <Icon name="shoppingBag" size={16} />
+                        Order Online
+                    </Link>
+                </div>
+
                 {/* Mobile Toggle */}
                 <button
-                    className="flex items-center justify-center rounded-lg p-2 text-white transition-colors hover:bg-white/10 md:hidden"
+                    className="navbar-mobile-btn md:hidden"
                     onClick={() => setMobileOpen(!mobileOpen)}
                     aria-label="Toggle menu"
+                    aria-expanded={mobileOpen}
                 >
                     <Icon name={mobileOpen ? "x" : "menu"} size={22} />
                 </button>
             </div>
 
-            {/* Mobile Menu */}
+            {/* Mobile Menu — animated slide-down */}
             {mobileOpen && (
-                <div className="absolute left-0 right-0 top-full border-b border-white/10 bg-oklch(0.15 0 0 / 0.95) backdrop-blur-lg md:hidden">
-                    <div className="flex flex-col gap-1 p-4">
+                <div className="navbar-mobile-menu md:hidden">
+                    <div className="flex flex-col">
                         {links.map((link) => (
                             <a
                                 key={link.href}
                                 href={link.href}
-                                className="rounded-lg px-4 py-3 text-sm font-medium text-white/90 transition-colors hover:bg-white/10"
+                                className="navbar-mobile-link"
                                 onClick={(e) => handleNavClick(e, link.href)}
                             >
                                 {link.label}
                             </a>
                         ))}
+                        <Link
+                            to="/order"
+                            className="navbar-mobile-cta"
+                            onClick={() => setMobileOpen(false)}
+                        >
+                            <Icon name="shoppingBag" size={16} />
+                            Order Online
+                        </Link>
                     </div>
                 </div>
             )}

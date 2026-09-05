@@ -1,9 +1,12 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
+import Icon from "@/components/ui/icon";
 
 /**
  * Menu
- * Menu showcase section with category tabs and food/drink cards.
+ * Menu showcase section with category filter tabs and food/drink cards.
  * Uses real photos from public/landing/.
+ * Includes "Order Online" CTA at the bottom.
  */
 
 const menuItems = [
@@ -66,32 +69,34 @@ const menuItems = [
 ];
 
 const categories = [
-    { key: "all", label: "All" },
-    { key: "food", label: "Food" },
-    { key: "drinks", label: "Drinks" },
+    { key: "all",      label: "All Items" },
+    { key: "food",     label: "Food" },
+    { key: "drinks",   label: "Drinks" },
     { key: "pastries", label: "Pastries" },
 ];
 
 export default function Menu() {
     const [active, setActive] = useState("all");
 
-    const filtered = active === "all"
-        ? menuItems
-        : menuItems.filter((item) => item.category === active);
+    const filtered =
+        active === "all"
+            ? menuItems
+            : menuItems.filter((item) => item.category === active);
 
     return (
-        <section id="menu" className="landing-section bg-muted/30">
+        <section id="menu" className="landing-section">
             {/* Title */}
-            <div className="text-center">
+            <div className="text-center lp-reveal">
                 <h2 className="landing-title">Our Menu</h2>
-                <p className="landing-subtitle">
+                <p className="landing-subtitle" style={{ marginTop: "0.75rem" }}>
                     From hearty meals to refreshing drinks and sweet pastries —
                     there's something for everyone.
                 </p>
+                <span className="landing-title-line" />
             </div>
 
             {/* Category Tabs */}
-            <div className="menu-tabs">
+            <div className="menu-tabs lp-reveal lp-reveal-delay-1">
                 {categories.map((cat) => (
                     <button
                         key={cat.key}
@@ -105,14 +110,19 @@ export default function Menu() {
 
             {/* Menu Grid */}
             <div className="menu-grid">
-                {filtered.map((item) => (
-                    <div key={item.name} className="menu-card">
-                        <img
-                            src={item.image}
-                            alt={item.name}
-                            className="menu-card-img"
-                            loading="lazy"
-                        />
+                {filtered.map((item, i) => (
+                    <div
+                        key={item.name}
+                        className={`menu-card lp-reveal lp-reveal-delay-${Math.min(i % 4 + 1, 4)}`}
+                    >
+                        <div className="menu-card-img-wrap">
+                            <img
+                                src={item.image}
+                                alt={item.name}
+                                className="menu-card-img"
+                                loading="lazy"
+                            />
+                        </div>
                         <div className="menu-card-body">
                             <div className="menu-card-name">{item.name}</div>
                             <div className="menu-card-desc">{item.description}</div>
@@ -122,6 +132,14 @@ export default function Menu() {
                         </div>
                     </div>
                 ))}
+            </div>
+
+            {/* Order Online CTA */}
+            <div className="menu-cta-wrap lp-reveal lp-reveal-delay-2">
+                <Link to="/order" className="menu-cta-btn">
+                    <Icon name="shoppingBag" size={18} />
+                    Order Online Now
+                </Link>
             </div>
         </section>
     );
