@@ -75,7 +75,7 @@ export const productController = {
    */
   async createProduct(req, res) {
     try {
-      const product = await productService.create(req.body);
+      const product = await productService.create(req.body, req.user.id, req.ip);
       return successResponse(res, "Product created", { product }, 201);
     } catch (error) {
       return handleError(res, error, "CREATE_PRODUCT_ERROR");
@@ -88,7 +88,7 @@ export const productController = {
    */
   async updateProduct(req, res) {
     try {
-      const product = await productService.update(req.params.id, req.body);
+      const product = await productService.update(req.params.id, req.body, req.user.id, req.ip);
       return successResponse(res, "Product updated", { product });
     } catch (error) {
       return handleError(res, error, "UPDATE_PRODUCT_ERROR");
@@ -101,7 +101,7 @@ export const productController = {
    */
   async updateVariants(req, res) {
     try {
-      const product = await productService.updateVariants(req.params.id, req.body.variants);
+      const product = await productService.updateVariants(req.params.id, req.body.variants, req.user.id, req.ip);
       return successResponse(res, "Variants updated", { product });
     } catch (error) {
       return handleError(res, error, "UPDATE_VARIANTS_ERROR");
@@ -114,7 +114,7 @@ export const productController = {
    */
   async deactivateProduct(req, res) {
     try {
-      const product = await productService.deactivate(req.params.id);
+      const product = await productService.deactivate(req.params.id, req.user.id, req.ip);
       return successResponse(res, "Product deactivated", { product });
     } catch (error) {
       return handleError(res, error, "DEACTIVATE_PRODUCT_ERROR");
@@ -127,7 +127,7 @@ export const productController = {
    */
   async activateProduct(req, res) {
     try {
-      const product = await productService.activate(req.params.id);
+      const product = await productService.activate(req.params.id, req.user.id, req.ip);
       return successResponse(res, "Product activated", { product });
     } catch (error) {
       return handleError(res, error, "ACTIVATE_PRODUCT_ERROR");
@@ -140,7 +140,7 @@ export const productController = {
    */
   async deleteProduct(req, res) {
     try {
-      const result = await productService.remove(req.params.id);
+      const result = await productService.remove(req.params.id, req.user.id, req.ip);
       return successResponse(res, "Product deleted", result);
     } catch (error) {
       return handleError(res, error, "DELETE_PRODUCT_ERROR");

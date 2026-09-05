@@ -3,6 +3,8 @@ import { isValidTransition, getNextStatus, formatOrderResponse, formatOrderItemR
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { productService } from "../products/product.service.js";
 import prisma from "../../config/prisma.js";
+import { auditLogService } from "../auditLogs/auditLog.service.js";
+import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
 /**
  * Order Service
@@ -100,7 +102,7 @@ export const orderService = {
    * @returns {object} - created order
    * @throws {AppError} 400 if insufficient stock
    */
-  async createWalkIn({ customerName, tableNumber, items, amountPaid, createdBy, orderDate: orderDateStr }) {
+  async createWalkIn({ customerName, tableNumber, items, amountPaid, createdBy, orderDate: orderDateStr, ipAddress }) {
     // Step 1: Resolve recipes for all items and aggregate ingredient needs
     const aggregatedIngredients = await this._aggregateIngredientNeeds(items);
     const totalAmount = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
@@ -153,6 +155,15 @@ export const orderService = {
 
     // Auto-advance queue (accepted → next_in_line → processing)
     await this._advanceQueue();
+
+    auditLogService.logAction({
+      userId: createdBy,
+      action: ACTIONS.ORDER_CREATED,
+      targetType: "order",
+      targetId: order.order.orderId,
+      details: { total: totalAmount, source: "walk_in" },
+      ipAddress,
+    }).catch(() => {});
 
     return this.getById(order.order.orderId);
   },
@@ -262,7 +273,15 @@ export const orderService = {
     // Status-specific logic
     if (targetStatus === "accepted") {
       // Payment required for pending → accepted
-      return this._handleAcceptance(id, order, meta);
+      const result = await this._handleAcceptance(id, order, meta);
+      auditLogService.logAction({
+        userId: meta.userId,
+        action: ACTIONS.ORDER_ACCEPTED,
+        targetType: "order",
+        targetId: id,
+        ipAddress: meta.ipAddress,
+      }).catch(() => {});
+      return result;
     }
 
     // For other transitions, just update status
@@ -270,6 +289,16 @@ export const orderService = {
 
     // Trigger auto-promotion
     await this._advanceQueue();
+
+    if (targetStatus === "completed") {
+      auditLogService.logAction({
+        userId: meta.userId,
+        action: ACTIONS.ORDER_COMPLETED,
+        targetType: "order",
+        targetId: id,
+        ipAddress: meta.ipAddress,
+      }).catch(() => {});
+    }
 
     return this.getById(id);
   },
@@ -286,13 +315,20 @@ export const orderService = {
    * @param {string} [reason] - cancellation reason
    * @returns {object} - deleted/cancelled order info
    */
-  async cancelOrDelete(id, userId, reason) {
+  async cancelOrDelete(id, userId, reason, ipAddress) {
     const order = await orderRepository.findById(id);
     if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
 
     // Pending → hard delete
     if (order.status === "pending") {
       await orderRepository.delete(id);
+      auditLogService.logAction({
+        userId,
+        action: ACTIONS.ORDER_DELETED,
+        targetType: "order",
+        targetId: id,
+        ipAddress,
+      }).catch(() => {});
       return { order_id: id, action: "deleted" };
     }
 
@@ -331,6 +367,15 @@ export const orderService = {
     if (affectedIngredientIds.length > 0) {
       await productService.recomputeVariantAvailability(affectedIngredientIds);
     }
+
+    auditLogService.logAction({
+      userId,
+      action: ACTIONS.ORDER_CANCELLED,
+      targetType: "order",
+      targetId: id,
+      details: { reason: reason || null },
+      ipAddress,
+    }).catch(() => {});
 
     return { order_id: id, action: "cancelled" };
   },

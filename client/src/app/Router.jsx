@@ -38,29 +38,13 @@ import PosInterface from "@/features/orders/pages/PosInterface";
 import StaffPage from "@/features/staff/pages/StaffPage";
 import ForecastingPage from "@/features/forecasting/pages/ForecastingPage";
 import MarketBasketPage from "@/features/marketBasket/pages/MarketBasketPage";
+import SettingsPage from "@/features/settings/pages/SettingsPage";
+import AuditLogsPage from "@/features/auditLogs/pages/AuditLogsPage";
 
 /* ── Placeholder Pages ───────────────── */
 
 function DashboardPlaceholder() {
     return <div className="p-6"><h1 className="text-2xl font-bold">Dashboard</h1></div>;
-}
-function ProductsPlaceholder() {
-    return <div className="p-6"><h1 className="text-2xl font-bold">Products</h1></div>;
-}
-function InventoryPlaceholder() {
-    return <div className="p-6"><h1 className="text-2xl font-bold">Inventory</h1></div>;
-}
-function StaffPlaceholder() {
-    return <div className="p-6"><h1 className="text-2xl font-bold">Staff</h1></div>;
-}
-function ForecastingPlaceholder() {
-    return <div className="p-6"><h1 className="text-2xl font-bold">Forecasting</h1></div>;
-}
-function AuditLogsPlaceholder() {
-    return <div className="p-6"><h1 className="text-2xl font-bold">Audit Logs</h1></div>;
-}
-function SettingsPlaceholder() {
-    return <div className="p-6"><h1 className="text-2xl font-bold">Settings</h1></div>;
 }
 function KitchenPlaceholder() {
     return <div className="flex h-screen items-center justify-center"><h1 className="text-2xl font-bold">Kitchen Display</h1></div>;
@@ -112,12 +96,11 @@ const router = createBrowserRouter([
             { path: "/products", element: <ProductsPage /> },
             { path: "/inventory", element: <IngredientsPage /> },
             { path: "/orders", element: <OrdersPage /> },
-            { path: "/inventory", element: <InventoryPlaceholder /> },
             { path: "/staff", element: <StaffPage /> },
             { path: "/forecasting", element: <ForecastingPage /> },
             { path: "/market-basket", element: <MarketBasketPage /> },
-            { path: "/audit-logs", element: <AuditLogsPlaceholder /> },
-            { path: "/settings", element: <SettingsPlaceholder /> },
+            { path: "/audit-logs", element: <AuditLogsPage /> },
+            { path: "/settings", element: <SettingsPage /> },
         ],
     },
 

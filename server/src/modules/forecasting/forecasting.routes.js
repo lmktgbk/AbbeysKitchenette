@@ -1,6 +1,8 @@
 import { Router } from "express";
 import authenticate from "../../middleware/authenticate.middleware.js";
 import authorize from "../../middleware/authorize.middleware.js";
+import { auditLogService } from "../auditLogs/auditLog.service.js";
+import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
 const router = Router();
 
@@ -69,6 +71,7 @@ router.post(
   authenticate,
   authorize("admin"),
   (req, res) => {
+    auditLogService.logAction({ userId: req.user.id, action: ACTIONS.FORECAST_RUN, targetType: "forecast", ipAddress: req.ip });
     proxyPost(res, "/forecast/demand/run", "DEMAND_RUN_ERROR");
   },
 );

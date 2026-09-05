@@ -81,6 +81,7 @@ export const orderController = {
         amountPaid: amount_paid,
         createdBy: req.user.id,
         orderDate: order_date,
+        ipAddress: req.ip,
       });
       return successResponse(res, "Order created", { order }, 201);
     } catch (error) {
@@ -111,6 +112,7 @@ export const orderController = {
       const order = await orderService.advanceStatus(req.params.id, status, {
         userId: req.user.id,
         amountPaid: amount_paid,
+        ipAddress: req.ip,
       });
       return successResponse(res, "Order status updated", { order });
     } catch (error) {
@@ -125,7 +127,7 @@ export const orderController = {
   async cancelOrder(req, res) {
     try {
       const { reason } = req.body || {};
-      const result = await orderService.cancelOrDelete(req.params.id, req.user.id, reason);
+      const result = await orderService.cancelOrDelete(req.params.id, req.user.id, reason, req.ip);
       return successResponse(res, result.action === "deleted" ? "Order deleted" : "Order cancelled", result);
     } catch (error) {
       return handleError(res, error, "CANCEL_ORDER_ERROR");

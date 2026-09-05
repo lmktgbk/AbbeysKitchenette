@@ -2,6 +2,8 @@ import { authService } from "./auth.service.js";
 import { successResponse, errorResponse } from "../../utils/response.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { env } from "../../config/env.js";
+import { auditLogService } from "../auditLogs/auditLog.service.js";
+import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -49,11 +51,25 @@ export const authController = {
       }
 
       res.cookie("token", result.token, COOKIE_OPTIONS);
+      auditLogService.logAction({
+        userId: result.user.id,
+        action: ACTIONS.LOGIN_SUCCESS,
+        details: { email, role: result.user.role },
+        ipAddress: clientIP,
+      }).catch(() => {});
       return successResponse(res, "Login successful", {
         user: result.user,
         token: result.token,
       });
     } catch (error) {
+      if (error instanceof AppError && error.code === "INVALID_CREDENTIALS") {
+        const { email } = req.body || {};
+        auditLogService.logAction({
+          action: ACTIONS.LOGIN_FAILED,
+          details: { email },
+          ipAddress: req.ip,
+        }).catch(() => {});
+      }
       return handleError(res, error, "LOGIN_ERROR");
     }
   },
@@ -72,6 +88,12 @@ export const authController = {
       );
 
       res.cookie("token", token, COOKIE_OPTIONS);
+      auditLogService.logAction({
+        userId: user.id,
+        action: ACTIONS.LOGIN_SUCCESS,
+        details: { role: user.role },
+        ipAddress: req.ip,
+      }).catch(() => {});
       return successResponse(res, "Login successful", {
         user,
         token,
@@ -88,6 +110,11 @@ export const authController = {
    */
   async logout(req, res) {
     res.clearCookie("token", { path: "/" });
+    auditLogService.logAction({
+      userId: req.user.id,
+      action: ACTIONS.LOGOUT,
+      ipAddress: req.ip,
+    }).catch(() => {});
     return successResponse(res, "Logged out successfully");
   },
 
@@ -123,6 +150,11 @@ export const authController = {
       const { token, user } = await authService.verifyOtp(userId, code);
 
       res.cookie("token", token, COOKIE_OPTIONS);
+      auditLogService.logAction({
+        userId: user.id,
+        action: ACTIONS.OTP_VERIFIED,
+        ipAddress: req.ip,
+      }).catch(() => {});
       return successResponse(res, "OTP verified", { user, token });
     } catch (error) {
       return handleError(res, error, "OTP_VERIFY_ERROR");
@@ -184,6 +216,11 @@ export const authController = {
       const { newPin } = req.body;
       await authService.changePin(req.user.id, newPin);
 
+      auditLogService.logAction({
+        userId: req.user.id,
+        action: ACTIONS.PIN_CHANGED,
+        ipAddress: req.ip,
+      }).catch(() => {});
       return successResponse(res, "PIN changed successfully");
     } catch (error) {
       return handleError(res, error, "CHANGE_PIN_ERROR");
@@ -218,6 +255,11 @@ export const authController = {
         newPassword,
       );
 
+      auditLogService.logAction({
+        userId: req.user.id,
+        action: ACTIONS.PASSWORD_CHANGED,
+        ipAddress: req.ip,
+      }).catch(() => {});
       return successResponse(res, "Password changed successfully");
     } catch (error) {
       return handleError(res, error, "CHANGE_PASSWORD_ERROR");

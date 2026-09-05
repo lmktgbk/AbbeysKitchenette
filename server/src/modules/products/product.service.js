@@ -2,6 +2,8 @@ import { productRepository } from "./product.repository.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import prisma from "../../config/prisma.js";
 import { deleteImage } from "../../utils/cloudinary.js";
+import { auditLogService } from "../auditLogs/auditLog.service.js";
+import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
 /**
  * Map Prisma Product or raw SQL row to snake_case API response format.
@@ -183,7 +185,7 @@ export const productService = {
    * @returns {object} - created product with variants
    * @throws {AppError} 409 if product name already exists
    */
-  async create(data) {
+  async create(data, userId, ipAddress) {
     // Step 1: Check for duplicate name
     const existing = await productRepository.findByName(data.product_name.trim());
     if (existing) {
@@ -216,6 +218,8 @@ export const productService = {
       return newProduct;
     });
 
+    auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_CREATED, targetType: "product", targetId: product.productId, details: { name: product.productName }, ipAddress });
+
     // Step 3: Return full product with variants
     return this.getById(product.productId);
   },
@@ -227,7 +231,7 @@ export const productService = {
    * @returns {object} - updated product
    * @throws {AppError} 404 if not found, 409 if duplicate name
    */
-  async update(id, data) {
+  async update(id, data, userId, ipAddress) {
     // Step 1: Validate product exists
     const existing = await productRepository.findById(id);
     if (!existing) {
@@ -266,6 +270,9 @@ export const productService = {
     }
 
     await productRepository.update(id, updateData);
+
+    auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_UPDATED, targetType: "product", targetId: id, details: { name: data.product_name }, ipAddress });
+
     return this.getById(id);
   },
 
@@ -279,7 +286,7 @@ export const productService = {
    * @returns {object} - updated product with variants
    * @throws {AppError} 404 if not found
    */
-  async updateVariants(id, variantsData) {
+  async updateVariants(id, variantsData, userId, ipAddress) {
     // Step 1: Validate product exists
     const existing = await productRepository.findById(id);
     if (!existing) {
@@ -348,6 +355,8 @@ export const productService = {
       }
     });
 
+    auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_VARIANTS_UPDATED, targetType: "product", targetId: id, ipAddress });
+
     return this.getById(id);
   },
 
@@ -357,7 +366,7 @@ export const productService = {
    * @returns {object} - updated product
    * @throws {AppError} 404 if not found
    */
-  async deactivate(id) {
+  async deactivate(id, userId, ipAddress) {
     const existing = await productRepository.findById(id);
     if (!existing) {
       throw new AppError(404, "Product not found", "PRODUCT_NOT_FOUND");
@@ -368,6 +377,8 @@ export const productService = {
       await productRepository.deactivateAllVariants(id, tx);
     });
 
+    auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_DEACTIVATED, targetType: "product", targetId: id, ipAddress });
+
     return this.getById(id);
   },
 
@@ -377,13 +388,16 @@ export const productService = {
    * @returns {object} - updated product
    * @throws {AppError} 404 if not found
    */
-  async activate(id) {
+  async activate(id, userId, ipAddress) {
     const existing = await productRepository.findById(id);
     if (!existing) {
       throw new AppError(404, "Product not found", "PRODUCT_NOT_FOUND");
     }
 
     await productRepository.update(id, { isAvailable: true });
+
+    auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_ACTIVATED, targetType: "product", targetId: id, ipAddress });
+
     return this.getById(id);
   },
 
@@ -393,7 +407,7 @@ export const productService = {
    * @returns {object} - confirmation
    * @throws {AppError} 404 if not found, 400 if has transactions
    */
-  async remove(id) {
+  async remove(id, userId, ipAddress) {
     const existing = await productRepository.findById(id);
     if (!existing) {
       throw new AppError(404, "Product not found", "PRODUCT_NOT_FOUND");
@@ -415,6 +429,9 @@ export const productService = {
       await deleteImage(existing.imageUrl);
     }
     await productRepository.delete(id);
+
+    auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_DELETED, targetType: "product", targetId: id, ipAddress });
+
     return { product_id: id };
   },
 };

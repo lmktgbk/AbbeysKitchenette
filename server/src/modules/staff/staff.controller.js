@@ -71,7 +71,7 @@ export const staffController = {
    */
   async createStaff(req, res) {
     try {
-      const result = await staffService.createStaff(req.body);
+      const result = await staffService.createStaff(req.body, req.user.id, req.ip);
       return successResponse(res, "Staff created", result, 201);
     } catch (error) {
       return handleError(res, error, "STAFF_CREATE_ERROR");
@@ -83,7 +83,7 @@ export const staffController = {
    */
   async updateStaff(req, res) {
     try {
-      const staff = await staffService.updateStaff(req.params.id, req.body);
+      const staff = await staffService.updateStaff(req.params.id, req.body, req.user.id, req.ip);
       return successResponse(res, "Staff updated", { staff });
     } catch (error) {
       return handleError(res, error, "STAFF_UPDATE_ERROR");
@@ -95,7 +95,7 @@ export const staffController = {
    */
   async toggleActive(req, res) {
     try {
-      const result = await staffService.toggleActive(req.params.id);
+      const result = await staffService.toggleActive(req.params.id, req.user.id, req.ip);
       return successResponse(res, "Staff status toggled", result);
     } catch (error) {
       return handleError(res, error, "STAFF_TOGGLE_ERROR");
@@ -109,7 +109,9 @@ export const staffController = {
     try {
       const result = await staffService.resetPin(
         req.params.id,
-        req.body.new_pin
+        req.body.new_pin,
+        req.user.id,
+        req.ip
       );
       return successResponse(res, "PIN reset successfully", result);
     } catch (error) {
@@ -124,7 +126,9 @@ export const staffController = {
     try {
       const result = await staffService.resetPassword(
         req.params.id,
-        req.body.new_password
+        req.body.new_password,
+        req.user.id,
+        req.ip
       );
       return successResponse(res, "Password reset successfully", result);
     } catch (error) {
@@ -137,7 +141,7 @@ export const staffController = {
    */
   async deleteStaff(req, res) {
     try {
-      const result = await staffService.deleteStaff(req.params.id);
+      const result = await staffService.deleteStaff(req.params.id, req.user.id, req.ip);
       return successResponse(res, "Staff deleted", result);
     } catch (error) {
       return handleError(res, error, "STAFF_DELETE_ERROR");

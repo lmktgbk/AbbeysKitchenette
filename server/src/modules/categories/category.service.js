@@ -1,5 +1,7 @@
 import { categoryRepository } from "./category.repository.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
+import { auditLogService } from "../auditLogs/auditLog.service.js";
+import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
 /**
  * Category Service
@@ -68,8 +70,7 @@ export const categoryService = {
       sortOrder: data.sort_order ?? 0,
     });
 
-    // TODO: Add audit log when audit module is built
-    // logAction({ userId, action: 'CATEGORY_CREATED', targetId: category.categoryId, details: { name: category.categoryName } });
+    auditLogService.logAction({ userId, action: ACTIONS.CATEGORY_CREATED, targetType: "category", targetId: category.categoryId, details: { name: category.categoryName } });
 
     return {
       category_id: category.categoryId,
@@ -111,8 +112,7 @@ export const categoryService = {
 
     const category = await categoryRepository.update(id, updateData);
 
-    // TODO: Add audit log when audit module is built
-    // logAction({ userId, action: 'CATEGORY_UPDATED', targetId: id, details: { name: category.categoryName, changes: data } });
+    auditLogService.logAction({ userId, action: ACTIONS.CATEGORY_UPDATED, targetType: "category", targetId: id, details: { name: data.name || data.categoryName } });
 
     return {
       category_id: category.categoryId,
@@ -150,7 +150,6 @@ export const categoryService = {
 
     await categoryRepository.delete(id);
 
-    // TODO: Add audit log when audit module is built
-    // logAction({ userId, action: 'CATEGORY_DELETED', targetId: id, details: { name: existing.categoryName } });
+    auditLogService.logAction({ userId, action: ACTIONS.CATEGORY_DELETED, targetType: "category", targetId: id });
   },
 };

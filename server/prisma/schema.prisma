@@ -38,6 +38,7 @@ model User {
   processingOrders  Order[]          @relation("OrderProcessingBy")
   completedOrders   Order[]          @relation("OrderCompletedBy")
   cancelledCancellations OrderCancellation[] @relation("OrderCancelledBy")
+  auditLogs        AuditLog[]
 }
 
 model SystemSettings {
@@ -47,9 +48,14 @@ model SystemSettings {
   storePhone           String?
   storeEmail           String?
   storeIpWhitelist     String?
+  storeHours           Json?    @map("store_hours")
   currency             String   @default("PHP")
-  taxRate              Float    @default(0)
+  taxRate              Float    @default(0) @map("tax_rate")
   comboDiscountPercent Float    @default(15) @map("combo_discount_percent")
+  minMarginPercent     Float    @default(30) @map("min_margin_percent")
+  notifyLowStock       Boolean  @default(true) @map("notify_low_stock")
+  notifyNewOrders      Boolean  @default(true) @map("notify_new_orders")
+  notifyDailyReport    Boolean  @default(false) @map("notify_daily_report")
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -556,4 +562,23 @@ model ComboCreatedPair {
 
   @@unique([productNameA, productNameB])
   @@map("combo_created_pairs")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String?  @db.Uuid
+  action     String
+  targetType String?
+  targetId   String?
+  details    Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  user       User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([targetType, targetId])
+  @@map("audit_logs")
 }
