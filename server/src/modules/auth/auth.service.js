@@ -11,6 +11,7 @@ import {
   generateOtpEmail,
 } from "../../utils/email.js";
 import { env } from "../../config/env.js";
+import { deleteImage } from "../../utils/cloudinary.js";
 
 // Constants
 const PIN_MAX_ATTEMPTS = 5;
@@ -313,5 +314,75 @@ export const authService = {
     const pinHash = await bcrypt.hash(newPin, 10);
     await authRepository.updatePin(userId, pinHash);
     await authRepository.setMustChangePwd(userId, false);
+  },
+
+  /**
+   * Update own profile (name and email).
+   * Checks email uniqueness before updating.
+   * @param {string} userId - user's UUID
+   * @param {string} name - new name
+   * @param {string} email - new email
+   * @returns {object} - updated user
+   */
+  async updateProfile(userId, name, email) {
+    const isTaken = await authRepository.isEmailTaken(email, userId);
+    if (isTaken) {
+      throw new AppError(
+        409,
+        "Email is already taken by another account",
+        "EMAIL_TAKEN",
+      );
+    }
+
+    return authRepository.updateProfile(userId, { name, email });
+  },
+
+  /**
+   * Change own password.
+   * Verifies current password before updating.
+   * @param {string} userId - user's UUID
+   * @param {string} currentPassword - current plain password
+   * @param {string} newPassword - new plain password
+   */
+  async changePassword(userId, currentPassword, newPassword) {
+    const passwordHash = await authRepository.getPasswordHash(userId);
+
+    if (!passwordHash) {
+      throw new AppError(401, "User not found", "USER_NOT_FOUND");
+    }
+
+    const isCurrentValid = await bcrypt.compare(currentPassword, passwordHash);
+    if (!isCurrentValid) {
+      throw new AppError(
+        401,
+        "Current password is incorrect",
+        "INVALID_PASSWORD",
+      );
+    }
+
+    const newHash = await bcrypt.hash(newPassword, 10);
+    await authRepository.updatePassword(userId, newHash);
+  },
+
+  /**
+   * Upload or replace profile image.
+   * Deletes old image from Cloudinary before saving new URL.
+   * @param {string} userId - user's UUID
+   * @param {string} imageUrl - new Cloudinary URL from upload
+   * @returns {object} - updated user
+   */
+  async uploadProfileImage(userId, imageUrl) {
+    const user = await authRepository.findById(userId);
+
+    if (!user) {
+      throw new AppError(401, "User not found", "USER_NOT_FOUND");
+    }
+
+    // Delete old image from Cloudinary if replacing
+    if (user.imageUrl && user.imageUrl !== imageUrl) {
+      await deleteImage(user.imageUrl);
+    }
+
+    return authRepository.updateImageUrl(userId, imageUrl);
   },
 };

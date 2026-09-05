@@ -26,6 +26,7 @@ export const authRepository = {
         role: true,
         passwordHash: true,
         pinHash: true,
+        imageUrl: true,
         isActive: true,
         mustChangePwd: true,
         failedPinAttempts: true,
@@ -68,6 +69,7 @@ export const authRepository = {
         email: true,
         role: true,
         pinHash: true,
+        imageUrl: true,
         isActive: true,
         mustChangePwd: true,
         failedPinAttempts: true,
@@ -91,12 +93,28 @@ export const authRepository = {
         name: true,
         email: true,
         role: true,
+        imageUrl: true,
         isActive: true,
         mustChangePwd: true,
         lastLoginAt: true,
         createdAt: true,
       },
     });
+  },
+
+  /**
+   * Check if an email is taken by another user (excluding current user).
+   * Used during profile update to enforce email uniqueness.
+   * @param {string} email - email to check
+   * @param {string} userId - current user's UUID to exclude
+   * @returns {boolean} - true if email is taken by another user
+   */
+  async isEmailTaken(email, userId) {
+    const existing = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+    return existing && existing.id !== userId;
   },
 
   /**
@@ -211,5 +229,66 @@ export const authRepository = {
       where: { id: userId },
       data: { mustChangePwd: value },
     });
+  },
+
+  /**
+   * Update user's profile (name and/or email).
+   * @param {string} userId - user's UUID
+   * @param {object} data - { name?, email? }
+   * @returns {object} - updated safe user fields
+   */
+  async updateProfile(userId, data) {
+    return prisma.user.update({
+      where: { id: userId },
+      data,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        imageUrl: true,
+        isActive: true,
+        mustChangePwd: true,
+        lastLoginAt: true,
+        createdAt: true,
+      },
+    });
+  },
+
+  /**
+   * Update user's profile image URL.
+   * @param {string} userId - user's UUID
+   * @param {string|null} imageUrl - Cloudinary URL or null to clear
+   * @returns {object} - updated safe user fields
+   */
+  async updateImageUrl(userId, imageUrl) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: { imageUrl },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        imageUrl: true,
+        isActive: true,
+        mustChangePwd: true,
+        lastLoginAt: true,
+        createdAt: true,
+      },
+    });
+  },
+
+  /**
+   * Get user's password hash for verifying current password.
+   * @param {string} userId - user's UUID
+   * @returns {string|null} - password hash or null
+   */
+  async getPasswordHash(userId) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { passwordHash: true },
+    });
+    return user?.passwordHash ?? null;
   },
 };

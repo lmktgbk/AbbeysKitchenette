@@ -4,6 +4,7 @@ import { authController } from "./auth.controller.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import authenticate from "../../middleware/authenticate.middleware.js";
 import requireStoreDevice from "../../middleware/requiredStoreDevice.middleware.js";
+import { uploadAvatar } from "../../middleware/upload.middleware.js";
 import {
   loginSchema,
   loginPinSchema,
@@ -12,6 +13,8 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
   changePinSchema,
+  updateProfileSchema,
+  changePasswordSchema,
 } from "./auth.validation.js";
 
 const router = Router();
@@ -63,6 +66,30 @@ router.post(
   requireStoreDevice,
   validate(changePinSchema),
   authController.changePin,
+);
+
+// PATCH /api/auth/me — update own profile (protected)
+router.patch(
+  "/me",
+  authenticate,
+  validate(updateProfileSchema),
+  authController.updateProfile,
+);
+
+// POST /api/auth/change-password — change own password (protected)
+router.post(
+  "/change-password",
+  authenticate,
+  validate(changePasswordSchema),
+  authController.changePassword,
+);
+
+// POST /api/auth/profile-image — upload profile image (protected)
+router.post(
+  "/profile-image",
+  authenticate,
+  uploadAvatar,
+  authController.uploadProfileImage,
 );
 
 export default router;

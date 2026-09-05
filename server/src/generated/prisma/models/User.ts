@@ -41,6 +41,7 @@ export type UserMinAggregateOutputType = {
   role: $Enums.Role | null
   passwordHash: string | null
   pinHash: string | null
+  imageUrl: string | null
   isActive: boolean | null
   mustChangePwd: boolean | null
   failedPinAttempts: number | null
@@ -58,6 +59,7 @@ export type UserMaxAggregateOutputType = {
   role: $Enums.Role | null
   passwordHash: string | null
   pinHash: string | null
+  imageUrl: string | null
   isActive: boolean | null
   mustChangePwd: boolean | null
   failedPinAttempts: number | null
@@ -75,6 +77,7 @@ export type UserCountAggregateOutputType = {
   role: number
   passwordHash: number
   pinHash: number
+  imageUrl: number
   isActive: number
   mustChangePwd: number
   failedPinAttempts: number
@@ -102,6 +105,7 @@ export type UserMinAggregateInputType = {
   role?: true
   passwordHash?: true
   pinHash?: true
+  imageUrl?: true
   isActive?: true
   mustChangePwd?: true
   failedPinAttempts?: true
@@ -119,6 +123,7 @@ export type UserMaxAggregateInputType = {
   role?: true
   passwordHash?: true
   pinHash?: true
+  imageUrl?: true
   isActive?: true
   mustChangePwd?: true
   failedPinAttempts?: true
@@ -136,6 +141,7 @@ export type UserCountAggregateInputType = {
   role?: true
   passwordHash?: true
   pinHash?: true
+  imageUrl?: true
   isActive?: true
   mustChangePwd?: true
   failedPinAttempts?: true
@@ -240,6 +246,7 @@ export type UserGroupByOutputType = {
   role: $Enums.Role
   passwordHash: string
   pinHash: string | null
+  imageUrl: string | null
   isActive: boolean
   mustChangePwd: boolean
   failedPinAttempts: number
@@ -280,6 +287,7 @@ export type UserWhereInput = {
   role?: Prisma.EnumRoleFilter<"User"> | $Enums.Role
   passwordHash?: Prisma.StringFilter<"User"> | string
   pinHash?: Prisma.StringNullableFilter<"User"> | string | null
+  imageUrl?: Prisma.StringNullableFilter<"User"> | string | null
   isActive?: Prisma.BoolFilter<"User"> | boolean
   mustChangePwd?: Prisma.BoolFilter<"User"> | boolean
   failedPinAttempts?: Prisma.IntFilter<"User"> | number
@@ -306,6 +314,7 @@ export type UserOrderByWithRelationInput = {
   role?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrder
   pinHash?: Prisma.SortOrderInput | Prisma.SortOrder
+  imageUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   isActive?: Prisma.SortOrder
   mustChangePwd?: Prisma.SortOrder
   failedPinAttempts?: Prisma.SortOrder
@@ -335,6 +344,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   role?: Prisma.EnumRoleFilter<"User"> | $Enums.Role
   passwordHash?: Prisma.StringFilter<"User"> | string
   pinHash?: Prisma.StringNullableFilter<"User"> | string | null
+  imageUrl?: Prisma.StringNullableFilter<"User"> | string | null
   isActive?: Prisma.BoolFilter<"User"> | boolean
   mustChangePwd?: Prisma.BoolFilter<"User"> | boolean
   failedPinAttempts?: Prisma.IntFilter<"User"> | number
@@ -361,6 +371,7 @@ export type UserOrderByWithAggregationInput = {
   role?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrder
   pinHash?: Prisma.SortOrderInput | Prisma.SortOrder
+  imageUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   isActive?: Prisma.SortOrder
   mustChangePwd?: Prisma.SortOrder
   failedPinAttempts?: Prisma.SortOrder
@@ -386,6 +397,7 @@ export type UserScalarWhereWithAggregatesInput = {
   role?: Prisma.EnumRoleWithAggregatesFilter<"User"> | $Enums.Role
   passwordHash?: Prisma.StringWithAggregatesFilter<"User"> | string
   pinHash?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
+  imageUrl?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   isActive?: Prisma.BoolWithAggregatesFilter<"User"> | boolean
   mustChangePwd?: Prisma.BoolWithAggregatesFilter<"User"> | boolean
   failedPinAttempts?: Prisma.IntWithAggregatesFilter<"User"> | number
@@ -403,6 +415,7 @@ export type UserCreateInput = {
   role?: $Enums.Role
   passwordHash: string
   pinHash?: string | null
+  imageUrl?: string | null
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: number
@@ -429,6 +442,7 @@ export type UserUncheckedCreateInput = {
   role?: $Enums.Role
   passwordHash: string
   pinHash?: string | null
+  imageUrl?: string | null
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: number
@@ -455,6 +469,7 @@ export type UserUpdateInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
@@ -481,6 +496,7 @@ export type UserUncheckedUpdateInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
@@ -507,6 +523,7 @@ export type UserCreateManyInput = {
   role?: $Enums.Role
   passwordHash: string
   pinHash?: string | null
+  imageUrl?: string | null
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: number
@@ -524,6 +541,7 @@ export type UserUpdateManyMutationInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
@@ -541,6 +559,7 @@ export type UserUncheckedUpdateManyInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
@@ -558,6 +577,7 @@ export type UserCountOrderByAggregateInput = {
   role?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrder
   pinHash?: Prisma.SortOrder
+  imageUrl?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
   mustChangePwd?: Prisma.SortOrder
   failedPinAttempts?: Prisma.SortOrder
@@ -579,6 +599,7 @@ export type UserMaxOrderByAggregateInput = {
   role?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrder
   pinHash?: Prisma.SortOrder
+  imageUrl?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
   mustChangePwd?: Prisma.SortOrder
   failedPinAttempts?: Prisma.SortOrder
@@ -596,6 +617,7 @@ export type UserMinOrderByAggregateInput = {
   role?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrder
   pinHash?: Prisma.SortOrder
+  imageUrl?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
   mustChangePwd?: Prisma.SortOrder
   failedPinAttempts?: Prisma.SortOrder
@@ -793,6 +815,7 @@ export type UserCreateWithoutRestockBatchesInput = {
   role?: $Enums.Role
   passwordHash: string
   pinHash?: string | null
+  imageUrl?: string | null
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: number
@@ -818,6 +841,7 @@ export type UserUncheckedCreateWithoutRestockBatchesInput = {
   role?: $Enums.Role
   passwordHash: string
   pinHash?: string | null
+  imageUrl?: string | null
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: number
@@ -859,6 +883,7 @@ export type UserUpdateWithoutRestockBatchesInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
@@ -884,6 +909,7 @@ export type UserUncheckedUpdateWithoutRestockBatchesInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
@@ -909,6 +935,7 @@ export type UserCreateWithoutLossRecordsInput = {
   role?: $Enums.Role
   passwordHash: string
   pinHash?: string | null
+  imageUrl?: string | null
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: number
@@ -934,6 +961,7 @@ export type UserUncheckedCreateWithoutLossRecordsInput = {
   role?: $Enums.Role
   passwordHash: string
   pinHash?: string | null
+  imageUrl?: string | null
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: number
@@ -975,6 +1003,7 @@ export type UserUpdateWithoutLossRecordsInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1000,6 +1029,7 @@ export type UserUncheckedUpdateWithoutLossRecordsInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1025,6 +1055,7 @@ export type UserCreateWithoutStockAdjustmentsInput = {
   role?: $Enums.Role
   passwordHash: string
   pinHash?: string | null
+  imageUrl?: string | null
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: number
@@ -1050,6 +1081,7 @@ export type UserUncheckedCreateWithoutStockAdjustmentsInput = {
   role?: $Enums.Role
   passwordHash: string
   pinHash?: string | null
+  imageUrl?: string | null
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: number
@@ -1091,6 +1123,7 @@ export type UserUpdateWithoutStockAdjustmentsInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1116,6 +1149,7 @@ export type UserUncheckedUpdateWithoutStockAdjustmentsInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1141,6 +1175,7 @@ export type UserCreateWithoutCreatedOrdersInput = {
   role?: $Enums.Role
   passwordHash: string
   pinHash?: string | null
+  imageUrl?: string | null
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: number
@@ -1166,6 +1201,7 @@ export type UserUncheckedCreateWithoutCreatedOrdersInput = {
   role?: $Enums.Role
   passwordHash: string
   pinHash?: string | null
+  imageUrl?: string | null
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: number
@@ -1196,6 +1232,7 @@ export type UserCreateWithoutAcceptedOrdersInput = {
   role?: $Enums.Role
   passwordHash: string
   pinHash?: string | null
+  imageUrl?: string | null
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: number
@@ -1221,6 +1258,7 @@ export type UserUncheckedCreateWithoutAcceptedOrdersInput = {
   role?: $Enums.Role
   passwordHash: string
   pinHash?: string | null
+  imageUrl?: string | null
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: number
@@ -1251,6 +1289,7 @@ export type UserCreateWithoutNextInlinedOrdersInput = {
   role?: $Enums.Role
   passwordHash: string
   pinHash?: string | null
+  imageUrl?: string | null
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: number
@@ -1276,6 +1315,7 @@ export type UserUncheckedCreateWithoutNextInlinedOrdersInput = {
   role?: $Enums.Role
   passwordHash: string
   pinHash?: string | null
+  imageUrl?: string | null
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: number
@@ -1306,6 +1346,7 @@ export type UserCreateWithoutProcessingOrdersInput = {
   role?: $Enums.Role
   passwordHash: string
   pinHash?: string | null
+  imageUrl?: string | null
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: number
@@ -1331,6 +1372,7 @@ export type UserUncheckedCreateWithoutProcessingOrdersInput = {
   role?: $Enums.Role
   passwordHash: string
   pinHash?: string | null
+  imageUrl?: string | null
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: number
@@ -1361,6 +1403,7 @@ export type UserCreateWithoutCompletedOrdersInput = {
   role?: $Enums.Role
   passwordHash: string
   pinHash?: string | null
+  imageUrl?: string | null
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: number
@@ -1386,6 +1429,7 @@ export type UserUncheckedCreateWithoutCompletedOrdersInput = {
   role?: $Enums.Role
   passwordHash: string
   pinHash?: string | null
+  imageUrl?: string | null
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: number
@@ -1427,6 +1471,7 @@ export type UserUpdateWithoutCreatedOrdersInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1452,6 +1497,7 @@ export type UserUncheckedUpdateWithoutCreatedOrdersInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1488,6 +1534,7 @@ export type UserUpdateWithoutAcceptedOrdersInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1513,6 +1560,7 @@ export type UserUncheckedUpdateWithoutAcceptedOrdersInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1549,6 +1597,7 @@ export type UserUpdateWithoutNextInlinedOrdersInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1574,6 +1623,7 @@ export type UserUncheckedUpdateWithoutNextInlinedOrdersInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1610,6 +1660,7 @@ export type UserUpdateWithoutProcessingOrdersInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1635,6 +1686,7 @@ export type UserUncheckedUpdateWithoutProcessingOrdersInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1671,6 +1723,7 @@ export type UserUpdateWithoutCompletedOrdersInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1696,6 +1749,7 @@ export type UserUncheckedUpdateWithoutCompletedOrdersInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1721,6 +1775,7 @@ export type UserCreateWithoutCancelledCancellationsInput = {
   role?: $Enums.Role
   passwordHash: string
   pinHash?: string | null
+  imageUrl?: string | null
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: number
@@ -1746,6 +1801,7 @@ export type UserUncheckedCreateWithoutCancelledCancellationsInput = {
   role?: $Enums.Role
   passwordHash: string
   pinHash?: string | null
+  imageUrl?: string | null
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: number
@@ -1787,6 +1843,7 @@ export type UserUpdateWithoutCancelledCancellationsInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1812,6 +1869,7 @@ export type UserUncheckedUpdateWithoutCancelledCancellationsInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   pinHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mustChangePwd?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedPinAttempts?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1940,6 +1998,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   role?: boolean
   passwordHash?: boolean
   pinHash?: boolean
+  imageUrl?: boolean
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: boolean
@@ -1967,6 +2026,7 @@ export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   role?: boolean
   passwordHash?: boolean
   pinHash?: boolean
+  imageUrl?: boolean
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: boolean
@@ -1984,6 +2044,7 @@ export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   role?: boolean
   passwordHash?: boolean
   pinHash?: boolean
+  imageUrl?: boolean
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: boolean
@@ -2001,6 +2062,7 @@ export type UserSelectScalar = {
   role?: boolean
   passwordHash?: boolean
   pinHash?: boolean
+  imageUrl?: boolean
   isActive?: boolean
   mustChangePwd?: boolean
   failedPinAttempts?: boolean
@@ -2011,7 +2073,7 @@ export type UserSelectScalar = {
   updatedAt?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "email" | "role" | "passwordHash" | "pinHash" | "isActive" | "mustChangePwd" | "failedPinAttempts" | "lastFailedPinAt" | "lockedUntil" | "lastLoginAt" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "email" | "role" | "passwordHash" | "pinHash" | "imageUrl" | "isActive" | "mustChangePwd" | "failedPinAttempts" | "lastFailedPinAt" | "lockedUntil" | "lastLoginAt" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   restockBatches?: boolean | Prisma.User$restockBatchesArgs<ExtArgs>
   lossRecords?: boolean | Prisma.User$lossRecordsArgs<ExtArgs>
@@ -2047,6 +2109,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     role: $Enums.Role
     passwordHash: string
     pinHash: string | null
+    imageUrl: string | null
     isActive: boolean
     mustChangePwd: boolean
     failedPinAttempts: number
@@ -2493,6 +2556,7 @@ export interface UserFieldRefs {
   readonly role: Prisma.FieldRef<"User", 'Role'>
   readonly passwordHash: Prisma.FieldRef<"User", 'String'>
   readonly pinHash: Prisma.FieldRef<"User", 'String'>
+  readonly imageUrl: Prisma.FieldRef<"User", 'String'>
   readonly isActive: Prisma.FieldRef<"User", 'Boolean'>
   readonly mustChangePwd: Prisma.FieldRef<"User", 'Boolean'>
   readonly failedPinAttempts: Prisma.FieldRef<"User", 'Int'>

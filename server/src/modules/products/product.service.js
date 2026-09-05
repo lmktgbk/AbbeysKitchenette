@@ -1,6 +1,7 @@
 import { productRepository } from "./product.repository.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import prisma from "../../config/prisma.js";
+import { deleteImage } from "../../utils/cloudinary.js";
 
 /**
  * Map Prisma Product or raw SQL row to snake_case API response format.
@@ -250,7 +251,13 @@ export const productService = {
     // Step 3: Map other fields
     if (data.category_id !== undefined) updateData.categoryId = data.category_id;
     if (data.description !== undefined) updateData.description = data.description || null;
-    if (data.image_url !== undefined) updateData.imageUrl = data.image_url || null;
+    if (data.image_url !== undefined) {
+      // Delete old Cloudinary image if replacing or removing
+      if (existing.imageUrl && data.image_url !== existing.imageUrl) {
+        await deleteImage(existing.imageUrl);
+      }
+      updateData.imageUrl = data.image_url || null;
+    }
     if (data.is_available !== undefined) updateData.isAvailable = data.is_available;
 
     // Step 4: Only update if there are changes
@@ -403,6 +410,10 @@ export const productService = {
     }
 
     // Hard delete (cascades to variants and recipes)
+    // Delete Cloudinary image first
+    if (existing.imageUrl) {
+      await deleteImage(existing.imageUrl);
+    }
     await productRepository.delete(id);
     return { product_id: id };
   },

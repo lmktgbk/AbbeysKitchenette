@@ -420,7 +420,8 @@ export const ModelName = {
   WasteReduction: 'WasteReduction',
   PriceOptimization: 'PriceOptimization',
   MBAJob: 'MBAJob',
-  MBARule: 'MBARule'
+  MBARule: 'MBARule',
+  ComboCreatedPair: 'ComboCreatedPair'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -436,7 +437,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "systemSettings" | "category" | "product" | "productVariant" | "ingredient" | "recipe" | "restockBatch" | "lossRecord" | "stockAdjustment" | "stockAlert" | "orderCounter" | "order" | "orderItem" | "orderCancellation" | "orderIngredientDeduction" | "receipt" | "forecastJob" | "forecastResult" | "reorderSuggestion" | "wasteReduction" | "priceOptimization" | "mBAJob" | "mBARule"
+    modelProps: "user" | "systemSettings" | "category" | "product" | "productVariant" | "ingredient" | "recipe" | "restockBatch" | "lossRecord" | "stockAdjustment" | "stockAlert" | "orderCounter" | "order" | "orderItem" | "orderCancellation" | "orderIngredientDeduction" | "receipt" | "forecastJob" | "forecastResult" | "reorderSuggestion" | "wasteReduction" | "priceOptimization" | "mBAJob" | "mBARule" | "comboCreatedPair"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2216,6 +2217,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    ComboCreatedPair: {
+      payload: Prisma.$ComboCreatedPairPayload<ExtArgs>
+      fields: Prisma.ComboCreatedPairFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ComboCreatedPairFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ComboCreatedPairPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ComboCreatedPairFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ComboCreatedPairPayload>
+        }
+        findFirst: {
+          args: Prisma.ComboCreatedPairFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ComboCreatedPairPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ComboCreatedPairFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ComboCreatedPairPayload>
+        }
+        findMany: {
+          args: Prisma.ComboCreatedPairFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ComboCreatedPairPayload>[]
+        }
+        create: {
+          args: Prisma.ComboCreatedPairCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ComboCreatedPairPayload>
+        }
+        createMany: {
+          args: Prisma.ComboCreatedPairCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ComboCreatedPairCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ComboCreatedPairPayload>[]
+        }
+        delete: {
+          args: Prisma.ComboCreatedPairDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ComboCreatedPairPayload>
+        }
+        update: {
+          args: Prisma.ComboCreatedPairUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ComboCreatedPairPayload>
+        }
+        deleteMany: {
+          args: Prisma.ComboCreatedPairDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ComboCreatedPairUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ComboCreatedPairUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ComboCreatedPairPayload>[]
+        }
+        upsert: {
+          args: Prisma.ComboCreatedPairUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ComboCreatedPairPayload>
+        }
+        aggregate: {
+          args: Prisma.ComboCreatedPairAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateComboCreatedPair>
+        }
+        groupBy: {
+          args: Prisma.ComboCreatedPairGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ComboCreatedPairGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ComboCreatedPairCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ComboCreatedPairCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -2262,6 +2337,7 @@ export const UserScalarFieldEnum = {
   role: 'role',
   passwordHash: 'passwordHash',
   pinHash: 'pinHash',
+  imageUrl: 'imageUrl',
   isActive: 'isActive',
   mustChangePwd: 'mustChangePwd',
   failedPinAttempts: 'failedPinAttempts',
@@ -2639,6 +2715,17 @@ export const MBARuleScalarFieldEnum = {
 } as const
 
 export type MBARuleScalarFieldEnum = (typeof MBARuleScalarFieldEnum)[keyof typeof MBARuleScalarFieldEnum]
+
+
+export const ComboCreatedPairScalarFieldEnum = {
+  id: 'id',
+  productNameA: 'productNameA',
+  productNameB: 'productNameB',
+  productId: 'productId',
+  createdAt: 'createdAt'
+} as const
+
+export type ComboCreatedPairScalarFieldEnum = (typeof ComboCreatedPairScalarFieldEnum)[keyof typeof ComboCreatedPairScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -3044,6 +3131,7 @@ export type GlobalOmitConfig = {
   priceOptimization?: Prisma.PriceOptimizationOmit
   mBAJob?: Prisma.MBAJobOmit
   mBARule?: Prisma.MBARuleOmit
+  comboCreatedPair?: Prisma.ComboCreatedPairOmit
 }
 
 /* Types for Logging */

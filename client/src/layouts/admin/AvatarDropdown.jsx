@@ -11,7 +11,7 @@ import { confirm } from "@/components/alerts/ConfirmDialog";
  * Clicking the account area opens dropdown (Profile, Settings, Logout).
  * Logout icon is always visible for quick access.
  */
-export default function AvatarDropdown({ collapsed, user }) {
+export default function AvatarDropdown({ collapsed, user, onOpenProfile }) {
     const [open, setOpen] = useState(false);
     const ref = useRef(null);
     const navigate = useNavigate();
@@ -65,9 +65,17 @@ export default function AvatarDropdown({ collapsed, user }) {
                     onClick={() => setOpen(!open)}
                     className="flex flex-1 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
                 >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-                        {initials}
-                    </div>
+                    {user?.imageUrl ? (
+                        <img
+                            src={user.imageUrl}
+                            alt={user.name}
+                            className="h-8 w-8 shrink-0 rounded-full object-cover"
+                        />
+                    ) : (
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+                            {initials}
+                        </div>
+                    )}
                     {!collapsed && (
                         <span className="truncate text-sm font-medium text-foreground">
                             {user?.name}
@@ -89,13 +97,13 @@ export default function AvatarDropdown({ collapsed, user }) {
 
             {/* Dropdown */}
             {open && (
-                <div className="absolute bottom-full mb-2 w-48 rounded-lg border bg-card py-1 shadow-md left-0">
+                <div className="absolute bottom-full mb-2 left-0 w-48 rounded-lg border bg-card py-1 z-30">
                     <DropdownItem
                         icon="user"
                         label="Profile"
                         onClick={() => {
                             setOpen(false);
-                            navigate("/settings/profile");
+                            onOpenProfile();
                         }}
                     />
                     <DropdownItem

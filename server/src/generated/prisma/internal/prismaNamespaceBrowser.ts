@@ -74,7 +74,8 @@ export const ModelName = {
   WasteReduction: 'WasteReduction',
   PriceOptimization: 'PriceOptimization',
   MBAJob: 'MBAJob',
-  MBARule: 'MBARule'
+  MBARule: 'MBARule',
+  ComboCreatedPair: 'ComboCreatedPair'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -100,6 +101,7 @@ export const UserScalarFieldEnum = {
   role: 'role',
   passwordHash: 'passwordHash',
   pinHash: 'pinHash',
+  imageUrl: 'imageUrl',
   isActive: 'isActive',
   mustChangePwd: 'mustChangePwd',
   failedPinAttempts: 'failedPinAttempts',
@@ -477,6 +479,17 @@ export const MBARuleScalarFieldEnum = {
 } as const
 
 export type MBARuleScalarFieldEnum = (typeof MBARuleScalarFieldEnum)[keyof typeof MBARuleScalarFieldEnum]
+
+
+export const ComboCreatedPairScalarFieldEnum = {
+  id: 'id',
+  productNameA: 'productNameA',
+  productNameB: 'productNameB',
+  productId: 'productId',
+  createdAt: 'createdAt'
+} as const
+
+export type ComboCreatedPairScalarFieldEnum = (typeof ComboCreatedPairScalarFieldEnum)[keyof typeof ComboCreatedPairScalarFieldEnum]
 
 
 export const SortOrder = {

@@ -137,3 +137,8 @@ export type MBAJob = Prisma.MBAJobModel
  * 
  */
 export type MBARule = Prisma.MBARuleModel
+/**
+ * Model ComboCreatedPair
+ * 
+ */
+export type ComboCreatedPair = Prisma.ComboCreatedPairModel

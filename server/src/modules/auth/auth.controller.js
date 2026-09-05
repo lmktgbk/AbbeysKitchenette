@@ -189,4 +189,59 @@ export const authController = {
       return handleError(res, error, "CHANGE_PIN_ERROR");
     }
   },
+
+  /**
+   * PATCH /me
+   * Update own profile (name and email).
+   */
+  async updateProfile(req, res) {
+    try {
+      const { name, email } = req.body;
+      const user = await authService.updateProfile(req.user.id, name, email);
+
+      return successResponse(res, "Profile updated", { user });
+    } catch (error) {
+      return handleError(res, error, "UPDATE_PROFILE_ERROR");
+    }
+  },
+
+  /**
+   * POST /change-password
+   * Change own password (requires current password).
+   */
+  async changePassword(req, res) {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      await authService.changePassword(
+        req.user.id,
+        currentPassword,
+        newPassword,
+      );
+
+      return successResponse(res, "Password changed successfully");
+    } catch (error) {
+      return handleError(res, error, "CHANGE_PASSWORD_ERROR");
+    }
+  },
+
+  /**
+   * POST /profile-image
+   * Upload or replace profile image.
+   */
+  async uploadProfileImage(req, res) {
+    try {
+      if (!req.file) {
+        return errorResponse(res, "No image file provided", null, 400, "NO_FILE");
+      }
+
+      const user = await authService.uploadProfileImage(
+        req.user.id,
+        req.file.path,
+      );
+
+      return successResponse(res, "Profile image updated", { user });
+    } catch (error) {
+      return handleError(res, error, "UPLOAD_PROFILE_IMAGE_ERROR");
+    }
+  },
 };

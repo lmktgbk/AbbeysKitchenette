@@ -58,6 +58,7 @@ import {
     Table,
     Sparkles,
     Loader,
+    Camera,
 } from "lucide-react";
 
 const iconMap = {
@@ -120,6 +121,7 @@ const iconMap = {
     table: Table,
     sparkles: Sparkles,
     loader: Loader,
+    camera: Camera,
 };
 
 /**

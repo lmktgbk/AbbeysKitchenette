@@ -1,7 +1,9 @@
+import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import useAuthStore from "@/features/auth/authStore";
 import NavItem from "./NavItem";
 import AvatarDropdown from "./AvatarDropdown";
+import ProfileModal from "@/features/profile/components/ProfileModal";
 
 /**
  * Nav structure — grouped by category.
@@ -45,6 +47,7 @@ const NAV_GROUPS = [
  */
 export default function Sidebar({ collapsed }) {
     const user = useAuthStore((s) => s.user);
+    const [profileOpen, setProfileOpen] = useState(false);
 
     return (
         <aside
@@ -87,8 +90,15 @@ export default function Sidebar({ collapsed }) {
 
             {/* User Section */}
             <div className="border-t px-2 py-3">
-                <AvatarDropdown collapsed={collapsed} user={user} />
+                <AvatarDropdown
+                    collapsed={collapsed}
+                    user={user}
+                    onOpenProfile={() => setProfileOpen(true)}
+                />
             </div>
+
+            {/* Profile Modal */}
+            <ProfileModal open={profileOpen} onOpenChange={setProfileOpen} />
         </aside>
     );
 }
