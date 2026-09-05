@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import prisma from "../../config/prisma.js";
 
 /**
@@ -71,6 +72,57 @@ export const orderRepository = {
 
     return order;
   },
+
+  /**
+   * Create an online (guest) order using raw SQL.
+   * This bypasses Prisma's required-relation validation for `creator`
+   * so that guest orders can be created without a `created_by` user.
+   * @param {object} data - order data
+   * @param {Array<object>} items - order items
+   * @param {object} tx - Prisma transaction client
+   * @returns {{ orderId: string }} - created order ID
+   */
+  async createOnlineOrder(data, items, tx) {
+    const client = tx || prisma;
+    const orderId = randomUUID();
+
+    // Insert the order row via raw SQL — omits created_by entirely so the
+    // DB uses its column default (NULL, now that we ran db push).
+    await client.$executeRaw`
+      INSERT INTO orders (
+        order_id, order_number, order_date, customer_name, table_number,
+        order_source, status, total_amount, guest_token,
+        created_at, updated_at
+      )
+      VALUES (
+        ${orderId}::uuid,
+        ${data.orderNumber},
+        ${data.orderDate}::date,
+        ${data.customerName},
+        ${data.tableNumber},
+        'online'::"order_source_enum",
+        'pending'::"order_status_enum",
+        ${data.totalAmount},
+        ${data.guestToken}::uuid,
+        now(), now()
+      )
+    `;
+
+    // Create order items using Prisma (these have no optional-relation issues)
+    await client.orderItem.createMany({
+      data: items.map((item) => ({
+        orderId,
+        productId: item.productId,
+        variantId: item.variantId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        subtotal: item.unitPrice * item.quantity,
+      })),
+    });
+
+    return { orderId };
+  },
+
 
   /**
    * Find order by ID with items and creator.

@@ -26,6 +26,7 @@ import AuthLayout from "@/layouts/AuthLayout";
 import AdminLayout from "@/layouts/AdminLayout";
 import BlankLayout from "@/layouts/BlankLayout";
 import LandingPage from "@/features/landing/pages/LandingPage";
+import OrderingPage from "@/features/landing/pages/OrderingPage";
 import LoginPage from "@/features/auth/pages/LoginPage";
 import ForgotPasswordPage from "@/features/auth/pages/ForgotPasswordPage";
 import ResetPasswordPage from "@/features/auth/pages/ResetPasswordPage";
@@ -57,6 +58,12 @@ const router = createBrowserRouter([
     {
         path: "/",
         element: <LandingPage />,
+    },
+
+    // Online Ordering Page (public, no auth required)
+    {
+        path: "/order",
+        element: <OrderingPage />,
     },
 
     // Public — AuthLayout (centered card)

@@ -178,35 +178,33 @@ export const orderService = {
   async createOnline({ customerName, tableNumber, items, guestToken, orderDate: orderDateStr }) {
     const totalAmount = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
 
-    const order = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const orderNumber = await orderRepository.getNextOrderNumber();
       const now = new Date();
       const orderDate = orderDateStr
         ? new Date(orderDateStr + "T00:00:00Z")
         : new Date(now.toISOString().split("T")[0]);
 
-      const newOrder = await orderRepository.createOrder({
+      // Use raw SQL method to bypass Prisma's required `creator` relation.
+      // The `created_by` column is nullable in the DB for guest/online orders.
+      return orderRepository.createOnlineOrder({
         orderNumber,
         orderDate,
         customerName,
         tableNumber,
-        orderSource: "online",
-        status: "pending",
         totalAmount,
         guestToken,
-        createdBy: null, // system-created
       }, items.map((item) => ({
         productId: item.product_id,
         variantId: item.variant_id,
         quantity: item.quantity,
         unitPrice: item.unit_price,
       })), tx);
-
-      return newOrder;
     });
 
-    return this.getById(order.orderId);
+    return this.getById(result.orderId);
   },
+
 
   /* ── Edit Pending Order ──────────────── */
 

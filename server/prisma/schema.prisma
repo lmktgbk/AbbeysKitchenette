@@ -317,10 +317,10 @@ model Order {
 
   createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz
   updatedAt     DateTime    @updatedAt @map("updated_at") @db.Timestamptz
-  createdBy     String      @map("created_by") @db.Uuid
+  createdBy     String?     @map("created_by") @db.Uuid
 
   // Relations
-  creator         User        @relation("OrderCreator", fields: [createdBy], references: [id])
+  creator         User?       @relation("OrderCreator", fields: [createdBy], references: [id])
   acceptedByUser  User?       @relation("OrderAcceptedBy", fields: [acceptedBy], references: [id])
   nextInLineByUser User?      @relation("OrderNextInLineBy", fields: [nextInLineBy], references: [id])
   processingByUser User?      @relation("OrderProcessingBy", fields: [processingBy], references: [id])
