@@ -164,7 +164,7 @@ export const ingredientService = {
    * @returns {object} - created ingredient in snake_case
    * @throws {AppError} 409 if ingredient name already exists
    */
-  async create(data, userId, ipAddress) {
+  async create(data, userId) {
     // Check for duplicate name
     const existing = await ingredientRepository.findByName(
       data.ingredient_name.trim(),
@@ -191,7 +191,6 @@ export const ingredientService = {
       targetType: "ingredient",
       targetId: ingredient.ingredientId,
       details: { name: ingredient.ingredientName, unit: ingredient.unit },
-      ipAddress,
     }).catch(() => {});
 
     return response;
@@ -206,7 +205,7 @@ export const ingredientService = {
    * @returns {object} - updated ingredient in snake_case
    * @throws {AppError} 404 if not found, 409 if duplicate name
    */
-  async update(id, data, userId, ipAddress) {
+  async update(id, data, userId) {
     // Step 1: Validate ingredient exists
     const existing = await ingredientRepository.findById(id);
     if (!existing || existing.isArchived) {
@@ -250,7 +249,6 @@ export const ingredientService = {
       targetType: "ingredient",
       targetId: id,
       details: { fields: Object.keys(updateData) },
-      ipAddress,
     }).catch(() => {});
 
     return response;
@@ -274,7 +272,7 @@ export const ingredientService = {
    * @throws {AppError} 404 if ingredient not found or archived
    * @throws {AppError} 409 if concurrent modification detected
    */
-  async restock(id, data, userId, ipAddress) {
+  async restock(id, data, userId) {
     // Pre-check: ingredient must exist and not be archived
     const existing = await ingredientRepository.findById(id);
     if (!existing || existing.isArchived) {
@@ -349,7 +347,6 @@ export const ingredientService = {
       targetType: "ingredient",
       targetId: id,
       details: { quantity: qty, cost_per_unit: cost, supplier: supplier_name },
-      ipAddress,
     }).catch(() => {});
 
     return response;
@@ -367,7 +364,7 @@ export const ingredientService = {
    * @returns {object} - updated ingredient in snake_case
    * @throws {AppError} 404 if not found, 400 if insufficient stock/invalid batch, 409 on conflict
    */
-  async declareLoss(id, data, userId, ipAddress) {
+  async declareLoss(id, data, userId) {
     // Step 1: Validate ingredient exists and not archived
     const existing = await ingredientRepository.findById(id);
     if (!existing || existing.isArchived) {
@@ -483,7 +480,6 @@ export const ingredientService = {
       targetType: "ingredient",
       targetId: id,
       details: { loss_type, quantity_lost: qty, batch_id },
-      ipAddress,
     }).catch(() => {});
 
     return response;
@@ -760,7 +756,7 @@ export const ingredientService = {
    * @throws {AppError} 404 if not found
    * @throws {AppError} 400 if linked to products
    */
-  async archive(id, userId, ipAddress) {
+  async archive(id, userId) {
     const ingredient = await ingredientRepository.findById(id);
     if (!ingredient) {
       throw new AppError(404, "Ingredient not found", "INGREDIENT_NOT_FOUND");
@@ -781,7 +777,7 @@ export const ingredientService = {
       action: ACTIONS.INGREDIENT_ARCHIVED,
       targetType: "ingredient",
       targetId: id,
-      ipAddress,
+      details: { name: ingredient.name },
     }).catch(() => {});
 
     return {
@@ -797,7 +793,7 @@ export const ingredientService = {
    * @returns {object}
    * @throws {AppError} 404 if not found
    */
-  async restore(id, userId, ipAddress) {
+  async restore(id, userId) {
     const ingredient = await ingredientRepository.findById(id);
     if (!ingredient) {
       throw new AppError(404, "Ingredient not found", "INGREDIENT_NOT_FOUND");
@@ -809,7 +805,7 @@ export const ingredientService = {
       action: ACTIONS.INGREDIENT_RESTORED,
       targetType: "ingredient",
       targetId: id,
-      ipAddress,
+      details: { name: ingredient.name },
     }).catch(() => {});
 
     return {
@@ -827,7 +823,7 @@ export const ingredientService = {
    * @throws {AppError} 404 if not found
    * @throws {AppError} 400 if has transactions
    */
-  async delete(id, userId, ipAddress) {
+  async delete(id, userId) {
     const ingredient = await ingredientRepository.findById(id);
     if (!ingredient) {
       throw new AppError(404, "Ingredient not found", "INGREDIENT_NOT_FOUND");
@@ -858,7 +854,6 @@ export const ingredientService = {
       targetType: "ingredient",
       targetId: id,
       details: { name: ingredient.ingredientName },
-      ipAddress,
     }).catch(() => {});
 
     return { ingredient_id: id };

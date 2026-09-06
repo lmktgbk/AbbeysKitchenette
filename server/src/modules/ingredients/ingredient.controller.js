@@ -83,7 +83,7 @@ export const ingredientController = {
    */
   async createIngredient(req, res) {
     try {
-      const ingredient = await ingredientService.create(req.body, req.user.id, req.ip);
+      const ingredient = await ingredientService.create(req.body, req.user.id);
       return successResponse(res, "Ingredient created", { ingredient }, 201);
     } catch (error) {
       return handleError(res, error, "CREATE_INGREDIENT_ERROR");
@@ -96,7 +96,7 @@ export const ingredientController = {
    */
   async updateIngredient(req, res) {
     try {
-      const ingredient = await ingredientService.update(req.params.id, req.body, req.user.id, req.ip);
+      const ingredient = await ingredientService.update(req.params.id, req.body, req.user.id);
       return successResponse(res, "Ingredient updated", { ingredient });
     } catch (error) {
       return handleError(res, error, "UPDATE_INGREDIENT_ERROR");
@@ -113,7 +113,6 @@ export const ingredientController = {
         req.params.id,
         req.body,
         req.user.id,
-        req.ip,
       );
       return successResponse(res, "Stock restocked", { ingredient });
     } catch (error) {
@@ -131,7 +130,6 @@ export const ingredientController = {
         req.params.id,
         req.body,
         req.user.id,
-        req.ip,
       );
       return successResponse(res, "Loss declared", { ingredient });
     } catch (error) {
@@ -233,7 +231,7 @@ export const ingredientController = {
    */
   async archiveIngredient(req, res) {
     try {
-      const ingredient = await ingredientService.archive(req.params.id, req.user.id, req.ip);
+      const ingredient = await ingredientService.archive(req.params.id, req.user.id);
       return successResponse(res, "Ingredient archived", { ingredient });
     } catch (error) {
       return handleError(res, error, "ARCHIVE_INGREDIENT_ERROR");
@@ -246,7 +244,7 @@ export const ingredientController = {
    */
   async restoreIngredient(req, res) {
     try {
-      const ingredient = await ingredientService.restore(req.params.id, req.user.id, req.ip);
+      const ingredient = await ingredientService.restore(req.params.id, req.user.id);
       return successResponse(res, "Ingredient restored", { ingredient });
     } catch (error) {
       return handleError(res, error, "RESTORE_INGREDIENT_ERROR");
@@ -259,7 +257,7 @@ export const ingredientController = {
    */
   async deleteIngredient(req, res) {
     try {
-      const result = await ingredientService.delete(req.params.id, req.user.id, req.ip);
+      const result = await ingredientService.delete(req.params.id, req.user.id);
       return successResponse(res, "Ingredient deleted", result);
     } catch (error) {
       return handleError(res, error, "DELETE_INGREDIENT_ERROR");

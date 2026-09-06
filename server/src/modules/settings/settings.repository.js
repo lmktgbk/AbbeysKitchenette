@@ -10,9 +10,10 @@ export const settingsRepository = {
   },
 
   async update(data) {
-    return prisma.systemSettings.update({
+    return prisma.systemSettings.upsert({
       where: { id: SETTINGS_ID },
-      data,
+      update: data,
+      create: { id: SETTINGS_ID, ...data },
     });
   },
 };

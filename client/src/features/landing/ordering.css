@@ -194,7 +194,7 @@
   .ord-layout {
     grid-template-columns: 1fr;
   }
-  .ord-sidebar {
+  .ord-sidebar-desktop {
     display: none;
   }
 }
@@ -478,6 +478,18 @@
   font-size: 0.9375rem;
 }
 
+/* Loading state */
+.ord-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 5rem 2rem;
+  color: #b08d72;
+  text-align: center;
+  gap: 0.75rem;
+}
+
 /* Loading skeleton */
 .ord-skeleton {
   border-radius: var(--ord-radius);
@@ -494,7 +506,7 @@
    CART SIDEBAR (right, desktop)
 ═══════════════════════════════════════════════════════════════════ */
 
-.ord-sidebar {
+.ord-sidebar-desktop {
   background: #fff;
   border-left: 1px solid rgba(245, 158, 11, 0.12);
   display: flex;

@@ -185,7 +185,7 @@ export const productService = {
    * @returns {object} - created product with variants
    * @throws {AppError} 409 if product name already exists
    */
-  async create(data, userId, ipAddress) {
+  async create(data, userId) {
     // Step 1: Check for duplicate name
     const existing = await productRepository.findByName(data.product_name.trim());
     if (existing) {
@@ -218,7 +218,7 @@ export const productService = {
       return newProduct;
     });
 
-    auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_CREATED, targetType: "product", targetId: product.productId, details: { name: product.productName }, ipAddress });
+    auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_CREATED, targetType: "product", targetId: product.productId, details: { name: product.productName } });
 
     // Step 3: Return full product with variants
     return this.getById(product.productId);
@@ -231,7 +231,7 @@ export const productService = {
    * @returns {object} - updated product
    * @throws {AppError} 404 if not found, 409 if duplicate name
    */
-  async update(id, data, userId, ipAddress) {
+  async update(id, data, userId) {
     // Step 1: Validate product exists
     const existing = await productRepository.findById(id);
     if (!existing) {
@@ -271,7 +271,7 @@ export const productService = {
 
     await productRepository.update(id, updateData);
 
-    auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_UPDATED, targetType: "product", targetId: id, details: { name: data.product_name }, ipAddress });
+    auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_UPDATED, targetType: "product", targetId: id, details: { name: data.product_name } });
 
     return this.getById(id);
   },
@@ -286,7 +286,7 @@ export const productService = {
    * @returns {object} - updated product with variants
    * @throws {AppError} 404 if not found
    */
-  async updateVariants(id, variantsData, userId, ipAddress) {
+  async updateVariants(id, variantsData, userId) {
     // Step 1: Validate product exists
     const existing = await productRepository.findById(id);
     if (!existing) {
@@ -355,7 +355,7 @@ export const productService = {
       }
     });
 
-    auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_VARIANTS_UPDATED, targetType: "product", targetId: id, ipAddress });
+    auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_VARIANTS_UPDATED, targetType: "product", targetId: id, details: { name: existing.productName } });
 
     return this.getById(id);
   },
@@ -366,7 +366,7 @@ export const productService = {
    * @returns {object} - updated product
    * @throws {AppError} 404 if not found
    */
-  async deactivate(id, userId, ipAddress) {
+  async deactivate(id, userId) {
     const existing = await productRepository.findById(id);
     if (!existing) {
       throw new AppError(404, "Product not found", "PRODUCT_NOT_FOUND");
@@ -377,7 +377,7 @@ export const productService = {
       await productRepository.deactivateAllVariants(id, tx);
     });
 
-    auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_DEACTIVATED, targetType: "product", targetId: id, ipAddress });
+    auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_DEACTIVATED, targetType: "product", targetId: id, details: { name: existing.productName } });
 
     return this.getById(id);
   },
@@ -388,7 +388,7 @@ export const productService = {
    * @returns {object} - updated product
    * @throws {AppError} 404 if not found
    */
-  async activate(id, userId, ipAddress) {
+  async activate(id, userId) {
     const existing = await productRepository.findById(id);
     if (!existing) {
       throw new AppError(404, "Product not found", "PRODUCT_NOT_FOUND");
@@ -396,7 +396,7 @@ export const productService = {
 
     await productRepository.update(id, { isAvailable: true });
 
-    auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_ACTIVATED, targetType: "product", targetId: id, ipAddress });
+    auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_ACTIVATED, targetType: "product", targetId: id, details: { name: existing.productName } });
 
     return this.getById(id);
   },
@@ -407,7 +407,7 @@ export const productService = {
    * @returns {object} - confirmation
    * @throws {AppError} 404 if not found, 400 if has transactions
    */
-  async remove(id, userId, ipAddress) {
+  async remove(id, userId) {
     const existing = await productRepository.findById(id);
     if (!existing) {
       throw new AppError(404, "Product not found", "PRODUCT_NOT_FOUND");
@@ -430,7 +430,7 @@ export const productService = {
     }
     await productRepository.delete(id);
 
-    auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_DELETED, targetType: "product", targetId: id, ipAddress });
+    auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_DELETED, targetType: "product", targetId: id, details: { name: existing.productName } });
 
     return { product_id: id };
   },

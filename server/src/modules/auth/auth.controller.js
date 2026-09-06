@@ -1,4 +1,5 @@
 import { authService } from "./auth.service.js";
+import { authRepository } from "./auth.repository.js";
 import { successResponse, errorResponse } from "../../utils/response.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { env } from "../../config/env.js";
@@ -40,8 +41,7 @@ export const authController = {
   async login(req, res) {
     try {
       const { email, password } = req.body;
-      const clientIP = req.ip;
-      const result = await authService.login(email, password, clientIP);
+      const result = await authService.login(email, password, req.ip);
 
       if (result.requiresOtp) {
         return successResponse(res, "OTP sent to email", {
@@ -55,7 +55,6 @@ export const authController = {
         userId: result.user.id,
         action: ACTIONS.LOGIN_SUCCESS,
         details: { email, role: result.user.role },
-        ipAddress: clientIP,
       }).catch(() => {});
       return successResponse(res, "Login successful", {
         user: result.user,
@@ -67,7 +66,6 @@ export const authController = {
         auditLogService.logAction({
           action: ACTIONS.LOGIN_FAILED,
           details: { email },
-          ipAddress: req.ip,
         }).catch(() => {});
       }
       return handleError(res, error, "LOGIN_ERROR");
@@ -92,7 +90,6 @@ export const authController = {
         userId: user.id,
         action: ACTIONS.LOGIN_SUCCESS,
         details: { role: user.role },
-        ipAddress: req.ip,
       }).catch(() => {});
       return successResponse(res, "Login successful", {
         user,
@@ -100,6 +97,14 @@ export const authController = {
         ...(mustChangePin && { mustChangePin: true }),
       });
     } catch (error) {
+      if (error instanceof AppError && ["INVALID_PIN", "ACCOUNT_LOCKED", "ACCOUNT_DISABLED", "NO_PIN_SET"].includes(error.code)) {
+        const targetUser = await authRepository.findById(req.body.userId).catch(() => null);
+        auditLogService.logAction({
+          userId: targetUser?.id || null,
+          action: ACTIONS.LOGIN_FAILED,
+          details: { reason: error.code },
+        }).catch(() => {});
+      }
       return handleError(res, error, "PIN_LOGIN_ERROR");
     }
   },
@@ -113,7 +118,7 @@ export const authController = {
     auditLogService.logAction({
       userId: req.user.id,
       action: ACTIONS.LOGOUT,
-      ipAddress: req.ip,
+      details: { email: req.user.email },
     }).catch(() => {});
     return successResponse(res, "Logged out successfully");
   },
@@ -153,7 +158,7 @@ export const authController = {
       auditLogService.logAction({
         userId: user.id,
         action: ACTIONS.OTP_VERIFIED,
-        ipAddress: req.ip,
+        details: { email: user.email },
       }).catch(() => {});
       return successResponse(res, "OTP verified", { user, token });
     } catch (error) {
@@ -219,7 +224,7 @@ export const authController = {
       auditLogService.logAction({
         userId: req.user.id,
         action: ACTIONS.PIN_CHANGED,
-        ipAddress: req.ip,
+        details: { email: req.user.email },
       }).catch(() => {});
       return successResponse(res, "PIN changed successfully");
     } catch (error) {
@@ -258,7 +263,7 @@ export const authController = {
       auditLogService.logAction({
         userId: req.user.id,
         action: ACTIONS.PASSWORD_CHANGED,
-        ipAddress: req.ip,
+        details: { email: req.user.email },
       }).catch(() => {});
       return successResponse(res, "Password changed successfully");
     } catch (error) {

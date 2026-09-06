@@ -56,6 +56,24 @@ export const updateOrderSchema = z.object({
   items: z.array(orderItemSchema).min(1, "At least one item is required").optional(),
 });
 
+// POST /api/orders/:id/fulfill — fulfill pending online order (edit + accept in one shot)
+export const fulfillOrderSchema = z.object({
+  customer_name: z
+    .string()
+    .trim()
+    .min(1, "Customer name is required")
+    .max(100, "Name must not exceed 100 characters")
+    .optional(),
+  table_number: z
+    .string()
+    .trim()
+    .min(1, "Table number is required")
+    .max(20, "Table number must not exceed 20 characters")
+    .optional(),
+  items: z.array(orderItemSchema).min(1, "At least one item is required"),
+  amount_paid: z.number().positive("Amount paid must be greater than zero"),
+});
+
 // PUT /api/orders/:id/status — advance order status
 export const updateStatusSchema = z.object({
   status: z.enum(["accepted", "next_in_line", "processing", "completed"], {

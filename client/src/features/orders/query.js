@@ -94,7 +94,7 @@ export function usePendingOnlineOrders() {
  * useOrderMutations — all order CRUD mutations.
  * Each mutation invalidates relevant queries.
  *
- * @returns {object} - { create, edit, advanceStatus, cancel }
+ * @returns {object} - { create, edit, advanceStatus, cancel, fulfill }
  */
 export function useOrderMutations() {
   const queryClient = useQueryClient();
@@ -131,6 +131,12 @@ export function useOrderMutations() {
     /** Cancel/delete order — invalidates all */
     cancel: useMutation({
       mutationFn: ({ id, data }) => api.cancelOrderRequest(id, data),
+      onSuccess: () => invalidateAll(),
+    }),
+
+    /** Fulfill pending online order — invalidates all */
+    fulfill: useMutation({
+      mutationFn: ({ id, data }) => api.fulfillOrderRequest(id, data),
       onSuccess: () => invalidateAll(),
     }),
   };

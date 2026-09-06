@@ -102,7 +102,7 @@ export const orderService = {
    * @returns {object} - created order
    * @throws {AppError} 400 if insufficient stock
    */
-  async createWalkIn({ customerName, tableNumber, items, amountPaid, createdBy, orderDate: orderDateStr, ipAddress }) {
+  async createWalkIn({ customerName, tableNumber, items, amountPaid, createdBy, orderDate: orderDateStr }) {
     // Step 1: Resolve recipes for all items and aggregate ingredient needs
     const aggregatedIngredients = await this._aggregateIngredientNeeds(items);
     const totalAmount = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
@@ -162,7 +162,6 @@ export const orderService = {
       targetType: "order",
       targetId: order.order.orderId,
       details: { total: totalAmount, source: "walk_in" },
-      ipAddress,
     }).catch(() => {});
 
     return this.getById(order.order.orderId);
@@ -249,6 +248,80 @@ export const orderService = {
     });
   },
 
+  /* ── Fulfill Pending Online Order ──── */
+
+  /**
+   * Fulfill a pending online order in one atomic operation.
+   * Edits items + customer/table, validates payment, deducts ingredients, advances to accepted.
+   * @param {string} id - order UUID
+   * @param {object} data - { customerName?, tableNumber?, items, amountPaid, userId }
+   * @returns {object} - updated order
+   */
+  async fulfillPendingOrder({ id, customerName, tableNumber, items, amountPaid, userId }) {
+    const existing = await orderRepository.findPendingById(id);
+    if (!existing) throw new AppError(404, "Pending order not found", "ORDER_NOT_FOUND");
+    if (existing.status !== "pending") {
+      throw new AppError(400, "Only pending orders can be fulfilled", "INVALID_STATUS");
+    }
+
+    // Calculate new total from submitted items
+    const totalAmount = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
+
+    if (amountPaid < totalAmount) {
+      throw new AppError(400, "Amount paid is less than total", "INSUFFICIENT_PAYMENT");
+    }
+
+    // Aggregate ingredient needs from new items
+    const aggregatedIngredients = await this._aggregateIngredientNeeds(items);
+
+    // Run everything in a single atomic transaction
+    await prisma.$transaction(async (tx) => {
+      // 1. Update customer_name / table_number
+      const updateData = {};
+      if (customerName !== undefined) updateData.customerName = customerName;
+      if (tableNumber !== undefined) updateData.tableNumber = tableNumber;
+      if (Object.keys(updateData).length > 0) {
+        await orderRepository.updateOrder(id, updateData, tx);
+      }
+
+      // 2. Replace items and recalculate total
+      await orderRepository.replaceItems(id, items.map((item) => ({
+        productId: item.product_id,
+        variantId: item.variant_id,
+        quantity: item.quantity,
+        unitPrice: item.unit_price,
+      })), tx);
+      await orderRepository.recalculateTotal(id, tx);
+
+      // 3. Deduct ingredients
+      await this._deductIngredients(id, aggregatedIngredients, tx);
+
+      // 4. Advance status to accepted
+      await orderRepository.updateStatus(id, "accepted", {
+        userId,
+        amountPaid,
+        change: amountPaid - totalAmount,
+      }, tx);
+    });
+
+    // Recompute variant availability for affected ingredients
+    const affectedIngredientIds = [...aggregatedIngredients.keys()];
+    await productService.recomputeVariantAvailability(affectedIngredientIds);
+
+    // Trigger auto-promotion
+    await this._advanceQueue();
+
+    auditLogService.logAction({
+      userId,
+      action: ACTIONS.ORDER_ACCEPTED,
+      targetType: "order",
+      targetId: id,
+      details: { total: totalAmount, source: "online" },
+    }).catch(() => {});
+
+    return this.getById(id);
+  },
+
   /* ── Status Transitions ──────────────── */
 
   /**
@@ -277,7 +350,7 @@ export const orderService = {
         action: ACTIONS.ORDER_ACCEPTED,
         targetType: "order",
         targetId: id,
-        ipAddress: meta.ipAddress,
+        details: { total: Number(order.totalAmount), source: order.orderSource },
       }).catch(() => {});
       return result;
     }
@@ -294,7 +367,7 @@ export const orderService = {
         action: ACTIONS.ORDER_COMPLETED,
         targetType: "order",
         targetId: id,
-        ipAddress: meta.ipAddress,
+        details: { total: Number(order.totalAmount) },
       }).catch(() => {});
     }
 
@@ -313,7 +386,7 @@ export const orderService = {
    * @param {string} [reason] - cancellation reason
    * @returns {object} - deleted/cancelled order info
    */
-  async cancelOrDelete(id, userId, reason, ipAddress) {
+  async cancelOrDelete(id, userId, reason) {
     const order = await orderRepository.findById(id);
     if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
 
@@ -325,7 +398,7 @@ export const orderService = {
         action: ACTIONS.ORDER_DELETED,
         targetType: "order",
         targetId: id,
-        ipAddress,
+        details: { total: Number(order.totalAmount) },
       }).catch(() => {});
       return { order_id: id, action: "deleted" };
     }
@@ -372,7 +445,6 @@ export const orderService = {
       targetType: "order",
       targetId: id,
       details: { reason: reason || null },
-      ipAddress,
     }).catch(() => {});
 
     return { order_id: id, action: "cancelled" };

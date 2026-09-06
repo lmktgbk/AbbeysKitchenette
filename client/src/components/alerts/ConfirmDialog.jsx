@@ -8,6 +8,14 @@ const VARIANTS = {
     info: { confirmColor: "var(--info)", icon: "info" },
 };
 
+const DEFAULT_REASONS = [
+    "Wrong order",
+    "Customer changed mind",
+    "Duplicate order",
+    "Out of stock",
+    "Other",
+];
+
 /**
  * SweetAlert2 confirmation dialog.
  *
@@ -59,4 +67,107 @@ export async function confirm({ title, message, note, confirmLabel = "Confirm", 
         }),
     });
     return result.isConfirmed;
+}
+
+/**
+ * SweetAlert2 confirmation with predefined cancellation reasons.
+ * Shows clickable reason chips. "Other" reveals a textarea.
+ *
+ * @param {Object} opts
+ * @param {string} opts.title - Dialog title
+ * @param {string} opts.message - Main message text
+ * @param {string[]} [opts.reasons] - Predefined reasons (defaults to DEFAULT_REASONS)
+ * @param {string} [opts.confirmLabel] - Confirm button text
+ * @param {string} [opts.cancelLabel] - Cancel button text
+ * @returns {Promise<{ confirmed: boolean, reason: string }>}
+ */
+export async function confirmWithReason({ title, message, reasons = DEFAULT_REASONS, confirmLabel = "Confirm", cancelLabel = "Cancel" }) {
+    let selectedReason = "";
+    let customReason = "";
+
+    const htmlContent = `
+    <p style="text-align:center; margin:0 0 12px 0;">${message}</p>
+    <div id="reason-chips" style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:12px;">
+      ${reasons.map((r) => `
+        <button type="button" class="reason-chip" data-reason="${r}"
+          style="padding:6px 14px; border-radius:20px; border:1.5px solid var(--border); background:var(--background);
+                 color:var(--foreground); font-size:13px; cursor:pointer; transition:all 0.15s;">
+          ${r}
+        </button>
+      `).join("")}
+    </div>
+    <div id="other-input" style="display:none; margin-top:8px;">
+      <textarea id="custom-reason" rows="2" placeholder="Enter reason..."
+        style="width:100%; padding:8px 12px; border:1.5px solid var(--border); border-radius:8px;
+               background:var(--background); color:var(--foreground); font-size:13px; resize:none; box-sizing:border-box;">
+      </textarea>
+    </div>
+  `;
+
+    // We need to inject styles for the selected state via a <style> tag since SweetAlert renders in a portal
+    const styleTag = document.createElement("style");
+    styleTag.textContent = `
+      .reason-chip:hover { border-color: var(--primary) !important; background: var(--primary/10) !important; }
+      .reason-chip.active { border-color: var(--primary) !important; background: var(--primary) !important; color: var(--card) !important; font-weight:600; }
+    `;
+    document.head.appendChild(styleTag);
+
+    const result = await Swal.fire({
+        title,
+        html: htmlContent,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: confirmLabel,
+        cancelButtonText: cancelLabel,
+        confirmButtonColor: "var(--destructive)",
+        reverseButtons: true,
+        background: "var(--card)",
+        color: "var(--foreground)",
+        didOpen: () => {
+            const popup = Swal.getPopup();
+            const chips = popup.querySelectorAll(".reason-chip");
+            const otherInput = popup.querySelector("#other-input");
+
+            chips.forEach((chip) => {
+                chip.addEventListener("click", () => {
+                    const reason = chip.dataset.reason;
+                    selectedReason = reason;
+
+                    // Update active state
+                    chips.forEach((c) => c.classList.remove("active"));
+                    chip.classList.add("active");
+
+                    // Show/hide textarea
+                    if (reason === "Other") {
+                        otherInput.style.display = "block";
+                    } else {
+                        otherInput.style.display = "none";
+                        customReason = "";
+                    }
+                });
+            });
+        },
+        preConfirm: () => {
+            if (!selectedReason) {
+                Swal.showValidationMessage("Please select a reason");
+                return false;
+            }
+            if (selectedReason === "Other") {
+                const textarea = Swal.getPopup().querySelector("#custom-reason");
+                const text = textarea?.value?.trim();
+                if (!text) {
+                    Swal.showValidationMessage("Please enter a reason");
+                    return false;
+                }
+                customReason = text;
+            }
+            return true;
+        },
+    });
+
+    // Clean up injected style
+    styleTag.remove();
+
+    const finalReason = selectedReason === "Other" ? customReason : selectedReason;
+    return { confirmed: result.isConfirmed, reason: result.isConfirmed ? finalReason : "" };
 }

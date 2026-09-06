@@ -1,11 +1,11 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { useOrderList, useOrderDetail, useOrderMutations } from "../query";
-import { confirm } from "@/components/alerts/ConfirmDialog";
+import { confirm, confirmWithReason } from "@/components/alerts/ConfirmDialog";
 import OrderStats from "../components/OrderStats";
 import OrderTable from "../components/OrderTable";
 import OrderDetailModal from "../components/OrderDetailModal";
-import OrderCancelModal from "../components/OrderCancelModal";
+import PosPaymentModal from "../components/PosPaymentModal";
 import { Pagination } from "@/components/filters/Pagination";
 import { SearchBar } from "@/components/filters/SearchBar";
 import DateRangeFilter from "@/components/filters/DateRangeFilter";
@@ -50,9 +50,8 @@ export default function OrdersPage({ embedded = false }) {
 
   const detailOrder = detailData?.data?.order ?? null;
 
-  // ── Cancel modal ───────────────────
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [cancelOrder, setCancelOrder] = useState(null);
+  // ── Accept payment modal ───────────
+  const [acceptingOrder, setAcceptingOrder] = useState(null);
 
   // ── Handlers ───────────────────────
 
@@ -77,8 +76,7 @@ export default function OrdersPage({ embedded = false }) {
     const needsPayment = currentOrder?.status === "pending";
 
     if (needsPayment) {
-      // TODO: Show payment modal for online order acceptance
-      toast.info("Use POS to accept pending orders with payment");
+      setAcceptingOrder(currentOrder);
       return;
     }
 
@@ -106,19 +104,36 @@ export default function OrdersPage({ embedded = false }) {
     if (ok) toast.success("Order updated");
   }
 
-  function handleCancelClick(order) {
-    setCancelOrder(order);
-    setShowCancelModal(true);
-  }
+  async function handleCancelClick(order) {
+    const isPending = order.status === "pending";
+    const { confirmed, reason } = await confirmWithReason({
+      title: isPending ? "Delete Order?" : "Cancel Order?",
+      message: isPending
+        ? `This will permanently delete order #${order.order_number}. This cannot be undone.`
+        : `This will cancel order #${order.order_number} and restore deducted ingredients.`,
+      confirmLabel: isPending ? "Delete" : "Cancel Order",
+    });
+    if (!confirmed) return;
 
-  async function handleCancelConfirm({ orderId, reason }) {
     try {
-      await mutations.cancel.mutateAsync({ id: orderId, data: { reason } });
-      toast.success("Order cancelled");
-      setShowCancelModal(false);
-      setCancelOrder(null);
+      await mutations.cancel.mutateAsync({ id: order.order_id, data: { reason } });
+      toast.success(isPending ? "Order deleted" : "Order cancelled");
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to cancel order");
+    }
+  }
+
+  async function handleAcceptPaymentConfirm({ amount_paid }) {
+    if (!acceptingOrder) return;
+    try {
+      await mutations.advanceStatus.mutateAsync({
+        id: acceptingOrder.order_id,
+        data: { status: "accepted", amount_paid },
+      });
+      toast.success(`Order #${acceptingOrder.order_number} accepted`);
+      setAcceptingOrder(null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to accept order");
     }
   }
 
@@ -195,16 +210,13 @@ export default function OrdersPage({ embedded = false }) {
         }}
       />
 
-      {/* Cancel Modal */}
-      <OrderCancelModal
-        open={showCancelModal}
-        onOpenChange={(open) => {
-          if (!open) setCancelOrder(null);
-          setShowCancelModal(open);
-        }}
-        order={cancelOrder}
-        onConfirm={handleCancelConfirm}
-        isLoading={mutations.cancel.isPending}
+      {/* Accept Payment Modal */}
+      <PosPaymentModal
+        open={!!acceptingOrder}
+        onOpenChange={(open) => { if (!open) setAcceptingOrder(null); }}
+        totalAmount={acceptingOrder ? Number(acceptingOrder.total_amount) : 0}
+        onConfirm={handleAcceptPaymentConfirm}
+        isLoading={mutations.advanceStatus.isPending}
       />
     </div>
   );

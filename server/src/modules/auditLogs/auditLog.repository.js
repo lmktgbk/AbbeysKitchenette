@@ -1,7 +1,7 @@
 import prisma from "../../config/prisma.js";
 
 export const auditLogRepository = {
-  async create({ userId, action, targetType, targetId, details, ipAddress }) {
+  async create({ userId, action, targetType, targetId, details }) {
     return prisma.auditLog.create({
       data: {
         userId,
@@ -9,7 +9,6 @@ export const auditLogRepository = {
         targetType,
         targetId,
         details: details || undefined,
-        ipAddress,
       },
     });
   },

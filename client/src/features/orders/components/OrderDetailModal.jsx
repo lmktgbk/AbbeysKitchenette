@@ -19,8 +19,8 @@ const SOURCE_LABELS = {
   online: "Online",
 };
 
-function formatActor(actor) {
-  if (!actor) return "System";
+function formatActor(actor, orderSource) {
+  if (!actor) return orderSource === "online" ? "Guest (Online)" : "System";
   if (typeof actor === "string") return actor;
   if (actor.name) return actor.role ? `${actor.name} (${actor.role})` : actor.name;
   return "System";
@@ -83,7 +83,7 @@ export default function OrderDetailModal({
                   <InfoRow label="Customer" value={order?.customer_name} />
                   <InfoRow label="Table" value={order?.table_number} />
                   <InfoRow label="Created" value={formatDate(order?.created_at, "dateTime")} />
-                  <InfoRow label="Created by" value={formatActor(order?.creator_name)} />
+                  <InfoRow label="Created by" value={formatActor(order?.creator_name, order?.order_source)} />
                   {order?.accepted_by && (
                     <InfoRow label="Accepted by" value={formatActor(order?.accepted_by)} />
                   )}

@@ -47,6 +47,12 @@ export async function advanceOrderStatusRequest(id, data) {
   return res.data;
 }
 
+// POST /api/orders/:id/fulfill — fulfill pending online order (edit + accept)
+export async function fulfillOrderRequest(id, data) {
+  const res = await api.post(`/orders/${id}/fulfill`, data);
+  return res.data;
+}
+
 // POST /api/orders/:id/cancel — cancel or delete order
 export async function cancelOrderRequest(id, data = {}) {
   const res = await api.post(`/orders/${id}/cancel`, data);

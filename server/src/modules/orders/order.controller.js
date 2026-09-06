@@ -81,7 +81,6 @@ export const orderController = {
         amountPaid: amount_paid,
         createdBy: req.user.id,
         orderDate: order_date,
-        ipAddress: req.ip,
       });
       return successResponse(res, "Order created", { order }, 201);
     } catch (error) {
@@ -112,11 +111,31 @@ export const orderController = {
       const order = await orderService.advanceStatus(req.params.id, status, {
         userId: req.user.id,
         amountPaid: amount_paid,
-        ipAddress: req.ip,
       });
       return successResponse(res, "Order status updated", { order });
     } catch (error) {
       return handleError(res, error, "UPDATE_STATUS_ERROR");
+    }
+  },
+
+  /**
+   * POST /api/orders/:id/fulfill
+   * Fulfill a pending online order (edit + accept in one shot).
+   */
+  async fulfillOrder(req, res) {
+    try {
+      const { customer_name, table_number, items, amount_paid } = req.body;
+      const order = await orderService.fulfillPendingOrder({
+        id: req.params.id,
+        customerName: customer_name,
+        tableNumber: table_number,
+        items,
+        amountPaid: amount_paid,
+        userId: req.user.id,
+      });
+      return successResponse(res, "Order fulfilled", { order });
+    } catch (error) {
+      return handleError(res, error, "FULFILL_ORDER_ERROR");
     }
   },
 
@@ -127,7 +146,7 @@ export const orderController = {
   async cancelOrder(req, res) {
     try {
       const { reason } = req.body || {};
-      const result = await orderService.cancelOrDelete(req.params.id, req.user.id, reason, req.ip);
+      const result = await orderService.cancelOrDelete(req.params.id, req.user.id, reason);
       return successResponse(res, result.action === "deleted" ? "Order deleted" : "Order cancelled", result);
     } catch (error) {
       return handleError(res, error, "CANCEL_ORDER_ERROR");

@@ -1,11 +1,11 @@
-import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { useState, useMemo } from "react";
 import { SearchBar } from "@/components/filters/SearchBar";
+import { DropDown } from "@/components/filters/DropDown";
+import DateRangeFilter from "@/components/filters/DateRangeFilter";
 import { Pagination } from "@/components/filters/Pagination";
 import { useAuditLogs } from "../query";
-import { formatDate, formatTime } from "@/lib/date";
+import { formatTime } from "@/lib/date";
+import Icon from "@/components/ui/icon";
 
 const ACTION_GROUPS = [
   { value: "", label: "All Actions" },
@@ -28,26 +28,88 @@ const ACTION_GROUP_MAP = {
   "group:System": ["SETTINGS_UPDATED", "FORECAST_RUN", "MBA_RUN"],
 };
 
-const ACTION_BADGE_COLORS = {
-  PRODUCT_CREATED: "success",
-  CATEGORY_CREATED: "success",
-  INGREDIENT_CREATED: "success",
-  STAFF_CREATED: "success",
-  ORDER_CREATED: "success",
-  LOGIN_SUCCESS: "success",
-  OTP_VERIFIED: "success",
-  PRODUCT_DELETED: "destructive",
-  CATEGORY_DELETED: "destructive",
-  INGREDIENT_DELETED: "destructive",
-  STAFF_DELETED: "destructive",
-  LOGIN_FAILED: "destructive",
-  ORDER_CANCELLED: "destructive",
-  ORDER_DELETED: "destructive",
-  STAFF_PIN_RESET: "warning",
-  STAFF_PASSWORD_RESET: "warning",
-  SETTINGS_UPDATED: "info",
-  FORECAST_RUN: "info",
-  MBA_RUN: "info",
+const BADGE_STYLES = {
+  PRODUCT_CREATED: "bg-green-50 text-green-700 border-green-200",
+  CATEGORY_CREATED: "bg-green-50 text-green-700 border-green-200",
+  INGREDIENT_CREATED: "bg-green-50 text-green-700 border-green-200",
+  STAFF_CREATED: "bg-green-50 text-green-700 border-green-200",
+  ORDER_CREATED: "bg-green-50 text-green-700 border-green-200",
+  LOGIN_SUCCESS: "bg-green-50 text-green-700 border-green-200",
+  OTP_VERIFIED: "bg-green-50 text-green-700 border-green-200",
+  PRODUCT_ACTIVATED: "bg-green-50 text-green-700 border-green-200",
+  STAFF_ACTIVATED: "bg-green-50 text-green-700 border-green-200",
+  INGREDIENT_RESTORED: "bg-green-50 text-green-700 border-green-200",
+
+  PRODUCT_DELETED: "bg-red-50 text-red-700 border-red-200",
+  CATEGORY_DELETED: "bg-red-50 text-red-700 border-red-200",
+  INGREDIENT_DELETED: "bg-red-50 text-red-700 border-red-200",
+  STAFF_DELETED: "bg-red-50 text-red-700 border-red-200",
+  LOGIN_FAILED: "bg-red-50 text-red-700 border-red-200",
+  ORDER_CANCELLED: "bg-red-50 text-red-700 border-red-200",
+  ORDER_DELETED: "bg-red-50 text-red-700 border-red-200",
+
+  PRODUCT_UPDATED: "bg-blue-50 text-blue-700 border-blue-200",
+  CATEGORY_UPDATED: "bg-blue-50 text-blue-700 border-blue-200",
+  INGREDIENT_UPDATED: "bg-blue-50 text-blue-700 border-blue-200",
+  STAFF_UPDATED: "bg-blue-50 text-blue-700 border-blue-200",
+  PRODUCT_VARIANTS_UPDATED: "bg-blue-50 text-blue-700 border-blue-200",
+  PRODUCT_DEACTIVATED: "bg-blue-50 text-blue-700 border-blue-200",
+  INGREDIENT_ARCHIVED: "bg-blue-50 text-blue-700 border-blue-200",
+  ORDER_ACCEPTED: "bg-blue-50 text-blue-700 border-blue-200",
+  ORDER_COMPLETED: "bg-blue-50 text-blue-700 border-blue-200",
+  SETTINGS_UPDATED: "bg-blue-50 text-blue-700 border-blue-200",
+  FORECAST_RUN: "bg-blue-50 text-blue-700 border-blue-200",
+  MBA_RUN: "bg-blue-50 text-blue-700 border-blue-200",
+
+  STAFF_PIN_RESET: "bg-amber-50 text-amber-700 border-amber-200",
+  STAFF_PASSWORD_RESET: "bg-amber-50 text-amber-700 border-amber-200",
+  STOCK_RESTOCKED: "bg-amber-50 text-amber-700 border-amber-200",
+  STOCK_LOSS_DECLARED: "bg-amber-50 text-amber-700 border-amber-200",
+  LOGOUT: "bg-amber-50 text-amber-700 border-amber-200",
+  PASSWORD_CHANGED: "bg-amber-50 text-amber-700 border-amber-200",
+  PIN_CHANGED: "bg-amber-50 text-amber-700 border-amber-200",
+};
+
+const ROW_BORDER_COLORS = {
+  PRODUCT_CREATED: "border-l-green-500",
+  CATEGORY_CREATED: "border-l-green-500",
+  INGREDIENT_CREATED: "border-l-green-500",
+  STAFF_CREATED: "border-l-green-500",
+  ORDER_CREATED: "border-l-green-500",
+  LOGIN_SUCCESS: "border-l-green-500",
+  OTP_VERIFIED: "border-l-green-500",
+  PRODUCT_ACTIVATED: "border-l-green-500",
+  STAFF_ACTIVATED: "border-l-green-500",
+  INGREDIENT_RESTORED: "border-l-green-500",
+
+  PRODUCT_DELETED: "border-l-red-500",
+  CATEGORY_DELETED: "border-l-red-500",
+  INGREDIENT_DELETED: "border-l-red-500",
+  STAFF_DELETED: "border-l-red-500",
+  LOGIN_FAILED: "border-l-red-500",
+  ORDER_CANCELLED: "border-l-red-500",
+  ORDER_DELETED: "border-l-red-500",
+
+  PRODUCT_UPDATED: "border-l-blue-500",
+  CATEGORY_UPDATED: "border-l-blue-500",
+  INGREDIENT_UPDATED: "border-l-blue-500",
+  STAFF_UPDATED: "border-l-blue-500",
+  PRODUCT_VARIANTS_UPDATED: "border-l-blue-500",
+  PRODUCT_DEACTIVATED: "border-l-blue-500",
+  INGREDIENT_ARCHIVED: "border-l-blue-500",
+  ORDER_ACCEPTED: "border-l-blue-500",
+  ORDER_COMPLETED: "border-l-blue-500",
+  SETTINGS_UPDATED: "border-l-blue-500",
+  FORECAST_RUN: "border-l-blue-500",
+  MBA_RUN: "border-l-blue-500",
+
+  STAFF_PIN_RESET: "border-l-amber-500",
+  STAFF_PASSWORD_RESET: "border-l-amber-500",
+  STOCK_RESTOCKED: "border-l-amber-500",
+  STOCK_LOSS_DECLARED: "border-l-amber-500",
+  LOGOUT: "border-l-amber-500",
+  PASSWORD_CHANGED: "border-l-amber-500",
+  PIN_CHANGED: "border-l-amber-500",
 };
 
 function formatAction(action) {
@@ -57,27 +119,69 @@ function formatAction(action) {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function formatTarget(targetType, targetId) {
-  if (!targetType) return "—";
-  const label = targetType.charAt(0).toUpperCase() + targetType.slice(1);
-  return targetId ? `${label} #${targetId.slice(0, 8)}` : label;
-}
+function formatDescription(log) {
+  const d = log.details || {};
+  const name = d.name || "";
+  const email = d.email || "";
+  const total = d.total != null ? `\u20B1${Number(d.total).toLocaleString()}` : "";
+  const source = d.source || "";
+  const reason = d.reason || "";
+  const fields = d.fields || [];
+  const role = d.role || "";
+  const unit = d.unit || "";
+  const quantity = d.quantity != null ? String(d.quantity) : "";
+  const quantityLost = d.quantity_lost != null ? String(d.quantity_lost) : "";
+  const lossType = d.loss_type || "";
+  const costPerUnit = d.cost_per_unit != null ? `\u20B1${d.cost_per_unit}` : "";
+  const userId = d.userId || "";
 
-function formatDetails(details) {
-  if (!details) return "—";
-  if (typeof details === "string") return details;
+  switch (log.action) {
+    case "CATEGORY_CREATED": return `Created "${name}"`;
+    case "CATEGORY_UPDATED": return `Updated "${name}"`;
+    case "CATEGORY_DELETED": return `Deleted "${name}"`;
 
-  const parts = [];
-  if (details.name) parts.push(details.name);
-  if (details.email) parts.push(details.email);
-  if (details.role) parts.push(details.role);
-  if (details.fields) parts.push(details.fields.join(", "));
-  if (details.reason) parts.push(details.reason);
-  if (details.total) parts.push(`₱${details.total}`);
-  if (details.source) parts.push(details.source);
+    case "PRODUCT_CREATED": return `Created "${name}"`;
+    case "PRODUCT_UPDATED": return `Updated "${name}"`;
+    case "PRODUCT_VARIANTS_UPDATED": return `Updated "${name}" variants${fields.length ? ` (${fields.join(", ")})` : ""}`;
+    case "PRODUCT_ACTIVATED": return `Activated "${name}"`;
+    case "PRODUCT_DEACTIVATED": return `Deactivated "${name}"`;
+    case "PRODUCT_DELETED": return `Deleted "${name}"`;
 
-  if (parts.length > 0) return parts.join(" · ");
-  return "—";
+    case "INGREDIENT_CREATED": return `Created "${name}"${unit ? ` (${unit})` : ""}`;
+    case "INGREDIENT_UPDATED": return `Updated "${name}"${fields.length ? ` (${fields.join(", ")})` : ""}`;
+    case "INGREDIENT_ARCHIVED": return `Archived "${name}"`;
+    case "INGREDIENT_RESTORED": return `Restored "${name}"`;
+    case "INGREDIENT_DELETED": return `Deleted "${name}"`;
+    case "STOCK_RESTOCKED": return `Restocked "${name}" \u2014 ${quantity} ${unit}${costPerUnit ? ` @ ${costPerUnit}/unit` : ""}`;
+    case "STOCK_LOSS_DECLARED": return `Loss: "${name}" \u2014 ${quantityLost} ${unit}${lossType ? ` (${lossType})` : ""}`;
+
+    case "STAFF_CREATED": return `Created ${name}${role ? ` (${role})` : ""}`;
+    case "STAFF_UPDATED": return `Updated ${name}${fields.length ? ` (${fields.join(", ")})` : ""}`;
+    case "STAFF_ACTIVATED": return `Activated ${name}`;
+    case "STAFF_DEACTIVATED": return `Deactivated ${name}`;
+    case "STAFF_PIN_RESET": return `Reset PIN for ${name}`;
+    case "STAFF_PASSWORD_RESET": return `Reset password for ${name}`;
+    case "STAFF_DELETED": return `Deleted ${name}`;
+
+    case "LOGIN_SUCCESS": return `Logged in${role ? ` (${role})` : ""}`;
+    case "LOGIN_FAILED": return `Failed login attempt${email ? ` \u2014 ${email}` : ""}${userId ? ` \u2014 User ${userId.slice(0, 8)}` : ""}${reason ? ` (${reason})` : ""}`;
+    case "LOGOUT": return "Logged out";
+    case "OTP_VERIFIED": return "OTP verified";
+    case "PIN_CHANGED": return "PIN changed";
+    case "PASSWORD_CHANGED": return "Password changed";
+
+    case "ORDER_CREATED": return `Created order${total ? ` \u00B7 ${total}` : ""}${source ? ` \u00B7 ${source}` : ""}`;
+    case "ORDER_ACCEPTED": return `Accepted order${total ? ` \u00B7 ${total}` : ""}${source ? ` \u00B7 ${source}` : ""}`;
+    case "ORDER_COMPLETED": return `Completed order${total ? ` \u00B7 ${total}` : ""}`;
+    case "ORDER_CANCELLED": return `Cancelled order${reason ? ` \u2014 ${reason}` : ""}`;
+    case "ORDER_DELETED": return `Deleted order${total ? ` \u00B7 ${total}` : ""}`;
+
+    case "SETTINGS_UPDATED": return `Updated settings${fields.length ? ` (${fields.join(", ")})` : ""}`;
+    case "FORECAST_RUN": return "Ran demand forecast";
+    case "MBA_RUN": return "Ran market basket analysis";
+
+    default: return formatAction(log.action);
+  }
 }
 
 export default function AuditLogsPage() {
@@ -88,152 +192,158 @@ export default function AuditLogsPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  // Resolve action group to individual action values
-  const resolvedActions = ACTION_GROUP_MAP[actionFilter] || [];
-  const queryParams = {
+  const resolvedActions = useMemo(() => ACTION_GROUP_MAP[actionFilter] || [], [actionFilter]);
+  const queryParams = useMemo(() => ({
     page,
     limit,
     ...(search && { search }),
     ...(resolvedActions.length === 1 && { action: resolvedActions[0] }),
     ...(startDate && { startDate }),
     ...(endDate && { endDate }),
-  };
-
-  // For group filters, we send all actions joined (backend supports single action filter)
-  // If group has multiple actions, we use search instead
-  if (resolvedActions.length > 1) {
-    // We'll filter client-side from the action column for groups
-    // But since backend doesn't support OR on action, we rely on search
-  }
+  }), [page, limit, search, resolvedActions, startDate, endDate]);
 
   const { data, isLoading } = useAuditLogs(queryParams);
-
   const logs = data?.logs || [];
   const pagination = data?.pagination || { page: 1, limit: 50, totalItems: 0, totalPages: 0 };
 
-  // Client-side group filter when multiple actions
   const filteredLogs = resolvedActions.length > 1
     ? logs.filter((log) => resolvedActions.includes(log.action))
     : logs;
 
+  const grouped = useMemo(() => {
+    const groups = [];
+    let currentDate = null;
+    for (const log of filteredLogs) {
+      const dateKey = new Date(log.createdAt).toLocaleDateString("en-PH", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        timeZone: "Asia/Manila",
+      });
+      if (dateKey !== currentDate) {
+        currentDate = dateKey;
+        groups.push({ type: "date", date: dateKey, key: dateKey });
+      }
+      groups.push({ type: "log", log, key: log.id });
+    }
+    return groups;
+  }, [filteredLogs]);
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Audit Logs</h1>
-        <p className="text-sm text-muted-foreground mt-1">Track all system activity and user actions</p>
+    <div className="flex flex-col h-full">
+      <div className="flex flex-wrap items-center gap-3 pb-4">
+        <div className="w-64">
+          <SearchBar
+            value={search}
+            onChange={(val) => { setSearch(val); setPage(1); }}
+            placeholder="Search actions, targets..."
+          />
+        </div>
+        <div className="w-44">
+          <DropDown
+            options={ACTION_GROUPS}
+            value={actionFilter}
+            onChange={(val) => { setActionFilter(val); setPage(1); }}
+            size="sm"
+            placeholder="All Actions"
+          />
+        </div>
+        <DateRangeFilter
+          dateFrom={startDate || null}
+          dateTo={endDate || null}
+          onDateChange={(from, to) => {
+            setStartDate(from || "");
+            setEndDate(to || "");
+            setPage(1);
+          }}
+        />
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="w-64">
-              <SearchBar
-                value={search}
-                onChange={setSearch}
-                placeholder="Search actions, targets..."
-              />
-            </div>
-            <select
-              value={actionFilter}
-              onChange={(e) => { setActionFilter(e.target.value); setPage(1); }}
-              className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm"
-            >
-              {ACTION_GROUPS.map((g) => (
-                <option key={g.value} value={g.value}>{g.label}</option>
-              ))}
-            </select>
-            <div className="flex items-center gap-2">
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
-                className="w-40"
-              />
-              <span className="text-sm text-muted-foreground">to</span>
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
-                className="w-40"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Table */}
-      <Card>
-        <CardContent className="pt-6">
+      <div className="flex flex-col border border-border rounded-xl overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {isLoading ? (
-            <div className="space-y-3">
+            <div className="p-4 space-y-2">
               {Array.from({ length: 10 }).map((_, i) => (
-                <div key={i} className="h-12 animate-pulse rounded bg-muted" />
+                <div key={i} className="h-9 animate-pulse rounded bg-muted" />
               ))}
             </div>
-          ) : filteredLogs.length === 0 ? (
-            <div className="py-12 text-center text-sm text-muted-foreground">
-              No audit logs found
+          ) : grouped.length === 0 ? (
+            <div className="py-16 text-center">
+              <Icon name="search" size={40} className="mx-auto text-muted-foreground/40 mb-3" />
+              <p className="text-sm text-muted-foreground">No audit logs found</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs font-medium uppercase text-muted-foreground">
-                    <th className="pb-3 pr-4">Timestamp</th>
-                    <th className="pb-3 pr-4">User</th>
-                    <th className="pb-3 pr-4">Action</th>
-                    <th className="pb-3 pr-4">Target</th>
-                    <th className="pb-3">Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredLogs.map((log) => (
-                    <tr key={log.id} className="border-b border-border last:border-0">
-                      <td className="py-3 pr-4 whitespace-nowrap">
-                        <div className="text-foreground">{formatDate(log.createdAt, "shortDate")}</div>
-                        <div className="text-xs text-muted-foreground">{formatTime(log.createdAt)}</div>
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="border-b border-border bg-muted/40 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <th className="py-2.5 pl-4 pr-3 w-[100px]">Time</th>
+                  <th className="py-2.5 pr-3">User</th>
+                  <th className="py-2.5 pr-3 w-[160px]">Action</th>
+                  <th className="py-2.5 pr-4">Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {grouped.map((item) => {
+                  if (item.type === "date") {
+                    return (
+                      <tr key={item.key} className="border-b border-border">
+                        <td
+                          colSpan={4}
+                          className="border-l-[3px] border-l-transparent bg-muted/30 px-4 py-1.5 text-xs font-semibold text-muted-foreground"
+                        >
+                          {item.date}
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  const log = item.log;
+                  const borderClass = ROW_BORDER_COLORS[log.action] || "border-l-muted-foreground/20";
+                  const badgeClass = BADGE_STYLES[log.action] || "bg-muted text-muted-foreground border-border";
+
+                  return (
+                    <tr
+                      key={item.key}
+                      className={`border-b border-border last:border-0 border-l-[3px] ${borderClass} hover:bg-muted/30 transition-colors`}
+                    >
+                      <td className="py-2.5 pl-4 pr-3 whitespace-nowrap text-xs text-muted-foreground">
+                        {formatTime(log.createdAt)}
                       </td>
-                      <td className="py-3 pr-4">
+                      <td className="py-2.5 pr-3">
                         {log.user ? (
-                          <div>
-                            <div className="font-medium text-foreground">{log.user.name}</div>
-                            <div className="text-xs text-muted-foreground capitalize">{log.user.role}</div>
-                          </div>
+                          <span className="text-sm">
+                            <span className="font-medium text-foreground">{log.user.name}</span>
+                            <span className="ml-1 text-xs text-muted-foreground capitalize">({log.user.role})</span>
+                          </span>
                         ) : (
-                          <span className="text-muted-foreground">System</span>
+                          <span className="text-sm text-muted-foreground italic">System</span>
                         )}
                       </td>
-                      <td className="py-3 pr-4">
-                        <Badge variant={ACTION_BADGE_COLORS[log.action] || "outline"}>
+                      <td className="py-2.5 pr-3">
+                        <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-medium ${badgeClass}`}>
                           {formatAction(log.action)}
-                        </Badge>
+                        </span>
                       </td>
-                      <td className="py-3 pr-4 text-muted-foreground">
-                        {formatTarget(log.targetType, log.targetId)}
-                      </td>
-                      <td className="py-3 text-muted-foreground max-w-xs truncate">
-                        {formatDetails(log.details)}
+                      <td className="py-2.5 pr-4 text-sm text-muted-foreground">
+                        {formatDescription(log)}
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  );
+                })}
+              </tbody>
+            </table>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Pagination */}
-      <Pagination
-        currentPage={pagination.page}
-        totalItems={pagination.totalItems}
-        pageSize={pagination.limit}
-        onPageChange={setPage}
-        onPageSizeChange={(newLimit) => { setLimit(newLimit); setPage(1); }}
-        pageSizeOptions={[50, 75, 100]}
-        itemLabel="logs"
-      />
+        </div>
+        <Pagination
+          currentPage={pagination.page}
+          totalItems={pagination.totalItems}
+          pageSize={pagination.limit}
+          onPageChange={setPage}
+          onPageSizeChange={(newLimit) => { setLimit(newLimit); setPage(1); }}
+          pageSizeOptions={[50, 75, 100]}
+          itemLabel="logs"
+        />
+      </div>
     </div>
   );
 }

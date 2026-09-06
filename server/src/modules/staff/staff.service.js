@@ -68,7 +68,7 @@ export const staffService = {
    * Create a new staff member.
    * PIN is auto-generated (6 digits), hashed, and returned raw for one-time admin display.
    */
-  async createStaff({ name, email, role }, userId, ipAddress) {
+  async createStaff({ name, email, role }, userId) {
     // Check email uniqueness
     const existing = await staffRepository.findByEmail(email);
     if (existing) {
@@ -99,7 +99,7 @@ export const staffService = {
       // Email failure is non-blocking — admin still sees the PIN
     }
 
-    auditLogService.logAction({ userId, action: ACTIONS.STAFF_CREATED, targetType: "staff", targetId: user.id, details: { name: user.name, email: user.email, role: user.role }, ipAddress });
+    auditLogService.logAction({ userId, action: ACTIONS.STAFF_CREATED, targetType: "staff", targetId: user.id, details: { name: user.name, email: user.email, role: user.role } });
 
     return {
       staff: mapToStaffResponse(user),
@@ -110,7 +110,7 @@ export const staffService = {
   /**
    * Update staff fields.
    */
-  async updateStaff(id, { name, email, role }, userId, ipAddress) {
+  async updateStaff(id, { name, email, role }, userId) {
     const user = await staffRepository.findById(id);
     if (!user) {
       throw new AppError(404, "Staff not found", "STAFF_NOT_FOUND");
@@ -134,21 +134,21 @@ export const staffService = {
     }
 
     const updated = await staffRepository.update(id, updateData);
-    auditLogService.logAction({ userId, action: ACTIONS.STAFF_UPDATED, targetType: "staff", targetId: id, ipAddress });
+    auditLogService.logAction({ userId, action: ACTIONS.STAFF_UPDATED, targetType: "staff", targetId: id, details: { name: user.name, fields: Object.keys(updateData) } });
     return mapToStaffResponse(updated);
   },
 
   /**
    * Toggle active status.
    */
-  async toggleActive(id, userId, ipAddress) {
+  async toggleActive(id, userId) {
     const user = await staffRepository.findById(id);
     if (!user) {
       throw new AppError(404, "Staff not found", "STAFF_NOT_FOUND");
     }
 
     const updated = await staffRepository.setActive(id, !user.isActive);
-    auditLogService.logAction({ userId, action: !user.isActive ? ACTIONS.STAFF_ACTIVATED : ACTIONS.STAFF_DEACTIVATED, targetType: "staff", targetId: id, ipAddress });
+    auditLogService.logAction({ userId, action: !user.isActive ? ACTIONS.STAFF_ACTIVATED : ACTIONS.STAFF_DEACTIVATED, targetType: "staff", targetId: id, details: { name: user.name } });
     return {
       staff_id: updated.id,
       is_active: updated.isActive,
@@ -158,7 +158,7 @@ export const staffService = {
   /**
    * Reset PIN. Returns raw PIN for one-time admin display.
    */
-  async resetPin(id, newPin, userId, ipAddress) {
+  async resetPin(id, newPin, userId) {
     const user = await staffRepository.findById(id);
     if (!user) {
       throw new AppError(404, "Staff not found", "STAFF_NOT_FOUND");
@@ -178,7 +178,7 @@ export const staffService = {
       // Email failure is non-blocking
     }
 
-    auditLogService.logAction({ userId, action: ACTIONS.STAFF_PIN_RESET, targetType: "staff", targetId: id, ipAddress });
+    auditLogService.logAction({ userId, action: ACTIONS.STAFF_PIN_RESET, targetType: "staff", targetId: id, details: { name: user.name } });
 
     return { raw_pin: newPin };
   },
@@ -186,7 +186,7 @@ export const staffService = {
   /**
    * Reset password.
    */
-  async resetPassword(id, newPassword, userId, ipAddress) {
+  async resetPassword(id, newPassword, userId) {
     const user = await staffRepository.findById(id);
     if (!user) {
       throw new AppError(404, "Staff not found", "STAFF_NOT_FOUND");
@@ -195,7 +195,7 @@ export const staffService = {
     const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
     await staffRepository.resetPassword(id, passwordHash);
 
-    auditLogService.logAction({ userId, action: ACTIONS.STAFF_PASSWORD_RESET, targetType: "staff", targetId: id, ipAddress });
+    auditLogService.logAction({ userId, action: ACTIONS.STAFF_PASSWORD_RESET, targetType: "staff", targetId: id, details: { name: user.name } });
 
     return { success: true };
   },
@@ -203,7 +203,7 @@ export const staffService = {
   /**
    * Hard delete staff. Blocked if has transaction history.
    */
-  async deleteStaff(id, userId, ipAddress) {
+  async deleteStaff(id, userId) {
     const user = await staffRepository.findById(id);
     if (!user) {
       throw new AppError(404, "Staff not found", "STAFF_NOT_FOUND");
@@ -218,7 +218,7 @@ export const staffService = {
       );
     }
 
-    auditLogService.logAction({ userId, action: ACTIONS.STAFF_DELETED, targetType: "staff", targetId: id, ipAddress });
+    auditLogService.logAction({ userId, action: ACTIONS.STAFF_DELETED, targetType: "staff", targetId: id, details: { name: user.name } });
 
     return staffRepository.deleteUser(id);
   },

@@ -9,7 +9,7 @@ import Icon from "@/components/ui/icon";
  * Auto-refreshes every 15 seconds.
  * Cashier can accept (view + process) or reject (cancel) online orders.
  */
-export default function PosOnlineOrders({ onViewOrder, onAcceptOrder }) {
+export default function PosOnlineOrders({ onAcceptOrder, onRejectOrder }) {
   const { data: ordersData, isLoading } = usePendingOnlineOrders();
   const orders = ordersData?.data?.orders ?? [];
 
@@ -36,7 +36,7 @@ export default function PosOnlineOrders({ onViewOrder, onAcceptOrder }) {
                 {order.customer_name} — Table {order.table_number}
               </p>
               <p className="text-xs text-muted-foreground">
-                {order.items?.length ?? 0} items — {Number(order.total_amount).toLocaleString()}
+                {Number(order.total_amount).toLocaleString()}
               </p>
             </div>
 
@@ -52,7 +52,7 @@ export default function PosOnlineOrders({ onViewOrder, onAcceptOrder }) {
                 size="sm"
                 variant="destructive"
                 className="h-7 text-xs"
-                onClick={() => onViewOrder?.(order)}
+                onClick={() => onRejectOrder?.(order)}
               >
                 Reject
               </Button>

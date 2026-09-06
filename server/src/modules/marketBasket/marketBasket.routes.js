@@ -73,7 +73,7 @@ router.post(
   authenticate,
   authorize("admin"),
   (req, res) => {
-    auditLogService.logAction({ userId: req.user.id, action: ACTIONS.MBA_RUN, targetType: "market_basket", ipAddress: req.ip });
+    auditLogService.logAction({ userId: req.user.id, action: ACTIONS.MBA_RUN, targetType: "market_basket", details: { source: "manual" } });
     const { minSupport, minConfidence, topN } = req.query;
     let path = "/mba/analyze?";
     if (minSupport) path += `min_support=${minSupport}&`;

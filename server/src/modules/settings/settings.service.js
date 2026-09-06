@@ -13,14 +13,13 @@ export const settingsService = {
     return settings;
   },
 
-  async updateSettings(data, userId, ipAddress) {
+  async updateSettings(data, userId) {
     const settings = await settingsRepository.update(data);
     auditLogService.logAction({
       userId,
       action: ACTIONS.SETTINGS_UPDATED,
       targetType: "settings",
       details: { fields: Object.keys(data) },
-      ipAddress,
     }).catch(() => {});
     return settings;
   },

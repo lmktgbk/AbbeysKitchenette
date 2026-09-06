@@ -150,6 +150,6 @@ export const categoryService = {
 
     await categoryRepository.delete(id);
 
-    auditLogService.logAction({ userId, action: ACTIONS.CATEGORY_DELETED, targetType: "category", targetId: id });
+    auditLogService.logAction({ userId, action: ACTIONS.CATEGORY_DELETED, targetType: "category", targetId: id, details: { name: existing.categoryName } });
   },
 };

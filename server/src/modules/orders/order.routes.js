@@ -9,6 +9,7 @@ import {
   updateOrderSchema,
   updateStatusSchema,
   cancelOrderSchema,
+  fulfillOrderSchema,
   orderIdParamSchema,
   getOrdersQuerySchema,
 } from "./order.validation.js";
@@ -80,6 +81,16 @@ router.put(
   validateParams(orderIdParamSchema),
   validate(updateStatusSchema),
   orderController.updateStatus,
+);
+
+// POST /api/orders/:id/fulfill — fulfill pending online order (edit + accept)
+router.post(
+  "/:id/fulfill",
+  authenticate,
+  authorize("admin", "cashier"),
+  validateParams(orderIdParamSchema),
+  validate(fulfillOrderSchema),
+  orderController.fulfillOrder,
 );
 
 // POST /api/orders/:id/cancel — delete or cancel

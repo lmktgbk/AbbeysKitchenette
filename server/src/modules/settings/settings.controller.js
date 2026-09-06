@@ -30,7 +30,7 @@ export const settingsController = {
         throw new AppError(403, "Only admins can update settings", "FORBIDDEN");
       }
 
-      const settings = await settingsService.updateSettings(req.body, req.user.id, req.ip);
+      const settings = await settingsService.updateSettings(req.body, req.user.id);
       return successResponse(res, "Settings updated", { settings });
     } catch (error) {
       return handleError(res, error, "UPDATE_SETTINGS_ERROR");

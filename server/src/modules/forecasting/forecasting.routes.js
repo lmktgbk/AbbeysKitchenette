@@ -71,7 +71,7 @@ router.post(
   authenticate,
   authorize("admin"),
   (req, res) => {
-    auditLogService.logAction({ userId: req.user.id, action: ACTIONS.FORECAST_RUN, targetType: "forecast", ipAddress: req.ip });
+    auditLogService.logAction({ userId: req.user.id, action: ACTIONS.FORECAST_RUN, targetType: "forecast", details: { source: "manual" } });
     proxyPost(res, "/forecast/demand/run", "DEMAND_RUN_ERROR");
   },
 );

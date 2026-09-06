@@ -9,9 +9,8 @@ export const auditLogService = {
    * @param {string} [params.targetType] - entity type (e.g., "product")
    * @param {string} [params.targetId] - entity ID
    * @param {object} [params.details] - additional context (before/after values)
-   * @param {string} [params.ipAddress] - request IP
    */
-  async logAction({ userId, action, targetType, targetId, details, ipAddress }) {
+  async logAction({ userId, action, targetType, targetId, details }) {
     try {
       await auditLogRepository.create({
         userId,
@@ -19,7 +18,6 @@ export const auditLogService = {
         targetType,
         targetId,
         details,
-        ipAddress,
       });
     } catch (err) {
       console.error("[audit] Failed to log action:", action, err.message);
