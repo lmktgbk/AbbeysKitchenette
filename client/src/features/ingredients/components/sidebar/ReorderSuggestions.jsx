@@ -153,18 +153,12 @@ export default function ReorderSuggestions({ onAccept }) {
                           {urgency.label}
                         </span>
                       </div>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        Order {s.suggested_quantity} {s.unit}
+                      <div className="mt-0.5 text-xs text-muted-foreground">
+                        <p>Order: {s.suggested_quantity} {s.unit}</p>
                         {s.estimated_stockout && (
-                          <span>
-                            {" "}
-                            · Stockout:{" "}
-                            {new Date(
-                              s.estimated_stockout,
-                            ).toLocaleDateString()}
-                          </span>
+                          <p>Stockout: {new Date(s.estimated_stockout).toLocaleDateString()}</p>
                         )}
-                      </p>
+                      </div>
                     </div>
                     <span className="shrink-0 text-xs text-muted-foreground">
                       {Math.round(s.confidence * 100)}% confidence

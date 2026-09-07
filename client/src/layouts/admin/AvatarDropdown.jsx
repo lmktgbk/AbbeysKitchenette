@@ -77,7 +77,7 @@ export default function AvatarDropdown({ collapsed, user, onOpenProfile }) {
                         </div>
                     )}
                     {!collapsed && (
-                        <span className="truncate text-sm font-medium text-foreground">
+                        <span className="truncate text-sm font-medium text-foreground animate-in fade-in duration-150">
                             {user?.name}
                         </span>
                     )}
@@ -87,7 +87,7 @@ export default function AvatarDropdown({ collapsed, user, onOpenProfile }) {
                 {!collapsed && (
                     <button
                         onClick={handleLogout}
-                        className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
+                        className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-destructive animate-in fade-in duration-150"
                         aria-label="Logout"
                     >
                         <Icon name="logOut" size={18} />

@@ -41,15 +41,8 @@ import ForecastingPage from "@/features/forecasting/pages/ForecastingPage";
 import MarketBasketPage from "@/features/marketBasket/pages/MarketBasketPage";
 import SettingsPage from "@/features/settings/pages/SettingsPage";
 import AuditLogsPage from "@/features/auditLogs/pages/AuditLogsPage";
-
-/* ── Placeholder Pages ───────────────── */
-
-function DashboardPlaceholder() {
-    return <div className="p-6"><h1 className="text-2xl font-bold">Dashboard</h1></div>;
-}
-function KitchenPlaceholder() {
-    return <div className="flex h-screen items-center justify-center"><h1 className="text-2xl font-bold">Kitchen Display</h1></div>;
-}
+import DashboardPage from "@/features/dashboard/pages/DashboardPage";
+import KitchenDisplay from "@/features/orders/pages/KitchenDisplay";
 
 /* ── Router ──────────────────────────── */
 
@@ -99,7 +92,7 @@ const router = createBrowserRouter([
             </ProtectedRoute>
         ),
         children: [
-            { path: "/dashboard", element: <DashboardPlaceholder /> },
+            { path: "/dashboard", element: <DashboardPage /> },
             { path: "/products", element: <ProductsPage /> },
             { path: "/inventory", element: <IngredientsPage /> },
             { path: "/orders", element: <OrdersPage /> },
@@ -127,7 +120,7 @@ const router = createBrowserRouter([
                     { path: "orders", element: <OrdersPage embedded /> },
                 ],
             },
-            { path: "/kitchen", element: <KitchenPlaceholder /> },
+            { path: "/kitchen", element: <KitchenDisplay /> },
         ],
     },
 

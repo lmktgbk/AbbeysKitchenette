@@ -10,6 +10,7 @@
  * - Mutation hooks: useOrderMutations, useGuestOrderMutations
  */
 
+import { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as api from "./api";
 
@@ -86,6 +87,87 @@ export function usePendingOnlineOrders() {
     queryFn: () => api.getOrdersRequest({ status: "pending", limit: "10" }),
     refetchInterval: 15000,
   });
+}
+
+/**
+ * useKitchenDisplay — kitchen display hook.
+ * Polls every 5s, splits orders into processing/nextInLine/accepted/completedToday.
+ * Manages client-side item checked state (Map<orderId, Set<itemIndex>>).
+ */
+export function useKitchenDisplay() {
+  const queryClient = useQueryClient();
+  const [checkedItems, setCheckedItems] = useState(() => new Map());
+
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: orderKeys.list({ kitchen: true }),
+    queryFn: () => api.getKitchenOrdersRequest(),
+    staleTime: 5000,
+    refetchInterval: 5000,
+    retry: 1,
+  });
+
+  const orders = data?.data?.orders ?? [];
+
+  const { processing, nextInLine, accepted } = useMemo(() => {
+    const active = orders.filter((o) =>
+      ["accepted", "next_in_line", "processing"].includes(o.status),
+    );
+    const processingOrder = active.find((o) => o.status === "processing") ?? null;
+    const nextOrder = active.find((o) => o.status === "next_in_line") ?? null;
+    const acceptedOrders = active
+      .filter((o) => o.status === "accepted")
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+    return {
+      processing: processingOrder,
+      nextInLine: nextOrder,
+      accepted: acceptedOrders,
+    };
+  }, [orders]);
+
+  const markReady = useMutation({
+    mutationFn: (id) => api.advanceOrderStatusRequest(id, { status: "completed" }),
+    onSuccess: (_data, id) => {
+      setCheckedItems((prev) => {
+        const next = new Map(prev);
+        next.delete(id);
+        return next;
+      });
+      queryClient.invalidateQueries({ queryKey: orderKeys.all });
+    },
+  });
+
+  const toggleItemCheck = useCallback((orderId, itemIndex) => {
+    setCheckedItems((prev) => {
+      const next = new Map(prev);
+      const set = new Set(next.get(orderId) ?? []);
+      if (set.has(itemIndex)) set.delete(itemIndex);
+      else set.add(itemIndex);
+      next.set(orderId, set);
+      return next;
+    });
+  }, []);
+
+  const getCheckedSet = useCallback(
+    (orderId) => checkedItems.get(orderId) ?? new Set(),
+    [checkedItems],
+  );
+
+  return {
+    loading: isLoading,
+    refreshing: isFetching && !isLoading,
+    processing,
+    nextInLine,
+    accepted,
+    counts: {
+      processing: processing ? 1 : 0,
+      queue: accepted.length,
+    },
+    toggleItemCheck,
+    getCheckedSet,
+    markReady: markReady.mutateAsync,
+    markingReady: markReady.isPending,
+  };
 }
 
 /* ── Mutation Hooks ─────────────────────────────── */

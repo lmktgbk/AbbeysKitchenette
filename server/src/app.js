@@ -25,11 +25,13 @@ import priceOptimizationRoutes from "./modules/priceOptimization/priceOptimizati
 import marketBasketRoutes from "./modules/marketBasket/marketBasket.routes.js";
 import settingsRoutes from "./modules/settings/settings.routes.js";
 import auditLogRoutes from "./modules/auditLogs/auditLog.routes.js";
+import dashboardRoutes from "./modules/dashboard/dashboard.routes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+app.disable("etag");
 
 /**
  * Security Headers
@@ -81,6 +83,7 @@ app.use("/api/price-optimization", priceOptimizationRoutes);
 app.use("/api/market-basket", marketBasketRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/audit-logs", auditLogRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 // Health check endpoint (used by hosting platforms to verify server is running)
 app.get("/api/health", (req, res) => {

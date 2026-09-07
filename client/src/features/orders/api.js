@@ -15,6 +15,12 @@ export async function getOrdersRequest(params = {}) {
   return res.data;
 }
 
+// GET /api/orders/kitchen — kitchen display with items
+export async function getKitchenOrdersRequest() {
+  const res = await api.get("/orders/kitchen");
+  return res.data;
+}
+
 // GET /api/orders/stats — status counts for KPI cards
 export async function getOrderStatsRequest() {
   const res = await api.get("/orders/stats");

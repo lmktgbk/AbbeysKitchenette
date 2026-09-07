@@ -110,7 +110,7 @@ export const getOrdersQuerySchema = z.object({
     .default("50"),
   search: z.string().optional(),
   status: z
-    .enum(["all", "pending", "accepted", "next_in_line", "processing", "completed", "cancelled"])
+    .string()
     .optional()
     .default("all"),
   date_from: z.string().optional(), // YYYY-MM-DD

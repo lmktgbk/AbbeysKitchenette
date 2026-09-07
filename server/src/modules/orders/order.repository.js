@@ -525,6 +525,54 @@ export const orderRepository = {
     return client.orderCancellation.create({ data });
   },
 
+  /* ── Kitchen Display ───────────────────── */
+
+  /**
+   * Get kitchen display orders with items in a single query.
+   * Uses json_agg to nest order_items under each order.
+   * Filters for active + today's completed orders only.
+   * @returns {Array} - orders with items array
+   */
+  async findKitchenOrders() {
+    const sql = `
+      SELECT
+        o.order_id, o.order_number, o.customer_name, o.table_number,
+        o.order_source, o.status, o.total_amount,
+        o.accepted_at, o.accepted_by, o.next_in_line_at,
+        o.processing_at, o.processing_by, o.completed_at, o.completed_by,
+        o.created_by, o.created_at, o.updated_at,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'order_item_id', oi.order_item_id,
+              'product_id', oi.product_id,
+              'product_name', p.product_name,
+              'variant_id', oi.variant_id,
+              'size_name', v.size_name,
+              'quantity', oi.quantity,
+              'unit_price', oi.unit_price
+            )
+          ) FILTER (WHERE oi.order_item_id IS NOT NULL),
+          '[]'
+        ) AS items
+      FROM orders o
+      LEFT JOIN order_items oi ON oi.order_id = o.order_id
+      LEFT JOIN products p ON p.product_id = oi.product_id
+      LEFT JOIN product_variants v ON v.variant_id = oi.variant_id
+      WHERE o.status IN ('accepted','next_in_line','processing','completed')
+      GROUP BY o.order_id
+      ORDER BY
+        CASE o.status
+          WHEN 'processing' THEN 1
+          WHEN 'next_in_line' THEN 2
+          WHEN 'accepted' THEN 3
+          WHEN 'completed' THEN 4
+        END,
+        o.created_at ASC
+    `;
+    return prisma.$queryRawUnsafe(sql);
+  },
+
   /* ── SQL Builder Helpers ───────────────── */
 
   /**
@@ -547,8 +595,15 @@ export const orderRepository = {
     }
 
     if (status && status !== "all") {
-      clauses.push(`o.status = $${idx++}`);
-      values.push(status);
+      const statuses = status.split(",").map((s) => s.trim()).filter(Boolean);
+      if (statuses.length === 1) {
+        clauses.push(`o.status = $${idx++}`);
+        values.push(statuses[0]);
+      } else if (statuses.length > 1) {
+        const placeholders = statuses.map(() => `$${idx++}`).join(", ");
+        clauses.push(`o.status IN (${placeholders})`);
+        values.push(...statuses);
+      }
     }
 
     if (dateFrom) {

@@ -36,11 +36,19 @@ router.get(
   orderController.getStats,
 );
 
+// GET /api/orders/kitchen — kitchen display (must be before /:id)
+router.get(
+  "/kitchen",
+  authenticate,
+  authorize("admin", "cashier", "kitchen"),
+  orderController.getKitchenOrders,
+);
+
 // GET /api/orders — list all orders
 router.get(
   "/",
   authenticate,
-  authorize("admin", "cashier"),
+  authorize("admin", "cashier", "kitchen"),
   validateQuery(getOrdersQuerySchema),
   orderController.getOrders,
 );
@@ -58,7 +66,7 @@ router.post(
 router.get(
   "/:id",
   authenticate,
-  authorize("admin", "cashier"),
+  authorize("admin", "cashier", "kitchen"),
   validateParams(orderIdParamSchema),
   orderController.getOrder,
 );
@@ -77,7 +85,7 @@ router.put(
 router.put(
   "/:id/status",
   authenticate,
-  authorize("admin", "cashier"),
+  authorize("admin", "cashier", "kitchen"),
   validateParams(orderIdParamSchema),
   validate(updateStatusSchema),
   orderController.updateStatus,

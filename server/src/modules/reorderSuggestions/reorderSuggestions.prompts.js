@@ -9,21 +9,23 @@
  * Build the prompt for generating reorder suggestions.
  * @param {object} context
  * @param {Array} context.ingredients - Active ingredients with stock levels
- * @param {Array} context.demandForecast - Forecasted ingredient needs (next 7 days)
+ * @param {Array} context.demandForecast - Forecasted ingredient needs (full forecast period)
  * @param {Array} context.usagePatterns - Recent stock deduction patterns
  * @param {Array} context.supplierInfo - Recent supplier data from restock batches
  * @returns {{ system: string, user: string }}
  */
 export function buildReorderPrompt(context) {
+  const today = new Date().toISOString().split("T")[0];
   const system = `You are an inventory advisor for Abbey's Kitchenette, a café.
+Today's date is ${today}.
 Your task is to analyze current stock levels, forecasted demand, and historical usage patterns
 to recommend what ingredients need to be reordered, how much, and when.
 
 Rules:
 - Only recommend ingredients that actually need reordering (stock below or near threshold, or will run out before next likely restock)
-- Urgency is "high" if stock will run out within 2 days, "medium" if 3-5 days, "low" if 5-7 days
+- Urgency is "high" if stock will run out within 2 days (supplier lead time), "medium" if 3-5 days, "low" if 5-7 days
 - Consider lead time (assume 1-2 days for most suppliers)
-- suggested_quantity should cover at least 7 days of forecasted demand plus a safety buffer
+- suggested_quantity should cover the full forecast period of demand plus a safety buffer
 - Be specific in reasoning — reference actual numbers (current stock, daily usage, days remaining)
 - confidence should reflect how reliable the data is (0.0 to 1.0)
 
@@ -51,7 +53,7 @@ If no ingredients need reordering, return { "suggestions": [] }`;
 ## Current Stock Levels
 ${formatIngredients(context.ingredients)}
 
-## Forecasted Ingredient Demand (Next 7 Days)
+## Forecasted Ingredient Demand (Full Forecast Period)
 ${formatDemand(context.demandForecast)}
 
 ## Recent Usage Patterns (Last 14 Days)
@@ -69,8 +71,12 @@ function formatIngredients(ingredients) {
   if (!ingredients.length) return "No ingredient data available.";
   return ingredients
     .map(
-      (i) =>
-        `- [${i.ingredient_id}] ${i.ingredient_name}: ${i.stock} ${i.unit} (min threshold: ${i.minimum_threshold} ${i.unit})`,
+      (i) => {
+        const stockout = i.days_until_stockout != null ? `${i.days_until_stockout} days` : "unknown";
+        const deficit = i.total_forecast > 0 ? i.stock - i.total_forecast : 0;
+        const deficitLabel = deficit < 0 ? `DEFICIT: ${Math.abs(deficit)} ${i.unit} short of forecast need` : "stock covers forecast need";
+        return `- [${i.ingredient_id}] ${i.ingredient_name}: ${i.stock} ${i.unit} in stock (min threshold: ${i.minimum_threshold} ${i.unit}), daily usage: ${i.daily_avg} ${i.unit}/day, forecast period need: ${i.total_forecast} ${i.unit}, days until stockout: ${stockout}, ${deficitLabel}`;
+      },
     )
     .join("\n");
 }
@@ -80,7 +86,7 @@ function formatDemand(demand) {
   return demand
     .map(
       (d) =>
-        `- [${d.ingredient_id}] ${d.name}: ${d.daily_avg} ${d.unit}/day avg, ${d.total_7day} ${d.unit} total over 7 days`,
+        `- [${d.ingredient_id}] ${d.name}: ${d.daily_avg} ${d.unit}/day avg, ${d.total_forecast} ${d.unit} total over forecast period`,
     )
     .join("\n");
 }
@@ -98,6 +104,9 @@ function formatUsage(patterns) {
 function formatSuppliers(suppliers) {
   if (!suppliers.length) return "No supplier data available.";
   return suppliers
-    .map((s) => `- [${s.ingredient_id}] ${s.name}: last supplier "${s.supplier}", ${s.restock_count} recent restocks`)
+    .map((s) => {
+      const cost = s.cost_per_unit != null ? ` (₱${s.cost_per_unit}/${s.unit || "unit"})` : "";
+      return `- [${s.ingredient_id}] ${s.name}: last supplier "${s.supplier}"${cost}`;
+    })
     .join("\n");
 }

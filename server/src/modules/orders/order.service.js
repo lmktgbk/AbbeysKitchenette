@@ -37,6 +37,27 @@ export const orderService = {
   },
 
   /**
+   * Get kitchen display orders with items.
+   * Single query with json_agg for nested items.
+   * @returns {{ orders: Array }} - orders with items array
+   */
+  async getKitchenOrders() {
+    const rows = await orderRepository.findKitchenOrders();
+
+    const orders = rows.map((row) => {
+      const items = Array.isArray(row.items)
+        ? row.items.map((item) => formatOrderItemResponse(item))
+        : [];
+      return {
+        ...formatOrderResponse(row),
+        items,
+      };
+    });
+
+    return { orders };
+  },
+
+  /**
    * Get status counts for KPI cards.
    * @returns {object} - counts per status
    */
@@ -596,12 +617,12 @@ export const orderService = {
       }, tx);
     });
 
-    // Trigger auto-promotion after acceptance
-    await this._advanceQueue();
-
     // Recompute variant availability for affected ingredients
     const affectedIngredientIds = [...needs.keys()];
     await productService.recomputeVariantAvailability(affectedIngredientIds);
+
+    // Trigger auto-promotion after acceptance
+    await this._advanceQueue();
 
     return this.getById(id);
   },
@@ -611,7 +632,7 @@ export const orderService = {
   /**
    * Auto-advance queue after status changes.
    * Fills processing slot first, then next_in_line slot.
-   * Runs after: creation, acceptance, cancellation, completion.
+   * Runs after: creation, acceptance, cancellation, completion, manual advance.
    */
   async _advanceQueue() {
     // Step 1: Fill processing slot if empty

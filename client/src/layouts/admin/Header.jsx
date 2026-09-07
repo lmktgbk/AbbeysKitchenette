@@ -1,11 +1,8 @@
 import { useLocation } from "react-router-dom";
 import Icon from "@/components/ui/icon";
 import ModeToggle from "@/components/ModeToggle";
+import useLayoutStore from "@/stores/layoutStore";
 
-/**
- * Route → page title mapping.
- * Add new routes here as modules are built.
- */
 const PAGE_TITLES = {
     "/dashboard": "Dashboard",
     "/products": "Products",
@@ -21,21 +18,32 @@ const PAGE_TITLES = {
     "/settings": "Settings",
 };
 
-/**
- * Header — sticky top bar for admin layout.
- * Left: hamburger toggle + page title.
- * Right: ModeToggle.
- */
-export default function Header({ onToggleSidebar }) {
+export default function Header() {
     const location = useLocation();
+    const isMobile = useLayoutStore((s) => s.isMobile);
+    const mobileOpen = useLayoutStore((s) => s.mobileOpen);
+    const closeMobile = useLayoutStore((s) => s.closeMobile);
+    const setMobileOpen = useLayoutStore((s) => s.setMobileOpen);
+    const toggleCollapsed = useLayoutStore((s) => s.toggleCollapsed);
     const title = PAGE_TITLES[location.pathname] || "Abbey's Kitchenette";
+
+    function handleToggle() {
+        if (isMobile) {
+            if (mobileOpen) {
+                closeMobile();
+            } else {
+                setMobileOpen(true);
+            }
+        } else {
+            toggleCollapsed();
+        }
+    }
 
     return (
         <header className="sticky top-0 z-20 flex h-14 items-center border-b bg-card px-4">
-            {/* Left — toggle + title */}
             <div className="flex items-center gap-3">
                 <button
-                    onClick={onToggleSidebar}
+                    onClick={handleToggle}
                     className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     aria-label="Toggle sidebar"
                 >
@@ -46,7 +54,6 @@ export default function Header({ onToggleSidebar }) {
                 </h1>
             </div>
 
-            {/* Right — theme toggle + notifications */}
             <div className="ml-auto flex items-center gap-1">
                 <ModeToggle />
                 <button

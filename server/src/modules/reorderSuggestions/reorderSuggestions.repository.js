@@ -9,32 +9,64 @@ import prisma from "../../config/prisma.js";
 
 export const reorderSuggestionsRepository = {
   /**
-   * Get all active ingredients with current stock, threshold, and unit.
+   * Get all active ingredients with current stock, threshold, unit, and forecasted demand.
    * Stock is computed from active restock batches (SUM of quantity_left).
+   * Also joins forecasted demand to compute daily_avg, total_forecast, and days_until_stockout.
    */
   async getIngredientsWithStock() {
     const rows = await prisma.$queryRawUnsafe(`
+      WITH latest_job AS (
+        SELECT id FROM forecast_jobs
+        WHERE status = 'completed'
+        ORDER BY completed_at DESC LIMIT 1
+      ),
+      ingredient_demand AS (
+        SELECT
+          i2.ingredient_id,
+          ROUND(AVG(ingredient_daily.total)::numeric, 2) AS daily_avg,
+          ROUND(SUM(ingredient_daily.total)::numeric, 2) AS total_forecast
+        FROM forecast_results fr
+        CROSS JOIN latest_job lj
+        JOIN recipes r ON r.variant_id = fr.variant_id
+        JOIN ingredients i2 ON i2.ingredient_id = r.ingredient_id
+        JOIN LATERAL (
+          SELECT (elem->>'units')::float * r.quantity_needed AS total
+          FROM jsonb_array_elements(fr.daily_data) AS elem
+        ) ingredient_daily ON true
+        WHERE fr.job_id = lj.id
+          AND fr.skipped = false
+        GROUP BY i2.ingredient_id
+      )
       SELECT
         i.ingredient_id,
         i.ingredient_name,
         i.unit,
         i.minimum_threshold,
-        COALESCE(SUM(rb.quantity_left), 0)::float AS stock
+        COALESCE(SUM(rb.quantity_left), 0)::float AS stock,
+        COALESCE(id2.daily_avg, 0)::float AS daily_avg,
+        COALESCE(id2.total_forecast, 0)::float AS total_forecast,
+        CASE
+          WHEN COALESCE(id2.daily_avg, 0) > 0
+            THEN ROUND(COALESCE(SUM(rb.quantity_left), 0)::numeric / id2.daily_avg::numeric, 1)
+          ELSE NULL
+        END AS days_until_stockout
       FROM ingredients i
       LEFT JOIN restock_batches rb
         ON rb.ingredient_id = i.ingredient_id
         AND rb.quantity_left > 0
+      LEFT JOIN ingredient_demand id2
+        ON id2.ingredient_id = i.ingredient_id
       WHERE i.is_archived = false
-      GROUP BY i.ingredient_id, i.ingredient_name, i.unit, i.minimum_threshold
+      GROUP BY i.ingredient_id, i.ingredient_name, i.unit, i.minimum_threshold, id2.daily_avg, id2.total_forecast
       ORDER BY i.ingredient_name
     `);
     return rows;
   },
 
   /**
-   * Get forecasted ingredient demand for the next 7 days.
+   * Get forecasted ingredient demand for the full forecast period.
    * Joins the latest completed forecast results with recipes to get per-ingredient needs.
-   * Returns daily_avg and total_7day per ingredient.
+   * Returns daily_avg and total_forecast per ingredient.
    */
   async getForecastedDemand() {
     const rows = await prisma.$queryRawUnsafe(`
@@ -48,7 +80,7 @@ export const reorderSuggestionsRepository = {
         i.ingredient_name AS name,
         i.unit,
         ROUND(AVG(ingredient_daily.total)::numeric, 2) AS daily_avg,
-        ROUND(SUM(ingredient_daily.total)::numeric, 2) AS total_7day
+        ROUND(SUM(ingredient_daily.total)::numeric, 2) AS total_forecast
       FROM forecast_results fr
       CROSS JOIN latest_job lj
       JOIN recipes r ON r.variant_id = fr.variant_id
@@ -56,7 +88,6 @@ export const reorderSuggestionsRepository = {
       JOIN LATERAL (
         SELECT (elem->>'units')::float * r.quantity_needed AS total
         FROM jsonb_array_elements(fr.daily_data) AS elem
-        LIMIT 7
       ) ingredient_daily ON true
       WHERE fr.job_id = lj.id
         AND fr.skipped = false
@@ -91,20 +122,26 @@ export const reorderSuggestionsRepository = {
 
   /**
    * Get supplier information from recent restock batches.
-   * Returns the most common supplier per ingredient and restock frequency.
+   * Returns the most recent supplier and cost_per_unit per ingredient.
    */
   async getSupplierInfo() {
     const rows = await prisma.$queryRawUnsafe(`
+      WITH latest_batch AS (
+        SELECT DISTINCT ON (ingredient_id)
+          ingredient_id, supplier_name, cost_per_unit
+        FROM restock_batches
+        WHERE restocked_at >= NOW() - INTERVAL '90 days'
+        ORDER BY ingredient_id, restocked_at DESC
+      )
       SELECT
         i.ingredient_id,
         i.ingredient_name AS name,
-        COALESCE(rb.supplier_name, 'Unknown') AS supplier,
-        COUNT(*)::int AS restock_count
-      FROM restock_batches rb
-      JOIN ingredients i ON i.ingredient_id = rb.ingredient_id
-      WHERE rb.restocked_at >= NOW() - INTERVAL '30 days'
-      GROUP BY i.ingredient_id, i.ingredient_name, rb.supplier_name
-      ORDER BY i.ingredient_name, restock_count DESC
+        COALESCE(lb.supplier_name, 'Unknown') AS supplier,
+        lb.cost_per_unit
+      FROM ingredients i
+      LEFT JOIN latest_batch lb ON lb.ingredient_id = i.ingredient_id
+      WHERE i.is_archived = false
+      ORDER BY i.ingredient_name
     `);
     return rows;
   },

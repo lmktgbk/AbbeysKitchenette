@@ -55,6 +55,19 @@ export const orderController = {
   },
 
   /**
+   * GET /api/orders/kitchen
+   * Kitchen display — orders with items in one query.
+   */
+  async getKitchenOrders(req, res) {
+    try {
+      const result = await orderService.getKitchenOrders();
+      return successResponse(res, "Kitchen orders retrieved", result);
+    } catch (error) {
+      return handleError(res, error, "GET_KITCHEN_ORDERS_ERROR");
+    }
+  },
+
+  /**
    * GET /api/orders/:id
    * Single order detail with items + timeline.
    */

@@ -59,6 +59,8 @@ import {
     Sparkles,
     Loader,
     Camera,
+    Percent,
+    LayoutGrid,
 } from "lucide-react";
 
 const iconMap = {
@@ -122,6 +124,8 @@ const iconMap = {
     sparkles: Sparkles,
     loader: Loader,
     camera: Camera,
+    percent: Percent,
+    layoutGrid: LayoutGrid,
 };
 
 /**

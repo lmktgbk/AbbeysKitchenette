@@ -1,14 +1,11 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import useAuthStore from "@/features/auth/authStore";
+import useLayoutStore from "@/stores/layoutStore";
 import NavItem from "./NavItem";
 import AvatarDropdown from "./AvatarDropdown";
 import ProfileModal from "@/features/profile/components/ProfileModal";
 
-/**
- * Nav structure — grouped by category.
- * Add new modules here as they're built.
- */
 const NAV_GROUPS = [
     {
         label: "Main",
@@ -20,7 +17,6 @@ const NAV_GROUPS = [
             { icon: "package", label: "Products", href: "/products" },
             { icon: "warehouse", label: "Inventory", href: "/inventory" },
             { icon: "receipt", label: "Orders", href: "/orders" },
-            { icon: "chefHat", label: "Kitchen", href: "/kitchen" },
         ],
     },
     {
@@ -40,36 +36,31 @@ const NAV_GROUPS = [
     },
 ];
 
-/**
- * Sidebar — collapsible navigation panel.
- * Expanded: 260px with icon + text. Collapsed: 64px with icon only.
- * Contains logo at top, nav groups in middle, user section at bottom.
- */
-export default function Sidebar({ collapsed }) {
+export default function Sidebar() {
+    const collapsed = useLayoutStore((s) => s.collapsed);
     const user = useAuthStore((s) => s.user);
     const [profileOpen, setProfileOpen] = useState(false);
 
     return (
         <aside
-            className={`flex h-full flex-col border-r bg-card transition-all duration-200 ${collapsed ? "w-16" : "w-64"
-                }`}
+            className={`flex h-full flex-col border-r bg-card ${
+                collapsed ? "w-16" : "w-64"
+            }`}
         >
-            {/* Logo */}
             <div className="flex h-14 items-center gap-2 border-b px-4">
                 <Icon name="chefHat" size={24} className="shrink-0 text-primary" />
                 {!collapsed && (
-                    <span className="truncate text-sm font-semibold">
+                    <span className="truncate text-sm font-semibold animate-in fade-in duration-150">
                         Abbey's Kitchenette
                     </span>
                 )}
             </div>
 
-            {/* Nav Groups */}
             <nav className="flex-1 space-y-4 overflow-y-auto px-2 py-4">
                 {NAV_GROUPS.map((group) => (
                     <div key={group.label}>
                         {!collapsed && (
-                            <p className="mb-1 px-3 text-xs font-medium uppercase text-muted-foreground">
+                            <p className="mb-1 px-3 text-xs font-medium uppercase text-muted-foreground animate-in fade-in duration-150">
                                 {group.label}
                             </p>
                         )}
@@ -88,7 +79,6 @@ export default function Sidebar({ collapsed }) {
                 ))}
             </nav>
 
-            {/* User Section */}
             <div className="border-t px-2 py-3">
                 <AvatarDropdown
                     collapsed={collapsed}
@@ -97,7 +87,6 @@ export default function Sidebar({ collapsed }) {
                 />
             </div>
 
-            {/* Profile Modal */}
             <ProfileModal open={profileOpen} onOpenChange={setProfileOpen} />
         </aside>
     );

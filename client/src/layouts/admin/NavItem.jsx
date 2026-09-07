@@ -22,7 +22,7 @@ export default function NavItem({ icon, label, href, collapsed }) {
             title={collapsed ? label : undefined}
         >
             <Icon name={icon} size={20} className="shrink-0" />
-            {!collapsed && <span className="truncate">{label}</span>}
+            {!collapsed && <span className="truncate animate-in fade-in duration-150">{label}</span>}
         </NavLink>
     );
 }
