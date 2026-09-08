@@ -163,20 +163,20 @@ export default function OrdersPage({ embedded = false }) {
         {!embedded && (
           <>
             <Button
-              variant="primary"
-              size="sm"
-              onClick={() => window.open("/pos", "_blank")}
-            >
-              <Icon name="cart" size={16} />
-              Open POS Registry
-            </Button>
-            <Button
               variant="outline"
               size="sm"
               onClick={() => window.open("/kitchen", "_blank")}
             >
               <Icon name="chefHat" size={16} />
               Open Kitchen
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => window.open("/pos", "_blank")}
+            >
+              <Icon name="cart" size={16} />
+              Open POS Registry
             </Button>
           </>
         )}
