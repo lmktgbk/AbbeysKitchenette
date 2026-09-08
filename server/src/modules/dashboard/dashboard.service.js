@@ -1,17 +1,6 @@
 import { dashboardRepository } from "./dashboard.repository.js";
 
-/**
- * Dashboard Service
- *
- * Orchestrates all repository queries to build the consolidated dashboard response.
- */
 export const dashboardService = {
-  /**
-   * Get all dashboard data for a given date range.
-   * @param {string|null} dateFrom - YYYY-MM-DD or null
-   * @param {string|null} dateTo - YYYY-MM-DD or null
-   * @returns {object} - consolidated dashboard data
-   */
   async getData(dateFrom, dateTo) {
     const [
       todayKpis,
@@ -35,6 +24,9 @@ export const dashboardService = {
       tableUtilization,
       staffPerformance,
       topCombos,
+      cogs,
+      cancellationRate,
+      profit,
     ] = await Promise.all([
       dashboardRepository.getTodayKpis(),
       dashboardRepository.getOrderKpis(dateFrom, dateTo),
@@ -57,21 +49,15 @@ export const dashboardService = {
       dashboardRepository.getTableUtilization(dateFrom, dateTo),
       dashboardRepository.getStaffPerformance(dateFrom, dateTo),
       dashboardRepository.getTopCombos(5),
+      dashboardRepository.getCOGS(dateFrom, dateTo),
+      dashboardRepository.getCancellationRate(dateFrom, dateTo),
+      dashboardRepository.getProfit(dateFrom, dateTo),
     ]);
 
     const calcDelta = (current, previous) => {
       if (!previous || previous === 0) return null;
       return Math.round(((current - previous) / previous) * 1000) / 10;
     };
-
-    const totalCost = variantPerformance.reduce((sum, v) => sum + (v.cost || 0), 0);
-    const totalRevenue = variantPerformance.reduce((sum, v) => sum + (v.revenue || 0), 0);
-    const overallMargin = totalRevenue > 0
-      ? Math.round(((totalRevenue - totalCost) / totalRevenue) * 1000) / 10
-      : 0;
-
-    const prevTotalCost = 0;
-    const prevMargin = 0;
 
     return {
       kpis: {
@@ -83,7 +69,12 @@ export const dashboardService = {
         aovPeriod: periodKpis.aov,
         totalProducts: variantPerformance.length,
         lowStockCount: (ingredientStatus.low || 0) + (ingredientStatus.out || 0),
-        margin: overallMargin,
+        cogs,
+        profit: profit.profit,
+        margin: profit.margin,
+        cancellationRate: cancellationRate.rate,
+        cancellationsCancelled: cancellationRate.cancelled,
+        cancellationsTotal: cancellationRate.total,
         deltas: {
           revenue: calcDelta(periodKpis.revenue, previousPeriodKpis.revenue),
           orders: calcDelta(periodKpis.orders, previousPeriodKpis.orders),

@@ -195,8 +195,8 @@ export const orderRepository = {
    * @param {object} params - { skip, take, search, status, dateFrom, dateTo, sortBy, sortDir }
    * @returns {Array} - rows with order + item_count
    */
-  async findManyPaginated({ skip, take, search, status, dateFrom, dateTo, sortBy, sortDir }) {
-    const { where, values } = this._buildOrderWhereClause(search, status, dateFrom, dateTo);
+  async findManyPaginated({ skip, take, search, status, dateFrom, dateTo, sortBy, sortDir, staffId }) {
+    const { where, values } = this._buildOrderWhereClause(search, status, dateFrom, dateTo, staffId);
     const orderClause = this._buildOrderOrderByClause(sortBy, sortDir);
 
     const sql = `
@@ -225,8 +225,8 @@ export const orderRepository = {
    * @param {object} params - { search, status, dateFrom, dateTo }
    * @returns {number} - total count
    */
-  async countFiltered({ search, status, dateFrom, dateTo }) {
-    const { where, values } = this._buildOrderWhereClause(search, status, dateFrom, dateTo);
+  async countFiltered({ search, status, dateFrom, dateTo, staffId }) {
+    const { where, values } = this._buildOrderWhereClause(search, status, dateFrom, dateTo, staffId);
     const sql = `SELECT COUNT(*)::int AS count FROM orders o ${where}`;
     const result = await prisma.$queryRawUnsafe(sql, ...values);
     return result[0]?.count ?? 0;
@@ -583,7 +583,7 @@ export const orderRepository = {
    * @param {string} dateTo - end date (YYYY-MM-DD)
    * @returns {{ where: string, values: Array }}
    */
-  _buildOrderWhereClause(search, status, dateFrom, dateTo) {
+  _buildOrderWhereClause(search, status, dateFrom, dateTo, staffId) {
     const clauses = [];
     const values = [];
     let idx = 1;
@@ -614,6 +614,12 @@ export const orderRepository = {
     if (dateTo) {
       clauses.push(`o.order_date <= $${idx++}::date`);
       values.push(dateTo);
+    }
+
+    if (staffId) {
+      clauses.push(`(o.created_by = $${idx} OR o.completed_by = $${idx})`);
+      values.push(staffId);
+      idx++;
     }
 
     const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";

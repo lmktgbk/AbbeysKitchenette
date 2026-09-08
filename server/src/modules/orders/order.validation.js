@@ -120,4 +120,5 @@ export const getOrdersQuerySchema = z.object({
     .optional()
     .default("created_at"),
   sortDir: z.enum(["asc", "desc"]).optional().default("desc"),
+  staff_id: z.string().uuid("Invalid staff ID").optional(),
 });

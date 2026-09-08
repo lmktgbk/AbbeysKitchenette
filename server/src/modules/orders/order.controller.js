@@ -24,7 +24,7 @@ export const orderController = {
    */
   async getOrders(req, res) {
     try {
-      const { page, limit, search, status, date_from, date_to, sortBy, sortDir } = req.validatedQuery;
+      const { page, limit, search, status, date_from, date_to, sortBy, sortDir, staff_id } = req.validatedQuery;
       const result = await orderService.getAll({
         page: Number(page),
         limit: Number(limit),
@@ -34,6 +34,7 @@ export const orderController = {
         dateTo: date_to,
         sortBy,
         sortDir,
+        staffId: staff_id,
       });
       return successResponse(res, "Orders retrieved", result);
     } catch (error) {

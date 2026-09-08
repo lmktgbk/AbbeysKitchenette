@@ -27,12 +27,12 @@ function TrendArrow({ value }) {
 function DashboardKpis({ kpis, isLoading }) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-lg border border-border bg-card px-5 py-4">
-            <Skeleton className="h-3 w-24 mb-3" />
-            <Skeleton className="h-8 w-20 mb-2" />
-            <Skeleton className="h-3 w-16" />
+      <div className="grid grid-cols-3 gap-3 lg:grid-cols-6">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="rounded-lg border border-border bg-card px-4 py-3">
+            <Skeleton className="h-3 w-20 mb-2" />
+            <Skeleton className="h-7 w-16 mb-1" />
+            <Skeleton className="h-3 w-14" />
           </div>
         ))}
       </div>
@@ -68,37 +68,57 @@ function DashboardKpis({ kpis, isLoading }) {
       iconColor: "text-purple-600 dark:text-purple-400",
     },
     {
-      icon: "percent",
-      label: "Profit Margin",
-      value: `${kpis?.margin || 0}%`,
-      sub: `${kpis?.totalProducts || 0} products`,
+      icon: "package",
+      label: "COGS",
+      value: `₱${Number(kpis?.cogs || 0).toLocaleString()}`,
+      sub: "Cost of goods sold",
+      delta: null,
+      iconBg: "bg-orange-500/10",
+      iconColor: "text-orange-600 dark:text-orange-400",
+    },
+    {
+      icon: "wallet",
+      label: "Profit",
+      value: `₱${Number(kpis?.profit || 0).toLocaleString()}`,
+      sub: `${kpis?.margin || 0}% margin`,
       delta: null,
       iconBg: "bg-amber-500/10",
       iconColor: "text-amber-600 dark:text-amber-400",
     },
+    {
+      icon: "alertTriangle",
+      label: "Cancel Rate",
+      value: `${kpis?.cancellationRate || 0}%`,
+      sub: `${kpis?.cancellationsCancelled || 0} of ${kpis?.cancellationsTotal || 0}`,
+      delta: null,
+      iconBg: kpis?.cancellationRate > 10 ? "bg-red-500/10" : "bg-emerald-500/10",
+      iconColor: kpis?.cancellationRate > 10
+        ? "text-red-600 dark:text-red-400"
+        : "text-emerald-600 dark:text-emerald-400",
+    },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <div className="grid grid-cols-3 gap-3 lg:grid-cols-6">
       {cards.map((card) => (
         <div
           key={card.label}
-          className="rounded-lg border border-border bg-card px-5 py-4"
+          className="rounded-lg border border-border bg-card px-4 py-3"
         >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground truncate">
               {card.label}
             </span>
-            <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg", card.iconBg)}>
-              <Icon name={card.icon} size={16} className={card.iconColor} />
+            <div className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-md", card.iconBg)}>
+              <Icon name={card.icon} size={14} className={card.iconColor} />
             </div>
           </div>
-          <div className="text-2xl font-bold text-foreground mb-1">{card.value}</div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">{card.sub}</span>
+          <div className="text-xl font-bold text-foreground mb-0.5">{card.value}</div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-muted-foreground truncate">{card.sub}</span>
             {card.delta !== null && card.delta !== undefined && (
               <>
-                <span className="text-xs text-muted-foreground">·</span>
+                <span className="text-[11px] text-muted-foreground">·</span>
                 <TrendArrow value={card.delta} />
               </>
             )}

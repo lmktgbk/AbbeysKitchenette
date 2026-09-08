@@ -663,4 +663,88 @@ export const dashboardRepository = {
     `, dateFrom, dateTo);
     return result[0] || { revenue: 0, orders: 0, aov: 0 };
   },
+
+  /**
+   * Cost of Goods Sold for a period — sum of restock costs consumed.
+   */
+  async getCOGS(dateFrom, dateTo) {
+    const clauses = ["o.status = 'completed'"];
+    const values = [];
+    let idx = 1;
+
+    if (dateFrom) {
+      clauses.push(`o.order_date >= $${idx++}::date`);
+      values.push(dateFrom);
+    }
+    if (dateTo) {
+      clauses.push(`o.order_date <= $${idx++}::date`);
+      values.push(dateTo);
+    }
+
+    const where = `WHERE ${clauses.join(" AND ")}`;
+    const result = await prisma.$queryRawUnsafe(`
+      WITH order_costs AS (
+        SELECT
+          oi.order_id,
+          oi.variant_id,
+          oi.quantity AS units_sold,
+          COALESCE(SUM(r.quantity_needed * rb.cost_per_unit), 0) AS cost_per_unit
+        FROM order_items oi
+        JOIN orders o ON o.order_id = oi.order_id
+        LEFT JOIN recipes r ON r.variant_id = oi.variant_id
+        LEFT JOIN restock_batches rb ON rb.ingredient_id = r.ingredient_id AND rb.quantity_left > 0
+        ${where}
+        GROUP BY oi.order_id, oi.variant_id, oi.quantity
+      )
+      SELECT
+        COALESCE(SUM(units_sold * cost_per_unit), 0)::float AS cogs
+      FROM order_costs
+    `, ...values);
+    return result[0]?.cogs || 0;
+  },
+
+  /**
+   * Cancellation rate as a percentage.
+   */
+  async getCancellationRate(dateFrom, dateTo) {
+    const clauses = [];
+    const values = [];
+    let idx = 1;
+
+    if (dateFrom) {
+      clauses.push(`o.order_date >= $${idx++}::date`);
+      values.push(dateFrom);
+    }
+    if (dateTo) {
+      clauses.push(`o.order_date <= $${idx++}::date`);
+      values.push(dateTo);
+    }
+
+    const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
+    const result = await prisma.$queryRawUnsafe(`
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE o.status = 'cancelled')::int AS cancelled
+      FROM orders o
+      ${where}
+    `, ...values);
+    const row = result[0] || { total: 0, cancelled: 0 };
+    return {
+      rate: row.total > 0 ? Math.round((row.cancelled / row.total) * 1000) / 10 : 0,
+      cancelled: row.cancelled,
+      total: row.total,
+    };
+  },
+
+  /**
+   * Profit = Revenue - COGS for a period.
+   */
+  async getProfit(dateFrom, dateTo) {
+    const revenueResult = await this.getOrderKpis(dateFrom, dateTo);
+    const cogs = await this.getCOGS(dateFrom, dateTo);
+    const revenue = revenueResult.revenue || 0;
+    const profit = revenue - cogs;
+    const margin = revenue > 0 ? Math.round((profit / revenue) * 1000) / 10 : 0;
+    return { profit, margin };
+  },
 };

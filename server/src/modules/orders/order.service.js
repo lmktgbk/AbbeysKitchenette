@@ -21,12 +21,12 @@ export const orderService = {
    * @param {object} params - { page, limit, search, status, dateFrom, dateTo, sortBy, sortDir }
    * @returns {{ orders: Array, totalItems: number }}
    */
-  async getAll({ page = 1, limit = 50, search, status, dateFrom, dateTo, sortBy, sortDir }) {
+  async getAll({ page = 1, limit = 50, search, status, dateFrom, dateTo, sortBy, sortDir, staffId }) {
     const skip = (page - 1) * limit;
 
     const [rows, totalItems] = await Promise.all([
-      orderRepository.findManyPaginated({ skip, take: limit, search, status, dateFrom, dateTo, sortBy, sortDir }),
-      orderRepository.countFiltered({ search, status, dateFrom, dateTo }),
+      orderRepository.findManyPaginated({ skip, take: limit, search, status, dateFrom, dateTo, sortBy, sortDir, staffId }),
+      orderRepository.countFiltered({ search, status, dateFrom, dateTo, staffId }),
     ]);
 
     const orders = rows.map((row) => formatOrderResponse(row, {
