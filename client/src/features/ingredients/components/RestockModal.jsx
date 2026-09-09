@@ -46,8 +46,8 @@ export default function RestockModal({
   } = useForm({
     resolver: zodResolver(restockSchema),
     defaultValues: {
-      quantity_added: 0,
-      total_cost: 0,
+      quantity_added: "",
+      total_cost: "",
       supplier_name: "",
       notes: "",
     },
@@ -61,8 +61,8 @@ export default function RestockModal({
   useEffect(() => {
     if (open) {
       reset({
-        quantity_added: initialQuantity || 0,
-        total_cost: 0,
+      quantity_added: initialQuantity || "",
+      total_cost: "",
         supplier_name: "",
         notes: initialQuantity ? `Restock per AI suggestion` : "",
       });

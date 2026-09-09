@@ -31,7 +31,11 @@ export default function ChangePinPage() {
             await changePinRequest(data.newPin);
             setUser({ ...user, mustChangePwd: false });
             toast.success("PIN Changed", { description: "Your new PIN is now active." });
-            navigate("/pos");
+            switch (user.role) {
+                case "admin": navigate("/dashboard"); break;
+                case "kitchen": navigate("/kitchen"); break;
+                default: navigate("/pos");
+            }
         } catch (err) {
             const msg = err.response?.data?.message;
             if (msg) {

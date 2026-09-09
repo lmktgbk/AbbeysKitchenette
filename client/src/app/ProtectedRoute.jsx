@@ -24,5 +24,13 @@ export function ProtectedRoute({ children }) {
         return <Navigate to="/change-pin" replace />;
     }
 
+    // Role-based route enforcement
+    if (user.role === "kitchen" && location.pathname !== "/kitchen") {
+        return <Navigate to="/kitchen" replace />;
+    }
+    if (user.role === "cashier" && !location.pathname.startsWith("/pos")) {
+        return <Navigate to="/pos" replace />;
+    }
+
     return <>{children}</>;
 }

@@ -33,7 +33,7 @@ export default function MarketBasketPage() {
   const avgConfidence = rules.length > 0
     ? rules.reduce((sum, r) => sum + r.confidence, 0) / rules.length
     : 0;
-  const topPair = job?.top_pair || "\u2014";
+  const topPair = job?.top_pair || "—";
   const combosFound = job?.combos_found ?? 0;
 
   // Filter rules by search
@@ -80,7 +80,7 @@ export default function MarketBasketPage() {
             Avg Confidence
           </p>
           <p className="mt-1 text-lg font-bold text-foreground">
-            {isLoading ? <Skeleton className="h-6 w-12" /> : rules.length > 0 ? `${(avgConfidence * 100).toFixed(0)}%` : "\u2014"}
+            {isLoading ? <Skeleton className="h-6 w-12" /> : rules.length > 0 ? `${(avgConfidence * 100).toFixed(0)}%` : "—"}
           </p>
         </div>
         <div className="rounded-xl border border-border bg-card px-4 py-3">
@@ -96,7 +96,7 @@ export default function MarketBasketPage() {
             Orders Analyzed
           </p>
           <p className="mt-1 text-lg font-bold text-foreground">
-            {isLoading ? <Skeleton className="h-6 w-12" /> : job?.total_orders ?? "\u2014"}
+            {isLoading ? <Skeleton className="h-6 w-12" /> : job?.total_orders ?? "—"}
           </p>
         </div>
       </div>

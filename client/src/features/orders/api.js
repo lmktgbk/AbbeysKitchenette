@@ -21,6 +21,12 @@ export async function getKitchenOrdersRequest() {
   return res.data;
 }
 
+// GET /api/orders/kitchen/batches — batch preparation groups
+export async function getKitchenBatchGroupsRequest() {
+  const res = await api.get("/orders/kitchen/batches");
+  return res.data;
+}
+
 // GET /api/orders/stats — status counts for KPI cards
 export async function getOrderStatsRequest() {
   const res = await api.get("/orders/stats");
@@ -62,6 +68,18 @@ export async function fulfillOrderRequest(id, data) {
 // POST /api/orders/:id/cancel — cancel or delete order
 export async function cancelOrderRequest(id, data = {}) {
   const res = await api.post(`/orders/${id}/cancel`, data);
+  return res.data;
+}
+
+// POST /api/orders/:id/prepare — transition to preparing
+export async function prepareOrderRequest(id) {
+  const res = await api.post(`/orders/${id}/prepare`);
+  return res.data;
+}
+
+// PATCH /api/orders/:id/items/:itemId — toggle item prepared
+export async function checkOrderItemRequest(orderId, itemId, data) {
+  const res = await api.patch(`/orders/${orderId}/items/${itemId}`, data);
   return res.data;
 }
 

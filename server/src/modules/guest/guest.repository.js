@@ -9,7 +9,7 @@ import prisma from "../../config/prisma.js";
 export const guestRepository = {
   /**
    * Get available products with variants for the menu.
-   * Filters: active products only, categories active, non-archived.
+   * Filters: active products only, non-archived, subcategory active.
    * @param {object} params - { search, category }
    * @returns {Array} - products with variants
    */
@@ -17,7 +17,7 @@ export const guestRepository = {
     const where = {
       isAvailable: true,
       isArchived: false,
-      category: { isActive: true },
+      subcategory: { isActive: true },
       variants: { some: { recipes: { some: {} } } },
     };
 
@@ -26,13 +26,19 @@ export const guestRepository = {
     }
 
     if (category) {
-      where.categoryId = Number(category);
+      where.subcategoryId = Number(category);
     }
 
     return prisma.product.findMany({
       where,
       include: {
-        category: { select: { categoryName: true } },
+        subcategory: {
+          select: {
+            subcategoryId: true,
+            subcategoryName: true,
+            category: { select: { categoryName: true } },
+          },
+        },
         variants: {
           select: {
             variantId: true,

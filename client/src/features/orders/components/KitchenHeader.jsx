@@ -6,15 +6,20 @@ import { confirm } from "@/components/alerts/ConfirmDialog";
 import ModeToggle from "@/components/ModeToggle";
 import Icon from "@/components/ui/icon";
 
-export default function KitchenHeader({ counts, refreshing }) {
+export default function KitchenHeader({ refreshing }) {
   const navigate = useNavigate();
   const logout = useAuthStore((s) => s.logout);
+  const user = useAuthStore((s) => s.user);
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const initials = user?.name
+    ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
+    : "??";
 
   async function handleLogout() {
     const ok = await confirm({
@@ -55,28 +60,26 @@ export default function KitchenHeader({ counts, refreshing }) {
         </div>
       </div>
 
-      {/* Right — counters + clock + controls */}
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1.5">
-          <div className="text-center px-3 py-1.5 rounded-lg bg-background border border-border">
-            <div className="text-[8px] uppercase tracking-widest font-semibold text-muted-foreground">
-              Preparing
-            </div>
-            <div className="font-serif text-base font-bold text-foreground">
-              {counts.processing}
-            </div>
+      {/* Center — clock */}
+      <div className="tabular-nums text-sm font-semibold text-foreground">
+        {timeStr}
+      </div>
+
+      {/* Right — controls + profile */}
+      <div className="flex items-center gap-1">
+        <ModeToggle />
+
+        {/* Profile */}
+        <div className="flex items-center gap-2 rounded-lg px-2 py-1.5">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+            {initials}
           </div>
-          <div className="text-center px-3 py-1.5 rounded-lg bg-background border border-border">
-            <div className="text-[8px] uppercase tracking-widest font-semibold text-muted-foreground">
-              In Queue
-            </div>
-            <div className="font-serif text-base font-bold text-foreground">
-              {counts.queue}
-            </div>
+          <div className="hidden sm:block">
+            <p className="text-xs font-medium leading-tight">{user?.name}</p>
+            <p className="text-[10px] capitalize text-muted-foreground">{user?.role}</p>
           </div>
         </div>
-        <div className="tabular-nums text-sm font-semibold text-foreground">{timeStr}</div>
-        <ModeToggle />
+
         <button
           onClick={handleLogout}
           className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"

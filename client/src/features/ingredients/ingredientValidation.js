@@ -4,7 +4,13 @@ import { z } from "zod";
  * Ingredient Validation Schemas
  *
  * Used by react-hook-form with ZodResolver.
+ * Number fields use z.preprocess to coerce empty/NaN to 0 before validation.
  */
+
+const coerceNumber = (schema) => z.preprocess(
+  (v) => (v === "" || v === undefined || v === null || (typeof v === "number" && isNaN(v)) ? 0 : Number(v)),
+  schema,
+);
 
 // Create ingredient form
 export const createIngredientSchema = z.object({
@@ -16,7 +22,7 @@ export const createIngredientSchema = z.object({
     .string()
     .min(1, "Unit is required")
     .max(50, "Must not exceed 50 characters"),
-  minimum_threshold: z.number().min(0, "Cannot be negative").optional(),
+  minimum_threshold: coerceNumber(z.number().min(0, "Cannot be negative")),
 });
 
 // Edit ingredient form (same as create, all fields optional for partial update)
@@ -31,13 +37,13 @@ export const editIngredientSchema = z.object({
     .min(1, "Unit is required")
     .max(50, "Must not exceed 50 characters")
     .optional(),
-  minimum_threshold: z.number().min(0, "Cannot be negative").optional(),
+  minimum_threshold: coerceNumber(z.number().min(0, "Cannot be negative")).optional(),
 });
 
 // Restock form
 export const restockSchema = z.object({
-  quantity_added: z.number().positive("Quantity must be greater than zero"),
-  total_cost: z.number().min(0, "Cost cannot be negative"),
+  quantity_added: coerceNumber(z.number().positive("Quantity must be greater than zero")),
+  total_cost: coerceNumber(z.number().min(0, "Cost cannot be negative")),
   supplier_name: z
     .string()
     .max(150, "Must not exceed 150 characters")
@@ -50,7 +56,7 @@ export const lossSchema = z.object({
   loss_type: z.enum(["spoilage", "spillage", "expiry", "other"], {
     required_error: "Loss type is required",
   }),
-  quantity_lost: z.number().positive("Quantity must be greater than zero"),
+  quantity_lost: coerceNumber(z.number().positive("Quantity must be greater than zero")),
   batch_id: z.preprocess(
     (v) => (v === "" || v === undefined || v === null ? undefined : Number(v)),
     z.number().int().positive().optional(),

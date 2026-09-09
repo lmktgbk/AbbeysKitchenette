@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -12,128 +14,117 @@ import { Input } from "@/components/ui/input";
 import Icon from "@/components/ui/icon";
 import { useCategoryList, useCategoryMutations } from "../query";
 import { confirm } from "@/components/alerts/ConfirmDialog";
+import { createCategorySchema, editCategorySchema } from "../productValidation";
+
+// ── Helpers (DRY) ───────────────────────────────────────
+
+/** Show a toast error from an API error response. */
+function handleMutationError(err, action) {
+  toast.error(err?.response?.data?.message || `Failed to ${action}`);
+}
 
 /**
  * CategoryModal
  *
- * Category management modal — list, create, edit, delete.
- * Opened from the ProductGrid toolbar "Manage Categories" button
- * or from the ProductFormModal "Add Category" button.
+ * Subcategory management modal.
+ * Root categories (Food, Beverages) are read-only section headers.
+ * Users add/edit/delete subcategories under each root.
  *
  * Props:
  * - open: boolean
  * - onOpenChange: (open) => void
- * - onCreated: (category) => void — called when a category is created (for auto-select)
- * - standalone: boolean — if true, shows list mode. If false, starts in create mode.
+ * - onCreated: (subcategory) => void — called when a subcategory is created (for auto-select in product form)
+ * - standalone: boolean — if true, full management UI. If false, quick-create mode.
+ * - categoryId: number — pre-selected parent category for quick subcategory create
  */
 export default function CategoryModal({
   open,
   onOpenChange,
   onCreated,
   standalone = true,
+  categoryId = null,
 }) {
   const { data, isLoading } = useCategoryList();
-  const { create, update, remove } = useCategoryMutations();
+  const { createSub, updateSub, removeSub } = useCategoryMutations();
 
   const categories = data?.data?.categories ?? [];
 
-  const [mode, setMode] = useState(standalone ? "list" : "create"); // list | create | edit
+  const [mode, setMode] = useState(standalone ? "list" : "create");
   const [editingId, setEditingId] = useState(null);
-  const [formName, setFormName] = useState("");
-  const [formDesc, setFormDesc] = useState("");
-  const [formSort, setFormSort] = useState(0);
+  const [editData, setEditData] = useState(null);
+  const [formParentId, setFormParentId] = useState(categoryId);
 
-  function handleOpenCreate() {
+  function handleOpenCreateSub(parentCatId) {
     setMode("create");
-    setFormName("");
-    setFormDesc("");
-    setFormSort(0);
+    setEditData(null);
+    setFormParentId(parentCatId);
   }
 
-  function handleOpenEdit(cat) {
+  function handleOpenEdit(sub) {
     setMode("edit");
-    setEditingId(cat.category_id);
-    setFormName(cat.category_name);
-    setFormDesc(cat.description || "");
-    setFormSort(cat.sort_order);
+    setEditingId(sub.subcategory_id);
+    setEditData(sub);
+    setFormParentId(sub.category_id);
   }
 
   function handleBack() {
     setMode("list");
     setEditingId(null);
+    setEditData(null);
   }
 
-  function handleSubmit(e) {
-    e.preventDefault();
-
+  function handleSubmit(data) {
     const payload = {
-      category_name: formName.trim(),
-      description: formDesc.trim() || undefined,
-      sort_order: Number(formSort) || 0,
+      subcategory_name: data.subcategory_name.trim(),
+      description: data.description?.trim() || undefined,
     };
 
-    if (!payload.category_name) {
-      toast.error("Category name is required");
-      return;
-    }
-
     if (mode === "create") {
-      create.mutate(payload, {
-        onSuccess: (res) => {
-          toast.success("Category created");
-          if (onCreated) {
-            onCreated(res.data);
-          }
-          if (standalone) {
-            handleBack();
-          } else {
-            onOpenChange(false);
-          }
+      createSub.mutate(
+        { categoryId: formParentId, data: payload },
+        {
+          onSuccess: (res) => {
+            toast.success("Category created");
+            if (onCreated) onCreated(res.data.subcategory);
+            if (standalone) handleBack();
+            else onOpenChange(false);
+          },
+          onError: (err) => handleMutationError(err, "create category"),
         },
-        onError: (err) => {
-          toast.error(err?.response?.data?.message || "Failed to create category");
-        },
-      });
+      );
     } else {
-      update.mutate(
+      updateSub.mutate(
         { id: editingId, data: payload },
         {
-          onSuccess: () => {
-            toast.success("Category updated");
-            handleBack();
-          },
-          onError: (err) => {
-            toast.error(err?.response?.data?.message || "Failed to update category");
-          },
+          onSuccess: () => { toast.success("Category updated"); handleBack(); },
+          onError: (err) => handleMutationError(err, "update category"),
         },
       );
     }
   }
 
-  async function handleDelete(cat) {
-    if (cat.product_count > 0) {
-      toast.error(`Cannot delete "${cat.category_name}" — it has ${cat.product_count} product(s). Reassign or remove products first.`);
+  async function handleDelete(sub) {
+    if (sub.product_count > 0) {
+      toast.error(`Cannot delete "${sub.subcategory_name}" — it has ${sub.product_count} product(s).`);
       return;
     }
 
-    const ok = await confirm({
+    await confirm({
       title: "Delete Category",
-      message: `Are you sure you want to delete "${cat.category_name}"?`,
+      message: `Are you sure you want to delete "${sub.subcategory_name}"?`,
       confirmLabel: "Delete",
       variant: "danger",
-    });
-
-    if (!ok) return;
-
-    remove.mutate(cat.category_id, {
-      onSuccess: () => toast.success("Category deleted"),
-      onError: (err) => {
-        toast.error(err?.response?.data?.message || "Failed to delete category");
-      },
+      loadingText: "Deleting...",
+      onConfirm: () => new Promise((resolve, reject) => {
+        removeSub.mutate(sub.subcategory_id, {
+          onSuccess: () => { toast.success("Category deleted"); resolve(); },
+          onError: (err) => reject(err),
+        });
+      }),
     });
   }
 
-  const isMutating = create.isPending || update.isPending || remove.isPending;
+  const isMutating = createSub.isPending || updateSub.isPending || removeSub.isPending;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -153,19 +144,15 @@ export default function CategoryModal({
           <ListMode
             categories={categories}
             isLoading={isLoading}
-            onAdd={handleOpenCreate}
-            onEdit={handleOpenEdit}
-            onDelete={handleDelete}
+            onAddSub={handleOpenCreateSub}
+            onEditSub={handleOpenEdit}
+            onDeleteSub={handleDelete}
           />
         ) : (
           <FormMode
             mode={mode}
-            name={formName}
-            desc={formDesc}
-            sort={formSort}
-            onNameChange={setFormName}
-            onDescChange={setFormDesc}
-            onSortChange={setFormSort}
+            parentId={formParentId}
+            editData={editData}
             onBack={handleBack}
             onSubmit={handleSubmit}
             isMutating={isMutating}
@@ -176,20 +163,34 @@ export default function CategoryModal({
   );
 }
 
-/* ── List Mode ──────────────────────────────── */
+// ── List Mode ───────────────────────────────────────────
 
-function ListMode({ categories, isLoading, onAdd, onEdit, onDelete }) {
+/**
+ * ListMode — displays root categories as section headers with their subcategories.
+ * Root categories are read-only. Only subcategories can be added/edited/deleted.
+ *
+ * Props:
+ * - categories: Array<{ category_id, category_name, subcategories: [...] }>
+ * - isLoading: boolean
+ * - onAddSub: (categoryId) => void
+ * - onEditSub: (subcategory) => void
+ * - onDeleteSub: (subcategory) => void
+ */
+function ListMode({
+  categories,
+  isLoading,
+  onAddSub,
+  onEditSub,
+  onDeleteSub,
+}) {
   return (
     <div className="flex max-h-[50vh] flex-col">
-      {/* Add button */}
       <div className="mb-3">
-        <Button size="sm" onClick={onAdd}>
-          <Icon name="plus" size={14} className="mr-1" />
-          Add Category
-        </Button>
+        <p className="text-xs text-muted-foreground">
+          Root categories are managed by the system. Add categories under them.
+        </p>
       </div>
 
-      {/* Category list */}
       {isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -204,49 +205,67 @@ function ListMode({ categories, isLoading, onAdd, onEdit, onDelete }) {
       ) : (
         <div className="space-y-1 overflow-y-auto pr-1">
           {categories.map((cat) => (
-            <div
-              key={cat.category_id}
-              className="group flex items-center justify-between rounded-lg border border-border px-3 py-2.5 transition-colors hover:bg-muted/50"
-            >
-              <div className="min-w-0 flex-1">
+            <div key={cat.category_id}>
+              {/* Root category — read-only header */}
+              <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
                 <div className="flex items-center gap-2">
-                  <span className="truncate text-sm font-medium text-foreground">
+                  <span className="truncate text-sm font-semibold text-foreground">
                     {cat.category_name}
                   </span>
+                  <Icon name="lock" size={12} className="shrink-0 text-muted-foreground/50" />
                   <span className="shrink-0 text-xs text-muted-foreground">
-                    {cat.product_count} {cat.product_count === 1 ? "product" : "products"}
+                    {cat.subcategories?.length ?? 0} sub{(cat.subcategories?.length ?? 0) === 1 ? "" : "s"}
                   </span>
                 </div>
-                {cat.description && (
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {cat.description}
-                  </p>
-                )}
+                <button
+                  type="button"
+                  onClick={() => onAddSub(cat.category_id)}
+                  className="rounded-md p-1.5 text-primary hover:bg-primary/10"
+                  title="Add category"
+                >
+                  <Icon name="folderPlus" size={18} />
+                </button>
               </div>
 
-              <div className="ml-2 flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                <button
-                  type="button"
-                  onClick={() => onEdit(cat)}
-                  className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                  title="Edit category"
-                >
-                  <Icon name="pencil" size={14} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onDelete(cat)}
-                  disabled={cat.product_count > 0}
-                  className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-destructive disabled:cursor-not-allowed disabled:opacity-30"
-                  title={
-                    cat.product_count > 0
-                      ? "Cannot delete — has products"
-                      : "Delete category"
-                  }
-                >
-                  <Icon name="trash2" size={14} />
-                </button>
-              </div>
+              {/* Subcategories */}
+              {cat.subcategories?.length > 0 && (
+                <div className="ml-4 space-y-0.5 border-l border-border pl-2 mt-0.5">
+                  {cat.subcategories.map((sub) => (
+                    <div
+                      key={sub.subcategory_id}
+                      className="group flex items-center justify-between rounded-lg border border-dashed border-border px-3 py-1.5 transition-colors hover:bg-muted/50"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <span className="truncate text-sm text-foreground">
+                          {sub.subcategory_name}
+                        </span>
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {sub.product_count} {sub.product_count === 1 ? "product" : "products"}
+                        </span>
+                      </div>
+                      <div className="ml-2 flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        <button
+                          type="button"
+                          onClick={() => onEditSub(sub)}
+                          className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                          title="Edit"
+                        >
+                          <Icon name="pencil" size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onDeleteSub(sub)}
+                          disabled={sub.product_count > 0}
+                          className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-destructive disabled:cursor-not-allowed disabled:opacity-30"
+                          title={sub.product_count > 0 ? "Cannot delete — has products" : "Delete"}
+                        >
+                          <Icon name="trash2" size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -255,31 +274,60 @@ function ListMode({ categories, isLoading, onAdd, onEdit, onDelete }) {
   );
 }
 
-/* ── Form Mode (create / edit) ─────────────── */
+// ── Form Mode (create / edit) ──────────────────────────
 
+/**
+ * FormMode — self-contained form for creating or editing a category.
+ * Uses react-hook-form + zod for validation.
+ * Parent is implicit from the folderPlus click — no dropdown needed.
+ *
+ * Props:
+ * - mode: "create" | "edit"
+ * - parentId: number — the root category ID (implicit from folderPlus click)
+ * - editData: object | null — existing subcategory data when editing
+ * - onBack: () => void
+ * - onSubmit: (data) => void — called with validated form data
+ * - isMutating: boolean — disables submit while saving
+ */
 function FormMode({
   mode,
-  name,
-  desc,
-  sort,
-  onNameChange,
-  onDescChange,
-  onSortChange,
+  editData,
   onBack,
   onSubmit,
   isMutating,
 }) {
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(mode === "edit" ? editCategorySchema : createCategorySchema),
+    defaultValues: {
+      subcategory_name: editData?.subcategory_name ?? "",
+      description: editData?.description ?? "",
+    },
+  });
+
+  // Reset form when mode or editData changes
+  useEffect(() => {
+    reset({
+      subcategory_name: editData?.subcategory_name ?? "",
+      description: editData?.description ?? "",
+    });
+  }, [mode, editData, reset]);
+
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div>
         <label className="mb-1.5 block text-sm font-semibold text-foreground">
           Category Name
         </label>
         <Input
-          value={name}
-          onChange={(e) => onNameChange(e.target.value)}
-          placeholder="e.g. Coffee"
+          {...register("subcategory_name")}
+          placeholder="e.g. Pork"
           autoFocus
+          error={errors.subcategory_name?.message}
         />
       </div>
 
@@ -288,25 +336,14 @@ function FormMode({
           Description
         </label>
         <textarea
-          value={desc}
-          onChange={(e) => onDescChange(e.target.value)}
+          {...register("description")}
           placeholder="Optional description..."
           rows={2}
-          className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
         />
-      </div>
-
-      <div>
-        <label className="mb-1.5 block text-sm font-semibold text-foreground">
-          Sort Order
-        </label>
-        <Input
-          type="number"
-          min="0"
-          value={sort}
-          onChange={(e) => onSortChange(e.target.value)}
-          className="w-24"
-        />
+        {errors.description && (
+          <p className="mt-1.5 text-xs text-destructive">{errors.description.message}</p>
+        )}
       </div>
 
       <div className="flex justify-end gap-2 border-t border-border pt-4">
@@ -314,11 +351,7 @@ function FormMode({
           Back
         </Button>
         <Button type="submit" disabled={isMutating}>
-          {isMutating
-            ? "Saving..."
-            : mode === "create"
-              ? "Add Category"
-              : "Save Changes"}
+          {isMutating ? "Saving..." : mode === "create" ? "Add" : "Save Changes"}
         </Button>
       </div>
     </form>

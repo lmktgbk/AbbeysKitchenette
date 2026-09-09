@@ -58,7 +58,7 @@ export default function IngredientFormModal({
       : {
         ingredient_name: "",
         unit: "",
-        minimum_threshold: 0,
+        minimum_threshold: "",
       },
   });
 
@@ -75,7 +75,7 @@ export default function IngredientFormModal({
         reset({
           ingredient_name: "",
           unit: "",
-          minimum_threshold: 0,
+          minimum_threshold: "",
         });
       }
     }

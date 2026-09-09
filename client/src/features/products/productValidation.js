@@ -35,7 +35,7 @@ export const createProductSchema = z.object({
     .string()
     .min(1, "Product name is required")
     .max(150, "Must not exceed 150 characters"),
-  category_id: z.number({ required_error: "Category is required" }),
+  subcategory_id: z.number({ required_error: "Category is required" }),
   description: z
     .string()
     .max(500, "Must not exceed 500 characters")
@@ -55,7 +55,7 @@ export const editProductSchema = z.object({
     .min(1, "Product name is required")
     .max(150, "Must not exceed 150 characters")
     .optional(),
-  category_id: z.number().optional(),
+  subcategory_id: z.number().optional(),
   description: z
     .string()
     .max(500, "Must not exceed 500 characters")
@@ -68,12 +68,29 @@ export const editProductSchema = z.object({
     .min(1, "At least one variant is required"),
 });
 
-// ── Dropdown Options ──────────────────────────────
+// ── Category Schemas ─────────────────────────────
 
-// Category options populated from API — exported as placeholder
-// Components will fetch categories and map to this format
-export const getCategoryOptions = (categories = []) =>
-  categories.map((c) => ({
-    value: c.category_id,
-    label: c.category_name,
-  }));
+export const createCategorySchema = z.object({
+  subcategory_name: z
+    .string()
+    .min(1, "Category name is required")
+    .max(100, "Must not exceed 100 characters"),
+  description: z
+    .string()
+    .max(500, "Must not exceed 500 characters")
+    .optional()
+    .or(z.literal("")),
+});
+
+export const editCategorySchema = z.object({
+  subcategory_name: z
+    .string()
+    .min(1, "Category name is required")
+    .max(100, "Must not exceed 100 characters")
+    .optional(),
+  description: z
+    .string()
+    .max(500, "Must not exceed 500 characters")
+    .optional()
+    .or(z.literal("")),
+});

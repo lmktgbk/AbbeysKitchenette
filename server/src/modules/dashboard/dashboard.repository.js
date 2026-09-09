@@ -257,7 +257,8 @@ export const dashboardRepository = {
         COUNT(DISTINCT o.order_id)::int AS "orderCount"
       FROM order_items oi
       JOIN products p ON p.product_id = oi.product_id
-      JOIN categories c ON c.category_id = p.category_id
+      JOIN subcategories sc ON sc.subcategory_id = p.subcategory_id
+      JOIN categories c ON c.category_id = sc.category_id
       JOIN orders o ON o.order_id = oi.order_id
       ${where}
       GROUP BY c.category_name

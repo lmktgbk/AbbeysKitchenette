@@ -61,6 +61,7 @@ import {
     Camera,
     Percent,
     LayoutGrid,
+    FolderPlus,
 } from "lucide-react";
 
 const iconMap = {
@@ -126,6 +127,7 @@ const iconMap = {
     camera: Camera,
     percent: Percent,
     layoutGrid: LayoutGrid,
+    folderPlus: FolderPlus,
 };
 
 /**

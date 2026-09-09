@@ -51,7 +51,7 @@ export const editOrderSchema = z.object({
 // ── Advance Status ──────────────────────────────────
 
 export const advanceStatusSchema = z.object({
-  status: z.enum(["accepted", "next_in_line", "processing", "completed"]),
+  status: z.enum(["accepted", "preparing", "completed"]),
   amount_paid: z.number().positive().optional(),
 });
 

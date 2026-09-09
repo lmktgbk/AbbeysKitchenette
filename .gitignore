@@ -6,3 +6,4 @@ ml-service/venv/
 __pycache__/
 *.pyc
 generated/
+commands.sql

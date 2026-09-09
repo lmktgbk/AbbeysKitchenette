@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { useOrderList, useOrderDetail, useOrderMutations } from "../query";
-import { confirm, confirmWithReason } from "@/components/alerts/ConfirmDialog";
+import { confirm, confirmWithReason, confirmWithLossOption } from "@/components/alerts/ConfirmDialog";
 import OrderStats from "../components/OrderStats";
 import OrderTable from "../components/OrderTable";
 import OrderDetailModal from "../components/OrderDetailModal";
@@ -66,7 +66,7 @@ export default function OrdersPage({ embedded = false }) {
 
     // Compute next status if not provided
     if (!targetStatus && currentOrder) {
-      const flow = ["pending", "accepted", "next_in_line", "processing", "completed"];
+      const flow = ["pending", "accepted", "preparing", "completed"];
       const idx = flow.indexOf(currentOrder.status);
       targetStatus = (idx !== -1 && idx < flow.length - 1) ? flow[idx + 1] : null;
     }
@@ -82,8 +82,7 @@ export default function OrdersPage({ embedded = false }) {
 
     const statusLabels = {
       accepted: "Accept",
-      next_in_line: "Queue",
-      processing: "Start Processing",
+      preparing: "Prepare",
       completed: "Complete",
     };
 
@@ -104,8 +103,59 @@ export default function OrdersPage({ embedded = false }) {
     if (ok) toast.success("Order updated");
   }
 
+  async function handlePrepare(orderId) {
+    try {
+      await mutations.prepare.mutateAsync(orderId);
+      toast.success("Order is now preparing");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to start preparing");
+    }
+  }
+
+  async function handleCheckItem(orderId, itemId, isPrepared) {
+    try {
+      await mutations.checkItem.mutateAsync({ orderId, itemId, data: { is_prepared: isPrepared } });
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to update item");
+    }
+  }
+
+  async function handleMarkReady(orderId) {
+    try {
+      await mutations.advanceStatus.mutateAsync({
+        id: orderId,
+        data: { status: "completed" },
+      });
+      toast.success("Order completed");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to complete order");
+    }
+  }
+
   async function handleCancelClick(order) {
     const isPending = order.status === "pending";
+    const isPreparing = order.status === "preparing";
+
+    // Preparing orders: two-option loss dialog
+    if (isPreparing) {
+      const { confirmed, loss_option } = await confirmWithLossOption({
+        orderNumber: order.order_number,
+      });
+      if (!confirmed) return;
+
+      try {
+        await mutations.cancel.mutateAsync({
+          id: order.order_id,
+          data: { reason: `Cancelled (loss option: ${loss_option})`, loss_option },
+        });
+        toast.success("Order cancelled");
+      } catch (err) {
+        toast.error(err.response?.data?.message || "Failed to cancel order");
+      }
+      return;
+    }
+
+    // Pending / accepted orders: standard reason dialog
     const { confirmed, reason } = await confirmWithReason({
       title: isPending ? "Delete Order?" : "Cancel Order?",
       message: isPending
@@ -214,6 +264,9 @@ export default function OrdersPage({ embedded = false }) {
         order={detailOrder}
         loading={isLoadingDetail}
         onAdvance={handleAdvance}
+        onPrepare={handlePrepare}
+        onCheckItem={handleCheckItem}
+        onMarkReady={handleMarkReady}
         onCancel={(order) => {
           setShowDetailModal(false);
           handleCancelClick(order);

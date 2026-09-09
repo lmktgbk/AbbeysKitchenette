@@ -30,7 +30,13 @@ export const productRepository = {
     return prisma.product.findUnique({
       where: { productId: id },
       include: {
-        category: { select: { categoryId: true, categoryName: true } },
+        subcategory: {
+          select: {
+            subcategoryId: true,
+            subcategoryName: true,
+            category: { select: { categoryId: true, categoryName: true } },
+          },
+        },
         variants: {
           include: {
             recipes: {
@@ -68,7 +74,7 @@ export const productRepository = {
 
     if (category) {
       values.push(Number(category));
-      clauses.push(`p.category_id = $${idx++}`);
+      clauses.push(`sc.category_id = $${idx++}`);
     }
 
     if (status === "active") {
@@ -98,12 +104,14 @@ export const productRepository = {
       `SELECT
         p.product_id, p.product_name, p.description, p.image_url,
         p.is_available, p.is_archived, p.created_at, p.updated_at,
+        sc.subcategory_id, sc.subcategory_name,
         c.category_id, c.category_name,
         (SELECT COUNT(*)::int FROM product_variants pv WHERE pv.product_id = p.product_id) AS variant_count,
         (SELECT MIN(pv.price) FROM product_variants pv WHERE pv.product_id = p.product_id) AS min_price,
         (SELECT MAX(pv.price) FROM product_variants pv WHERE pv.product_id = p.product_id) AS max_price
       FROM products p
-      LEFT JOIN categories c ON c.category_id = p.category_id
+      LEFT JOIN subcategories sc ON sc.subcategory_id = p.subcategory_id
+      LEFT JOIN categories c ON c.category_id = sc.category_id
       ${where}
       ORDER BY ${orderBy}
       LIMIT ${take} OFFSET ${skip}`,
@@ -115,7 +123,8 @@ export const productRepository = {
     const { where, values } = this._buildActiveWhereClause(search, category, status);
     const result = await prisma.$queryRawUnsafe(
       `SELECT COUNT(*)::int AS count FROM products p
-       LEFT JOIN categories c ON c.category_id = p.category_id
+       LEFT JOIN subcategories sc ON sc.subcategory_id = p.subcategory_id
+       LEFT JOIN categories c ON c.category_id = sc.category_id
        ${where}`,
       ...values
     );
@@ -137,7 +146,7 @@ export const productRepository = {
     `;
 
     const categoriesUsed = await prisma.$queryRaw`
-      SELECT COUNT(DISTINCT p.category_id)::int AS count
+      SELECT COUNT(DISTINCT p.subcategory_id)::int AS count
       FROM products p
       WHERE p.is_archived = false
     `;
@@ -388,15 +397,28 @@ export const productRepository = {
   /* ── Category Check ──────────────────── */
 
   /**
-   * Check if a category has any active products.
-   * @param {number} categoryId
+   * Check if a subcategory has any active products.
+   * @param {number} subcategoryId
    * @returns {boolean}
    */
-  async categoryHasProducts(categoryId) {
+  async subcategoryHasProducts(subcategoryId) {
     const count = await prisma.product.count({
-      where: { categoryId, isArchived: false },
+      where: { subcategoryId, isArchived: false },
     });
     return count > 0;
+  },
+
+  /**
+   * Find all active, non-archived products under a subcategory.
+   * Used by subcategory deactivation to bulk-deactivate products.
+   * @param {number} subcategoryId
+   * @returns {Promise<Array<{ productId: string }>>}
+   */
+  async findActiveBySubcategory(subcategoryId) {
+    return prisma.product.findMany({
+      where: { subcategoryId, isAvailable: true, isArchived: false },
+      select: { productId: true },
+    });
   },
 
   /* ── Variant Availability Recompute ──── */

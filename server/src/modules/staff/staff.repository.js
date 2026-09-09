@@ -148,7 +148,7 @@ export const staffRepository = {
           OR: [
             { createdBy: id },
             { acceptedBy: id },
-            { processingBy: id },
+            { preparingBy: id },
             { completedBy: id },
             { nextInLineBy: id },
           ],
@@ -251,7 +251,7 @@ export const staffRepository = {
         where: completedWhere,
         select: {
           completedBy: true,
-          processingAt: true,
+          preparingAt: true,
           completedAt: true,
         },
       });
@@ -260,8 +260,8 @@ export const staffRepository = {
       for (const o of kitchenOrders) {
         if (!kitchenAgg[o.completedBy]) kitchenAgg[o.completedBy] = { count: 0, totalMinutes: 0 };
         kitchenAgg[o.completedBy].count += 1;
-        if (o.processingAt && o.completedAt) {
-          kitchenAgg[o.completedBy].totalMinutes += (new Date(o.completedAt) - new Date(o.processingAt)) / 60000;
+        if (o.preparingAt && o.completedAt) {
+          kitchenAgg[o.completedBy].totalMinutes += (new Date(o.completedAt) - new Date(o.preparingAt)) / 60000;
         }
       }
 

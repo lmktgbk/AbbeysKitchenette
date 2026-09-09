@@ -36,7 +36,7 @@ const priceOptimizationService = {
     const result = await generatePriceSuggestions({
       product: {
         product_name: product.productName,
-        category_name: product.category?.categoryName || "Unknown",
+        category_name: product.subcategory?.category?.categoryName || "Unknown",
       },
       variants: variants.map((v) => ({
         variant_id: v.variant_id,

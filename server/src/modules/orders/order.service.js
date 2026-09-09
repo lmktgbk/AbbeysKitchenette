@@ -1,26 +1,14 @@
 import { orderRepository } from "./order.repository.js";
-import { isValidTransition, getNextStatus, formatOrderResponse, formatOrderItemResponse } from "./order.utils.js";
+import { isValidTransition, formatOrderResponse, formatOrderItemResponse } from "./order.utils.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { productService } from "../products/product.service.js";
 import prisma from "../../config/prisma.js";
 import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
-/**
- * Order Service
- *
- * Business logic for order operations.
- * Validates status transitions, orchestrates deductions, manages queue.
- */
-
 export const orderService = {
   /* ── Queries ─────────────────────────── */
 
-  /**
-   * Get paginated order list.
-   * @param {object} params - { page, limit, search, status, dateFrom, dateTo, sortBy, sortDir }
-   * @returns {{ orders: Array, totalItems: number }}
-   */
   async getAll({ page = 1, limit = 50, search, status, dateFrom, dateTo, sortBy, sortDir, staffId }) {
     const skip = (page - 1) * limit;
 
@@ -36,11 +24,6 @@ export const orderService = {
     return { orders, totalItems };
   },
 
-  /**
-   * Get kitchen display orders with items.
-   * Single query with json_agg for nested items.
-   * @returns {{ orders: Array }} - orders with items array
-   */
   async getKitchenOrders() {
     const rows = await orderRepository.findKitchenOrders();
 
@@ -58,19 +41,32 @@ export const orderService = {
   },
 
   /**
-   * Get status counts for KPI cards.
-   * @returns {object} - counts per status
+   * Get batch preparation groups for preparing orders.
+   * Groups unchecked items by product+variant so kitchen can batch-cook.
    */
+  async getBatchGroups() {
+    const rows = await orderRepository.findBatchGroups();
+
+    return rows.map((row) => ({
+      product_id: row.product_id,
+      product_name: row.product_name,
+      variant_id: row.variant_id,
+      size_name: row.size_name,
+      total_quantity: Number(row.total_quantity),
+      orders: row.orders.map((o) => ({
+        order_id: o.order_id,
+        order_number: o.order_number,
+        quantity: o.quantity,
+        order_item_id: o.order_item_id,
+        is_prepared: o.is_prepared,
+      })),
+    }));
+  },
+
   async getStats() {
     return orderRepository.countByStatus();
   },
 
-  /**
-   * Get single order with items.
-   * @param {string} id - order UUID
-   * @returns {object} - formatted order
-   * @throws {AppError} 404 if not found
-   */
   async getById(id) {
     const order = await orderRepository.findById(id);
     if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
@@ -79,8 +75,7 @@ export const orderService = {
       ...formatOrderResponse(order),
       creator_name: order.creator?.name ?? null,
       accepted_by: order.acceptedByUser ? { name: order.acceptedByUser.name, role: order.acceptedByUser.role } : null,
-      next_in_line_by: order.nextInLineByUser ? { name: order.nextInLineByUser.name, role: order.nextInLineByUser.role } : null,
-      processing_by: order.processingByUser ? { name: order.processingByUser.name, role: order.processingByUser.role } : null,
+      preparing_by: order.preparingByUser ? { name: order.preparingByUser.name, role: order.preparingByUser.role } : null,
       completed_by: order.completedByUser ? { name: order.completedByUser.name, role: order.completedByUser.role } : null,
       cancel_reason: order.cancellation?.reason ?? null,
       cancelled_at: order.cancellation?.cancelledAt ?? null,
@@ -95,12 +90,6 @@ export const orderService = {
     };
   },
 
-  /**
-   * Get pending order for editing.
-   * @param {string} id - order UUID
-   * @returns {object} - order with items
-   * @throws {AppError} 404 if not found or not pending
-   */
   async getPendingById(id) {
     const order = await orderRepository.findPendingById(id);
     if (!order) throw new AppError(404, "Pending order not found", "ORDER_NOT_FOUND");
@@ -116,34 +105,21 @@ export const orderService = {
 
   /* ── Walk-In Order Creation ──────────── */
 
-  /**
-   * Create a walk-in order (auto-accepted, ingredients deducted immediately).
-   * Everything runs in a single atomic transaction.
-   * @param {object} data - { customerName, tableNumber, items, amountPaid, createdBy }
-   * @returns {object} - created order
-   * @throws {AppError} 400 if insufficient stock
-   */
   async createWalkIn({ customerName, tableNumber, items, amountPaid, createdBy, orderDate: orderDateStr }) {
-    // Step 1: Resolve recipes for all items and aggregate ingredient needs
     const aggregatedIngredients = await this._aggregateIngredientNeeds(items);
     const totalAmount = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
 
-    // Step 2: Validate payment
     if (amountPaid < totalAmount) {
       throw new AppError(400, "Amount paid is less than total", "INSUFFICIENT_PAYMENT");
     }
 
-    // Step 3: Run everything in a transaction
     const order = await prisma.$transaction(async (tx) => {
-      // Generate order number
       const orderNumber = await orderRepository.getNextOrderNumber();
       const now = new Date();
-      // Use client-provided date (user's local YYYY-MM-DD) or fallback to UTC today
       const orderDate = orderDateStr
         ? new Date(orderDateStr + "T00:00:00Z")
         : new Date(now.toISOString().split("T")[0]);
 
-      // Create order (status: accepted)
       const newOrder = await orderRepository.createOrder({
         orderNumber,
         orderDate,
@@ -164,18 +140,12 @@ export const orderService = {
         unitPrice: item.unit_price,
       })), tx);
 
-      // Deduct ingredients (atomic — any failure rolls back entire order)
       const deductions = await this._deductIngredients(newOrder.orderId, aggregatedIngredients, tx);
-
       return { order: newOrder, deductions };
     });
 
-    // Recompute variant availability for affected ingredients
     const affectedIngredientIds = [...aggregatedIngredients.keys()];
     await productService.recomputeVariantAvailability(affectedIngredientIds);
-
-    // Auto-advance queue (accepted → next_in_line → processing)
-    await this._advanceQueue();
 
     auditLogService.logAction({
       userId: createdBy,
@@ -190,11 +160,6 @@ export const orderService = {
 
   /* ── Online Order Creation (Guest) ──── */
 
-  /**
-   * Create an online order (status: pending, no deduction yet).
-   * @param {object} data - { customerName, tableNumber, items, guestToken }
-   * @returns {object} - created order
-   */
   async createOnline({ customerName, tableNumber, items, guestToken, orderDate: orderDateStr }) {
     const totalAmount = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
 
@@ -205,8 +170,6 @@ export const orderService = {
         ? new Date(orderDateStr + "T00:00:00Z")
         : new Date(now.toISOString().split("T")[0]);
 
-      // Use raw SQL method to bypass Prisma's required `creator` relation.
-      // The `created_by` column is nullable in the DB for guest/online orders.
       return orderRepository.createOnlineOrder({
         orderNumber,
         orderDate,
@@ -225,16 +188,8 @@ export const orderService = {
     return this.getById(result.orderId);
   },
 
-
   /* ── Edit Pending Order ──────────────── */
 
-  /**
-   * Edit a pending order (items + name + table).
-   * Recalculates total after changes.
-   * @param {string} id - order UUID
-   * @param {object} data - { customerName?, tableNumber?, items? }
-   * @returns {object} - updated order
-   */
   async editPending(id, data) {
     const existing = await orderRepository.findPendingById(id);
     if (!existing) throw new AppError(404, "Pending order not found", "ORDER_NOT_FOUND");
@@ -243,7 +198,6 @@ export const orderService = {
     }
 
     return prisma.$transaction(async (tx) => {
-      // Update order fields
       const updateData = {};
       if (data.customer_name !== undefined) updateData.customerName = data.customer_name;
       if (data.table_number !== undefined) updateData.tableNumber = data.table_number;
@@ -252,7 +206,6 @@ export const orderService = {
         await orderRepository.updateOrder(id, updateData, tx);
       }
 
-      // Replace items if provided
       if (data.items) {
         await orderRepository.replaceItems(id, data.items.map((item) => ({
           productId: item.product_id,
@@ -260,8 +213,6 @@ export const orderService = {
           quantity: item.quantity,
           unitPrice: item.unit_price,
         })), tx);
-
-        // Recalculate total
         await orderRepository.recalculateTotal(id, tx);
       }
 
@@ -271,13 +222,6 @@ export const orderService = {
 
   /* ── Fulfill Pending Online Order ──── */
 
-  /**
-   * Fulfill a pending online order in one atomic operation.
-   * Edits items + customer/table, validates payment, deducts ingredients, advances to accepted.
-   * @param {string} id - order UUID
-   * @param {object} data - { customerName?, tableNumber?, items, amountPaid, userId }
-   * @returns {object} - updated order
-   */
   async fulfillPendingOrder({ id, customerName, tableNumber, items, amountPaid, userId }) {
     const existing = await orderRepository.findPendingById(id);
     if (!existing) throw new AppError(404, "Pending order not found", "ORDER_NOT_FOUND");
@@ -285,19 +229,15 @@ export const orderService = {
       throw new AppError(400, "Only pending orders can be fulfilled", "INVALID_STATUS");
     }
 
-    // Calculate new total from submitted items
     const totalAmount = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
 
     if (amountPaid < totalAmount) {
       throw new AppError(400, "Amount paid is less than total", "INSUFFICIENT_PAYMENT");
     }
 
-    // Aggregate ingredient needs from new items
     const aggregatedIngredients = await this._aggregateIngredientNeeds(items);
 
-    // Run everything in a single atomic transaction
     await prisma.$transaction(async (tx) => {
-      // 1. Update customer_name / table_number
       const updateData = {};
       if (customerName !== undefined) updateData.customerName = customerName;
       if (tableNumber !== undefined) updateData.tableNumber = tableNumber;
@@ -305,7 +245,6 @@ export const orderService = {
         await orderRepository.updateOrder(id, updateData, tx);
       }
 
-      // 2. Replace items and recalculate total
       await orderRepository.replaceItems(id, items.map((item) => ({
         productId: item.product_id,
         variantId: item.variant_id,
@@ -314,10 +253,8 @@ export const orderService = {
       })), tx);
       await orderRepository.recalculateTotal(id, tx);
 
-      // 3. Deduct ingredients
       await this._deductIngredients(id, aggregatedIngredients, tx);
 
-      // 4. Advance status to accepted
       await orderRepository.updateStatus(id, "accepted", {
         userId,
         amountPaid,
@@ -325,12 +262,8 @@ export const orderService = {
       }, tx);
     });
 
-    // Recompute variant availability for affected ingredients
     const affectedIngredientIds = [...aggregatedIngredients.keys()];
     await productService.recomputeVariantAvailability(affectedIngredientIds);
-
-    // Trigger auto-promotion
-    await this._advanceQueue();
 
     auditLogService.logAction({
       userId,
@@ -345,26 +278,15 @@ export const orderService = {
 
   /* ── Status Transitions ──────────────── */
 
-  /**
-   * Advance order to next status.
-   * Validates transition, applies business rules, triggers auto-promotion.
-   * @param {string} id - order UUID
-   * @param {string} targetStatus - desired next status
-   * @param {object} meta - { userId, amountPaid? }
-   * @returns {object} - updated order
-   */
   async advanceStatus(id, targetStatus, meta = {}) {
     const order = await orderRepository.findById(id);
     if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
 
-    // Validate transition is allowed
     if (!isValidTransition(order.status, targetStatus)) {
       throw new AppError(400, `Cannot move from "${order.status}" to "${targetStatus}"`, "INVALID_TRANSITION");
     }
 
-    // Status-specific logic
     if (targetStatus === "accepted") {
-      // Payment required for pending → accepted
       const result = await this._handleAcceptance(id, order, meta);
       auditLogService.logAction({
         userId: meta.userId,
@@ -376,11 +298,13 @@ export const orderService = {
       return result;
     }
 
-    // For other transitions, just update status
-    await orderRepository.updateStatus(id, targetStatus, { userId: meta.userId });
+    const updateMeta = { userId: meta.userId };
+    if (targetStatus === "completed") {
+      const createdAt = new Date(order.createdAt).getTime();
+      updateMeta.fulfillmentMinutes = Math.round((Date.now() - createdAt) / 60000);
+    }
 
-    // Trigger auto-promotion
-    await this._advanceQueue();
+    await orderRepository.updateStatus(id, targetStatus, updateMeta);
 
     if (targetStatus === "completed") {
       auditLogService.logAction({
@@ -388,30 +312,56 @@ export const orderService = {
         action: ACTIONS.ORDER_COMPLETED,
         targetType: "order",
         targetId: id,
-        details: { total: Number(order.totalAmount) },
+        details: { total: Number(order.totalAmount), fulfillmentMinutes: updateMeta.fulfillmentMinutes },
       }).catch(() => {});
     }
 
     return this.getById(id);
   },
 
-  /* ── Cancel / Delete ─────────────────── */
+  /* ── Prepare Order ───────────────────── */
 
-  /**
-   * Cancel or delete an order based on status.
-   * - pending: hard delete
-   * - accepted / next_in_line: cancel + restore ingredients
-   * - processing / completed: rejected
-   * @param {string} id - order UUID
-   * @param {string} userId - who is cancelling
-   * @param {string} [reason] - cancellation reason
-   * @returns {object} - deleted/cancelled order info
-   */
-  async cancelOrDelete(id, userId, reason) {
+  async prepareOrder(id, userId) {
     const order = await orderRepository.findById(id);
     if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
 
-    // Pending → hard delete
+    if (!isValidTransition(order.status, "preparing")) {
+      throw new AppError(400, `Cannot prepare order in "${order.status}" status`, "INVALID_TRANSITION");
+    }
+
+    await orderRepository.updateStatus(id, "preparing", { userId });
+
+    auditLogService.logAction({
+      userId,
+      action: "order_preparing",
+      targetType: "order",
+      targetId: id,
+    }).catch(() => {});
+
+    return this.getById(id);
+  },
+
+  /* ── Check Order Item ────────────────── */
+
+  async checkOrderItem(orderId, orderItemId, isPrepared, userId) {
+    const order = await orderRepository.findById(orderId);
+    if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
+
+    if (order.status !== "preparing" && order.status !== "accepted") {
+      throw new AppError(400, "Order must be in accepted or preparing status", "INVALID_STATUS");
+    }
+
+    await orderRepository.setOrderItemPrepared(orderItemId, isPrepared, userId);
+
+    return this.getById(orderId);
+  },
+
+  /* ── Cancel / Delete ─────────────────── */
+
+  async cancelOrDelete(id, userId, reason, options = {}) {
+    const order = await orderRepository.findById(id);
+    if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
+
     if (order.status === "pending") {
       await orderRepository.delete(id);
       auditLogService.logAction({
@@ -424,27 +374,47 @@ export const orderService = {
       return { order_id: id, action: "deleted" };
     }
 
-    // Processing / completed → cannot cancel
-    if (order.status === "processing" || order.status === "completed") {
-      throw new AppError(400, `Cannot cancel an order in "${order.status}" status`, "INVALID_CANCELLATION");
+    if (order.status === "completed") {
+      throw new AppError(400, "Cannot cancel a completed order", "INVALID_CANCELLATION");
     }
 
-    // Accepted / next_in_line → cancel + restore ingredients
-    const deductions = (order.status === "accepted" || order.status === "next_in_line")
+    const orderItems = await orderRepository.getOrderItems(id);
+    const deductions = (order.status === "accepted" || order.status === "preparing")
       ? await orderRepository.getActiveDeductions(id)
       : [];
     const affectedIngredientIds = [...new Set(deductions.map((d) => d.ingredientId))];
 
+    // Determine loss handling based on options
+    const lossOption = options.loss_option || "no_loss"; // "no_loss" | "with_loss"
+    const itemLosses = options.item_losses || []; // [{ item_id, ingredient_losses: [{ ingredient_id, quantity_lost }] }]
+
     await prisma.$transaction(async (tx) => {
-      // Restore ingredients if they were deducted
-      if (order.status === "accepted" || order.status === "next_in_line") {
+      if (order.status === "accepted") {
+        // Accepted orders: all ingredients restored (no preparation has started)
         await this._restoreIngredients(id, userId, tx);
       }
 
-      // Update status to cancelled
+      if (order.status === "preparing") {
+        const checkedItems = orderItems.filter((item) => item.isPrepared);
+        const uncheckedItems = orderItems.filter((item) => !item.isPrepared);
+
+        if (lossOption === "no_loss") {
+          // No loss: restore ALL ingredients (even for checked items)
+          await this._restoreIngredients(id, userId, tx);
+        } else {
+          // With loss: restore unchecked items, create loss records for checked items
+          if (uncheckedItems.length > 0) {
+            await this._restoreIngredientsForItems(id, uncheckedItems, tx);
+          }
+
+          if (checkedItems.length > 0) {
+            await this._createLossRecords(id, checkedItems, userId, tx);
+          }
+        }
+      }
+
       await orderRepository.updateStatus(id, "cancelled", { userId }, tx);
 
-      // Create cancellation record
       await orderRepository.createCancellation({
         orderId: id,
         cancelledBy: userId,
@@ -452,10 +422,6 @@ export const orderService = {
       }, tx);
     });
 
-    // Trigger auto-promotion (fill vacated queue slots)
-    await this._advanceQueue();
-
-    // Recompute variant availability for affected ingredients
     if (affectedIngredientIds.length > 0) {
       await productService.recomputeVariantAvailability(affectedIngredientIds);
     }
@@ -465,31 +431,46 @@ export const orderService = {
       action: ACTIONS.ORDER_CANCELLED,
       targetType: "order",
       targetId: id,
-      details: { reason: reason || null },
+      details: { reason: reason || null, loss_option: lossOption },
     }).catch(() => {});
 
     return { order_id: id, action: "cancelled" };
   },
 
+  /* ── Override Loss ───────────────────── */
+
+  async overrideLoss(lossId, { overrideReason, overrideNote, userId }) {
+    const overrideData = {
+      overrideReason,
+      overrideNote: overrideNote || null,
+      overriddenById: userId,
+    };
+
+    await orderRepository.overrideLoss(lossId, overrideData);
+
+    auditLogService.logAction({
+      userId,
+      action: "loss_overridden",
+      targetType: "loss_record",
+      targetId: String(lossId),
+      details: { reason: overrideReason, note: overrideNote },
+    }).catch(() => {});
+
+    return { lossId, overrideReason };
+  },
+
   /* ── Ingredient Deduction Engine ─────── */
 
-  /**
-   * Aggregate ingredient needs across all order items.
-   * @param {Array<object>} items - order items with product_id, variant_id, quantity, unit_price
-   * @returns {Map<string, number>} - ingredientId → total quantity needed
-   */
   async _aggregateIngredientNeeds(items) {
     const variantIds = [...new Set(items.map((item) => item.variant_id))];
     const recipes = await orderRepository.getRecipesByVariantIds(variantIds);
 
-    // Build variantId → recipe map
     const recipeMap = new Map();
     for (const recipe of recipes) {
       if (!recipeMap.has(recipe.variantId)) recipeMap.set(recipe.variantId, []);
       recipeMap.get(recipe.variantId).push(recipe);
     }
 
-    // Aggregate: for each item, multiply recipe quantities by item quantity
     const needs = new Map();
     for (const item of items) {
       const itemRecipes = recipeMap.get(item.variant_id) || [];
@@ -503,16 +484,6 @@ export const orderService = {
     return needs;
   },
 
-  /**
-   * Deduct ingredients from batches using FIFO.
-   * Stores deduction records for later reversal.
-   * Rolls back if any ingredient has insufficient stock.
-   * @param {string} orderId - order UUID
-   * @param {Map<string, number>} needs - ingredientId → quantity needed
-   * @param {object} tx - transaction client
-   * @returns {Array<object>} - deduction records created
-   * @throws {AppError} 400 if insufficient stock
-   */
   async _deductIngredients(orderId, needs, tx) {
     const deductions = [];
 
@@ -526,7 +497,6 @@ export const orderService = {
         const available = Number(batch.quantityLeft);
         const toDeduct = Math.min(remaining, available);
 
-        // Try to deduct from this batch (optimistic locking)
         const updated = await orderRepository.deductBatch(batch.restockId, toDeduct, tx);
         if (!updated) {
           throw new AppError(400, "Insufficient ingredient stock (concurrent modification)", "INSUFFICIENT_STOCK");
@@ -542,13 +512,11 @@ export const orderService = {
         remaining -= toDeduct;
       }
 
-      // Not enough stock across all batches
       if (remaining > 0) {
         throw new AppError(400, "Insufficient ingredient stock", "INSUFFICIENT_STOCK");
       }
     }
 
-    // Store all deduction records
     if (deductions.length > 0) {
       await orderRepository.createDeductions(deductions, tx);
     }
@@ -556,34 +524,79 @@ export const orderService = {
     return deductions;
   },
 
-  /**
-   * Restore ingredients from deductions (on cancellation).
-   * @param {string} orderId - order UUID
-   * @param {string} userId - who is restoring
-   * @param {object} tx - transaction client
-   */
   async _restoreIngredients(orderId, userId, tx) {
     const deductions = await orderRepository.getActiveDeductions(orderId, tx);
 
     for (const deduction of deductions) {
-      // Restore batch quantity
       await orderRepository.restoreBatch(deduction.restockBatchId, deduction.quantityDeducted, tx);
     }
 
-    // Mark deductions as reversed
     await orderRepository.reverseDeductions(orderId, userId, tx);
+  },
+
+  async _restoreIngredientsForItems(orderId, unpreparedItems, tx) {
+    const allDeductions = await orderRepository.getActiveDeductions(orderId, tx);
+
+    const variantIds = [...new Set(unpreparedItems.map((i) => i.variantId))];
+    const recipes = await orderRepository.getRecipesByVariantIds(variantIds);
+
+    const recipeMap = new Map();
+    for (const r of recipes) {
+      if (!recipeMap.has(r.variantId)) recipeMap.set(r.variantId, []);
+      recipeMap.get(r.variantId).push(r);
+    }
+
+    const restoreNeeds = new Map();
+    for (const item of unpreparedItems) {
+      const itemRecipes = recipeMap.get(item.variantId) || [];
+      for (const recipe of itemRecipes) {
+        const needed = Number(recipe.quantityNeeded) * item.quantity;
+        restoreNeeds.set(recipe.ingredientId, (restoreNeeds.get(recipe.ingredientId) || 0) + needed);
+      }
+    }
+
+    for (const deduction of allDeductions) {
+      const restoreQty = restoreNeeds.get(deduction.ingredientId) || 0;
+      if (restoreQty > 0) {
+        await orderRepository.restoreBatch(deduction.restockBatchId, restoreQty, tx);
+        restoreNeeds.set(deduction.ingredientId, restoreQty - restoreQty);
+      }
+    }
+  },
+
+  async _createLossRecords(orderId, preparedItems, userId, tx) {
+    const variantIds = [...new Set(preparedItems.map((i) => i.variantId))];
+    const recipes = await orderRepository.getRecipesByVariantIds(variantIds);
+
+    const recipeMap = new Map();
+    for (const r of recipes) {
+      if (!recipeMap.has(r.variantId)) recipeMap.set(r.variantId, []);
+      recipeMap.get(r.variantId).push(r);
+    }
+
+    for (const item of preparedItems) {
+      const itemRecipes = recipeMap.get(item.variantId) || [];
+      for (const recipe of itemRecipes) {
+        const quantityLost = Number(recipe.quantityNeeded) * item.quantity;
+        const costPerUnit = Number(recipe.costPerUnit || 0);
+
+        await orderRepository.createOrderItemLoss({
+          ingredientId: recipe.ingredientId,
+          declaredById: userId,
+          lossType: "cancellation",
+          quantityLost,
+          costPerUnit,
+          totalCostLost: quantityLost * costPerUnit,
+          relatedOrderId: orderId,
+          relatedOrderItemId: item.orderItemId,
+          notes: `Item cancelled mid-preparation`,
+        }, tx);
+      }
+    }
   },
 
   /* ── Acceptance Handler ──────────────── */
 
-  /**
-   * Handle pending → accepted transition.
-   * Deducts ingredients, validates payment, updates status.
-   * @param {string} id - order UUID
-   * @param {object} order - order record
-   * @param {object} meta - { userId, amountPaid }
-   * @returns {object} - updated order
-   */
   async _handleAcceptance(id, order, meta) {
     if (!meta.amountPaid) {
       throw new AppError(400, "Amount paid is required for acceptance", "PAYMENT_REQUIRED");
@@ -593,7 +606,6 @@ export const orderService = {
       throw new AppError(400, "Amount paid is less than total", "INSUFFICIENT_PAYMENT");
     }
 
-    // Aggregate ingredient needs from order items
     const needs = new Map();
     for (const item of order.items) {
       const recipes = await orderRepository.getRecipesByVariantId(item.variantId);
@@ -604,12 +616,8 @@ export const orderService = {
       }
     }
 
-    // Deduct ingredients + update status in single transaction
     await prisma.$transaction(async (tx) => {
-      // Deduct ingredients (atomic — failure rolls back everything)
       await this._deductIngredients(id, needs, tx);
-
-      // Update status
       await orderRepository.updateStatus(id, "accepted", {
         userId: meta.userId,
         amountPaid: meta.amountPaid,
@@ -617,51 +625,9 @@ export const orderService = {
       }, tx);
     });
 
-    // Recompute variant availability for affected ingredients
     const affectedIngredientIds = [...needs.keys()];
     await productService.recomputeVariantAvailability(affectedIngredientIds);
 
-    // Trigger auto-promotion after acceptance
-    await this._advanceQueue();
-
     return this.getById(id);
-  },
-
-  /* ── Queue Auto-Promotion ────────────── */
-
-  /**
-   * Auto-advance queue after status changes.
-   * Fills processing slot first, then next_in_line slot.
-   * Runs after: creation, acceptance, cancellation, completion, manual advance.
-   */
-  async _advanceQueue() {
-    // Step 1: Fill processing slot if empty
-    const processingCount = await orderRepository.countByStatusSingle("processing");
-    if (processingCount === 0) {
-      // Try to promote from next_in_line first
-      let candidate = await orderRepository.findOldestByStatus("next_in_line");
-
-      // If nothing in next_in_line, try from accepted (skip queue)
-      if (!candidate) {
-        candidate = await orderRepository.findOldestByStatus("accepted");
-      }
-
-      if (candidate) {
-        // If promoted from accepted directly, also stamp nextInLineAt
-        if (candidate.status === "accepted") {
-          await orderRepository.updateStatus(candidate.orderId, "next_in_line");
-        }
-        await orderRepository.updateStatus(candidate.orderId, "processing");
-      }
-    }
-
-    // Step 2: Fill next_in_line slot if empty
-    const nextInLineCount = await orderRepository.countByStatusSingle("next_in_line");
-    if (nextInLineCount === 0) {
-      const candidate = await orderRepository.findOldestByStatus("accepted");
-      if (candidate) {
-        await orderRepository.updateStatus(candidate.orderId, "next_in_line");
-      }
-    }
   },
 };

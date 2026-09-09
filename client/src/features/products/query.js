@@ -68,7 +68,7 @@ export function useProductDetail(id, options = {}) {
 }
 
 /**
- * useCategoryList — all categories with product counts.
+ * useCategoryList — all categories with nested subcategories.
  */
 export function useCategoryList() {
   return useQuery({
@@ -140,13 +140,13 @@ export function useProductMutations() {
   };
 }
 
-/* ── Category Mutation Hook ────────────────────── */
+/* ── Subcategory Mutation Hook ───────────────────── */
 
 /**
- * useCategoryMutations — all category CRUD mutations.
- * Each mutation invalidates category list + product queries (since products reference categories).
+ * useCategoryMutations — subcategory CRUD mutations.
+ * Root categories are read-only (managed via SQL).
  *
- * @returns {object} - { create, update, remove }
+ * @returns {object} - { createSub, updateSub, removeSub }
  */
 export function useCategoryMutations() {
   const queryClient = useQueryClient();
@@ -157,18 +157,18 @@ export function useCategoryMutations() {
   }
 
   return {
-    create: useMutation({
-      mutationFn: api.createCategoryRequest,
+    createSub: useMutation({
+      mutationFn: ({ categoryId, data }) => api.createSubcategoryRequest(categoryId, data),
       onSuccess: () => invalidateAll(),
     }),
 
-    update: useMutation({
-      mutationFn: ({ id, data }) => api.updateCategoryRequest(id, data),
+    updateSub: useMutation({
+      mutationFn: ({ id, data }) => api.updateSubcategoryRequest(id, data),
       onSuccess: () => invalidateAll(),
     }),
 
-    remove: useMutation({
-      mutationFn: api.deleteCategoryRequest,
+    removeSub: useMutation({
+      mutationFn: api.deleteSubcategoryRequest,
       onSuccess: () => invalidateAll(),
     }),
   };

@@ -4,17 +4,15 @@ import { formatDate, formatTime } from "@/lib/date";
 const ORDER_FLOW = [
   { status: "pending", label: "Created", icon: "clock", timestampField: "created_at", actorFallback: "System" },
   { status: "accepted", label: "Accepted", icon: "check", timestampField: "accepted_at", actorField: "accepted_by", actorFallback: "System" },
-  { status: "next_in_line", label: "Next in Line", icon: "chevronRight", timestampField: "next_in_line_at", actorFallback: "System" },
-  { status: "processing", label: "Processing", icon: "coffee", timestampField: "processing_at", actorField: "processing_by", actorFallback: "System" },
+  { status: "preparing", label: "Preparing", icon: "coffee", timestampField: "preparing_at", actorField: "preparing_by", actorFallback: "System" },
   { status: "completed", label: "Completed", icon: "checkCircle", timestampField: "completed_at", actorField: "completed_by", actorFallback: "System" },
 ];
 
 const STATUS_INDEX = {
   pending: 0,
   accepted: 1,
-  next_in_line: 2,
-  processing: 3,
-  completed: 4,
+  preparing: 2,
+  completed: 3,
   cancelled: -1,
 };
 

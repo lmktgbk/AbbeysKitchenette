@@ -22,7 +22,9 @@ export const guestService = {
       product_name: p.productName,
       description: p.description,
       image_url: p.imageUrl,
-      category_name: p.category?.categoryName ?? null,
+      subcategory_id: p.subcategory?.subcategoryId ?? null,
+      subcategory_name: p.subcategory?.subcategoryName ?? null,
+      category_name: p.subcategory?.category?.categoryName ?? null,
       variants: p.variants.map((v) => ({
         variant_id: v.variantId,
         size_name: v.sizeName,

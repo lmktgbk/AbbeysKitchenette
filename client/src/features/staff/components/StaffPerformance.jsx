@@ -14,8 +14,7 @@ import { cn } from "@/lib/utils";
 const STATUS_CONFIG = {
   pending: { label: "Pending", variant: "warning" },
   accepted: { label: "Accepted", variant: "info" },
-  next_in_line: { label: "Next", variant: "purple" },
-  processing: { label: "Processing", variant: "orange" },
+  preparing: { label: "Preparing", variant: "orange" },
   completed: { label: "Completed", variant: "success" },
   cancelled: { label: "Cancelled", variant: "destructive" },
 };

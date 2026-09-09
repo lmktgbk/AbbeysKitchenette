@@ -76,7 +76,7 @@ export const fulfillOrderSchema = z.object({
 
 // PUT /api/orders/:id/status — advance order status
 export const updateStatusSchema = z.object({
-  status: z.enum(["accepted", "next_in_line", "processing", "completed"], {
+  status: z.enum(["accepted", "preparing", "completed"], {
     errorMap: () => ({ message: "Invalid status transition" }),
   }),
   // Payment fields (only for pending → accepted)
@@ -90,12 +90,47 @@ export const cancelOrderSchema = z.object({
     .trim()
     .max(500, "Reason must not exceed 500 characters")
     .optional(),
+  loss_option: z
+    .enum(["no_loss", "with_loss"], {
+      errorMap: () => ({ message: "loss_option must be 'no_loss' or 'with_loss'" }),
+    })
+    .optional()
+    .default("no_loss"),
+});
+
+// POST /api/orders/:id/prepare — transition to preparing
+export const prepareOrderSchema = z.object({});
+
+// PATCH /api/orders/:id/items/:itemId — toggle item prepared
+export const checkOrderItemSchema = z.object({
+  is_prepared: z.boolean(),
+});
+
+// POST /api/orders/losses/:lossId/override — override a loss record
+export const overrideLossSchema = z.object({
+  override_reason: z.enum(["transferred", "not_used", "other"], {
+    errorMap: () => ({ message: "Invalid override reason" }),
+  }),
+  override_note: z
+    .string()
+    .trim()
+    .max(500, "Note must not exceed 500 characters")
+    .optional(),
 });
 
 // ── Param Schemas ───────────────────────────────────────
 
 export const orderIdParamSchema = z.object({
   id: z.string().uuid("Invalid order ID"),
+});
+
+export const orderItemParamSchema = z.object({
+  id: z.string().uuid("Invalid order ID"),
+  itemId: z.string().regex(/^\d+$/, "Invalid item ID"),
+});
+
+export const lossIdParamSchema = z.object({
+  lossId: z.string().regex(/^\d+$/, "Invalid loss ID"),
 });
 
 // ── Query Schemas ───────────────────────────────────────

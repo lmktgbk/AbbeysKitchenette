@@ -37,7 +37,7 @@ export const createProductSchema = z.object({
     .trim()
     .min(1, "Product name is required")
     .max(150, "Product name must not exceed 150 characters"),
-  category_id: z.number().int().positive("Category is required"),
+  subcategory_id: z.number().int().positive("Subcategory is required"),
   description: z
     .string()
     .trim()
@@ -58,7 +58,7 @@ export const updateProductSchema = z.object({
     .min(1, "Product name is required")
     .max(150, "Product name must not exceed 150 characters")
     .optional(),
-  category_id: z.number().int().positive("Category is required").optional(),
+  subcategory_id: z.number().int().positive("Subcategory is required").optional(),
   description: z
     .string()
     .trim()

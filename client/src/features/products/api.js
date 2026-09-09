@@ -83,27 +83,27 @@ export async function uploadImageRequest(file) {
 
 // ── Categories ─────────────────────
 
-// GET /api/categories — list all categories with product counts
+// GET /api/categories — all root categories with nested subcategories
 export async function getCategoriesRequest() {
   const res = await api.get("/categories");
   return res.data;
 }
 
-// POST /api/categories — create category
-export async function createCategoryRequest(data) {
-  const res = await api.post("/categories", data);
+// POST /api/categories/:id/subcategories — create subcategory
+export async function createSubcategoryRequest(categoryId, data) {
+  const res = await api.post(`/categories/${categoryId}/subcategories`, data);
   return res.data;
 }
 
-// PATCH /api/categories/:id — update category
-export async function updateCategoryRequest(id, data) {
-  const res = await api.patch(`/categories/${id}`, data);
+// PATCH /api/categories/subcategories/:id — update subcategory
+export async function updateSubcategoryRequest(id, data) {
+  const res = await api.patch(`/categories/subcategories/${id}`, data);
   return res.data;
 }
 
-// DELETE /api/categories/:id — delete category
-export async function deleteCategoryRequest(id) {
-  const res = await api.delete(`/categories/${id}`);
+// DELETE /api/categories/subcategories/:id — delete subcategory
+export async function deleteSubcategoryRequest(id) {
+  const res = await api.delete(`/categories/subcategories/${id}`);
   return res.data;
 }
 

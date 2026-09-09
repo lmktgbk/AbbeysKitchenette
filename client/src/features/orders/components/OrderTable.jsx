@@ -10,8 +10,7 @@ import { formatDate } from "@/lib/date";
 const STATUS_CONFIG = {
   pending: { label: "Pending", variant: "warning" },
   accepted: { label: "Accepted", variant: "info" },
-  next_in_line: { label: "Next in Line", variant: "purple" },
-  processing: { label: "Processing", variant: "orange" },
+  preparing: { label: "Preparing", variant: "orange" },
   completed: { label: "Completed", variant: "success" },
   cancelled: { label: "Cancelled", variant: "destructive" },
 };
@@ -87,6 +86,7 @@ export default function OrderTable({ orders, isLoading, onView, onAdvance, onCan
           {orders.map((order) => {
             const status = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
             const source = SOURCE_CONFIG[order.order_source] || SOURCE_CONFIG.walk_in;
+            const canCancel = order.status === "pending" || order.status === "accepted" || order.status === "preparing";
 
             return (
               <TableRow
@@ -116,17 +116,27 @@ export default function OrderTable({ orders, isLoading, onView, onAdvance, onCan
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                    {order.status !== "completed" && order.status !== "cancelled" && (
+                    {order.status === "pending" && (
                       <Button
                         variant="outline"
                         size="icon"
                         onClick={() => onAdvance?.(order)}
-                        title="Advance"
+                        title="Accept"
                       >
-                        <Icon name="circleArrowRight" size={16} />
+                        <Icon name="check" size={16} />
                       </Button>
                     )}
-                    {(order.status === "accepted" || order.status === "next_in_line" || order.status === "pending") && (
+                    {order.status === "accepted" && (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => onAdvance?.(order)}
+                        title="Start Preparing"
+                      >
+                        <Icon name="play" size={16} />
+                      </Button>
+                    )}
+                    {canCancel && (
                       <Button
                         variant="outline"
                         size="icon"

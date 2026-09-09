@@ -105,7 +105,11 @@ const priceOptimizationRepository = {
   async getProductInfo(productId) {
     return prisma.product.findUnique({
       where: { productId },
-      include: { category: true },
+      include: {
+        subcategory: {
+          include: { category: true },
+        },
+      },
     });
   },
 

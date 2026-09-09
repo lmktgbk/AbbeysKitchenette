@@ -38,15 +38,26 @@ function hoursAgo(h) {
 
 // ── Data ──────────────────────────────────────────────────
 
-const CATEGORIES = [
-  { categoryName: "Coffee", description: "Coffee-based drinks", sortOrder: 1 },
-  { categoryName: "Tea", description: "Tea-based drinks", sortOrder: 2 },
-  { categoryName: "Pastries", description: "Baked goods and pastries", sortOrder: 3 },
-  { categoryName: "Sandwiches", description: "Sandwiches and wraps", sortOrder: 4 },
-  { categoryName: "Rice Meals", description: "Rice-based meals", sortOrder: 5 },
-  { categoryName: "Snacks", description: "Light bites and snacks", sortOrder: 6 },
-  { categoryName: "Drinks", description: "Non-coffee and non-tea beverages", sortOrder: 7 },
+// Root categories (protected — can't be deleted or renamed)
+const ROOT_CATEGORIES = [
+  { categoryName: "Food", description: "Food items" },
+  { categoryName: "Beverages", description: "Drinks and beverages" },
 ];
+
+// Sub-categories (user-manageable)
+const SUB_CATEGORIES = {
+  Food: [
+    { categoryName: "Pastries", description: "Baked goods and pastries" },
+    { categoryName: "Sandwiches", description: "Sandwiches and wraps" },
+    { categoryName: "Rice Meals", description: "Rice-based meals" },
+    { categoryName: "Snacks", description: "Light bites and snacks" },
+  ],
+  Beverages: [
+    { categoryName: "Coffee", description: "Coffee-based drinks" },
+    { categoryName: "Tea", description: "Tea-based drinks" },
+    { categoryName: "Drinks", description: "Non-coffee and non-tea beverages" },
+  ],
+};
 
 const INGREDIENTS = [
   { ingredientName: "Espresso Beans", unit: "g", initialStock: 5000, minimumThreshold: 500, costPerUnit: 1.50 },
@@ -332,15 +343,34 @@ async function main() {
 
   // ── 1. Categories ──────────────────────────────
   const catMap = {};
-  for (const cat of CATEGORIES) {
+
+  // Create root categories first
+  for (const cat of ROOT_CATEGORIES) {
     const created = await prisma.category.upsert({
       where: { categoryName: cat.categoryName },
-      update: { description: cat.description, sortOrder: cat.sortOrder },
-      create: cat,
+      update: { description: cat.description, parentId: null },
+      create: { ...cat, parentId: null },
     });
     catMap[cat.categoryName] = created.categoryId;
   }
-  console.log(`  ✓ ${CATEGORIES.length} categories`);
+  console.log(`  ✓ ${ROOT_CATEGORIES.length} root categories`);
+
+  // Create sub-categories under roots
+  let subCount = 0;
+  for (const [parentName, subs] of Object.entries(SUB_CATEGORIES)) {
+    const parentId = catMap[parentName];
+    if (!parentId) continue;
+    for (const sub of subs) {
+      const created = await prisma.category.upsert({
+        where: { categoryName: sub.categoryName },
+        update: { description: sub.description, parentId },
+        create: { ...sub, parentId },
+      });
+      catMap[sub.categoryName] = created.categoryId;
+      subCount++;
+    }
+  }
+  console.log(`  ✓ ${subCount} sub-categories`);
 
   // ── 2. Ingredients ─────────────────────────────
   const ingMap = {};

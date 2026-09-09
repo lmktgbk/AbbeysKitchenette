@@ -1,6 +1,6 @@
 import json
 import traceback
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date, timedelta
 import pandas as pd
 from prophet import Prophet
 from database import get_pool
@@ -200,6 +200,19 @@ async def run_demand_forecast(job_id: int | None = None) -> dict:
                 )
 
                 train = daily[["ds", "units"]].rename(columns={"units": "y"})
+
+                # Pad training data to today so forecast starts from today,
+                # not from the last order date.
+                today = pd.Timestamp(date.today())
+                last_data_date = train["ds"].max()
+                if last_data_date < today:
+                    gap_days = (today - last_data_date).days
+                    pad = pd.DataFrame({
+                        "ds": pd.date_range(last_data_date + timedelta(days=1), today),
+                        "y": [0] * gap_days,
+                    })
+                    train = pd.concat([train, pad], ignore_index=True)
+
                 m.fit(train)
 
                 future = m.make_future_dataframe(periods=period)

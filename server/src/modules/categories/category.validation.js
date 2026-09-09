@@ -3,41 +3,33 @@ import { z } from "zod";
 /**
  * Category Validation Schemas
  *
- * Used by validate middleware to validate request bodies.
- * If validation fails → error response, controller never executes.
+ * Two-table model: categories (root) + subcategories.
+ * Root categories are read-only (managed via SQL).
+ * Only subcategory schemas are needed for API validation.
  */
 
-// Used by POST /api/categories — create category
-export const createCategorySchema = z.object({
-  category_name: z
+// POST /api/categories/:id/subcategories — create subcategory
+export const createSubcategorySchema = z.object({
+  subcategory_name: z
     .string()
-    .min(1, "Category name is required")
-    .max(100, "Category name must not exceed 100 characters"),
+    .min(1, "Subcategory name is required")
+    .max(100, "Subcategory name must not exceed 100 characters"),
   description: z
     .string()
     .max(500, "Description must not exceed 500 characters")
-    .optional(),
-  sort_order: z
-    .number()
-    .int("Sort order must be a whole number")
-    .min(0, "Sort order cannot be negative")
     .optional(),
 });
 
-// Used by PATCH /api/categories/:id — update category
-export const updateCategorySchema = z.object({
-  category_name: z
+// PATCH /api/subcategories/:id — update subcategory
+export const updateSubcategorySchema = z.object({
+  subcategory_name: z
     .string()
-    .min(1, "Category name cannot be empty")
-    .max(100, "Category name must not exceed 100 characters")
+    .min(1, "Subcategory name cannot be empty")
+    .max(100, "Subcategory name must not exceed 100 characters")
     .optional(),
   description: z
     .string()
     .max(500, "Description must not exceed 500 characters")
     .optional(),
-  sort_order: z
-    .number()
-    .int("Sort order must be a whole number")
-    .min(0, "Sort order cannot be negative")
-    .optional(),
+  is_active: z.boolean().optional(),
 });

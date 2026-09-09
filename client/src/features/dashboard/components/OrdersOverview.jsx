@@ -9,8 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 const STATUS_COLORS = {
   pending: "#f59e0b",
   accepted: "#3b82f6",
-  next_in_line: "#8b5cf6",
-  processing: "#06b6d4",
+  preparing: "#f97316",
   completed: "#22c55e",
   cancelled: "#ef4444",
 };
@@ -18,8 +17,7 @@ const STATUS_COLORS = {
 const STATUS_LABELS = {
   pending: "Pending",
   accepted: "Accepted",
-  next_in_line: "Next in Line",
-  processing: "Processing",
+  preparing: "Preparing",
   completed: "Completed",
   cancelled: "Cancelled",
 };
@@ -28,7 +26,7 @@ const STATUS_LABELS = {
  * OrdersOverview — side-by-side order status donut + order source bar chart.
  *
  * @param {Object} props
- * @param {object} props.statusData - { pending, accepted, next_in_line, processing, completed, cancelled }
+ * @param {object} props.statusData - { pending, accepted, preparing, completed, cancelled }
  * @param {Array} props.sourceData - [{ source, count }]
  * @param {boolean} props.isLoading
  */

@@ -3,20 +3,47 @@ import prisma from "../../config/prisma.js";
 /**
  * Category Repository
  *
- * All database queries related to categories.
- * This layer only touches Prisma for category operations.
+ * Database queries for root categories and subcategories.
+ * Two-table model: categories (root) → subcategories → products.
+ * Root categories are read-only (managed via SQL).
+ * Subcategories are fully managed through the API.
  */
 export const categoryRepository = {
-  /* ── Lookups ─────────────────────────── */
+  /* ── Categories (roots) ────────────────── */
 
   /**
-   * Find all categories with product counts.
-   * Ordered by sortOrder ascending, then by name.
-   * @returns {Array<object>} - categories with product counts
+   * Find a root category by ID.
+   * @param {number} id - category_id
+   * @returns {Promise<object|null>}
    */
-  async findAll() {
-    return prisma.category.findMany({
-      orderBy: [{ sortOrder: "asc" }, { categoryName: "asc" }],
+  async findRootById(id) {
+    return prisma.category.findUnique({
+      where: { categoryId: id },
+    });
+  },
+
+  /* ── Subcategories ─────────────────────── */
+
+  /**
+   * Find a subcategory by ID.
+   * @param {number} id - subcategory_id
+   * @returns {Promise<object|null>}
+   */
+  async findSubcategoryById(id) {
+    return prisma.subcategory.findUnique({
+      where: { subcategoryId: id },
+    });
+  },
+
+  /**
+   * Find a subcategory by ID with product count.
+   * Used to check if a subcategory can be deleted.
+   * @param {number} id - subcategory_id
+   * @returns {Promise<object|null>}
+   */
+  async findSubcategoryByIdWithCounts(id) {
+    return prisma.subcategory.findUnique({
+      where: { subcategoryId: id },
       include: {
         _count: { select: { products: true } },
       },
@@ -24,65 +51,57 @@ export const categoryRepository = {
   },
 
   /**
-   * Find a category by ID.
-   * @param {number} id - category ID
-   * @returns {object|null} - category or null if not found
+   * Create a new subcategory under a root category.
+   * @param {object} data - { categoryId, subcategoryName, description? }
+   * @returns {Promise<object>}
    */
-  async findById(id) {
-    return prisma.category.findUnique({
-      where: { categoryId: id },
-    });
+  async createSubcategory(data) {
+    return prisma.subcategory.create({ data });
   },
 
   /**
-   * Find a category by ID with product count.
-   * Used for delete protection check.
-   * @param {number} id - category ID
-   * @returns {object|null} - category with product count or null
-   */
-  async findByIdWithProductCount(id) {
-    return prisma.category.findUnique({
-      where: { categoryId: id },
-      include: {
-        _count: { select: { products: true } },
-      },
-    });
-  },
-
-  /* ── Mutations ───────────────────────── */
-
-  /**
-   * Create a new category.
-   * @param {object} data - { categoryName, description?, sortOrder? }
-   * @returns {object} - created category
-   */
-  async create(data) {
-    return prisma.category.create({
-      data,
-    });
-  },
-
-  /**
-   * Update an existing category.
-   * @param {number} id - category ID
+   * Update a subcategory's name, description, or active state.
+   * @param {number} id - subcategory_id
    * @param {object} data - fields to update
-   * @returns {object} - updated category
+   * @returns {Promise<object>}
    */
-  async update(id, data) {
-    return prisma.category.update({
-      where: { categoryId: id },
+  async updateSubcategory(id, data) {
+    return prisma.subcategory.update({
+      where: { subcategoryId: id },
       data,
     });
   },
 
   /**
-   * Delete a category.
-   * Only called after confirming no products reference it.
-   * @param {number} id - category ID
+   * Delete a subcategory.
+   * Only call after confirming no products reference it.
+   * @param {number} id - subcategory_id
+   * @returns {Promise<object>}
    */
-  async delete(id) {
-    return prisma.category.delete({
-      where: { categoryId: id },
+  async deleteSubcategory(id) {
+    return prisma.subcategory.delete({
+      where: { subcategoryId: id },
+    });
+  },
+
+  /* ── Combined ──────────────────────────── */
+
+  /**
+   * Get all root categories with their subcategories and product counts.
+   * Single query replaces the need for separate root + child fetches.
+   * @returns {Promise<Array>}
+   */
+  async getAllWithSubs() {
+    return prisma.category.findMany({
+      orderBy: { categoryName: "asc" },
+      include: {
+        subcategories: {
+          orderBy: { subcategoryName: "asc" },
+          include: {
+            _count: { select: { products: true } },
+          },
+        },
+      },
     });
   },
 };

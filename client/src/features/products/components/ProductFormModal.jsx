@@ -18,7 +18,6 @@ import { DropDown } from "@/components/filters/DropDown";
 import { createProductSchema, editProductSchema } from "../productValidation";
 import VariantCard from "./VariantCard";
 import ImageUpload from "./ImageUpload";
-import CategoryModal from "./CategoryModal";
 
 /**
  * ProductFormModal
@@ -34,7 +33,7 @@ import CategoryModal from "./CategoryModal";
  * - loading: boolean — true while fetching product detail for edit
  * - onSubmit: (data) => void
  * - isLoading: boolean — true while create/update mutation is running
- * - categories: array of { category_id, category_name }
+ * - categories: array of { category_id, category_name, subcategories: [{ subcategory_id, subcategory_name }] }
  * - ingredients: array of { ingredient_id, ingredient_name, unit }
  * - onUploadImage: (file) => Promise<{ data: { url: string } }>
  */
@@ -53,7 +52,6 @@ export default function ProductFormModal({
   const isEdit = isEditMode;
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
 
   const {
     register,
@@ -119,11 +117,6 @@ export default function ProductFormModal({
     onSubmit({ ...data, image_url: imageUrl });
   }
 
-  const categoryOptions = categories.map((c) => ({
-    value: c.category_id,
-    label: c.category_name,
-  }));
-
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-3xl">
@@ -150,9 +143,9 @@ export default function ProductFormModal({
                 Product Information
               </h3>
 
-              <div className="grid grid-cols-2 gap-4">
-                {/* Product Name — left */}
-                <div>
+              <div className="grid grid-cols-[1fr_220px] grid-rows-[auto_auto_auto] gap-4">
+                {/* Product Name — row 1, col 1 */}
+                <div className="[grid-row:1] [grid-column:1]">
                   <label className="mb-1.5 block text-sm font-semibold text-foreground">
                     Product Name
                   </label>
@@ -163,43 +156,50 @@ export default function ProductFormModal({
                   />
                 </div>
 
-                {/* Category — right */}
-                <div>
-                  <div className="mb-1.5 flex items-center justify-between">
-                    <label className="text-sm font-semibold text-foreground">
-                      Category
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setCategoryModalOpen(true)}
-                      className="flex items-center gap-0.5 text-xs text-primary hover:underline"
-                    >
-                      <Icon name="plus" size={12} />
-                      Add
-                    </button>
-                  </div>
+                {/* Category — row 2, col 1 */}
+                <div className="[grid-row:2] [grid-column:1]">
+                  <label className="mb-1.5 block text-sm font-semibold text-foreground">
+                    Category
+                  </label>
                   <Controller
-                    name="category_id"
+                    name="subcategory_id"
                     control={control}
                     render={({ field }) => (
                       <DropDown
-                        {...field}
-                        value={field.value || ""}
-                        options={categoryOptions}
-                        placeholder="Select category..."
+                        value={field.value ? String(field.value) : ""}
                         onChange={(val) => field.onChange(val ? Number(val) : undefined)}
+                        placeholder="Select category..."
+                        options={categories.flatMap((cat) =>
+                          (cat.subcategories || []).map((sub) => ({
+                            value: String(sub.subcategory_id),
+                            label: sub.subcategory_name,
+                          }))
+                        )}
                       />
                     )}
                   />
-                  {errors.category_id && (
+                  {errors.subcategory_id && (
                     <p className="mt-1.5 text-xs text-destructive">
-                      {errors.category_id.message}
+                      {errors.subcategory_id.message}
                     </p>
                   )}
                 </div>
 
-                {/* Image — left */}
-                <div>
+                {/* Description — row 3, col 1 */}
+                <div className="[grid-row:3] [grid-column:1]">
+                  <label className="mb-1.5 block text-sm font-semibold text-foreground">
+                    Description
+                  </label>
+                  <textarea
+                    placeholder="Optional product description..."
+                    rows={3}
+                    className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+                    {...register("description")}
+                  />
+                </div>
+
+                {/* Image — rows 1-3, col 2 */}
+                <div className="[grid-row:1/4] [grid-column:2]">
                   <label className="mb-1.5 block text-sm font-semibold text-foreground">
                     Image
                   </label>
@@ -215,26 +215,14 @@ export default function ProductFormModal({
                       }
                     }}
                     previewUrl={imagePreview}
-                  />
-                </div>
-
-                {/* Description — right */}
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-foreground">
-                    Description
-                  </label>
-                  <textarea
-                    placeholder="Optional product description..."
-                    rows={4}
-                    className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                    {...register("description")}
+                    className="h-[calc(100%-1.75rem)]"
                   />
                 </div>
               </div>
             </section>
 
             {/* ── Variants ─────────────────────── */}
-            <section>
+            <section className="border-t border-border pt-4">
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-foreground">
                   Variants {variantFields.length > 0 && `(${variantFields.length})`}
@@ -303,17 +291,6 @@ export default function ProductFormModal({
           </form>
         )}
       </DialogContent>
-
-      {/* Inline Category Create Modal */}
-      <CategoryModal
-        open={categoryModalOpen}
-        onOpenChange={setCategoryModalOpen}
-        standalone={false}
-        onCreated={(newCat) => {
-          // Auto-select the newly created category
-          setValue("category_id", newCat.category_id, { shouldValidate: true });
-        }}
-      />
     </Dialog>
   );
 }
@@ -358,7 +335,7 @@ function getDefaultValues(product, isEdit) {
   if (isEdit && product) {
     return {
       product_name: product.product_name || "",
-      category_id: product.category_id || undefined,
+      subcategory_id: product.subcategory_id || undefined,
       description: product.description || "",
       image_url: product.image_url || "",
       is_available: product.is_available,
@@ -378,7 +355,7 @@ function getDefaultValues(product, isEdit) {
 
   return {
     product_name: "",
-    category_id: undefined,
+    subcategory_id: undefined,
     description: "",
     image_url: "",
     is_available: true,

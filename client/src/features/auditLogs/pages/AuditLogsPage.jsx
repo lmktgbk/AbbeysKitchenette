@@ -123,7 +123,7 @@ function formatDescription(log) {
   const d = log.details || {};
   const name = d.name || "";
   const email = d.email || "";
-  const total = d.total != null ? `\u20B1${Number(d.total).toLocaleString()}` : "";
+  const total = d.total != null ? `₱${Number(d.total).toLocaleString()}` : "";
   const source = d.source || "";
   const reason = d.reason || "";
   const fields = d.fields || [];
@@ -132,7 +132,7 @@ function formatDescription(log) {
   const quantity = d.quantity != null ? String(d.quantity) : "";
   const quantityLost = d.quantity_lost != null ? String(d.quantity_lost) : "";
   const lossType = d.loss_type || "";
-  const costPerUnit = d.cost_per_unit != null ? `\u20B1${d.cost_per_unit}` : "";
+  const costPerUnit = d.cost_per_unit != null ? `₱${d.cost_per_unit}` : "";
   const userId = d.userId || "";
 
   switch (log.action) {
@@ -152,8 +152,8 @@ function formatDescription(log) {
     case "INGREDIENT_ARCHIVED": return `Archived "${name}"`;
     case "INGREDIENT_RESTORED": return `Restored "${name}"`;
     case "INGREDIENT_DELETED": return `Deleted "${name}"`;
-    case "STOCK_RESTOCKED": return `Restocked "${name}" \u2014 ${quantity} ${unit}${costPerUnit ? ` @ ${costPerUnit}/unit` : ""}`;
-    case "STOCK_LOSS_DECLARED": return `Loss: "${name}" \u2014 ${quantityLost} ${unit}${lossType ? ` (${lossType})` : ""}`;
+    case "STOCK_RESTOCKED": return `Restocked "${name}" — ${quantity} ${unit}${costPerUnit ? ` @ ${costPerUnit}/unit` : ""}`;
+    case "STOCK_LOSS_DECLARED": return `Loss: "${name}" — ${quantityLost} ${unit}${lossType ? ` (${lossType})` : ""}`;
 
     case "STAFF_CREATED": return `Created ${name}${role ? ` (${role})` : ""}`;
     case "STAFF_UPDATED": return `Updated ${name}${fields.length ? ` (${fields.join(", ")})` : ""}`;
@@ -164,17 +164,17 @@ function formatDescription(log) {
     case "STAFF_DELETED": return `Deleted ${name}`;
 
     case "LOGIN_SUCCESS": return `Logged in${role ? ` (${role})` : ""}`;
-    case "LOGIN_FAILED": return `Failed login attempt${email ? ` \u2014 ${email}` : ""}${userId ? ` \u2014 User ${userId.slice(0, 8)}` : ""}${reason ? ` (${reason})` : ""}`;
+    case "LOGIN_FAILED": return `Failed login attempt${email ? ` — ${email}` : ""}${userId ? ` — User ${userId.slice(0, 8)}` : ""}${reason ? ` (${reason})` : ""}`;
     case "LOGOUT": return "Logged out";
     case "OTP_VERIFIED": return "OTP verified";
     case "PIN_CHANGED": return "PIN changed";
     case "PASSWORD_CHANGED": return "Password changed";
 
-    case "ORDER_CREATED": return `Created order${total ? ` \u00B7 ${total}` : ""}${source ? ` \u00B7 ${source}` : ""}`;
-    case "ORDER_ACCEPTED": return `Accepted order${total ? ` \u00B7 ${total}` : ""}${source ? ` \u00B7 ${source}` : ""}`;
-    case "ORDER_COMPLETED": return `Completed order${total ? ` \u00B7 ${total}` : ""}`;
-    case "ORDER_CANCELLED": return `Cancelled order${reason ? ` \u2014 ${reason}` : ""}`;
-    case "ORDER_DELETED": return `Deleted order${total ? ` \u00B7 ${total}` : ""}`;
+    case "ORDER_CREATED": return `Created order${total ? ` · ${total}` : ""}${source ? ` · ${source}` : ""}`;
+    case "ORDER_ACCEPTED": return `Accepted order${total ? ` · ${total}` : ""}${source ? ` · ${source}` : ""}`;
+    case "ORDER_COMPLETED": return `Completed order${total ? ` · ${total}` : ""}`;
+    case "ORDER_CANCELLED": return `Cancelled order${reason ? ` — ${reason}` : ""}`;
+    case "ORDER_DELETED": return `Deleted order${total ? ` · ${total}` : ""}`;
 
     case "SETTINGS_UPDATED": return `Updated settings${fields.length ? ` (${fields.join(", ")})` : ""}`;
     case "FORECAST_RUN": return "Ran demand forecast";

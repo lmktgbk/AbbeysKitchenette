@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useGuestMenu } from "../query";
+import useAuthStore from "@/features/auth/authStore";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -12,14 +13,13 @@ import {
 /**
  * PosMenuGrid — product selection grid for the POS.
  *
- * Text-only product cards (no images) for speed.
- * Single variant → click adds directly (if available).
- * Multi-variant → click opens variant selector modal.
- * Unavailable variants are grayed out and disabled.
+  * Cashiers only see Beverages (category_name filter).
+ * All other roles see everything.
  */
 export default function PosMenuGrid({ onAddItem }) {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
+  const user = useAuthStore((s) => s.user);
 
   const { data: menuData, isPending, isFetching } = useGuestMenu({
     search: search || undefined,
@@ -27,11 +27,17 @@ export default function PosMenuGrid({ onAddItem }) {
 
   const allProducts = menuData?.data?.menu ?? [];
 
+  // Cashier → beverages only; others → all
+  const isCashier = user?.role === "cashier";
+  const visibleProducts = isCashier
+    ? allProducts.filter((p) => !p.category_name || p.category_name === "Beverages")
+    : allProducts;
+
   const categories = [
     { id: "all", name: "All" },
     ...Array.from(
       new Map(
-        allProducts
+        visibleProducts
           .filter((p) => p.category_name)
           .map((p) => [p.category_name, p.category_name])
       ).entries()
@@ -39,8 +45,8 @@ export default function PosMenuGrid({ onAddItem }) {
   ];
 
   const products = activeCategory === "all"
-    ? allProducts
-    : allProducts.filter((p) => p.category_name === activeCategory);
+    ? visibleProducts
+    : visibleProducts.filter((p) => p.category_name === activeCategory);
 
   if (isPending) {
     return (

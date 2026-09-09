@@ -69,6 +69,19 @@ export const orderController = {
   },
 
   /**
+   * GET /api/orders/kitchen/batches
+   * Batch preparation groups for preparing orders.
+   */
+  async getBatchGroups(req, res) {
+    try {
+      const batches = await orderService.getBatchGroups();
+      return successResponse(res, "Batch groups retrieved", { batches });
+    } catch (error) {
+      return handleError(res, error, "GET_BATCH_GROUPS_ERROR");
+    }
+  },
+
+  /**
    * GET /api/orders/:id
    * Single order detail with items + timeline.
    */
@@ -155,15 +168,60 @@ export const orderController = {
 
   /**
    * POST /api/orders/:id/cancel
-   * Delete (pending) or cancel + restore (accepted/next_in_line).
+   * Delete (pending) or cancel + restore (accepted/preparing).
    */
   async cancelOrder(req, res) {
     try {
-      const { reason } = req.body || {};
-      const result = await orderService.cancelOrDelete(req.params.id, req.user.id, reason);
+      const { reason, loss_option } = req.body || {};
+      const result = await orderService.cancelOrDelete(req.params.id, req.user.id, reason, { loss_option });
       return successResponse(res, result.action === "deleted" ? "Order deleted" : "Order cancelled", result);
     } catch (error) {
       return handleError(res, error, "CANCEL_ORDER_ERROR");
+    }
+  },
+
+  /**
+   * POST /api/orders/:id/prepare
+   * Transition order to preparing status.
+   */
+  async prepareOrder(req, res) {
+    try {
+      const order = await orderService.prepareOrder(req.params.id, req.user.id);
+      return successResponse(res, "Order is now preparing", { order });
+    } catch (error) {
+      return handleError(res, error, "PREPARE_ORDER_ERROR");
+    }
+  },
+
+  /**
+   * PATCH /api/orders/:id/items/:itemId
+   * Mark item as prepared.
+   */
+  async checkOrderItem(req, res) {
+    try {
+      const { is_prepared } = req.body;
+      const order = await orderService.checkOrderItem(req.params.id, Number(req.params.itemId), is_prepared, req.user.id);
+      return successResponse(res, "Item updated", { order });
+    } catch (error) {
+      return handleError(res, error, "CHECK_ITEM_ERROR");
+    }
+  },
+
+  /**
+   * POST /api/orders/losses/:lossId/override
+   * Override a loss record.
+   */
+  async overrideLoss(req, res) {
+    try {
+      const { override_reason, override_note } = req.body;
+      const result = await orderService.overrideLoss(Number(req.params.lossId), {
+        overrideReason: override_reason,
+        overrideNote: override_note,
+        userId: req.user.id,
+      });
+      return successResponse(res, "Loss overridden", result);
+    } catch (error) {
+      return handleError(res, error, "OVERRIDE_LOSS_ERROR");
     }
   },
 };

@@ -1,20 +1,28 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
-import { useKitchenDisplay } from "../query";
+import { useKitchenDisplay, useKitchenBatchGroups, useOrderMutations } from "../query";
+import useAuthStore from "@/features/auth/authStore";
 import KitchenHeader from "../components/KitchenHeader";
-import ProcessingCard from "../components/ProcessingCard";
-import NextCard from "../components/NextCard";
-import QueueList from "../components/QueueList";
+import OrderCard from "../components/OrderCard";
+import BatchSidebar from "../components/BatchSidebar";
 import ConfirmReadyModal from "../components/ConfirmReadyModal";
 import PrimarySpinner from "@/components/ui/spinner";
+import Icon from "@/components/ui/icon";
+
+const TABS = [
+  { key: "all", label: "All" },
+  { key: "accepted", label: "Accepted" },
+  { key: "preparing", label: "Preparing" },
+  { key: "completed", label: "Completed" },
+];
 
 export default function KitchenDisplay() {
   const {
     loading,
     refreshing,
-    processing,
-    nextInLine,
+    preparing,
     accepted,
+    completedToday,
     counts,
     toggleItemCheck,
     getCheckedSet,
@@ -22,27 +30,75 @@ export default function KitchenDisplay() {
     markingReady,
   } = useKitchenDisplay();
 
-  const [pendingOrder, setPendingOrder] = useState(null);
+  const { data: batchData } = useKitchenBatchGroups();
+  const mutations = useOrderMutations();
+  const user = useAuthStore((s) => s.user);
+
+  const [activeTab, setActiveTab] = useState("all");
+  const [pendingAction, setPendingAction] = useState(null);
   const [animatingOut, setAnimatingOut] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Role-based filtering: cashier sees beverages, kitchen sees food
+  const isCashier = user?.role === "cashier";
+  const categoryFilter = isCashier ? "Beverages" : "Food";
+
+  // Filter items by role (category_name from backend = root category)
+  const filterByRole = (orders) => {
+    return orders.map((order) => ({
+      ...order,
+      items: order.items.filter((item) => {
+        if (!item.category_name) return true;
+        return item.category_name === categoryFilter;
+      }),
+    })).filter((order) => order.items.length > 0);
+  };
+
+  const allOrders = useMemo(() => [...preparing, ...accepted, ...completedToday], [preparing, accepted, completedToday]);
+
+  const roleFiltered = useMemo(() => filterByRole(allOrders), [allOrders, categoryFilter]);
+
+  const displayOrders = useMemo(() => {
+    const active = roleFiltered.filter((o) => o.status === "preparing" || o.status === "accepted");
+    if (activeTab === "all") return active;
+    return roleFiltered.filter((o) => o.status === activeTab);
+  }, [roleFiltered, activeTab]);
+
+  const batches = batchData?.data?.batches ?? [];
+
+  async function handleAction(orderId, action) {
+    if (action === "prepare") {
+      try {
+        await mutations.prepare.mutateAsync(orderId);
+        toast.success("Order is now preparing");
+      } catch (err) {
+        toast.error(err.response?.data?.message || "Failed to prepare order");
+      }
+    } else if (action === "markReady") {
+      setPendingAction({ orderId, type: "ready" });
+    }
+  }
+
+  async function handleToggleItem(orderId, itemId, isPrepared) {
+    try {
+      await mutations.checkItem.mutateAsync({ orderId, itemId, data: { is_prepared: isPrepared } });
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to update item");
+    }
+  }
 
   async function handleConfirmReady() {
-    if (!pendingOrder) return;
-    const cs = getCheckedSet(pendingOrder.order_id);
-    if (cs.size !== (pendingOrder.items?.length ?? 0)) {
-      toast.error("Check off all items before marking as ready");
-      setPendingOrder(null);
-      return;
-    }
+    if (!pendingAction) return;
     try {
       setAnimatingOut(true);
       await new Promise((r) => setTimeout(r, 550));
-      await markReady(pendingOrder.order_id);
-      toast.success(`Order #${pendingOrder.order_number} marked ready — Queue advanced`);
-      setPendingOrder(null);
+      await markReady(pendingAction.orderId);
+      toast.success("Order completed");
+      setPendingAction(null);
       setAnimatingOut(false);
     } catch (err) {
       setAnimatingOut(false);
-      toast.error(err.response?.data?.message || "Could not mark order as ready.");
+      toast.error(err.response?.data?.message || "Could not complete order");
     }
   }
 
@@ -54,77 +110,101 @@ export default function KitchenDisplay() {
     );
   }
 
-  const checkedSet = processing ? getCheckedSet(processing.order_id) : new Set();
-  const interactionsDisabled = markingReady || animatingOut;
-
   return (
     <div className="h-screen overflow-hidden bg-background text-foreground font-sans flex flex-col">
-      <KitchenHeader counts={counts} refreshing={refreshing} />
+      <KitchenHeader refreshing={refreshing} />
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left — Now Preparing */}
-        <div className="flex flex-col p-5 gap-4 flex-1 min-w-0">
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="w-3 h-3 rounded-full kds-pulse-dot bg-primary" />
-            <span className="text-xs font-bold uppercase tracking-widest text-primary">
-              Now Preparing
-            </span>
-            <div className="h-px flex-1 bg-primary/15" />
-          </div>
-
-          <div className="flex-1 flex flex-col min-h-0">
-            <ProcessingCard
-              order={processing}
-              checkedSet={checkedSet}
-              onToggleItem={toggleItemCheck}
-              onMarkReady={setPendingOrder}
-              animatingOut={animatingOut}
-              disabled={interactionsDisabled}
-            />
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div className="w-px shrink-0 bg-border/60" />
-
-        {/* Right — Sidebar */}
-        <div className="bg-sidebar flex flex-col w-80 xl:w-96 shrink-0 overflow-hidden">
-          {/* Prepare Ahead */}
-          <div className="p-4 border-b border-border/60 shrink-0">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-2 h-2 rounded-full kds-pulse-dot bg-sky-500" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-sky-500">
-                Prepare Ahead
+      {/* Tab Bar */}
+      <div className="flex items-center gap-1 px-4 py-2 border-b border-border/60 shrink-0">
+        {TABS.map((tab) => {
+          const count = tab.key === "all"
+            ? roleFiltered.filter((o) => o.status === "preparing" || o.status === "accepted").length
+            : roleFiltered.filter((o) => o.status === tab.key).length;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                activeTab === tab.key
+                  ? "bg-primary/10 text-primary border border-primary/20"
+                  : "text-muted-foreground hover:bg-muted/50"
+              }`}
+            >
+              {tab.label}
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                activeTab === tab.key
+                  ? "bg-primary/20 text-primary"
+                  : "bg-muted text-muted-foreground"
+              }`}>
+                {count}
               </span>
-            </div>
-            <NextCard order={nextInLine} />
-          </div>
+            </button>
+          );
+        })}
 
-          {/* Accepted Queue */}
-          <div className="flex flex-col flex-1 overflow-hidden">
-            <div className="px-4 py-3 border-b border-border/60 shrink-0">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-muted-foreground/40" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Accepted Queue
-                </span>
-                <span className="ml-auto text-[9px] px-1.5 py-0.5 rounded-full font-bold bg-background border border-border text-warning">
-                  {accepted.length}
-                </span>
+        {/* Batch sidebar toggle */}
+        {batches.length > 0 && (
+          <button
+            onClick={() => setSidebarOpen((p) => !p)}
+            className={`ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              sidebarOpen
+                ? "bg-primary/10 text-primary border border-primary/20"
+                : "text-muted-foreground hover:bg-muted/50"
+            }`}
+          >
+            <Icon name="list" size={14} />
+            Batches
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-primary/20 text-primary">
+              {batches.length}
+            </span>
+          </button>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Order Grid */}
+        <div className="flex-1 overflow-y-auto p-4 modal-scroll">
+          {displayOrders.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground opacity-40">
+              <Icon name="coffee" size={40} />
+              <div className="text-sm font-semibold">
+                {activeTab === "all" ? "No active orders" : `No ${activeTab} orders`}
+              </div>
+              <div className="text-xs">
+                {activeTab === "all" ? "Waiting for new orders..." : "Nothing here yet"}
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-3 space-y-2 modal-scroll">
-              <QueueList orders={accepted} />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+              {displayOrders.map((order) => (
+                <OrderCard
+                  key={order.order_id}
+                  order={order}
+                  onToggleItem={handleToggleItem}
+                  onMarkReady={(id) => handleAction(id, order.status === "accepted" ? "prepare" : "markReady")}
+                  disabled={markingReady || animatingOut}
+                />
+              ))}
             </div>
-          </div>
+          )}
         </div>
+
+        {/* Batch Sidebar */}
+        {sidebarOpen && (
+          <BatchSidebar
+            batches={batches}
+            parentCategory={parentCategoryFilter}
+            onClose={() => setSidebarOpen(false)}
+          />
+        )}
       </div>
 
       <ConfirmReadyModal
-        order={pendingOrder}
-        open={!!pendingOrder}
+        order={allOrders.find((o) => o.order_id === pendingAction?.orderId)}
+        open={!!pendingAction}
         onConfirm={handleConfirmReady}
-        onCancel={() => !markingReady && setPendingOrder(null)}
+        onCancel={() => !markingReady && setPendingAction(null)}
         loading={markingReady}
       />
     </div>

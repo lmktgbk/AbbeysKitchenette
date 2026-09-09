@@ -3,7 +3,8 @@
  *
  * Route structure:
  *   /                → Landing page (public)
- *   /login           → Login (public, redirect if logged in)
+ *   /login           → Staff login — role selection + PIN (public, redirect if logged in)
+ *   /admin-login     → Admin login — email + password + OTP (public, hidden)
  *   /forgot-password → Forgot password (public)
  *   /reset-password  → Reset password from link (public)
  *   /change-pin      → Change PIN after mustChangePwd (protected)
@@ -28,6 +29,7 @@ import BlankLayout from "@/layouts/BlankLayout";
 import LandingPage from "@/features/landing/pages/LandingPage";
 import OrderingPage from "@/features/landing/pages/OrderingPage";
 import LoginPage from "@/features/auth/pages/LoginPage";
+import AdminLoginPage from "@/features/auth/pages/AdminLoginPage";
 import ForgotPasswordPage from "@/features/auth/pages/ForgotPasswordPage";
 import ResetPasswordPage from "@/features/auth/pages/ResetPasswordPage";
 import ChangePinPage from "@/features/auth/pages/ChangePinPage";
@@ -68,6 +70,14 @@ const router = createBrowserRouter([
                 element: (
                     <PublicRoute>
                         <LoginPage />
+                    </PublicRoute>
+                ),
+            },
+            {
+                path: "/admin-login",
+                element: (
+                    <PublicRoute>
+                        <AdminLoginPage />
                     </PublicRoute>
                 ),
             },

@@ -10,7 +10,12 @@ import {
   updateStatusSchema,
   cancelOrderSchema,
   fulfillOrderSchema,
+  prepareOrderSchema,
+  checkOrderItemSchema,
+  overrideLossSchema,
   orderIdParamSchema,
+  orderItemParamSchema,
+  lossIdParamSchema,
   getOrdersQuerySchema,
 } from "./order.validation.js";
 
@@ -42,6 +47,14 @@ router.get(
   authenticate,
   authorize("admin", "cashier", "kitchen"),
   orderController.getKitchenOrders,
+);
+
+// GET /api/orders/kitchen/batches — batch preparation groups (must be before /:id)
+router.get(
+  "/kitchen/batches",
+  authenticate,
+  authorize("admin", "cashier", "kitchen"),
+  orderController.getBatchGroups,
 );
 
 // GET /api/orders — list all orders
@@ -99,6 +112,36 @@ router.post(
   validateParams(orderIdParamSchema),
   validate(fulfillOrderSchema),
   orderController.fulfillOrder,
+);
+
+// POST /api/orders/:id/prepare — transition to preparing
+router.post(
+  "/:id/prepare",
+  authenticate,
+  authorize("admin", "cashier", "kitchen"),
+  validateParams(orderIdParamSchema),
+  validate(prepareOrderSchema),
+  orderController.prepareOrder,
+);
+
+// PATCH /api/orders/:id/items/:itemId — toggle item prepared
+router.patch(
+  "/:id/items/:itemId",
+  authenticate,
+  authorize("admin", "cashier", "kitchen"),
+  validateParams(orderItemParamSchema),
+  validate(checkOrderItemSchema),
+  orderController.checkOrderItem,
+);
+
+// POST /api/orders/losses/:lossId/override — override a loss
+router.post(
+  "/losses/:lossId/override",
+  authenticate,
+  authorize("admin"),
+  validateParams(lossIdParamSchema),
+  validate(overrideLossSchema),
+  orderController.overrideLoss,
 );
 
 // POST /api/orders/:id/cancel — delete or cancel

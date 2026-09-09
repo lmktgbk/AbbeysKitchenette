@@ -31,12 +31,13 @@ model User {
 
   restockBatches    RestockBatch[]
   lossRecords       LossRecord[]
+  lossOverriddenRecords LossRecord[] @relation("LossOverriddenBy")
   stockAdjustments  StockAdjustment[]
   createdOrders     Order[]          @relation("OrderCreator")
   acceptedOrders    Order[]          @relation("OrderAcceptedBy")
-  nextInlinedOrders Order[]          @relation("OrderNextInLineBy")
-  processingOrders  Order[]          @relation("OrderProcessingBy")
+  preparingOrders   Order[]          @relation("OrderPreparingBy")
   completedOrders   Order[]          @relation("OrderCompletedBy")
+  preparedOrderItems OrderItem[]     @relation("OrderItemPreparedBy")
   cancelledCancellations OrderCancellation[] @relation("OrderCancelledBy")
   auditLogs        AuditLog[]
 }
@@ -68,36 +69,51 @@ enum Role {
   kitchen
 }
 
-// ── Categories ────────────────────────────────────────────────
+// ── Categories (root level only) ──────────────────────────────
 model Category {
   categoryId   Int       @id @default(autoincrement()) @map("category_id")
   categoryName String    @unique @map("category_name") @db.VarChar(100)
   description  String?   @db.VarChar(500)
-  sortOrder    Int       @default(0) @map("sort_order")
-  isActive     Boolean   @default(true) @map("is_active")
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  products Product[]
+  subcategories Subcategory[]
 
   @@map("categories")
 }
 
-// ── Products ──────────────────────────────────────────────────
-model Product {
-  productId   String   @id @default(uuid()) @map("product_id") @db.Uuid
-  categoryId  Int      @map("category_id")
-  productName String   @map("product_name") @db.VarChar(150)
-  description String?  @db.VarChar(500)
-  imageUrl    String?  @map("image_url")
-  isAvailable Boolean  @default(true) @map("is_available")
-  isArchived  Boolean  @default(false) @map("is_archived")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+// ── Subcategories (under a root category) ─────────────────────
+model Subcategory {
+  subcategoryId   Int      @id @default(autoincrement()) @map("subcategory_id")
+  categoryId      Int      @map("category_id")
+  subcategoryName String   @map("subcategory_name") @db.VarChar(100)
+  description     String?  @db.VarChar(500)
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   category Category @relation(fields: [categoryId], references: [categoryId])
+  products Product[]
 
-  variants ProductVariant[]
+  @@unique([categoryId, subcategoryName])
+  @@map("subcategories")
+}
+
+// ── Products ──────────────────────────────────────────────────
+model Product {
+  productId     String      @id @default(uuid()) @map("product_id") @db.Uuid
+  subcategoryId Int         @map("subcategory_id")
+  productName   String      @map("product_name") @db.VarChar(150)
+  description   String?     @db.VarChar(500)
+  imageUrl      String?     @map("image_url")
+  isAvailable   Boolean     @default(true) @map("is_available")
+  isArchived    Boolean     @default(false) @map("is_archived")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  subcategory Subcategory @relation(fields: [subcategoryId], references: [subcategoryId])
+
+  variants   ProductVariant[]
   orderItems OrderItem[]
 
   @@map("products")
@@ -181,19 +197,27 @@ model RestockBatch {
 
 // ── Loss Records ─────────────────────────────────────────────
 model LossRecord {
-  lossId           Int      @id @default(autoincrement()) @map("loss_id")
-  ingredientId     String   @map("ingredient_id") @db.Uuid
-  declaredById     String   @map("declared_by") @db.Uuid
-  lossType         LossType @map("loss_type")
-  quantityLost     Decimal  @map("quantity_lost") @db.Decimal(10, 3)
-  costPerUnit      Decimal  @map("cost_per_unit") @db.Decimal(10, 4)
-  totalCostLost    Decimal  @map("total_cost_lost") @db.Decimal(10, 2)
-  relatedRestockId Int?     @map("related_restock_id")
-  notes            String?  @db.VarChar(500)
-  loggedAt         DateTime @default(now()) @map("logged_at")
+  lossId              Int                @id @default(autoincrement()) @map("loss_id")
+  ingredientId        String             @map("ingredient_id") @db.Uuid
+  declaredById        String             @map("declared_by") @db.Uuid
+  lossType            LossType           @map("loss_type")
+  quantityLost        Decimal            @map("quantity_lost") @db.Decimal(10, 3)
+  costPerUnit         Decimal            @map("cost_per_unit") @db.Decimal(10, 4)
+  totalCostLost       Decimal            @map("total_cost_lost") @db.Decimal(10, 2)
+  relatedRestockId    Int?               @map("related_restock_id")
+  relatedOrderId      String?            @map("related_order_id") @db.Uuid
+  relatedOrderItemId  Int?               @map("related_order_item_id")
+  notes               String?            @db.VarChar(500)
+  overrideReason      LossOverrideReason? @map("override_reason")
+  overrideNote        String?            @map("override_note") @db.VarChar(500)
+  overriddenById      String?            @map("overridden_by") @db.Uuid
+  overriddenAt        DateTime?          @map("overridden_at") @db.Timestamptz
+  loggedAt            DateTime           @default(now()) @map("logged_at")
 
-  ingredient Ingredient @relation(fields: [ingredientId], references: [ingredientId], onDelete: Cascade)
-  declaredBy User       @relation(fields: [declaredById], references: [id])
+  ingredient    Ingredient @relation(fields: [ingredientId], references: [ingredientId], onDelete: Cascade)
+  declaredBy    User       @relation(fields: [declaredById], references: [id])
+  relatedOrder  Order?     @relation(fields: [relatedOrderId], references: [orderId])
+  overriddenBy  User?      @relation("LossOverriddenBy", fields: [overriddenById], references: [id])
 
   @@map("loss_records")
 }
@@ -239,9 +263,18 @@ enum LossType {
   spoilage
   spillage
   expiry
+  cancellation
   other
 
   @@map("loss_type_enum")
+}
+
+enum LossOverrideReason {
+  transferred
+  not_used
+  other
+
+  @@map("loss_override_reason_enum")
 }
 
 enum AdjustmentType {
@@ -272,8 +305,7 @@ enum OrderSource {
 enum OrderStatus {
   pending
   accepted
-  next_in_line
-  processing
+  preparing
   completed
   cancelled
 
@@ -300,12 +332,11 @@ model Order {
   // Status timestamps + actors
   acceptedAt      DateTime?   @map("accepted_at") @db.Timestamptz
   acceptedBy      String?     @map("accepted_by") @db.Uuid
-  nextInLineAt    DateTime?   @map("next_in_line_at") @db.Timestamptz
-  nextInLineBy    String?     @map("next_in_line_by") @db.Uuid
-  processingAt    DateTime?   @map("processing_at") @db.Timestamptz
-  processingBy    String?     @map("processing_by") @db.Uuid
+  preparingAt     DateTime?   @map("preparing_at") @db.Timestamptz
+  preparingBy     String?     @map("preparing_by") @db.Uuid
   completedAt     DateTime?   @map("completed_at") @db.Timestamptz
   completedBy     String?     @map("completed_by") @db.Uuid
+  fulfillmentMinutes Int?    @map("fulfillment_minutes")
 
   // Payment
   totalAmount   Decimal     @default(0) @map("total_amount") @db.Decimal(10, 2)
@@ -322,13 +353,13 @@ model Order {
   // Relations
   creator         User?       @relation("OrderCreator", fields: [createdBy], references: [id])
   acceptedByUser  User?       @relation("OrderAcceptedBy", fields: [acceptedBy], references: [id])
-  nextInLineByUser User?      @relation("OrderNextInLineBy", fields: [nextInLineBy], references: [id])
-  processingByUser User?      @relation("OrderProcessingBy", fields: [processingBy], references: [id])
+  preparingByUser User?       @relation("OrderPreparingBy", fields: [preparingBy], references: [id])
   completedByUser  User?      @relation("OrderCompletedBy", fields: [completedBy], references: [id])
 
   items         OrderItem[]
   cancellation  OrderCancellation?
   deductions    OrderIngredientDeduction[]
+  losses        LossRecord[]
   receipt       Receipt?
 
   @@index([status])
@@ -345,10 +376,14 @@ model OrderItem {
   quantity     Int
   unitPrice    Decimal  @map("unit_price") @db.Decimal(10, 2)
   subtotal     Decimal? @db.Decimal(10, 2)
+  isPrepared   Boolean  @default(false) @map("is_prepared")
+  preparedBy   String?  @map("prepared_by") @db.Uuid
+  preparedAt   DateTime? @map("prepared_at") @db.Timestamptz
 
   order    Order           @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
   product  Product         @relation(fields: [productId], references: [productId])
   variant  ProductVariant  @relation(fields: [variantId], references: [variantId])
+  preparedByUser User?    @relation("OrderItemPreparedBy", fields: [preparedBy], references: [id])
 
   @@map("order_items")
 }

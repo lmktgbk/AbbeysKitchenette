@@ -16,8 +16,10 @@ function mapToProductResponse(product, extra = {}) {
   return {
     product_id: product.product_id ?? product.productId,
     product_name: product.product_name ?? product.productName,
-    category_id: product.category_id ?? product.categoryId,
-    category_name: product.category_name ?? product.category?.categoryName ?? null,
+    subcategory_id: product.subcategory_id ?? product.subcategoryId,
+    subcategory_name: product.subcategory_name ?? product.subcategory?.subcategoryName ?? null,
+    category_id: product.category_id ?? product.subcategory?.category?.categoryId ?? null,
+    category_name: product.category_name ?? product.subcategory?.category?.categoryName ?? null,
     description: product.description,
     image_url: product.image_url ?? product.imageUrl,
     is_available: product.is_available ?? product.isAvailable,
@@ -197,7 +199,7 @@ export const productService = {
       const newProduct = await productRepository.create(
         {
           productName: data.product_name.trim(),
-          categoryId: data.category_id,
+          subcategoryId: data.subcategory_id,
           description: data.description || null,
           imageUrl: data.image_url || null,
           isAvailable: data.is_available ?? true,
@@ -253,7 +255,7 @@ export const productService = {
     }
 
     // Step 3: Map other fields
-    if (data.category_id !== undefined) updateData.categoryId = data.category_id;
+    if (data.subcategory_id !== undefined) updateData.subcategoryId = data.subcategory_id;
     if (data.description !== undefined) updateData.description = data.description || null;
     if (data.image_url !== undefined) {
       // Delete old Cloudinary image if replacing or removing
@@ -395,6 +397,15 @@ export const productService = {
     }
 
     await productRepository.update(id, { isAvailable: true });
+
+    // Recompute variant availability based on ingredient stock
+    const variants = await productRepository.findVariantsByProductId(id);
+    const ingredientIds = [...new Set(
+      variants.flatMap((v) => v.recipes.map((r) => r.ingredientId))
+    )];
+    if (ingredientIds.length > 0) {
+      await this.recomputeVariantAvailability(ingredientIds);
+    }
 
     auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_ACTIVATED, targetType: "product", targetId: id, details: { name: existing.productName } });
 

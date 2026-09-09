@@ -141,8 +141,7 @@ export const orderRepository = {
         },
         creator: { select: { id: true, name: true, role: true } },
         acceptedByUser: { select: { id: true, name: true, role: true } },
-        nextInLineByUser: { select: { id: true, name: true, role: true } },
-        processingByUser: { select: { id: true, name: true, role: true } },
+        preparingByUser: { select: { id: true, name: true, role: true } },
         completedByUser: { select: { id: true, name: true, role: true } },
         cancellation: {
           include: { cancelledByUser: { select: { id: true, name: true, role: true } } },
@@ -204,8 +203,9 @@ export const orderRepository = {
         o.order_id, o.order_number, o.customer_name, o.table_number,
         o.order_source, o.status, o.total_amount, o.amount_paid, o.change,
         o.guest_token,
-        o.accepted_at, o.accepted_by, o.next_in_line_at,
-        o.processing_at, o.processing_by, o.completed_at, o.completed_by,
+        o.accepted_at, o.accepted_by,
+        o.preparing_at, o.preparing_by,
+        o.completed_at, o.completed_by,
         o.created_by, o.created_at, o.updated_at,
         u.name AS creator_name,
         COUNT(*) OVER() AS total_count
@@ -242,7 +242,7 @@ export const orderRepository = {
       _count: { _all: true },
     });
 
-    const counts = { pending: 0, accepted: 0, next_in_line: 0, processing: 0, completed: 0, cancelled: 0 };
+    const counts = { pending: 0, accepted: 0, preparing: 0, completed: 0, cancelled: 0 };
     for (const row of result) {
       counts[row.status] = row._count._all;
     }
@@ -270,15 +270,13 @@ export const orderRepository = {
       data.acceptedBy = meta.userId;
       if (meta.amountPaid !== undefined) data.amountPaid = meta.amountPaid;
       if (meta.change !== undefined) data.change = meta.change;
-    } else if (status === "next_in_line") {
-      data.nextInLineAt = new Date();
-      if (meta.userId) data.nextInLineBy = meta.userId;
-    } else if (status === "processing") {
-      data.processingAt = new Date();
-      data.processingBy = meta.userId;
+    } else if (status === "preparing") {
+      data.preparingAt = new Date();
+      data.preparingBy = meta.userId;
     } else if (status === "completed") {
       data.completedAt = new Date();
       data.completedBy = meta.userId;
+      if (meta.fulfillmentMinutes !== undefined) data.fulfillmentMinutes = meta.fulfillmentMinutes;
     }
 
     return client.order.update({
@@ -349,42 +347,55 @@ export const orderRepository = {
     return client.order.delete({ where: { orderId: id } });
   },
 
-  /* ── Queue Management ──────────────────── */
+  /* ── Order Item Preparation ───────────── */
 
-  /**
-   * Count orders with a given status.
-   * @param {string} status - order status
-   * @returns {number} - count
-   */
-  async countByStatusSingle(status) {
-    const result = await prisma.$queryRaw`
-      SELECT COUNT(*)::int AS count FROM orders WHERE status = ${status}
-    `;
-    return result[0]?.count ?? 0;
+  async setOrderItemPrepared(orderItemId, isPrepared, userId, tx) {
+    const client = tx || prisma;
+    return client.orderItem.update({
+      where: { orderItemId },
+      data: {
+        isPrepared,
+        preparedBy: isPrepared ? userId : null,
+        preparedAt: isPrepared ? new Date() : null,
+      },
+    });
   },
 
-  /**
-   * Find oldest order by status (for auto-promotion).
-   * @param {string} status - order status
-   * @returns {object|null} - order or null
-   */
-  async findOldestByStatus(status) {
-    // Map status to its timestamp field for FIFO ordering
-    const tsField = {
-      accepted: "accepted_at",
-      next_in_line: "next_in_line_at",
-      processing: "processing_at",
-    }[status] || "created_at";
+  async getOrderItems(orderId) {
+    return prisma.orderItem.findMany({
+      where: { orderId },
+      include: {
+        product: { select: { productName: true } },
+        variant: { select: { sizeName: true } },
+        preparedByUser: { select: { name: true, role: true } },
+      },
+    });
+  },
 
-    const result = await prisma.$queryRawUnsafe(`
-      SELECT order_id FROM orders
-      WHERE status = $1
-      ORDER BY ${tsField} ASC
-      LIMIT 1
-    `, status);
+  /* ── Loss Records ─────────────────────── */
 
-    if (!result[0]) return null;
-    return this.findById(result[0].order_id);
+  async getOrderItemLosses(orderId) {
+    return prisma.lossRecord.findMany({
+      where: { relatedOrderId: orderId },
+    });
+  },
+
+  async createOrderItemLoss(data, tx) {
+    const client = tx || prisma;
+    return client.lossRecord.create({ data });
+  },
+
+  async overrideLoss(lossId, { overrideReason, overrideNote, overriddenById }, tx) {
+    const client = tx || prisma;
+    return client.lossRecord.update({
+      where: { lossId },
+      data: {
+        overrideReason,
+        overrideNote,
+        overriddenById,
+        overriddenAt: new Date(),
+      },
+    });
   },
 
   /* ── Ingredient Deductions ─────────────── */
@@ -538,8 +549,9 @@ export const orderRepository = {
       SELECT
         o.order_id, o.order_number, o.customer_name, o.table_number,
         o.order_source, o.status, o.total_amount,
-        o.accepted_at, o.accepted_by, o.next_in_line_at,
-        o.processing_at, o.processing_by, o.completed_at, o.completed_by,
+        o.accepted_at, o.accepted_by,
+        o.preparing_at, o.preparing_by,
+        o.completed_at, o.completed_by,
         o.created_by, o.created_at, o.updated_at,
         COALESCE(
           json_agg(
@@ -550,7 +562,12 @@ export const orderRepository = {
               'variant_id', oi.variant_id,
               'size_name', v.size_name,
               'quantity', oi.quantity,
-              'unit_price', oi.unit_price
+              'unit_price', oi.unit_price,
+              'is_prepared', oi.is_prepared,
+              'category_id', c.category_id,
+              'category_name', c.category_name,
+              'subcategory_id', sc.subcategory_id,
+              'subcategory_name', sc.subcategory_name
             )
           ) FILTER (WHERE oi.order_item_id IS NOT NULL),
           '[]'
@@ -559,16 +576,54 @@ export const orderRepository = {
       LEFT JOIN order_items oi ON oi.order_id = o.order_id
       LEFT JOIN products p ON p.product_id = oi.product_id
       LEFT JOIN product_variants v ON v.variant_id = oi.variant_id
-      WHERE o.status IN ('accepted','next_in_line','processing','completed')
+      LEFT JOIN subcategories sc ON sc.subcategory_id = p.subcategory_id
+      LEFT JOIN categories c ON c.category_id = sc.category_id
+      WHERE (
+            o.status IN ('accepted','preparing')
+            OR (o.status = 'completed' AND o.completed_at >= (CURRENT_DATE - INTERVAL '1 day'))
+          )
       GROUP BY o.order_id
       ORDER BY
         CASE o.status
-          WHEN 'processing' THEN 1
-          WHEN 'next_in_line' THEN 2
-          WHEN 'accepted' THEN 3
-          WHEN 'completed' THEN 4
+          WHEN 'preparing' THEN 1
+          WHEN 'accepted' THEN 2
+          WHEN 'completed' THEN 3
         END,
         o.created_at ASC
+    `;
+    return prisma.$queryRawUnsafe(sql);
+  },
+
+  /**
+   * Find batch preparation groups for preparing orders.
+   * Groups order items by product+variant so kitchen can batch-cook.
+   */
+  async findBatchGroups() {
+    const sql = `
+      SELECT
+        p.product_id,
+        p.product_name,
+        v.variant_id,
+        v.size_name,
+        SUM(oi.quantity) AS total_quantity,
+        json_agg(
+          json_build_object(
+            'order_id', o.order_id,
+            'order_number', o.order_number,
+            'quantity', oi.quantity,
+            'order_item_id', oi.order_item_id,
+            'is_prepared', oi.is_prepared
+          )
+          ORDER BY o.order_number
+        ) AS orders
+      FROM order_items oi
+      JOIN orders o ON o.order_id = oi.order_id
+      JOIN products p ON p.product_id = oi.product_id
+      JOIN product_variants v ON v.variant_id = oi.variant_id
+      WHERE o.status = 'preparing'
+        AND oi.is_prepared = false
+      GROUP BY p.product_id, p.product_name, v.variant_id, v.size_name
+      ORDER BY p.product_name, v.size_name
     `;
     return prisma.$queryRawUnsafe(sql);
   },

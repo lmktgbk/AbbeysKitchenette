@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { cn } from "@/lib/utils";
 import Icon from "@/components/ui/icon";
 
 /**
@@ -11,8 +12,9 @@ import Icon from "@/components/ui/icon";
  * - value: string | null (current image URL)
  * - onChange: (file: File | null) => void
  * - previewUrl: string | null (derived preview URL from value or selected file)
+ * - className: string (additional classes for the container)
  */
-export default function ImageUpload({ value, onChange, previewUrl }) {
+export default function ImageUpload({ value, onChange, previewUrl, className }) {
   const inputRef = useRef(null);
 
   function handleClick() {
@@ -35,7 +37,10 @@ export default function ImageUpload({ value, onChange, previewUrl }) {
   return (
     <div
       onClick={handleClick}
-      className="group relative flex aspect-square cursor-pointer flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border border-dashed border-border bg-muted/30 transition-colors hover:border-muted-foreground/50"
+      className={cn(
+        "group relative flex min-h-[180px] cursor-pointer flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border border-dashed border-border bg-muted/30 transition-colors hover:border-muted-foreground/50",
+        className
+      )}
     >
       {previewUrl ? (
         <>

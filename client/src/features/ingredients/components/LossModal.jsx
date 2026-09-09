@@ -55,7 +55,7 @@ export default function LossModal({
     resolver: zodResolver(lossSchema),
     defaultValues: {
       loss_type: "",
-      quantity_lost: 0,
+      quantity_lost: "",
       batch_id: "",
       total_cost: "",
       notes: "",
@@ -124,7 +124,7 @@ export default function LossModal({
     if (open) {
       reset({
         loss_type: "",
-        quantity_lost: 0,
+        quantity_lost: "",
         batch_id: "",
         total_cost: "",
         notes: "",

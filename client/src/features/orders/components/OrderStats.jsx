@@ -6,7 +6,7 @@ import Icon from "@/components/ui/icon";
  * OrderStats
  *
  * KPI cards showing order status counts for today.
- * 6 cards: Pending, Accepted, Next in Line, Processing, Completed, Cancelled.
+ * 5 cards: Pending, Accepted, Preparing, Completed, Cancelled.
  * Clickable to filter order table by status.
  */
 export default function OrderStats({ activeStatus, onStatusClick }) {
@@ -15,16 +15,15 @@ export default function OrderStats({ activeStatus, onStatusClick }) {
   const stats = statsData?.data?.stats ?? {
     pending: 0,
     accepted: 0,
-    next_in_line: 0,
-    processing: 0,
+    preparing: 0,
     completed: 0,
     cancelled: 0,
   };
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        {Array.from({ length: 6 }).map((_, i) => (
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
             <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
             <div className="flex-1 space-y-2">
@@ -40,14 +39,13 @@ export default function OrderStats({ activeStatus, onStatusClick }) {
   const cards = [
     { key: "pending", label: "Pending", icon: "clock", color: "text-yellow-600 dark:text-yellow-400", ring: "ring-yellow-500/20" },
     { key: "accepted", label: "Accepted", icon: "check", color: "text-blue-600 dark:text-blue-400", ring: "ring-blue-500/20" },
-    { key: "next_in_line", label: "Next in Line", icon: "chevronRight", color: "text-purple-600 dark:text-purple-400", ring: "ring-purple-500/20" },
-    { key: "processing", label: "Processing", icon: "coffee", color: "text-orange-600 dark:text-orange-400", ring: "ring-orange-500/20" },
+    { key: "preparing", label: "Preparing", icon: "coffee", color: "text-orange-600 dark:text-orange-400", ring: "ring-orange-500/20" },
     { key: "completed", label: "Completed", icon: "checkCircle", color: "text-green-600 dark:text-green-400", ring: "ring-green-500/20" },
     { key: "cancelled", label: "Cancelled", icon: "x", color: "text-red-600 dark:text-red-400", ring: "ring-red-500/20" },
   ];
 
   return (
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
       {cards.map((card) => (
         <button
           key={card.key}

@@ -410,8 +410,8 @@ function ExpandedRow({ ingredient, onRestock, onLoss, onBatches, onEdit, onArchi
               <DetailRow label="Last Restock" value={lastRestockStr} />
             </div>
 
-            {/* Right — Current Batch + Actions */}
-            <div className="w-full lg:w-2/3 space-y-5">
+            {/* Right — Current Batch */}
+            <div className="w-full lg:w-2/3">
               {activeBatch ? (
                 <CurrentBatch batch={activeBatch} unit={unit} />
               ) : (
@@ -425,54 +425,54 @@ function ExpandedRow({ ingredient, onRestock, onLoss, onBatches, onEdit, onArchi
                   </p>
                 </div>
               )}
+            </div>
+          </div>
 
-              {/* Actions */}
-              <div className="border-t border-border pt-4">
-                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
-                  Actions
-                </p>
-                <div className="flex flex-wrap justify-end gap-2">
-                  {showArchived ? (
-                    <>
-                      <Button size="sm" variant="outline" onClick={() => onRestore(ingredient)} className="text-success border-success/30 hover:bg-success/10 hover:text-success">
-                        <Icon name="package" size={14} />
-                        Restore
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => onDelete(ingredient)} className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive">
-                        <Icon name="x" size={14} />
-                        Delete
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button size="sm" variant="outline" onClick={() => onRestock(ingredient)}>
-                        <Icon name="package" size={14} />
-                        Restock
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => onLoss(ingredient)}>
-                        <Icon name="x" size={14} />
-                        Loss
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => onBatches(ingredient)}>
-                        <Icon name="warehouse" size={14} />
-                        Batches
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => onEdit(ingredient)}>
-                        <Icon name="edit" size={14} />
-                        Edit
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => onArchive(ingredient)}>
-                        <Icon name="archive" size={14} />
-                        Archive
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => onDelete(ingredient)} className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive">
-                        <Icon name="x" size={14} />
-                        Delete
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
+          {/* Actions — full width below both columns */}
+          <div className="border-t border-border pt-4 mt-5">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
+              Actions
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {showArchived ? (
+                <>
+                  <Button size="sm" variant="outline" onClick={() => onRestore(ingredient)} className="text-success border-success/30 hover:bg-success/10 hover:text-success">
+                    <Icon name="package" size={14} />
+                    Restore
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => onDelete(ingredient)} className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive">
+                    <Icon name="x" size={14} />
+                    Delete
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button size="sm" variant="outline" onClick={() => onRestock(ingredient)}>
+                    <Icon name="package" size={14} />
+                    Restock
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => onLoss(ingredient)}>
+                    <Icon name="x" size={14} />
+                    Loss
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => onBatches(ingredient)}>
+                    <Icon name="warehouse" size={14} />
+                    Batches
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => onEdit(ingredient)}>
+                    <Icon name="edit" size={14} />
+                    Edit
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => onArchive(ingredient)}>
+                    <Icon name="archive" size={14} />
+                    Archive
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => onDelete(ingredient)} className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive">
+                    <Icon name="x" size={14} />
+                    Delete
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -497,7 +497,7 @@ function CurrentBatch({ batch, unit }) {
   return (
     <div>
       <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
-        Current Batch
+        Current Batch #{batch.batch_id}
       </p>
       <div className="rounded-lg border border-border p-4 space-y-3">
         <DetailRow label="Stock Added" value={`${batch.quantity_added.toLocaleString()} ${unit}`} />

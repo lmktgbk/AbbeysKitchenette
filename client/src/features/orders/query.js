@@ -21,6 +21,7 @@ const orderKeys = {
   list: (params) => ["orders", "list", params],
   stats: ["orders", "stats"],
   detail: (id) => ["orders", "detail", id],
+  kitchenBatches: ["orders", "kitchen", "batches"],
 };
 
 const guestKeys = {
@@ -90,9 +91,22 @@ export function usePendingOnlineOrders() {
 }
 
 /**
+ * useKitchenBatchGroups — batch preparation groups for preparing orders.
+ * Polls every 5s alongside kitchen display.
+ */
+export function useKitchenBatchGroups() {
+  return useQuery({
+    queryKey: orderKeys.kitchenBatches,
+    queryFn: api.getKitchenBatchGroupsRequest,
+    staleTime: 5000,
+    refetchInterval: 5000,
+  });
+}
+
+/**
  * useKitchenDisplay — kitchen display hook.
- * Polls every 5s, splits orders into processing/nextInLine/accepted/completedToday.
- * Manages client-side item checked state (Map<orderId, Set<itemIndex>>).
+ * Polls every 5s, returns all active orders grouped by status.
+ * Manages client-side item checked state (Map<orderId, Set<orderItemId>>).
  */
 export function useKitchenDisplay() {
   const queryClient = useQueryClient();
@@ -108,20 +122,19 @@ export function useKitchenDisplay() {
 
   const orders = data?.data?.orders ?? [];
 
-  const { processing, nextInLine, accepted } = useMemo(() => {
-    const active = orders.filter((o) =>
-      ["accepted", "next_in_line", "processing"].includes(o.status),
-    );
-    const processingOrder = active.find((o) => o.status === "processing") ?? null;
-    const nextOrder = active.find((o) => o.status === "next_in_line") ?? null;
-    const acceptedOrders = active
+  const { preparing, accepted, completedToday } = useMemo(() => {
+    const preparingOrders = orders
+      .filter((o) => o.status === "preparing")
+      .sort((a, b) => new Date(a.preparing_at || a.created_at) - new Date(b.preparing_at || b.created_at));
+    const acceptedOrders = orders
       .filter((o) => o.status === "accepted")
       .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    const completedOrders = orders.filter((o) => o.status === "completed");
 
     return {
-      processing: processingOrder,
-      nextInLine: nextOrder,
+      preparing: preparingOrders,
       accepted: acceptedOrders,
+      completedToday: completedOrders,
     };
   }, [orders]);
 
@@ -137,12 +150,12 @@ export function useKitchenDisplay() {
     },
   });
 
-  const toggleItemCheck = useCallback((orderId, itemIndex) => {
+  const toggleItemCheck = useCallback((orderId, orderItemId) => {
     setCheckedItems((prev) => {
       const next = new Map(prev);
       const set = new Set(next.get(orderId) ?? []);
-      if (set.has(itemIndex)) set.delete(itemIndex);
-      else set.add(itemIndex);
+      if (set.has(orderItemId)) set.delete(orderItemId);
+      else set.add(orderItemId);
       next.set(orderId, set);
       return next;
     });
@@ -156,12 +169,12 @@ export function useKitchenDisplay() {
   return {
     loading: isLoading,
     refreshing: isFetching && !isLoading,
-    processing,
-    nextInLine,
+    preparing,
     accepted,
+    completedToday,
     counts: {
-      processing: processing ? 1 : 0,
-      queue: accepted.length,
+      preparing: preparing.length,
+      accepted: accepted.length,
     },
     toggleItemCheck,
     getCheckedSet,
@@ -220,6 +233,21 @@ export function useOrderMutations() {
     fulfill: useMutation({
       mutationFn: ({ id, data }) => api.fulfillOrderRequest(id, data),
       onSuccess: () => invalidateAll(),
+    }),
+
+    /** Prepare order — transition accepted → preparing */
+    prepare: useMutation({
+      mutationFn: (id) => api.prepareOrderRequest(id),
+      onSuccess: () => invalidateAll(),
+    }),
+
+    /** Check/uncheck order item */
+    checkItem: useMutation({
+      mutationFn: ({ orderId, itemId, data }) => api.checkOrderItemRequest(orderId, itemId, data),
+      onSuccess: (_data, vars) => {
+        queryClient.invalidateQueries({ queryKey: orderKeys.detail(vars.orderId) });
+        queryClient.invalidateQueries({ queryKey: orderKeys.all });
+      },
     }),
   };
 }

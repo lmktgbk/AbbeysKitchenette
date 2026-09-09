@@ -171,3 +171,86 @@ export async function confirmWithReason({ title, message, reasons = DEFAULT_REAS
     const finalReason = selectedReason === "Other" ? customReason : selectedReason;
     return { confirmed: result.isConfirmed, reason: result.isConfirmed ? finalReason : "" };
 }
+
+/**
+ * Confirmation dialog for cancelling a Preparing order.
+ * Shows two options: No Loss (full restore + refund) or With Loss (partial restore + LossRecords).
+ *
+ * @param {Object} opts
+ * @param {string} opts.orderNumber - Order number for display
+ * @returns {Promise<{ confirmed: boolean, loss_option: "no_loss" | "with_loss" | null }>}
+ */
+export async function confirmWithLossOption({ orderNumber }) {
+    let selectedOption = null;
+
+    const htmlContent = `
+    <p style="text-align:center; margin:0 0 12px 0;">
+      Order <strong>${orderNumber}</strong> is being prepared.<br/>
+      How do you want to handle cancellation?
+    </p>
+    <div style="display:flex; flex-direction:column; gap:10px; margin-top:16px;">
+      <button type="button" class="loss-option" data-option="no_loss"
+        style="display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:8px; border:1.5px solid var(--border);
+               background:var(--background); color:var(--foreground); font-size:13px; cursor:pointer; text-align:left; transition:all 0.15s;">
+        <span style="font-size:20px;">🔄</span>
+        <div>
+          <div style="font-weight:600;">No Loss</div>
+          <div style="font-size:12px; color:var(--muted-foreground);">Restore all ingredients, full refund</div>
+        </div>
+      </button>
+      <button type="button" class="loss-option" data-option="with_loss"
+        style="display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:8px; border:1.5px solid var(--border);
+               background:var(--background); color:var(--foreground); font-size:13px; cursor:pointer; text-align:left; transition:all 0.15s;">
+        <span style="font-size:20px;">📉</span>
+        <div>
+          <div style="font-weight:600;">With Loss</div>
+          <div style="font-size:12px; color:var(--muted-foreground);">Restore unchecked items only, record losses</div>
+        </div>
+      </button>
+    </div>
+  `;
+
+    const styleTag = document.createElement("style");
+    styleTag.textContent = `
+      .loss-option:hover { border-color: var(--primary) !important; background: var(--primary/10) !important; }
+      .loss-option.active { border-color: var(--primary) !important; background: var(--primary) !important; color: var(--card) !important; font-weight:600; }
+      .loss-option.active .loss-desc { color: var(--card) !important; opacity:0.9; }
+    `;
+    document.head.appendChild(styleTag);
+
+    const result = await Swal.fire({
+        title: "Cancel Order?",
+        html: htmlContent,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Confirm Cancellation",
+        cancelButtonText: "Keep Order",
+        confirmButtonColor: "var(--destructive)",
+        reverseButtons: true,
+        background: "var(--card)",
+        color: "var(--foreground)",
+        didOpen: () => {
+            const popup = Swal.getPopup();
+            const options = popup.querySelectorAll(".loss-option");
+            options.forEach((opt) => {
+                opt.addEventListener("click", () => {
+                    selectedOption = opt.dataset.option;
+                    options.forEach((o) => o.classList.remove("active"));
+                    opt.classList.add("active");
+                    Swal.getConfirmButton().disabled = false;
+                });
+            });
+            Swal.getConfirmButton().disabled = true;
+        },
+        preConfirm: () => {
+            if (!selectedOption) {
+                Swal.showValidationMessage("Please select an option");
+                return false;
+            }
+            return true;
+        },
+    });
+
+    styleTag.remove();
+    return { confirmed: result.isConfirmed, loss_option: result.isConfirmed ? selectedOption : null };
+}
