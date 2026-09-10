@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useProductList } from "../query";
 import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
@@ -65,7 +65,7 @@ export default function ProductGrid({
   const filterActive =
     activeFilters.category !== "all" || statusFilter !== "all";
 
-  const queryParams = {
+  const queryParams = useMemo(() => ({
     page: currentPage,
     limit: pageSize,
     search: search || undefined,
@@ -73,9 +73,9 @@ export default function ProductGrid({
     status: statusFilter !== "all" ? statusFilter : undefined,
     sortBy,
     sortDir,
-  };
+  }), [currentPage, pageSize, search, activeFilters.category, statusFilter, sortBy, sortDir]);
 
-  const { data, isLoading, isRefetching } = useProductList(queryParams);
+  const { data, isLoading, isRefetching, error } = useProductList(queryParams);
   const products = data?.data?.products ?? [];
   const totalItems = data?.data?.totalItems ?? 0;
 
@@ -153,6 +153,12 @@ export default function ProductGrid({
               <SkeletonCard key={i} />
             ))}
           </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-16">
+            <Icon name="alertTriangle" size={48} className="mb-4 text-destructive/40" />
+            <p className="mb-1 text-sm font-medium text-foreground">Failed to load products</p>
+            <p className="text-xs text-muted-foreground">Please try again later.</p>
+          </div>
         ) : products.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
             <Icon name="package" size={48} className="mb-4 text-muted-foreground/30" />
@@ -187,19 +193,17 @@ export default function ProductGrid({
 
       {/* Pagination */}
       {totalItems > 0 && (
-        <div className="border-t border-border px-4 py-3">
-          <Pagination
-            currentPage={currentPage}
-            totalItems={totalItems}
-            pageSize={pageSize}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={(size) => {
-              setPageSize(size);
-              setCurrentPage(1);
-            }}
-            itemLabel="products"
-          />
-        </div>
+        <Pagination
+          currentPage={currentPage}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCurrentPage(1);
+          }}
+          itemLabel="products"
+        />
       )}
 
       {/* Category Management Modal */}

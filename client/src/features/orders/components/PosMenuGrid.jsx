@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { useGuestMenu } from "../query";
+import { useGuestMenu, usePendingOnlineOrders } from "../query";
 import useAuthStore from "@/features/auth/authStore";
 import { Skeleton } from "@/components/ui/skeleton";
+import Icon from "@/components/ui/icon";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +17,7 @@ import {
   * Cashiers only see Beverages (category_name filter).
  * All other roles see everything.
  */
-export default function PosMenuGrid({ onAddItem }) {
+export default function PosMenuGrid({ onAddItem, sidebarOpen, onToggleSidebar }) {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
   const user = useAuthStore((s) => s.user);
@@ -24,6 +25,9 @@ export default function PosMenuGrid({ onAddItem }) {
   const { data: menuData, isPending, isFetching } = useGuestMenu({
     search: search || undefined,
   });
+
+  const { data: ordersData } = usePendingOnlineOrders();
+  const pendingCount = ordersData?.data?.orders?.length ?? 0;
 
   const allProducts = menuData?.data?.menu ?? [];
 
@@ -48,34 +52,34 @@ export default function PosMenuGrid({ onAddItem }) {
     ? visibleProducts
     : visibleProducts.filter((p) => p.category_name === activeCategory);
 
-  if (isPending) {
-    return (
-      <div className="flex flex-col gap-3">
-        <Skeleton className="h-10 w-full" />
-        <div className="flex gap-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-7 w-16 rounded-full" />
-          ))}
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="h-20 rounded-xl" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col gap-3 overflow-hidden">
-      {/* Search */}
-      <input
-        type="text"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search menu..."
-        className="h-10 w-full rounded-lg border border-border bg-card px-4 text-sm outline-none focus:border-primary"
-      />
+    <div className="flex flex-col gap-3">
+      {/* Search + Online Orders toggle */}
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search menu..."
+          className="h-10 flex-1 rounded-lg border border-border bg-card px-4 text-sm outline-none focus:border-primary"
+        />
+        <button
+          onClick={onToggleSidebar}
+          className={`relative h-10 w-10 shrink-0 rounded-lg border transition-colors overflow-visible ${
+            sidebarOpen
+              ? "border-primary bg-primary/10 text-primary"
+              : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+          }`}
+          title="Online Orders"
+        >
+          <Icon name="bell" size={18} className="mx-auto" />
+          {pendingCount > 0 && (
+            <span className="absolute -top-2 -right-2 z-10 inline-flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[11px] font-bold text-destructive-foreground shadow-sm">
+              {pendingCount}
+            </span>
+          )}
+        </button>
+      </div>
 
       {/* Category tabs */}
       <div className="flex gap-2 overflow-x-auto pb-1">
@@ -96,21 +100,25 @@ export default function PosMenuGrid({ onAddItem }) {
 
       {/* Product grid */}
       <div className="relative grid grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-        {isFetching && (
+        {isFetching && !isPending && (
           <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-background/50">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>
         )}
-        {products.map((product) => (
-          <ProductCard
-            key={product.product_id}
-            product={product}
-            onAddItem={onAddItem}
-          />
-        ))}
+        {isPending
+          ? Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} className="h-20 rounded-xl" />
+            ))
+          : products.map((product) => (
+              <ProductCard
+                key={product.product_id}
+                product={product}
+                onAddItem={onAddItem}
+              />
+            ))}
       </div>
 
-      {products.length === 0 && (
+      {!isPending && products.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16">
           <p className="text-sm text-muted-foreground">No products available</p>
         </div>

@@ -14,13 +14,14 @@ import { Input } from "@/components/ui/input";
 import Icon from "@/components/ui/icon";
 import { useCategoryList, useCategoryMutations } from "../query";
 import { confirm } from "@/components/alerts/ConfirmDialog";
+import { getApiErrorMessage } from "../product.utils";
 import { createCategorySchema, editCategorySchema } from "../productValidation";
 
 // ── Helpers (DRY) ───────────────────────────────────────
 
 /** Show a toast error from an API error response. */
 function handleMutationError(err, action) {
-  toast.error(err?.response?.data?.message || `Failed to ${action}`);
+  toast.error(getApiErrorMessage(err, `Failed to ${action}`));
 }
 
 /**

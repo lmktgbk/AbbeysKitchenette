@@ -42,8 +42,9 @@ export const createProductSchema = z.object({
     .string()
     .trim()
     .max(500, "Description must not exceed 500 characters")
-    .optional(),
-  image_url: z.string().max(500).optional(),
+    .optional()
+    .nullable(),
+  image_url: z.string().max(500).optional().nullable(),
   is_available: z.boolean().optional().default(true),
   variants: z
     .array(variantEntrySchema)
@@ -82,6 +83,12 @@ export const productIdParamSchema = z.object({
   id: z.string().uuid("Invalid product ID"),
 });
 
+// Used by POST /api/products/:id/variants/:variantId/activate|deactivate
+export const variantIdParamSchema = z.object({
+  id: z.string().uuid("Invalid product ID"),
+  variantId: z.string().regex(/^\d+$/, "Invalid variant ID"),
+});
+
 // ── Query Schemas ─────────────────────────────────
 
 // Used by GET /api/products — query params for pagination, search, filter, sort
@@ -100,22 +107,6 @@ export const getProductsQuerySchema = z.object({
     .optional(),
   sortBy: z
     .enum(["product_name", "category_name", "created_at"])
-    .optional()
-    .default("created_at"),
-  sortDir: z.enum(["asc", "desc"]).optional().default("desc"),
-});
-
-// Used by GET /api/products/archived — query params for pagination, search, sort
-export const getArchivedProductsQuerySchema = z.object({
-  page: z.string().optional().default("1"),
-  limit: z
-    .string()
-    .regex(/^\d+$/, "Limit must be a positive integer")
-    .optional()
-    .default("50"),
-  search: z.string().optional(),
-  sortBy: z
-    .enum(["product_name", "created_at"])
     .optional()
     .default("created_at"),
   sortDir: z.enum(["asc", "desc"]).optional().default("desc"),

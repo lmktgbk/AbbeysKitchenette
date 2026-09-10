@@ -1,5 +1,19 @@
 import prisma from "../../config/prisma.js";
 
+/** Get Prisma client or transaction client */
+const getClient = (tx) => tx || prisma;
+
+/** Shared recipe include block for variant queries */
+const RECIPE_INCLUDE = {
+  recipes: {
+    include: {
+      ingredient: {
+        select: { ingredientId: true, ingredientName: true, unit: true },
+      },
+    },
+  },
+};
+
 /**
  * Product Repository
  *
@@ -38,15 +52,7 @@ export const productRepository = {
           },
         },
         variants: {
-          include: {
-            recipes: {
-              include: {
-                ingredient: {
-                  select: { ingredientId: true, ingredientName: true, unit: true },
-                },
-              },
-            },
-          },
+          include: RECIPE_INCLUDE,
           orderBy: { variantId: "asc" },
         },
       },
@@ -108,7 +114,23 @@ export const productRepository = {
         c.category_id, c.category_name,
         (SELECT COUNT(*)::int FROM product_variants pv WHERE pv.product_id = p.product_id) AS variant_count,
         (SELECT MIN(pv.price) FROM product_variants pv WHERE pv.product_id = p.product_id) AS min_price,
-        (SELECT MAX(pv.price) FROM product_variants pv WHERE pv.product_id = p.product_id) AS max_price
+        (SELECT MAX(pv.price) FROM product_variants pv WHERE pv.product_id = p.product_id) AS max_price,
+        EXISTS(
+          SELECT 1 FROM product_variants pv
+          WHERE pv.product_id = p.product_id
+            AND pv.is_available = true
+            AND EXISTS (
+              SELECT 1 FROM recipes r WHERE r.variant_id = pv.variant_id
+            )
+            AND NOT EXISTS (
+              SELECT 1 FROM recipes r
+              WHERE r.variant_id = pv.variant_id
+                AND COALESCE((
+                  SELECT SUM(rb.quantity_left) FROM restock_batches rb
+                  WHERE rb.ingredient_id = r.ingredient_id AND rb.quantity_left > 0
+                ), 0) < r.quantity_needed
+            )
+        ) AS has_active_variant
       FROM products p
       LEFT JOIN subcategories sc ON sc.subcategory_id = p.subcategory_id
       LEFT JOIN categories c ON c.category_id = sc.category_id
@@ -140,13 +162,8 @@ export const productRepository = {
       SELECT
         COUNT(*)::int AS total,
         COUNT(*) FILTER (WHERE p.is_available = true)::int AS available,
-        COUNT(*) FILTER (WHERE p.is_available = false)::int AS unavailable
-      FROM products p
-      WHERE p.is_archived = false
-    `;
-
-    const categoriesUsed = await prisma.$queryRaw`
-      SELECT COUNT(DISTINCT p.subcategory_id)::int AS count
+        COUNT(*) FILTER (WHERE p.is_available = false)::int AS unavailable,
+        COUNT(DISTINCT p.subcategory_id)::int AS categories_used
       FROM products p
       WHERE p.is_archived = false
     `;
@@ -155,7 +172,7 @@ export const productRepository = {
       total: result[0].total,
       available: result[0].available,
       unavailable: result[0].unavailable,
-      categories_used: categoriesUsed[0].count,
+      categories_used: result[0].categories_used,
     };
   },
 
@@ -168,7 +185,7 @@ export const productRepository = {
    * @returns {object} - created product
    */
   async create(data, tx) {
-    const client = tx || prisma;
+    const client = getClient(tx);
     return client.product.create({ data });
   },
 
@@ -180,7 +197,7 @@ export const productRepository = {
    * @returns {object} - updated product
    */
   async update(id, data, tx) {
-    const client = tx || prisma;
+    const client = getClient(tx);
     return client.product.update({
       where: { productId: id },
       data,
@@ -196,18 +213,10 @@ export const productRepository = {
    * @returns {Array<object>}
    */
   async findVariantsByProductId(productId, tx) {
-    const client = tx || prisma;
+    const client = getClient(tx);
     return client.productVariant.findMany({
       where: { productId },
-      include: {
-        recipes: {
-          include: {
-            ingredient: {
-              select: { ingredientId: true, ingredientName: true, unit: true },
-            },
-          },
-        },
-      },
+      include: RECIPE_INCLUDE,
       orderBy: { variantId: "asc" },
     });
   },
@@ -219,7 +228,7 @@ export const productRepository = {
    * @returns {object} - Prisma batch delete result
    */
   async deleteVariantsByProductId(productId, tx) {
-    const client = tx || prisma;
+    const client = getClient(tx);
     return client.productVariant.deleteMany({
       where: { productId },
     });
@@ -247,15 +256,7 @@ export const productRepository = {
           })),
         },
       },
-      include: {
-        recipes: {
-          include: {
-            ingredient: {
-              select: { ingredientId: true, ingredientName: true, unit: true },
-            },
-          },
-        },
-      },
+      include: RECIPE_INCLUDE,
     });
   },
 
@@ -290,15 +291,7 @@ export const productRepository = {
     return tx.productVariant.update({
       where: { variantId },
       data: updateData,
-      include: {
-        recipes: {
-          include: {
-            ingredient: {
-              select: { ingredientId: true, ingredientName: true, unit: true },
-            },
-          },
-        },
-      },
+      include: RECIPE_INCLUDE,
     });
   },
 
@@ -309,10 +302,54 @@ export const productRepository = {
    * @returns {object} - Prisma batch update result
    */
   async deactivateAllVariants(productId, tx) {
-    const client = tx || prisma;
+    const client = getClient(tx);
     return client.productVariant.updateMany({
       where: { productId },
-      data: { isAvailable: false },
+      data: { isAvailable: false, isManuallyDeactivated: true },
+    });
+  },
+
+  /**
+   * Activate all variants for a product (clears manual deactivation).
+   * @param {string} productId - product UUID
+   * @param {object} [tx] - optional Prisma transaction client
+   * @returns {object} - Prisma batch update result
+   */
+  async activateAllVariants(productId, tx) {
+    const client = getClient(tx);
+    return client.productVariant.updateMany({
+      where: { productId },
+      data: { isAvailable: true, isManuallyDeactivated: false },
+    });
+  },
+
+  /**
+   * Activate a single variant (clears manual deactivation).
+   * @param {string} productId - product UUID
+   * @param {number} variantId - variant ID
+   * @param {object} [tx] - optional Prisma transaction client
+   * @returns {object} - updated variant
+   */
+  async activateVariant(productId, variantId, tx) {
+    const client = getClient(tx);
+    return client.productVariant.update({
+      where: { variantId: Number(variantId), productId },
+      data: { isAvailable: true, isManuallyDeactivated: false },
+    });
+  },
+
+  /**
+   * Deactivate a single variant (marks as manually deactivated).
+   * @param {string} productId - product UUID
+   * @param {number} variantId - variant ID
+   * @param {object} [tx] - optional Prisma transaction client
+   * @returns {object} - updated variant
+   */
+  async deactivateVariant(productId, variantId, tx) {
+    const client = getClient(tx);
+    return client.productVariant.update({
+      where: { variantId: Number(variantId), productId },
+      data: { isAvailable: false, isManuallyDeactivated: true },
     });
   },
 
@@ -327,17 +364,6 @@ export const productRepository = {
   async countTransactions(id) {
     // TODO: Replace with real check when Order module is built
     // Example: return prisma.orderItem.count({ where: { variant: { productId: id } } });
-    return 0;
-  },
-
-  /**
-   * Check if a variant has any order transactions.
-   * Placeholder — always returns 0 until Order module is built.
-   * @param {number} variantId - variant ID
-   * @returns {number} - transaction count (0 for now)
-   */
-  async countVariantTransactions(variantId) {
-    // TODO: Replace with real check when Order module is built
     return 0;
   },
 
@@ -388,7 +414,7 @@ export const productRepository = {
    * @returns {object}
    */
   async delete(id, tx) {
-    const client = tx || prisma;
+    const client = getClient(tx);
     return client.product.delete({
       where: { productId: id },
     });
@@ -438,6 +464,7 @@ export const productRepository = {
       select: {
         variantId: true,
         productId: true,
+        isManuallyDeactivated: true,
         recipes: {
           select: { ingredientId: true, quantityNeeded: true },
         },

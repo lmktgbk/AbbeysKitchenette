@@ -7,11 +7,16 @@ import { z } from "zod";
  * Separate schemas for create vs edit modes.
  */
 
+const coerceNumber = (schema) => z.preprocess(
+  (v) => (v === "" || v === undefined || v === null || (typeof v === "number" && isNaN(v)) ? 0 : Number(v)),
+  schema,
+);
+
 // ── Nested Schemas ────────────────────────────────
 
 const recipeEntrySchema = z.object({
   ingredient_id: z.string().uuid("Select an ingredient"),
-  quantity_needed: z.number().positive("Quantity must be greater than zero"),
+  quantity_needed: coerceNumber(z.number().positive("Quantity must be greater than zero")),
 });
 
 const variantEntrySchema = z.object({
@@ -20,7 +25,7 @@ const variantEntrySchema = z.object({
     .string()
     .min(1, "Size name is required")
     .max(50, "Must not exceed 50 characters"),
-  price: z.number().positive("Price must be greater than zero"),
+  price: coerceNumber(z.number().positive("Price must be greater than zero")),
   is_available: z.boolean().optional().default(true),
   recipes: z
     .array(recipeEntrySchema)

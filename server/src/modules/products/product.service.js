@@ -24,6 +24,7 @@ function mapToProductResponse(product, extra = {}) {
     image_url: product.image_url ?? product.imageUrl,
     is_available: product.is_available ?? product.isAvailable,
     is_archived: product.is_archived ?? product.isArchived,
+    has_active_variant: product.has_active_variant ?? undefined,
     variant_count: product.variant_count ?? product.variants?.length ?? 0,
     min_price: product.min_price != null ? Number(product.min_price) : undefined,
     max_price: product.max_price != null ? Number(product.max_price) : undefined,
@@ -44,6 +45,7 @@ function mapToVariantResponse(variant) {
     size_name: variant.sizeName,
     price: Number(variant.price),
     is_available: variant.isAvailable,
+    is_manually_deactivated: variant.isManuallyDeactivated ?? false,
     recipes: (variant.recipes || []).map((r) => ({
       recipe_id: r.recipeId,
       ingredient_id: r.ingredientId,
@@ -60,6 +62,21 @@ function mapToVariantResponse(variant) {
  * Business logic for product operations.
  * Validates rules, orchestrates repository calls, handles errors.
  */
+
+/** Require a product by ID or throw 404 */
+async function requireProduct(id) {
+  const product = await productRepository.findById(id);
+  if (!product) throw new AppError(404, "Product not found", "PRODUCT_NOT_FOUND");
+  return product;
+}
+
+/** Require a variant within a product or throw 404 */
+function requireVariant(product, variantId) {
+  const variant = product.variants.find((v) => v.variantId === Number(variantId));
+  if (!variant) throw new AppError(404, "Variant not found", "VARIANT_NOT_FOUND");
+  return variant;
+}
+
 export const productService = {
   /* ── Queries ─────────────────────────── */
 
@@ -95,10 +112,7 @@ export const productService = {
    * @throws {AppError} 404 if not found
    */
   async getById(id) {
-    const product = await productRepository.findById(id);
-    if (!product) {
-      throw new AppError(404, "Product not found", "PRODUCT_NOT_FOUND");
-    }
+    const product = await requireProduct(id);
 
     const variantIds = product.variants.map((v) => v.variantId);
     const txMap = await productRepository.countVariantTransactionsBatch(variantIds);
@@ -131,6 +145,8 @@ export const productService = {
         variant_id: v.variantId,
         size_name: v.sizeName,
         price: Number(v.price),
+        is_available: v.isAvailable,
+        is_manually_deactivated: v.isManuallyDeactivated ?? false,
         has_transactions: txMap[v.variantId] > 0,
         is_stock_sufficient,
         recipes,
@@ -167,13 +183,15 @@ export const productService = {
     )];
     const stockMap = await productRepository.getStockByIngredientIds(allIngredientIds);
 
-    // Step 3: Compute new isAvailable for each variant
-    const updates = variants.map((v) => {
-      const isAvailable =
-        v.recipes.length > 0 &&
-        v.recipes.every((r) => (stockMap[r.ingredientId] ?? 0) >= Number(r.quantityNeeded));
-      return { variantId: v.variantId, isAvailable };
-    });
+    // Step 3: Compute new isAvailable for each variant, skip manually-deactivated ones
+    const updates = variants
+      .filter((v) => !v.isManuallyDeactivated)
+      .map((v) => {
+        const isAvailable =
+          v.recipes.length > 0 &&
+          v.recipes.every((r) => (stockMap[r.ingredientId] ?? 0) >= Number(r.quantityNeeded));
+        return { variantId: v.variantId, isAvailable };
+      });
 
     // Step 4: Bulk update
     await productRepository.bulkUpdateVariantAvailability(updates);
@@ -235,10 +253,7 @@ export const productService = {
    */
   async update(id, data, userId) {
     // Step 1: Validate product exists
-    const existing = await productRepository.findById(id);
-    if (!existing) {
-      throw new AppError(404, "Product not found", "PRODUCT_NOT_FOUND");
-    }
+    const existing = await requireProduct(id);
 
     const updateData = {};
 
@@ -290,10 +305,7 @@ export const productService = {
    */
   async updateVariants(id, variantsData, userId) {
     // Step 1: Validate product exists
-    const existing = await productRepository.findById(id);
-    if (!existing) {
-      throw new AppError(404, "Product not found", "PRODUCT_NOT_FOUND");
-    }
+    const existing = await requireProduct(id);
 
     // Step 2: Get current variants for diff
     const currentVariants = await productRepository.findVariantsByProductId(id);
@@ -307,12 +319,20 @@ export const productService = {
     // Step 4: Find variants to remove (in current but not in incoming)
     const toRemove = currentVariants.filter((v) => !incomingIds.has(v.variantId));
 
-    // Step 5: Run all changes in a transaction
+    // Step 5: Batch-check transaction counts for all variants we need to inspect
+    const idsToCheck = [
+      ...toRemove.map((v) => v.variantId),
+      ...variantsData
+        .filter((v) => v.variant_id && currentIds.has(v.variant_id))
+        .map((v) => v.variant_id),
+    ];
+    const txMap = await productRepository.countVariantTransactionsBatch(idsToCheck);
+
+    // Step 6: Run all changes in a transaction
     await prisma.$transaction(async (tx) => {
       // Handle removals: delete if no transactions, deactivate otherwise
       for (const v of toRemove) {
-        const txCount = await productRepository.countVariantTransactions(v.variantId);
-        if (txCount > 0) {
+        if ((txMap[v.variantId] ?? 0) > 0) {
           // Has transactions — deactivate instead of delete
           await tx.productVariant.update({
             where: { variantId: v.variantId },
@@ -336,16 +356,12 @@ export const productService = {
           const isRenaming =
             v.size_name !== undefined && v.size_name !== currentVariant.sizeName;
 
-          if (isRenaming) {
-            const txCount =
-              await productRepository.countVariantTransactions(v.variant_id);
-            if (txCount > 0) {
-              throw new AppError(
-                400,
-                `Cannot rename variant "${currentVariant.sizeName}" — it has existing orders`,
-                "VARIANT_HAS_TRANSACTIONS",
-              );
-            }
+          if (isRenaming && (txMap[v.variant_id] ?? 0) > 0) {
+            throw new AppError(
+              400,
+              `Cannot rename variant "${currentVariant.sizeName}" — it has existing orders`,
+              "VARIANT_HAS_TRANSACTIONS",
+            );
           }
 
           // Update price, sizeName (if allowed), isAvailable, and replace recipes
@@ -369,10 +385,7 @@ export const productService = {
    * @throws {AppError} 404 if not found
    */
   async deactivate(id, userId) {
-    const existing = await productRepository.findById(id);
-    if (!existing) {
-      throw new AppError(404, "Product not found", "PRODUCT_NOT_FOUND");
-    }
+    const existing = await requireProduct(id);
 
     await prisma.$transaction(async (tx) => {
       await productRepository.update(id, { isAvailable: false }, tx);
@@ -385,31 +398,134 @@ export const productService = {
   },
 
   /**
-   * Activate a product (does NOT auto-activate variants).
+   * Activate a product — per-variant stock check with summary.
+   * Activates only variants with sufficient stock and recipes.
    * @param {string} id - product UUID
-   * @returns {object} - updated product
+   * @param {string} userId - admin user ID
+   * @returns {{ product, summary: { activated: string[], skipped: string[] } }}
    * @throws {AppError} 404 if not found
    */
   async activate(id, userId) {
-    const existing = await productRepository.findById(id);
-    if (!existing) {
-      throw new AppError(404, "Product not found", "PRODUCT_NOT_FOUND");
-    }
+    const existing = await requireProduct(id);
 
-    await productRepository.update(id, { isAvailable: true });
-
-    // Recompute variant availability based on ingredient stock
+    // Get variants with recipes for stock checking
     const variants = await productRepository.findVariantsByProductId(id);
-    const ingredientIds = [...new Set(
+    const allIngredientIds = [...new Set(
       variants.flatMap((v) => v.recipes.map((r) => r.ingredientId))
     )];
-    if (ingredientIds.length > 0) {
-      await this.recomputeVariantAvailability(ingredientIds);
+    const stockMap = allIngredientIds.length > 0
+      ? await productRepository.getStockByIngredientIds(allIngredientIds)
+      : {};
+
+    // Per-variant stock check
+    const activated = [];
+    const skipped = [];
+
+    for (const v of variants) {
+      const recipes = v.recipes || [];
+      const hasRecipes = recipes.length > 0;
+      const isStockOk = hasRecipes && recipes.every(
+        (r) => (stockMap[r.ingredientId] ?? 0) >= Number(r.quantityNeeded)
+      );
+
+      if (isStockOk) {
+        await productRepository.activateVariant(id, v.variantId);
+        activated.push(v.sizeName);
+      } else {
+        skipped.push(v.sizeName);
+      }
     }
+
+    // Activate the product itself
+    await productRepository.update(id, { isAvailable: true });
 
     auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_ACTIVATED, targetType: "product", targetId: id, details: { name: existing.productName } });
 
-    return this.getById(id);
+    const product = await this.getById(id);
+    return { product, summary: { activated, skipped } };
+  },
+
+  /**
+   * Activate a single variant.
+   * @param {string} productId - product UUID
+   * @param {number} variantId - variant ID
+   * @param {string} userId - admin user ID
+   * @returns {object} - updated product
+   * @throws {AppError} 404 if product or variant not found
+   */
+  async activateVariant(productId, variantId, userId) {
+    const product = await requireProduct(productId);
+    const variant = requireVariant(product, variantId);
+
+    // Validate stock sufficiency before activating
+    const recipes = variant.recipes || [];
+    if (recipes.length > 0) {
+      const ingredientIds = recipes.map((r) => r.ingredientId);
+      const stockMap = await productRepository.getStockByIngredientIds(ingredientIds);
+      const insufficient = recipes.filter(
+        (r) => (stockMap[r.ingredientId] ?? 0) < Number(r.quantityNeeded)
+      );
+      if (insufficient.length > 0) {
+        const names = insufficient.map((r) => r.ingredient?.ingredientName ?? "Unknown").join(", ");
+        throw new AppError(
+          400,
+          `Cannot activate variant "${variant.sizeName}" — insufficient stock for: ${names}`,
+          "INSUFFICIENT_STOCK"
+        );
+      }
+    }
+
+    await productRepository.activateVariant(productId, variantId);
+
+    // Auto-activate parent product if it was inactive
+    if (!product.isAvailable) {
+      await productRepository.update(productId, { isAvailable: true });
+    }
+
+    auditLogService.logAction({
+      userId,
+      action: ACTIONS.VARIANT_ACTIVATED,
+      targetType: "variant",
+      targetId: String(variantId),
+      details: { productId, sizeName: variant.sizeName },
+    });
+
+    return this.getById(productId);
+  },
+
+  /**
+   * Deactivate a single variant.
+   * If all variants become inactive, auto-deactivates the product.
+   * @param {string} productId - product UUID
+   * @param {number} variantId - variant ID
+   * @param {string} userId - admin user ID
+   * @returns {object} - updated product
+   * @throws {AppError} 404 if product or variant not found
+   */
+  async deactivateVariant(productId, variantId, userId) {
+    const product = await requireProduct(productId);
+    const variant = requireVariant(product, variantId);
+
+    await productRepository.deactivateVariant(productId, variantId);
+
+    // Check if all variants are now inactive → auto-deactivate product
+    // Use the product's variants from findById to avoid a re-query
+    const otherVariantsActive = product.variants.some(
+      (v) => v.variantId !== Number(variantId) && v.isAvailable
+    );
+    if (!otherVariantsActive && product.isAvailable) {
+      await productRepository.update(productId, { isAvailable: false });
+    }
+
+    auditLogService.logAction({
+      userId,
+      action: ACTIONS.VARIANT_DEACTIVATED,
+      targetType: "variant",
+      targetId: String(variantId),
+      details: { productId, sizeName: variant.sizeName },
+    });
+
+    return this.getById(productId);
   },
 
   /**
@@ -419,10 +535,7 @@ export const productService = {
    * @throws {AppError} 404 if not found, 400 if has transactions
    */
   async remove(id, userId) {
-    const existing = await productRepository.findById(id);
-    if (!existing) {
-      throw new AppError(404, "Product not found", "PRODUCT_NOT_FOUND");
-    }
+    const existing = await requireProduct(id);
 
     // Check for transactions (placeholder — always 0 for now)
     const txCount = await productRepository.countTransactions(id);

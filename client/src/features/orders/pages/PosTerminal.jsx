@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import useAuthStore from "@/features/auth/authStore";
 import { logoutRequest } from "@/features/auth/api";

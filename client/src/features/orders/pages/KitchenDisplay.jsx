@@ -23,9 +23,6 @@ export default function KitchenDisplay() {
     preparing,
     accepted,
     completedToday,
-    counts,
-    toggleItemCheck,
-    getCheckedSet,
     markReady,
     markingReady,
   } = useKitchenDisplay();
@@ -194,7 +191,6 @@ export default function KitchenDisplay() {
         {sidebarOpen && (
           <BatchSidebar
             batches={batches}
-            parentCategory={parentCategoryFilter}
             onClose={() => setSidebarOpen(false)}
           />
         )}

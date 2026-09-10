@@ -205,15 +205,6 @@ export function useOrderMutations() {
       onSuccess: () => invalidateAll(),
     }),
 
-    /** Edit pending order — invalidates list + detail */
-    edit: useMutation({
-      mutationFn: ({ id, data }) => api.editOrderRequest(id, data),
-      onSuccess: (_data, vars) => {
-        queryClient.invalidateQueries({ queryKey: orderKeys.detail(vars.id) });
-        queryClient.invalidateQueries({ queryKey: orderKeys.all });
-      },
-    }),
-
     /** Advance order status — invalidates all */
     advanceStatus: useMutation({
       mutationFn: ({ id, data }) => api.advanceOrderStatusRequest(id, data),

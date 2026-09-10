@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
+import { isProductActive } from "../product.utils";
 
 /**
  * ProductDetailModal
@@ -19,6 +20,7 @@ import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
  * Read-only detail view of a product with variants and recipes.
  * Opens when user clicks a ProductCard.
  * Action buttons at the bottom: Edit, Deactivate/Activate, Delete.
+ * Per-variant activate/deactivate toggles in variant accordion headers.
  *
  * Props:
  * - open: boolean
@@ -30,6 +32,8 @@ import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
  * - onDeactivate: (product) => void
  * - onActivate: (product) => void
  * - onDelete: (product) => void
+ * - onActivateVariant: (product, variant) => void
+ * - onDeactivateVariant: (product, variant) => void
  */
 export default function ProductDetailModal({
   open,
@@ -41,6 +45,8 @@ export default function ProductDetailModal({
   onDeactivate,
   onActivate,
   onDelete,
+  onActivateVariant,
+  onDeactivateVariant,
 }) {
   const [expandedVariants, setExpandedVariants] = useState(new Set());
 
@@ -98,6 +104,8 @@ export default function ProductDetailModal({
     onOpenChange(false);
   }
 
+  const allVariantsActive = variants.length > 0 && variants.every((v) => v.is_available && v.is_stock_sufficient);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
@@ -133,11 +141,15 @@ export default function ProductDetailModal({
                 <div className="flex items-center gap-2">
                   <span
                     className={`h-2 w-2 rounded-full ${
-                      data.is_available ? "bg-success" : "bg-destructive"
+                      isProductActive(data)
+                        ? "bg-success"
+                        : "bg-destructive"
                     }`}
                   />
                   <span className="text-xs font-medium text-muted-foreground">
-                    {data.is_available ? "Active" : "Unavailable"}
+                    {isProductActive(data)
+                      ? "Active"
+                      : "Unavailable"}
                   </span>
                 </div>
 
@@ -201,7 +213,7 @@ export default function ProductDetailModal({
                           </div>
 
                           <div className="flex items-center gap-2">
-                            {variant.hasTransactions && (
+                            {variant.has_transactions && (
                               <Icon
                                 name="lock"
                                 size={12}
@@ -215,6 +227,19 @@ export default function ProductDetailModal({
                               }`}
                               title={variant.is_stock_sufficient ? "In stock" : "Insufficient ingredients"}
                             />
+                            <Button
+                              size="sm"
+                              variant={variant.is_available && variant.is_stock_sufficient ? "destructive" : "outline"}
+                              className="h-6 px-2 text-xs"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                variant.is_available && variant.is_stock_sufficient
+                                  ? onDeactivateVariant(product, variant)
+                                  : onActivateVariant(product, variant);
+                              }}
+                            >
+                              {variant.is_available && variant.is_stock_sufficient ? "Deactivate" : "Activate"}
+                            </Button>
                           </div>
                         </button>
 
@@ -260,15 +285,15 @@ export default function ProductDetailModal({
             Edit
           </Button>
 
-          {data.is_available ? (
+          {allVariantsActive ? (
             <Button size="sm" variant="outline" onClick={handleDeactivate}>
               <Icon name="eyeOff" size={14} className="mr-1" />
-              Deactivate
+              Deactivate All
             </Button>
           ) : (
             <Button size="sm" variant="outline" onClick={handleActivate}>
               <Icon name="eye" size={14} className="mr-1" />
-              Activate
+              Activate All
             </Button>
           )}
 

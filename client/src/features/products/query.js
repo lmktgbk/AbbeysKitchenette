@@ -127,6 +127,24 @@ export function useProductMutations() {
       onSuccess: () => invalidateAll(),
     }),
 
+    /** Activate single variant — invalidates detail + list */
+    activateVariant: useMutation({
+      mutationFn: ({ productId, variantId }) => api.activateVariantRequest(productId, variantId),
+      onSuccess: (_data, vars) => {
+        queryClient.invalidateQueries({ queryKey: productKeys.detail(vars.productId) });
+        queryClient.invalidateQueries({ queryKey: productKeys.all });
+      },
+    }),
+
+    /** Deactivate single variant — invalidates detail + list */
+    deactivateVariant: useMutation({
+      mutationFn: ({ productId, variantId }) => api.deactivateVariantRequest(productId, variantId),
+      onSuccess: (_data, vars) => {
+        queryClient.invalidateQueries({ queryKey: productKeys.detail(vars.productId) });
+        queryClient.invalidateQueries({ queryKey: productKeys.all });
+      },
+    }),
+
     /** Delete product permanently — invalidates all */
     remove: useMutation({
       mutationFn: api.deleteProductRequest,
@@ -219,6 +237,9 @@ export function usePriceOptimizationMutations() {
 
     dismiss: useMutation({
       mutationFn: api.dismissPriceSuggestionRequest,
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: productKeys.all });
+      },
     }),
   };
 }

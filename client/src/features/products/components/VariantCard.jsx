@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Controller, useFieldArray } from "react-hook-form";
+import { Controller, useFieldArray, useWatch } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
@@ -40,6 +40,8 @@ export default function VariantCard({
 }) {
   const [isRecipeOpen, setIsRecipeOpen] = useState(false);
 
+  const sizeName = useWatch({ control, name: `variants.${index}.size_name` });
+
   const { fields, append, remove } = useFieldArray({
     control,
     name: `variants.${index}.recipes`,
@@ -64,7 +66,7 @@ export default function VariantCard({
           {isExisting && hasTransactions ? (
             <div className="flex items-center gap-1.5">
               <p className="text-sm font-medium text-foreground">
-                {control._formValues?.variants?.[index]?.size_name || "—"}
+                {sizeName || "—"}
               </p>
               <Icon
                 name="lock"
@@ -202,7 +204,7 @@ export default function VariantCard({
               variant={fields.length === 0 ? "default" : "ghost"}
               size="sm"
               onClick={() =>
-                append({ ingredient_id: "", quantity_needed: 0 })
+                append({ ingredient_id: "", quantity_needed: "" })
               }
               className="w-full"
             >

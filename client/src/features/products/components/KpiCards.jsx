@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  * 4 cards: Total Products, Available, Unavailable, Categories Used.
  */
 export default function KpiCards() {
-  const { data: summaryData, isLoading } = useProductSummary();
+  const { data: summaryData, isLoading, error } = useProductSummary();
 
   const summary = summaryData?.data?.summary ?? {
     total: 0,
@@ -26,6 +26,21 @@ export default function KpiCards() {
             <div className="flex-1 space-y-2">
               <Skeleton className="h-3 w-16" />
               <Skeleton className="h-5 w-12" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+            <div className="flex-1">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">--</p>
+              <p className="text-lg font-bold text-foreground">--</p>
             </div>
           </div>
         ))}

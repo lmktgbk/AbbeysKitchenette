@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -52,6 +53,7 @@ export default function ProductFormModal({
   const isEdit = isEditMode;
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   const {
     register,
@@ -101,12 +103,14 @@ export default function ProductFormModal({
 
     // Upload image if a new file was selected
     if (imageFile && onUploadImage) {
+      setUploading(true);
       try {
         const res = await onUploadImage(imageFile);
         imageUrl = res.data.url;
       } catch {
-        // Image upload failed — continue without image
+        toast.warning("Image upload failed — product will be saved without image.");
       }
+      setUploading(false);
     }
 
     // If image was removed
@@ -206,13 +210,8 @@ export default function ProductFormModal({
                   <ImageUpload
                     value={watch("image_url")}
                     onChange={(file) => {
-                      if (file) {
-                        setImageFile(file);
-                        setImagePreview(URL.createObjectURL(file));
-                      } else {
-                        setImageFile(null);
-                        setImagePreview(null);
-                      }
+                      setImageFile(file);
+                      if (!file) setImagePreview(null);
                     }}
                     previewUrl={imagePreview}
                     className="h-[calc(100%-1.75rem)]"
@@ -234,7 +233,7 @@ export default function ProductFormModal({
                   onClick={() =>
                     addVariant({
                       size_name: "",
-                      price: 0,
+                      price: "",
                       recipes: [],
                     })
                   }
@@ -278,14 +277,16 @@ export default function ProductFormModal({
               <Button type="button" variant="outline" onClick={handleClose}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading
-                  ? isEdit
-                    ? "Saving..."
-                    : "Creating..."
-                  : isEdit
-                    ? "Save Changes"
-                    : "Create Product"}
+              <Button type="submit" disabled={isLoading || uploading}>
+                {uploading
+                  ? "Uploading image..."
+                  : isLoading
+                    ? isEdit
+                      ? "Saving..."
+                      : "Creating..."
+                    : isEdit
+                      ? "Save Changes"
+                      : "Create Product"}
               </Button>
             </DialogFooter>
           </form>

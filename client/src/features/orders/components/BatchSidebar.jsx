@@ -6,13 +6,9 @@ import Icon from "@/components/ui/icon";
  *
  * Props:
  * - batches: array of { product_name, size_name, total_quantity, orders[] }
- * - parentCategory: string — "Food" or "Beverages", to filter batches
  * - onClose: () => void
  */
-export default function BatchSidebar({ batches, parentCategory, onClose }) {
-  // Filter batches by parent category
-  const filtered = batches;
-
+export default function BatchSidebar({ batches, onClose }) {
   return (
     <div className="w-72 border-l border-border bg-card/50 flex flex-col overflow-hidden shrink-0">
       {/* Header */}
@@ -33,13 +29,13 @@ export default function BatchSidebar({ batches, parentCategory, onClose }) {
 
       {/* Batch List */}
       <div className="flex-1 overflow-y-auto p-3 space-y-3 modal-scroll">
-        {filtered.length === 0 ? (
+        {batches.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 gap-2 text-muted-foreground/40">
             <Icon name="package" size={24} />
             <p className="text-xs font-medium">No batch groups</p>
           </div>
         ) : (
-          filtered.map((batch, idx) => (
+          batches.map((batch, idx) => (
             <div
               key={`${batch.product_id}-${batch.variant_id}-${idx}`}
               className="rounded-lg border border-border/60 bg-muted/30 p-3"

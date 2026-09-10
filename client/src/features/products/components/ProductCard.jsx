@@ -1,30 +1,19 @@
+import { memo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
 import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
+import { formatPriceRange, isProductActive } from "../product.utils";
 
 /**
  * ProductCard
  *
  * Image-heavy product card with click-to-view detail modal.
- * Shows product image, name, category, price range, variant count,
- * and an "Optimize Price" sparkles button.
- *
- * Props:
- * - product: { product_id, product_name, category_name, image_url, is_available, variant_count, min_price, max_price }
- * - onViewDetail: (product) => void
- * - onOptimizePrice: (product) => void
+ * Status dot: green if product is active OR has at least 1 active variant.
+ * Unavailable overlay: only when product is inactive AND no variants are active.
  */
-export default function ProductCard({ product, onViewDetail, onOptimizePrice }) {
-  const minPrice = product.min_price ?? 0;
-  const maxPrice = product.max_price ?? 0;
-  const hasPrice = minPrice != null || maxPrice != null;
-  const priceLabel =
-    !hasPrice || (minPrice === 0 && maxPrice === 0)
-      ? "No price"
-      : minPrice === maxPrice
-        ? `₱${minPrice.toLocaleString()}`
-        : `₱${minPrice.toLocaleString()} – ₱${maxPrice.toLocaleString()}`;
+const ProductCard = memo(function ProductCard({ product, onViewDetail, onOptimizePrice }) {
+  const active = isProductActive(product);
 
   function handleOptimizeClick(e) {
     e.stopPropagation();
@@ -46,8 +35,8 @@ export default function ProductCard({ product, onViewDetail, onOptimizePrice }) 
           className="h-full w-full rounded-t-xl"
         />
 
-        {/* Unavailable overlay */}
-        {!product.is_available && (
+        {/* Unavailable overlay — only when product is inactive AND no active variants */}
+        {!active && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/40">
             <span className="rounded-full bg-black/60 px-3 py-1 text-xs font-medium text-white">
               Unavailable
@@ -56,7 +45,7 @@ export default function ProductCard({ product, onViewDetail, onOptimizePrice }) 
         )}
 
         {/* Optimize Price button (top-right) */}
-        {product.is_available && (
+        {active && (
           <Button
             variant="secondary"
             size="sm"
@@ -78,11 +67,9 @@ export default function ProductCard({ product, onViewDetail, onOptimizePrice }) 
           {/* Status dot */}
           <span
             className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${
-              product.is_available
-                ? "bg-success"
-                : "bg-destructive"
+              active ? "bg-success" : "bg-destructive"
             }`}
-            title={product.is_available ? "Available" : "Unavailable"}
+            title={active ? "Available" : "Unavailable"}
           />
         </div>
 
@@ -92,11 +79,15 @@ export default function ProductCard({ product, onViewDetail, onOptimizePrice }) 
           </Badge>
         )}
 
-        <p className="text-xs text-muted-foreground">{priceLabel}</p>
+        <p className="text-xs text-muted-foreground">
+          {formatPriceRange(product.min_price, product.max_price)}
+        </p>
         <p className="text-xs text-muted-foreground">
           {product.variant_count} variant{product.variant_count !== 1 ? "s" : ""}
         </p>
       </div>
     </div>
   );
-}
+});
+
+export default ProductCard;

@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useProductMutations, useProductDetail, useCategoryList } from "../query";
 import { useIngredientList } from "@/features/ingredients/query";
 import { confirm } from "@/components/alerts/ConfirmDialog";
+import { getApiErrorMessage } from "../product.utils";
 import KpiCards from "../components/KpiCards";
 import ProductGrid from "../components/ProductGrid";
 import ProductFormModal from "../components/ProductFormModal";
@@ -78,7 +79,7 @@ export default function ProductsPage() {
           setShowFormModal(false);
         },
         onError: (err) =>
-          toast.error(err.response?.data?.message || "Failed to create product"),
+          toast.error(getApiErrorMessage(err, "Failed to create product")),
       }),
     isPending: mutations.create.isPending,
   };
@@ -100,12 +101,12 @@ export default function ProductsPage() {
                   setIsEditMode(false);
                 },
                 onError: (err) =>
-                  toast.error(err.response?.data?.message || "Failed to update variants"),
+                  toast.error(getApiErrorMessage(err, "Failed to update variants")),
               },
             );
           },
           onError: (err) =>
-            toast.error(err.response?.data?.message || "Failed to update product"),
+            toast.error(getApiErrorMessage(err, "Failed to update product")),
         },
       );
     },
@@ -151,16 +152,22 @@ export default function ProductsPage() {
     if (ok) toast.success("Product deactivated");
   }
 
+  const activateResultRef = useRef(null);
+
   async function handleActivate(product) {
+    activateResultRef.current = null;
     const ok = await confirm({
       title: "Activate Product?",
       message: `This will activate "${product.product_name}".`,
       confirmLabel: "Activate",
       loadingText: "Activating...",
       variant: "success",
-      onConfirm: () => mutations.activate.mutateAsync(product.product_id),
+      onConfirm: async () => {
+        const res = await mutations.activate.mutateAsync(product.product_id);
+        activateResultRef.current = res;
+      },
     });
-    if (ok) toast.success("Product activated");
+    if (ok) toast.success(activateResultRef.current?.message || "Product activated");
   }
 
   async function handleDelete(product) {
@@ -174,6 +181,31 @@ export default function ProductsPage() {
       onConfirm: () => mutations.remove.mutateAsync(product.product_id),
     });
     if (ok) toast.success("Product deleted permanently");
+  }
+
+  async function handleActivateVariant(product, variant) {
+    const ok = await confirm({
+      title: "Activate Variant?",
+      message: `This will activate "${variant.size_name}" for "${product.product_name}".`,
+      confirmLabel: "Activate",
+      loadingText: "Activating...",
+      variant: "success",
+      onConfirm: () => mutations.activateVariant.mutateAsync({ productId: product.product_id, variantId: variant.variant_id }),
+    });
+    if (ok) toast.success(`"${variant.size_name}" activated`);
+  }
+
+  async function handleDeactivateVariant(product, variant) {
+    const ok = await confirm({
+      title: "Deactivate Variant?",
+      message: `This will deactivate "${variant.size_name}" for "${product.product_name}".`,
+      note: "This variant will be hidden from POS but can be reactivated later.",
+      confirmLabel: "Deactivate",
+      loadingText: "Deactivating...",
+      variant: "danger",
+      onConfirm: () => mutations.deactivateVariant.mutateAsync({ productId: product.product_id, variantId: variant.variant_id }),
+    });
+    if (ok) toast.success(`"${variant.size_name}" deactivated`);
   }
 
   function handleFormSubmit(data) {
@@ -216,6 +248,8 @@ export default function ProductsPage() {
         onDeactivate={handleDeactivate}
         onActivate={handleActivate}
         onDelete={handleDelete}
+        onActivateVariant={handleActivateVariant}
+        onDeactivateVariant={handleDeactivateVariant}
       />
 
       {/* Add/Edit Product Modal */}

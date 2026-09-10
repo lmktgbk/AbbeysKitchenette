@@ -116,6 +116,9 @@ model Product {
   variants   ProductVariant[]
   orderItems OrderItem[]
 
+  @@index([isArchived])
+  @@index([isAvailable])
+  @@index([subcategoryId])
   @@map("products")
 }
 
@@ -125,7 +128,8 @@ model ProductVariant {
   productId   String   @map("product_id") @db.Uuid
   sizeName    String   @map("size_name") @db.VarChar(50)
   price       Decimal  @db.Decimal(10, 2)
-  isAvailable Boolean  @default(true) @map("is_available")
+  isAvailable          Boolean  @default(true) @map("is_available")
+  isManuallyDeactivated Boolean @default(false) @map("is_manually_deactivated")
 
   product  Product  @relation(fields: [productId], references: [productId], onDelete: Cascade)
   recipes  Recipe[]
@@ -133,6 +137,8 @@ model ProductVariant {
   priceOptimizations PriceOptimization[]
 
   @@unique([productId, sizeName])
+  @@index([productId])
+  @@index([isAvailable])
   @@map("product_variants")
 }
 
@@ -170,6 +176,7 @@ model Recipe {
   ingredient Ingredient     @relation(fields: [ingredientId], references: [ingredientId])
 
   @@unique([variantId, ingredientId])
+  @@index([ingredientId])
   @@map("recipes")
 }
 

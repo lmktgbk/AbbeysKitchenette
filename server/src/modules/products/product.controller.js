@@ -127,10 +127,48 @@ export const productController = {
    */
   async activateProduct(req, res) {
     try {
-      const product = await productService.activate(req.params.id, req.user.id);
-      return successResponse(res, "Product activated", { product });
+      const { product, summary } = await productService.activate(req.params.id, req.user.id);
+      const { activated, skipped } = summary;
+      const total = activated.length + skipped.length;
+
+      let message;
+      if (skipped.length === 0) {
+        message = "Product activated";
+      } else if (activated.length === 0) {
+        message = `Product enabled but ${total} variant${total !== 1 ? "s" : ""} ${total !== 1 ? "have" : "has"} insufficient stock`;
+      } else {
+        message = `${activated.length} of ${total} variant${total !== 1 ? "s" : ""} activated`;
+      }
+
+      return successResponse(res, message, { product, summary });
     } catch (error) {
       return handleError(res, error, "ACTIVATE_PRODUCT_ERROR");
+    }
+  },
+
+  /**
+   * POST /api/products/:id/variants/:variantId/activate
+   * Activate a single variant.
+   */
+  async activateVariant(req, res) {
+    try {
+      const product = await productService.activateVariant(req.params.id, req.params.variantId, req.user.id);
+      return successResponse(res, "Variant activated", { product });
+    } catch (error) {
+      return handleError(res, error, "ACTIVATE_VARIANT_ERROR");
+    }
+  },
+
+  /**
+   * POST /api/products/:id/variants/:variantId/deactivate
+   * Deactivate a single variant.
+   */
+  async deactivateVariant(req, res) {
+    try {
+      const product = await productService.deactivateVariant(req.params.id, req.params.variantId, req.user.id);
+      return successResponse(res, "Variant deactivated", { product });
+    } catch (error) {
+      return handleError(res, error, "DEACTIVATE_VARIANT_ERROR");
     }
   },
 

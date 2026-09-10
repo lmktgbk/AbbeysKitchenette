@@ -47,12 +47,6 @@ export async function createOrderRequest(data) {
   return res.data;
 }
 
-// PUT /api/orders/:id — edit pending order
-export async function editOrderRequest(id, data) {
-  const res = await api.put(`/orders/${id}`, data);
-  return res.data;
-}
-
 // PUT /api/orders/:id/status — advance status
 export async function advanceOrderStatusRequest(id, data) {
   const res = await api.put(`/orders/${id}/status`, data);

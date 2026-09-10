@@ -61,6 +61,18 @@ export async function activateProductRequest(id) {
   return res.data;
 }
 
+// POST /api/products/:id/variants/:variantId/activate — activate single variant
+export async function activateVariantRequest(productId, variantId) {
+  const res = await api.post(`/products/${productId}/variants/${variantId}/activate`);
+  return res.data;
+}
+
+// POST /api/products/:id/variants/:variantId/deactivate — deactivate single variant
+export async function deactivateVariantRequest(productId, variantId) {
+  const res = await api.post(`/products/${productId}/variants/${variantId}/deactivate`);
+  return res.data;
+}
+
 // ── Delete ──────────────────────────
 
 // DELETE /api/products/:id — hard delete

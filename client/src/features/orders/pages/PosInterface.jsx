@@ -6,6 +6,7 @@ import PosMenuGrid from "../components/PosMenuGrid";
 import PosOrderSummary from "../components/PosOrderSummary";
 import PosPaymentModal from "../components/PosPaymentModal";
 import PosOnlineOrders from "../components/PosOnlineOrders";
+import { confirm } from "@/components/alerts/ConfirmDialog";
 import { confirmWithReason } from "@/components/alerts/ConfirmDialog";
 import { toLocalDate } from "@/lib/date";
 
@@ -29,6 +30,9 @@ export default function PosInterface() {
 
   // ── Online order fulfillment ────────
   const [fulfillingOrderId, setFulfillingOrderId] = useState(null);
+
+  // ── Online orders sidebar ──────────
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // ── Handlers ────────────────────────
 
@@ -148,11 +152,14 @@ export default function PosInterface() {
 
   return (
     <>
-      {/* Main content — 70/30 split */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left: Product menu (70%) */}
+      <div className="relative flex flex-1 overflow-hidden">
+        {/* Center: Product menu */}
         <div className="flex-[7] overflow-y-auto p-4">
-          <PosMenuGrid onAddItem={handleAddItem} />
+          <PosMenuGrid
+            onAddItem={handleAddItem}
+            sidebarOpen={sidebarOpen}
+            onToggleSidebar={() => setSidebarOpen((s) => !s)}
+          />
         </div>
 
         {/* Right: Order summary (30%) */}
@@ -168,6 +175,14 @@ export default function PosInterface() {
             onPlaceOrder={handlePlaceOrder}
           />
         </div>
+
+        {/* Online orders sidebar — absolute overlay */}
+        <PosOnlineOrders
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          onAcceptOrder={handleAcceptOnlineOrder}
+          onRejectOrder={handleRejectOnlineOrder}
+        />
       </div>
 
       {/* Payment modal */}
@@ -178,9 +193,6 @@ export default function PosInterface() {
         onConfirm={handlePaymentConfirm}
         isLoading={mutations.create.isPending || mutations.fulfill.isPending}
       />
-
-      {/* Online orders bar */}
-      <PosOnlineOrders onAcceptOrder={handleAcceptOnlineOrder} onRejectOrder={handleRejectOnlineOrder} />
     </>
   );
 }
