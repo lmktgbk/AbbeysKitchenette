@@ -15,7 +15,6 @@ export const guestRepository = {
    */
   async getAvailableProducts({ search, category }) {
     const where = {
-      isAvailable: true,
       isArchived: false,
       subcategory: { isActive: true },
       variants: { some: { recipes: { some: {} } } },
@@ -45,6 +44,7 @@ export const guestRepository = {
             sizeName: true,
             price: true,
             isAvailable: true,
+            isManuallyDeactivated: true,
           },
           orderBy: { price: "asc" },
         },

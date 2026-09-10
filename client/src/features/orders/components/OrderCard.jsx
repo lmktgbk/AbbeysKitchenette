@@ -9,6 +9,8 @@ export default function OrderCard({
   onToggleItem,
   onMarkReady,
   disabled,
+  preparing,
+  togglingItem,
 }) {
   const [elapsed, setElapsed] = useState(0);
 
@@ -29,8 +31,8 @@ export default function OrderCard({
   const isAccepted = order.status === "accepted";
   const isCompleted = order.status === "completed";
 
-  const totalItems = order.items?.length ?? 0;
-  const preparedCount = order.items?.filter((i) => i.is_prepared).length ?? 0;
+  const totalItems = order.total_items_all_roles ?? order.items?.length ?? 0;
+  const preparedCount = order.total_prepared_all_roles ?? order.items?.filter((i) => i.is_prepared).length ?? 0;
   const allChecked = totalItems > 0 && preparedCount === totalItems;
   const progressPct = totalItems ? Math.round((preparedCount / totalItems) * 100) : 0;
 
@@ -49,8 +51,8 @@ export default function OrderCard({
       isPreparing && "border-primary/40",
     )}>
       {/* Header */}
-      <div className="px-3 py-2 border-b border-border/60 shrink-0">
-        <div className="flex items-center justify-between mb-1">
+      <div className="px-2.5 py-1.5 border-b border-border/60 shrink-0">
+        <div className="flex items-center justify-between mb-0.5">
           <div className="flex items-center gap-1.5">
             <span className={cn(
               "text-[9px] px-1.5 py-px rounded-full font-bold",
@@ -75,13 +77,13 @@ export default function OrderCard({
         </div>
         <div className="flex items-end justify-between">
           <div className="min-w-0">
-            <div className="font-serif text-lg font-bold text-foreground leading-tight">
+            <div className="font-serif text-sm font-bold text-foreground leading-tight">
               #{order.order_number}
             </div>
-            <div className="text-xs font-semibold text-foreground/80 truncate">
+            <div className="text-[11px] font-semibold text-foreground/80 truncate">
               {order.customer_name}
             </div>
-            <div className="text-[11px] text-muted-foreground">
+            <div className="text-[10px] text-muted-foreground">
               T{order.table_number} ·{" "}
               <span className={source === "online" ? "text-purple-500" : "text-amber-500"}>
                 {source}
@@ -89,7 +91,7 @@ export default function OrderCard({
             </div>
           </div>
           <div className="text-right shrink-0">
-            <div className="font-serif text-base font-bold text-amber-500 leading-tight">
+            <div className="font-serif text-sm font-bold text-amber-500 leading-tight">
               {`₱${Number(order.total_amount).toLocaleString("en-PH", { maximumFractionDigits: 0 })}`}
             </div>
           </div>
@@ -97,7 +99,7 @@ export default function OrderCard({
       </div>
 
       {/* Items */}
-      <div className="px-3 py-1.5 space-y-0.5 flex-1 min-h-0 overflow-y-auto modal-scroll">
+      <div className="px-2.5 py-1 space-y-0.5 flex-1 min-h-0 overflow-y-auto modal-scroll">
         {order.items?.map((item) => {
           const done = item.is_prepared;
           const label = item.size_name
@@ -105,25 +107,30 @@ export default function OrderCard({
             : item.product_name;
 
           if (isPreparing) {
+            const isToggling = togglingItem === item.order_item_id;
             return (
               <button
                 key={item.order_item_id}
                 type="button"
                 className={cn(
-                  "flex items-center gap-1.5 w-full text-left px-2 py-1.5 rounded transition-all",
+                  "flex items-center gap-1.5 w-full text-left px-2 py-1 rounded transition-all",
                   "cursor-pointer hover:bg-muted active:scale-[0.995]",
                   done && "opacity-40",
                 )}
-                onClick={() => onToggleItem?.(order.order_id, item.order_item_id, !done)}
-                disabled={disabled}
+                onClick={() => !isToggling && onToggleItem?.(order.order_id, item.order_item_id, !done)}
+                disabled={disabled || isToggling}
               >
                 <div className={cn(
-                  "w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all",
+                  "w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-all",
                   done
                     ? "bg-primary/10 border-primary/25"
                     : "border-border",
                 )}>
-                  {done && <Icon name="check" size={10} className="text-primary" />}
+                  {isToggling ? (
+                    <div className="h-2.5 w-2.5 animate-spin rounded-full border-[1.5px] border-primary border-t-transparent" />
+                  ) : done ? (
+                    <Icon name="check" size={9} className="text-primary" />
+                  ) : null}
                 </div>
                 <span className={cn(
                   "text-[11px] font-medium flex-1 min-w-0 truncate",
@@ -131,7 +138,7 @@ export default function OrderCard({
                 )}>
                   {label}
                 </span>
-                <span className="text-[11px] font-bold text-muted-foreground shrink-0">
+                <span className="text-[10px] font-bold text-muted-foreground shrink-0">
                   ×{item.quantity}
                 </span>
               </button>
@@ -141,12 +148,12 @@ export default function OrderCard({
           return (
             <div
               key={item.order_item_id}
-              className="flex items-center gap-1.5 px-2 py-1"
+              className="flex items-center gap-1.5 px-2 py-0.5"
             >
               <span className="text-[11px] font-medium flex-1 min-w-0 truncate text-foreground/80">
                 {label}
               </span>
-              <span className="text-[11px] font-bold text-muted-foreground shrink-0">
+              <span className="text-[10px] font-bold text-muted-foreground shrink-0">
                 ×{item.quantity}
               </span>
             </div>
@@ -156,7 +163,7 @@ export default function OrderCard({
 
       {/* Footer — pinned to bottom via mt-auto on flex parent */}
       {isPreparing && (
-        <div className="px-3 py-2 border-t border-border/60 shrink-0 mt-auto space-y-1.5">
+        <div className="px-2.5 py-1.5 border-t border-border/60 shrink-0 mt-auto space-y-1">
           <div className="flex items-center gap-2">
             <div className="h-1 flex-1 rounded-full bg-border/60">
               <div
@@ -173,7 +180,7 @@ export default function OrderCard({
           </div>
           <Button
             className={cn(
-              "w-full font-bold text-xs py-1.5 rounded-lg",
+              "w-full font-bold text-xs py-1 rounded-lg",
               allChecked && "kds-pulse-ring",
             )}
             onClick={() => {
@@ -192,15 +199,19 @@ export default function OrderCard({
       )}
 
       {isAccepted && (
-        <div className="px-3 py-2 border-t border-border/60 shrink-0 mt-auto">
+        <div className="px-2.5 py-1.5 border-t border-border/60 shrink-0 mt-auto">
           <Button
-            className="w-full font-bold text-xs py-1.5 rounded-lg"
+            className="w-full font-bold text-xs py-1 rounded-lg"
             variant="outline"
             onClick={() => onMarkReady(order.order_id)}
-            disabled={disabled}
+            disabled={disabled || preparing}
           >
-            <Icon name="play" size={12} />
-            Start Preparing
+            {preparing ? (
+              <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            ) : (
+              <Icon name="play" size={12} />
+            )}
+            {preparing ? "Preparing..." : "Start Preparing"}
           </Button>
         </div>
       )}

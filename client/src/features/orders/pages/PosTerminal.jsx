@@ -9,6 +9,7 @@ import Icon from "@/components/ui/icon";
 const VIEW_OPTIONS = [
   { value: "pos", label: "POS" },
   { value: "orders", label: "Orders" },
+  { value: "kitchen", label: "Kitchen" },
 ];
 
 /**
@@ -31,11 +32,17 @@ export default function PosTerminal() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
 
-  const activeView = location.pathname.startsWith("/pos/orders") ? "orders" : "pos";
+  const activeView = location.pathname.startsWith("/pos/orders")
+    ? "orders"
+    : location.pathname.startsWith("/pos/kitchen")
+      ? "kitchen"
+      : "pos";
 
   function handleViewChange(value) {
     if (value === "orders") {
       navigate("/pos/orders");
+    } else if (value === "kitchen") {
+      navigate("/pos/kitchen");
     } else {
       navigate("/pos");
     }

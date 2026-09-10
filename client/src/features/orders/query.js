@@ -81,11 +81,12 @@ export function useGuestMenu(params = {}) {
 /**
  * usePendingOnlineOrders — pending online orders for POS.
  * Polls every 15s for real-time notification.
+ * @param {Object} filters - optional { search, dateFrom, dateTo }
  */
-export function usePendingOnlineOrders() {
+export function usePendingOnlineOrders({ search, dateFrom, dateTo } = {}) {
   return useQuery({
-    queryKey: orderKeys.list({ status: "pending", limit: "10" }),
-    queryFn: () => api.getOrdersRequest({ status: "pending", limit: "10" }),
+    queryKey: orderKeys.list({ status: "pending", limit: "50", search, dateFrom, dateTo }),
+    queryFn: () => api.getOrdersRequest({ status: "pending", limit: "50", search, date_from: dateFrom, date_to: dateTo }),
     refetchInterval: 15000,
   });
 }

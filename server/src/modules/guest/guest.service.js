@@ -22,6 +22,7 @@ export const guestService = {
       product_name: p.productName,
       description: p.description,
       image_url: p.imageUrl,
+      is_available: p.isAvailable,
       subcategory_id: p.subcategory?.subcategoryId ?? null,
       subcategory_name: p.subcategory?.subcategoryName ?? null,
       category_name: p.subcategory?.category?.categoryName ?? null,
@@ -30,6 +31,7 @@ export const guestService = {
         size_name: v.sizeName,
         price: Number(v.price),
         is_available: v.isAvailable,
+        is_manually_deactivated: v.isManuallyDeactivated,
       })),
     }));
   },

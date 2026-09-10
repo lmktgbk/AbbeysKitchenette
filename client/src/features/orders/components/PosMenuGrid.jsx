@@ -130,15 +130,18 @@ export default function PosMenuGrid({ onAddItem, sidebarOpen, onToggleSidebar })
 function ProductCard({ product, onAddItem }) {
   const [showVariants, setShowVariants] = useState(false);
 
+  const isProductAvailable = product.is_available !== false;
   const variants = product.variants ?? [];
   const availableVariants = variants.filter((v) => v.is_available !== false);
-  const unavailableCount = variants.length - availableVariants.length;
+  const manuallyDeactivatedCount = variants.filter((v) => v.is_manually_deactivated).length;
+  const stockUnavailableCount = variants.filter((v) => !v.is_manually_deactivated && v.is_available === false).length;
 
   const hasVariants = variants.length > 1;
   const singleVariant = variants.length === 1 ? variants[0] : null;
   const singleAvailable = singleVariant && singleVariant.is_available !== false;
 
   function handleQuickAdd() {
+    if (!isProductAvailable) return;
     if (singleAvailable) {
       onAddItem?.({
         product_id: product.product_id,
@@ -165,7 +168,7 @@ function ProductCard({ product, onAddItem }) {
     setShowVariants(false);
   }
 
-  const isFullyUnavailable = availableVariants.length === 0;
+  const isFullyUnavailable = !isProductAvailable || availableVariants.length === 0;
 
   return (
     <>
@@ -186,16 +189,24 @@ function ProductCard({ product, onAddItem }) {
               ₱{Number(singleVariant.price).toLocaleString()}
             </p>
           )}
-          {hasVariants && (
+          {hasVariants && availableVariants.length > 0 && (
             <p className="mt-1 text-[11px] text-muted-foreground">
               {availableVariants.length} size{availableVariants.length !== 1 ? "s" : ""} available
-              {unavailableCount > 0 && (
-                <span className="text-destructive"> · {unavailableCount} out of stock</span>
+              {manuallyDeactivatedCount > 0 && (
+                <span className="text-destructive"> · {manuallyDeactivatedCount} deactivated</span>
+              )}
+              {stockUnavailableCount > 0 && (
+                <span className="text-destructive"> · {stockUnavailableCount} out of stock</span>
               )}
             </p>
           )}
-          {!singleVariant && variants.length === 1 && (
-            <p className="mt-1 text-[11px] text-destructive">Out of stock</p>
+          {singleVariant && !singleAvailable && (
+            <p className="mt-1 text-[11px] text-destructive">
+              {singleVariant.is_manually_deactivated ? "Deactivated" : "Out of stock"}
+            </p>
+          )}
+          {!isProductAvailable && (
+            <p className="mt-1 text-[11px] font-medium text-destructive">Unavailable</p>
           )}
         </button>
       </div>
@@ -225,7 +236,11 @@ function ProductCard({ product, onAddItem }) {
                   <span>{variant.size_name}</span>
                   <span>
                     ₱{Number(variant.price).toLocaleString()}
-                    {!isAvailable && <span className="ml-1 text-xs">(Out of stock)</span>}
+                    {!isAvailable && (
+                      <span className="ml-1 text-xs">
+                        ({variant.is_manually_deactivated ? "Deactivated" : "Out of stock"})
+                      </span>
+                    )}
                   </span>
                 </button>
               );

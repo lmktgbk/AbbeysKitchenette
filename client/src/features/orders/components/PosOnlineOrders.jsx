@@ -1,6 +1,8 @@
+import { useState, useEffect, useRef } from "react";
 import { usePendingOnlineOrders } from "../query";
 import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
+import DateRangeFilter from "@/components/filters/DateRangeFilter";
 
 /**
  * PosOnlineOrders
@@ -11,7 +13,22 @@ import Icon from "@/components/ui/icon";
  * Cashier can accept (view + process) or reject (cancel) online orders.
  */
 export default function PosOnlineOrders({ open, onClose, onAcceptOrder, onRejectOrder }) {
-  const { data: ordersData, isLoading } = usePendingOnlineOrders();
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState(null);
+  const [dateTo, setDateTo] = useState(null);
+  const debounceRef = useRef(null);
+
+  useEffect(() => {
+    debounceRef.current = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(debounceRef.current);
+  }, [search]);
+
+  const { data: ordersData, isLoading } = usePendingOnlineOrders({
+    search: debouncedSearch || undefined,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
+  });
   const orders = ordersData?.data?.orders ?? [];
 
   if (!open) return null;
@@ -25,7 +42,7 @@ export default function PosOnlineOrders({ open, onClose, onAcceptOrder, onReject
       />
 
       {/* Sidebar */}
-      <div className="absolute left-0 top-0 bottom-0 w-72 z-30 border-r border-border bg-card shadow-lg flex flex-col overflow-hidden">
+      <div className="absolute left-0 top-0 bottom-0 w-80 z-30 border-r border-border bg-card shadow-lg flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/60">
           <div className="flex items-center gap-2">
@@ -45,6 +62,25 @@ export default function PosOnlineOrders({ open, onClose, onAcceptOrder, onReject
           >
             <Icon name="x" size={16} />
           </button>
+        </div>
+
+        {/* Filters */}
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-border/60">
+          <div className="relative flex-1">
+            <Icon name="search" size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search name or #..."
+              className="h-8 w-full rounded-md border border-border bg-card pl-8 pr-2 text-xs outline-none focus:border-primary"
+            />
+          </div>
+          <DateRangeFilter
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onDateChange={(from, to) => { setDateFrom(from); setDateTo(to); }}
+          />
         </div>
 
         {/* Order list */}

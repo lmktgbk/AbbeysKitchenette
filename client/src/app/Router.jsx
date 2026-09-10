@@ -128,6 +128,7 @@ const router = createBrowserRouter([
                 children: [
                     { index: true, element: <PosInterface /> },
                     { path: "orders", element: <OrdersPage embedded /> },
+                    { path: "kitchen", element: <KitchenDisplay embedded /> },
                 ],
             },
             { path: "/kitchen", element: <KitchenDisplay /> },

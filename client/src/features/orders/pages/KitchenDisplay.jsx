@@ -16,7 +16,7 @@ const TABS = [
   { key: "completed", label: "Completed" },
 ];
 
-export default function KitchenDisplay() {
+export default function KitchenDisplay({ embedded = false }) {
   const {
     loading,
     refreshing,
@@ -35,20 +35,27 @@ export default function KitchenDisplay() {
   const [pendingAction, setPendingAction] = useState(null);
   const [animatingOut, setAnimatingOut] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [preparingId, setPreparingId] = useState(null);
+  const [togglingItem, setTogglingItem] = useState(null);
 
-  // Role-based filtering: cashier sees beverages, kitchen sees food
-  const isCashier = user?.role === "cashier";
-  const categoryFilter = isCashier ? "Beverages" : "Food";
+  // Role-based filtering: cashier sees beverages, kitchen sees food, admin sees all
+  const categoryFilter = user?.role === "cashier" ? "Beverages" : user?.role === "kitchen" ? "Food" : null;
 
   // Filter items by role (category_name from backend = root category)
   const filterByRole = (orders) => {
-    return orders.map((order) => ({
-      ...order,
-      items: order.items.filter((item) => {
-        if (!item.category_name) return true;
-        return item.category_name === categoryFilter;
-      }),
-    })).filter((order) => order.items.length > 0);
+    if (!categoryFilter) return orders;
+    return orders.map((order) => {
+      const allItems = order.items ?? [];
+      return {
+        ...order,
+        items: allItems.filter((item) => {
+          if (!item.category_name) return true;
+          return item.category_name === categoryFilter;
+        }),
+        total_items_all_roles: allItems.length,
+        total_prepared_all_roles: allItems.filter((i) => i.is_prepared).length,
+      };
+    }).filter((order) => order.items.length > 0);
   };
 
   const allOrders = useMemo(() => [...preparing, ...accepted, ...completedToday], [preparing, accepted, completedToday]);
@@ -66,10 +73,13 @@ export default function KitchenDisplay() {
   async function handleAction(orderId, action) {
     if (action === "prepare") {
       try {
+        setPreparingId(orderId);
         await mutations.prepare.mutateAsync(orderId);
         toast.success("Order is now preparing");
       } catch (err) {
         toast.error(err.response?.data?.message || "Failed to prepare order");
+      } finally {
+        setPreparingId(null);
       }
     } else if (action === "markReady") {
       setPendingAction({ orderId, type: "ready" });
@@ -78,9 +88,12 @@ export default function KitchenDisplay() {
 
   async function handleToggleItem(orderId, itemId, isPrepared) {
     try {
+      setTogglingItem(itemId);
       await mutations.checkItem.mutateAsync({ orderId, itemId, data: { is_prepared: isPrepared } });
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to update item");
+    } finally {
+      setTogglingItem(null);
     }
   }
 
@@ -101,15 +114,15 @@ export default function KitchenDisplay() {
 
   if (loading) {
     return (
-      <div className="h-screen overflow-hidden bg-background text-foreground font-sans flex items-center justify-center">
+      <div className={`${embedded ? "h-full" : "h-screen"} overflow-hidden bg-background text-foreground font-sans flex items-center justify-center`}>
         <PrimarySpinner />
       </div>
     );
   }
 
   return (
-    <div className="h-screen overflow-hidden bg-background text-foreground font-sans flex flex-col">
-      <KitchenHeader refreshing={refreshing} />
+    <div className={`${embedded ? "h-full" : "h-screen"} overflow-hidden bg-background text-foreground font-sans flex flex-col`}>
+      {!embedded && <KitchenHeader refreshing={refreshing} />}
 
       {/* Tab Bar */}
       <div className="flex items-center gap-1 px-4 py-2 border-b border-border/60 shrink-0">
@@ -173,7 +186,7 @@ export default function KitchenDisplay() {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {displayOrders.map((order) => (
                 <OrderCard
                   key={order.order_id}
@@ -181,6 +194,8 @@ export default function KitchenDisplay() {
                   onToggleItem={handleToggleItem}
                   onMarkReady={(id) => handleAction(id, order.status === "accepted" ? "prepare" : "markReady")}
                   disabled={markingReady || animatingOut}
+                  preparing={preparingId === order.order_id}
+                  togglingItem={togglingItem}
                 />
               ))}
             </div>

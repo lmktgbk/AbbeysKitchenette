@@ -62,6 +62,7 @@ import {
     Percent,
     LayoutGrid,
     FolderPlus,
+    Inbox,
 } from "lucide-react";
 
 const iconMap = {
@@ -128,6 +129,7 @@ const iconMap = {
     percent: Percent,
     layoutGrid: LayoutGrid,
     folderPlus: FolderPlus,
+    inbox: Inbox,
 };
 
 /**

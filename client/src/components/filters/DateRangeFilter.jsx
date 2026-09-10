@@ -186,6 +186,23 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
     setViewYear(now.getFullYear());
   }
 
+  function goLastWeek() {
+    const now = new Date();
+    const day = now.getDay();
+    const mondayOffset = day === 0 ? 6 : day - 1;
+    const thisMonday = new Date(now);
+    thisMonday.setDate(now.getDate() - mondayOffset);
+    const lastMonday = new Date(thisMonday);
+    lastMonday.setDate(thisMonday.getDate() - 7);
+    const lastSunday = new Date(lastMonday);
+    lastSunday.setDate(lastMonday.getDate() + 6);
+
+    setStartDate(toISO(lastMonday));
+    setEndDate(toISO(lastSunday));
+    setViewMonth(lastMonday.getMonth());
+    setViewYear(lastMonday.getFullYear());
+  }
+
   function goLastMonth() {
     const now = new Date();
     const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -288,11 +305,12 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
 
       {/* Panel */}
       {open && (
-        <div className="absolute z-50 mt-1 right-0 w-80 rounded-lg border border-border bg-card shadow-lg p-3">
+        <div className="absolute z-50 mt-1 right-0 w-72 rounded-lg border border-border bg-card shadow-lg p-3">
           {/* Presets */}
-          <div className="flex flex-nowrap gap-1 mb-3">
+          <div className="grid grid-cols-3 gap-1 mb-3">
             <PresetButton label="Today" onClick={goToday} />
             <PresetButton label="This Week" onClick={goThisWeek} />
+            <PresetButton label="Last Week" onClick={goLastWeek} />
             <PresetButton label="This Month" onClick={goThisMonth} />
             <PresetButton label="Last Month" onClick={goLastMonth} />
           </div>

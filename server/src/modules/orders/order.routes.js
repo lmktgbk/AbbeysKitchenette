@@ -10,7 +10,6 @@ import {
   updateStatusSchema,
   cancelOrderSchema,
   fulfillOrderSchema,
-  prepareOrderSchema,
   checkOrderItemSchema,
   overrideLossSchema,
   orderIdParamSchema,
@@ -120,7 +119,6 @@ router.post(
   authenticate,
   authorize("admin", "cashier", "kitchen"),
   validateParams(orderIdParamSchema),
-  validate(prepareOrderSchema),
   orderController.prepareOrder,
 );
 
