@@ -77,6 +77,12 @@ export async function checkOrderItemRequest(orderId, itemId, data) {
   return res.data;
 }
 
+// POST /api/orders/:id/items/:itemId/remove — remove item from order
+export async function removeOrderItemRequest(orderId, itemId, data = {}) {
+  const res = await api.post(`/orders/${orderId}/items/${itemId}/remove`, data);
+  return res.data;
+}
+
 // ── Guest (Public) ──────────────────
 
 // GET /api/guest/menu — available products

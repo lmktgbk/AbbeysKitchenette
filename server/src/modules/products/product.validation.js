@@ -103,7 +103,7 @@ export const getProductsQuerySchema = z.object({
   status: z.enum(["all", "active", "unavailable"]).optional().default("all"),
   category: z
     .string()
-    .regex(/^\d+$/, "Category must be a positive integer")
+    .regex(/^(root|sub):\d+$/, "Category must be root:id or sub:id")
     .optional(),
   sortBy: z
     .enum(["product_name", "category_name", "created_at"])

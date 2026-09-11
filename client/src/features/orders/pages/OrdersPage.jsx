@@ -1,11 +1,13 @@
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { useOrderList, useOrderDetail, useOrderMutations } from "../query";
-import { confirm, confirmWithReason, confirmWithLossOption } from "@/components/alerts/ConfirmDialog";
+import { confirm } from "@/components/alerts/ConfirmDialog";
 import OrderStats from "../components/OrderStats";
 import OrderTable from "../components/OrderTable";
 import OrderDetailModal from "../components/OrderDetailModal";
 import PosPaymentModal from "../components/PosPaymentModal";
+import CancelOrderDialog from "@/components/orders/CancelOrderDialog";
+import RemoveItemDialog from "@/components/orders/RemoveItemDialog";
 import { Pagination } from "@/components/filters/Pagination";
 import { SearchBar } from "@/components/filters/SearchBar";
 import DateRangeFilter from "@/components/filters/DateRangeFilter";
@@ -52,6 +54,14 @@ export default function OrdersPage({ embedded = false }) {
 
   // ── Accept payment modal ───────────
   const [acceptingOrder, setAcceptingOrder] = useState(null);
+
+  // ── Cancel dialog ──────────────────
+  const [cancellingOrderId, setCancellingOrderId] = useState(null);
+  const { data: cancelDetailData, isLoading: isLoadingCancelDetail } = useOrderDetail(cancellingOrderId);
+  const cancelOrder = cancelDetailData?.data?.order ?? null;
+
+  // ── Remove item dialog ─────────────
+  const [removingItem, setRemovingItem] = useState(null); // { orderId, item }
 
   // ── Handlers ───────────────────────
 
@@ -134,42 +144,61 @@ export default function OrdersPage({ embedded = false }) {
 
   async function handleCancelClick(order) {
     const isPending = order.status === "pending";
-    const isPreparing = order.status === "preparing";
 
-    // Preparing orders: two-option loss dialog
-    if (isPreparing) {
-      const { confirmed, loss_option } = await confirmWithLossOption({
-        orderNumber: order.order_number,
-      });
-      if (!confirmed) return;
-
-      try {
-        await mutations.cancel.mutateAsync({
+    // Pending orders: simple delete confirmation (no recipes involved)
+    if (isPending) {
+      const ok = await confirm({
+        title: "Delete Order?",
+        message: `This will permanently delete order #${order.order_number}. This cannot be undone.`,
+        confirmLabel: "Delete",
+        loadingText: "Deleting...",
+        variant: "danger",
+        onConfirm: () => mutations.cancel.mutateAsync({
           id: order.order_id,
-          data: { reason: `Cancelled (loss option: ${loss_option})`, loss_option },
-        });
-        toast.success("Order cancelled");
-      } catch (err) {
-        toast.error(err.response?.data?.message || "Failed to cancel order");
-      }
+          data: { reason: "other", custom_reason: "Pending order deleted" },
+        }),
+      });
+      if (ok) toast.success("Order deleted");
       return;
     }
 
-    // Pending / accepted orders: standard reason dialog
-    const { confirmed, reason } = await confirmWithReason({
-      title: isPending ? "Delete Order?" : "Cancel Order?",
-      message: isPending
-        ? `This will permanently delete order #${order.order_number}. This cannot be undone.`
-        : `This will cancel order #${order.order_number} and restore deducted ingredients.`,
-      confirmLabel: isPending ? "Delete" : "Cancel Order",
-    });
-    if (!confirmed) return;
+    // Accepted / preparing orders: open rich cancel dialog
+    setCancellingOrderId(order.order_id);
+  }
 
+  async function handleCancelConfirm({ loss_option, refund_option, refund_amount, reason, item_losses }) {
+    if (!cancellingOrderId) return;
     try {
-      await mutations.cancel.mutateAsync({ id: order.order_id, data: { reason } });
-      toast.success(isPending ? "Order deleted" : "Order cancelled");
+      await mutations.cancel.mutateAsync({
+        id: cancellingOrderId,
+        data: { reason, loss_option, refund_option, refund_amount, item_losses },
+      });
+      toast.success("Order cancelled");
+      setCancellingOrderId(null);
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to cancel order");
+    }
+  }
+
+  function handleRemoveItemClick(order, item) {
+    setRemovingItem({ orderId: order.order_id, item });
+  }
+
+  async function handleRemoveItemConfirm({ reason, loss_option, refund_option, refund_amount, ingredient_losses }) {
+    if (!removingItem) return;
+    try {
+      const result = await mutations.removeItem.mutateAsync({
+        orderId: removingItem.orderId,
+        itemId: removingItem.item.order_item_id,
+        data: { reason, loss_option, refund_option, refund_amount, ingredient_losses },
+      });
+      const msg = result?.data?.action === "cancelled"
+        ? "Order cancelled (no items left)"
+        : "Item removed";
+      toast.success(msg);
+      setRemovingItem(null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to remove item");
     }
   }
 
@@ -263,14 +292,11 @@ export default function OrdersPage({ embedded = false }) {
         }}
         order={detailOrder}
         loading={isLoadingDetail}
-        onAdvance={handleAdvance}
-        onPrepare={handlePrepare}
-        onCheckItem={handleCheckItem}
-        onMarkReady={handleMarkReady}
         onCancel={(order) => {
           setShowDetailModal(false);
           handleCancelClick(order);
         }}
+        onRemoveItem={handleRemoveItemClick}
       />
 
       {/* Accept Payment Modal */}
@@ -280,6 +306,24 @@ export default function OrdersPage({ embedded = false }) {
         totalAmount={acceptingOrder ? Number(acceptingOrder.total_amount) : 0}
         onConfirm={handleAcceptPaymentConfirm}
         isLoading={mutations.advanceStatus.isPending}
+      />
+
+      {/* Cancel Order Dialog */}
+      <CancelOrderDialog
+        open={!!cancellingOrderId}
+        onOpenChange={(open) => { if (!open) setCancellingOrderId(null); }}
+        order={cancelOrder}
+        loading={isLoadingCancelDetail || mutations.cancel.isPending}
+        onConfirm={handleCancelConfirm}
+      />
+
+      {/* Remove Item Dialog */}
+      <RemoveItemDialog
+        open={!!removingItem}
+        onOpenChange={(open) => { if (!open) setRemovingItem(null); }}
+        item={removingItem?.item ?? null}
+        loading={mutations.removeItem.isPending}
+        onConfirm={handleRemoveItemConfirm}
       />
     </div>
   );

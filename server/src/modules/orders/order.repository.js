@@ -146,6 +146,9 @@ export const orderRepository = {
         cancellation: {
           include: { cancelledByUser: { select: { id: true, name: true, role: true } } },
         },
+        refund: {
+          include: { refundedByUser: { select: { id: true, name: true, role: true } } },
+        },
       },
     });
   },
@@ -372,6 +375,43 @@ export const orderRepository = {
     });
   },
 
+  /**
+   * Get a single order item by ID with order relation.
+   * @param {number} orderItemId - order item integer ID
+   * @returns {object|null} - order item or null
+   */
+  async getOrderItemById(orderItemId) {
+    return prisma.orderItem.findUnique({
+      where: { orderItemId },
+      include: {
+        order: { select: { orderId: true, status: true, amountPaid: true } },
+        product: { select: { productName: true } },
+        variant: { select: { sizeName: true } },
+      },
+    });
+  },
+
+  /**
+   * Hard-delete a single order item.
+   * @param {number} orderItemId - order item integer ID
+   * @param {object} [tx] - transaction client
+   */
+  async deleteOrderItem(orderItemId, tx) {
+    const client = tx || prisma;
+    return client.orderItem.delete({ where: { orderItemId } });
+  },
+
+  /**
+   * Count order items.
+   * @param {string} orderId - order UUID
+   * @param {object} [tx] - transaction client
+   * @returns {number} - item count
+   */
+  async countOrderItems(orderId, tx) {
+    const client = tx || prisma;
+    return client.orderItem.count({ where: { orderId } });
+  },
+
   /* ── Loss Records ─────────────────────── */
 
   async getOrderItemLosses(orderId) {
@@ -420,6 +460,7 @@ export const orderRepository = {
     const client = tx || prisma;
     return client.orderIngredientDeduction.findMany({
       where: { orderId, reversedAt: null },
+      include: { batch: { select: { costPerUnit: true } } },
     });
   },
 
@@ -434,6 +475,32 @@ export const orderRepository = {
       where: { orderId, reversedAt: null },
       data: { reversedAt: new Date(), reversedBy: userId },
     });
+  },
+
+  /**
+   * Get weighted cost per ingredient from deduction records.
+   * Returns the actual cost that was charged when ingredients were deducted.
+   * @param {string} orderId - order UUID
+   * @returns {Array<object>} - [{ ingredient_id, ingredient_name, unit, weighted_cost_per_unit }]
+   */
+  async getDeductionIngredientCosts(orderId) {
+    const sql = `
+      SELECT
+        d.ingredient_id,
+        i.ingredient_name,
+        i.unit,
+        SUM(d.quantity_deducted) AS total_deducted,
+        CASE WHEN SUM(d.quantity_deducted) > 0
+          THEN SUM(d.quantity_deducted * b.cost_per_unit) / SUM(d.quantity_deducted)
+          ELSE 0
+        END AS weighted_cost_per_unit
+      FROM order_ingredient_deductions d
+      JOIN ingredients i ON i.ingredient_id = d.ingredient_id
+      JOIN restock_batches b ON b.restock_id = d.restock_batch_id
+      WHERE d.order_id = $1 AND d.reversed_at IS NULL
+      GROUP BY d.ingredient_id, i.ingredient_name, i.unit
+    `;
+    return prisma.$queryRawUnsafe(sql, orderId);
   },
 
   /* ── Batch Operations ─────────────────── */
@@ -523,6 +590,7 @@ export const orderRepository = {
     if (variantIds.length === 0) return [];
     return prisma.recipe.findMany({
       where: { variantId: { in: variantIds } },
+      include: { ingredient: { select: { ingredientName: true, unit: true } } },
     });
   },
 
@@ -534,6 +602,11 @@ export const orderRepository = {
   async createCancellation(data, tx) {
     const client = tx || prisma;
     return client.orderCancellation.create({ data });
+  },
+
+  async createRefund(data, tx) {
+    const client = tx || prisma;
+    return client.paymentRefund.create({ data });
   },
 
   /* ── Kitchen Display ───────────────────── */
@@ -564,6 +637,9 @@ export const orderRepository = {
               'quantity', oi.quantity,
               'unit_price', oi.unit_price,
               'is_prepared', oi.is_prepared,
+              'prepared_by_name', u_prep.name,
+              'prepared_by_role', u_prep.role,
+              'prepared_at', oi.prepared_at,
               'category_id', c.category_id,
               'category_name', c.category_name,
               'subcategory_id', sc.subcategory_id,
@@ -578,6 +654,7 @@ export const orderRepository = {
       LEFT JOIN product_variants v ON v.variant_id = oi.variant_id
       LEFT JOIN subcategories sc ON sc.subcategory_id = p.subcategory_id
       LEFT JOIN categories c ON c.category_id = sc.category_id
+      LEFT JOIN "User" u_prep ON u_prep.id = oi.prepared_by
       WHERE (
             o.status IN ('accepted','preparing')
             OR (o.status = 'completed' AND o.completed_at >= (CURRENT_DATE - INTERVAL '1 day'))

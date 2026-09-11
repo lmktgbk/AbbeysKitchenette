@@ -71,6 +71,55 @@ export const orderService = {
     const order = await orderRepository.findById(id);
     if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
 
+    // Fetch recipes for all items (needed for cancel dialog partial loss)
+    const variantIds = [...new Set(order.items.map((i) => i.variantId))];
+    const recipes = variantIds.length > 0
+      ? await orderRepository.getRecipesByVariantIds(variantIds)
+      : [];
+    const recipeMap = new Map();
+    for (const r of recipes) {
+      if (!recipeMap.has(r.variantId)) recipeMap.set(r.variantId, []);
+      recipeMap.get(r.variantId).push(r);
+    }
+
+    // Get actual weighted costs from deduction records
+    const deductionCosts = await orderRepository.getDeductionIngredientCosts(id);
+    const deductionCostMap = new Map();
+    for (const dc of deductionCosts) {
+      deductionCostMap.set(dc.ingredient_id, Number(dc.weighted_cost_per_unit));
+    }
+
+    // Get item removals (loss records from cancellation)
+    const itemRemovals = await prisma.lossRecord.findMany({
+      where: { relatedOrderId: id, lossType: "cancellation" },
+      include: {
+        ingredient: { select: { ingredientName: true, unit: true } },
+        declaredBy: { select: { name: true, role: true } },
+      },
+      orderBy: { loggedAt: "asc" },
+    });
+
+    // Group removals by order_item_id
+    const removalsByItem = new Map();
+    for (const removal of itemRemovals) {
+      const key = removal.relatedOrderItemId ?? "order";
+      if (!removalsByItem.has(key)) removalsByItem.set(key, []);
+
+      // Parse product name from notes (format: "Product Name: reason")
+      const productName = removal.notes?.match(/^(.+?): /)?.[1] || null;
+
+      removalsByItem.get(key).push({
+        ingredient_name: removal.ingredient?.ingredientName ?? null,
+        quantity_lost: Number(removal.quantityLost),
+        cost_per_unit: Number(removal.costPerUnit),
+        total_cost_lost: Number(removal.totalCostLost),
+        declared_by: removal.declaredBy ? { name: removal.declaredBy.name, role: removal.declaredBy.role } : null,
+        logged_at: removal.loggedAt,
+        notes: removal.notes ?? null,
+        product_name: productName,
+      });
+    }
+
     return {
       ...formatOrderResponse(order),
       creator_name: order.creator?.name ?? null,
@@ -82,10 +131,31 @@ export const orderService = {
       cancelled_by: order.cancellation?.cancelledByUser
         ? { name: order.cancellation.cancelledByUser.name, role: order.cancellation.cancelledByUser.role }
         : null,
-      items: order.items.map((item) => formatOrderItemResponse({
-        ...item,
-        productName: item.product?.productName ?? null,
-        sizeName: item.variant?.sizeName ?? null,
+      refund: order.refund
+        ? {
+            amount: Number(order.refund.amount),
+            reason: order.refund.reason ?? null,
+            refunded_at: order.refund.refundedAt ?? null,
+            refunded_by: order.refund.refundedByUser
+              ? { name: order.refund.refundedByUser.name, role: order.refund.refundedByUser.role }
+              : null,
+            item_name: order.refund.reason?.match(/^(.+?) removed/)?.[1] || null,
+          }
+        : null,
+      item_removals: Object.fromEntries(removalsByItem),
+      items: order.items.map((item) => ({
+        ...formatOrderItemResponse({
+          ...item,
+          productName: item.product?.productName ?? null,
+          sizeName: item.variant?.sizeName ?? null,
+        }),
+        recipes: (recipeMap.get(item.variantId) || []).map((r) => ({
+          ingredient_id: r.ingredientId,
+          ingredient_name: r.ingredient?.ingredientName ?? null,
+          quantity_needed: Number(r.quantityNeeded),
+          cost_per_unit: deductionCostMap.get(r.ingredientId) || 0,
+          unit: r.ingredient?.unit ?? null,
+        })),
       })),
     };
   },
@@ -384,9 +454,56 @@ export const orderService = {
       : [];
     const affectedIngredientIds = [...new Set(deductions.map((d) => d.ingredientId))];
 
+    // Build weighted cost map from deductions
+    const deductionCostMap = new Map();
+    for (const d of deductions) {
+      const cost = d.batch ? Number(d.batch.costPerUnit) : 0;
+      const existing = deductionCostMap.get(d.ingredientId);
+      if (existing) {
+        // Weighted average across multiple batch deductions
+        const totalQty = existing.qty + Number(d.quantityDeducted);
+        const weightedCost = totalQty > 0
+          ? ((existing.cost * existing.qty) + (cost * Number(d.quantityDeducted))) / totalQty
+          : 0;
+        deductionCostMap.set(d.ingredientId, { cost: weightedCost, qty: totalQty });
+      } else {
+        deductionCostMap.set(d.ingredientId, { cost, qty: Number(d.quantityDeducted) });
+      }
+    }
+    const costMap = new Map();
+    for (const [ingId, data] of deductionCostMap) {
+      costMap.set(ingId, data.cost);
+    }
+
     // Determine loss handling based on options
     const lossOption = options.loss_option || "no_loss"; // "no_loss" | "with_loss"
+    const refundOption = options.refund_option || "partial"; // "full" | "partial" | "none"
     const itemLosses = options.item_losses || []; // [{ item_id, ingredient_losses: [{ ingredient_id, quantity_lost }] }]
+
+    // Calculate total loss cost for refund calculation
+    const orderAmountPaid = Number(order.amountPaid || 0);
+    let totalLossCost = 0;
+    if (lossOption === "with_loss" && itemLosses.length > 0) {
+      for (const il of itemLosses) {
+        for (const loss of il.ingredient_losses || []) {
+          const cost = costMap.get(loss.ingredient_id) || 0;
+          totalLossCost += Number(loss.quantity_lost) * cost;
+        }
+      }
+    }
+
+    // Calculate refund based on refund_option (or custom override)
+    let refundAmount;
+    if (options.refund_amount != null) {
+      refundAmount = Math.min(Number(options.refund_amount), orderAmountPaid);
+    } else if (refundOption === "full") {
+      refundAmount = orderAmountPaid;
+    } else if (refundOption === "none") {
+      refundAmount = 0;
+    } else {
+      // partial: paid amount minus loss cost, floored at 0
+      refundAmount = Math.max(orderAmountPaid - totalLossCost, 0);
+    }
 
     await prisma.$transaction(async (tx) => {
       if (order.status === "accepted") {
@@ -395,20 +512,29 @@ export const orderService = {
       }
 
       if (order.status === "preparing") {
-        const checkedItems = orderItems.filter((item) => item.isPrepared);
-        const uncheckedItems = orderItems.filter((item) => !item.isPrepared);
-
         if (lossOption === "no_loss") {
-          // No loss: restore ALL ingredients (even for checked items)
+          // No loss: restore ALL ingredients
           await this._restoreIngredients(id, userId, tx);
         } else {
-          // With loss: restore unchecked items, create loss records for checked items
-          if (uncheckedItems.length > 0) {
-            await this._restoreIngredientsForItems(id, uncheckedItems, tx);
+          // With loss: create loss records for items with declared losses, restore the rest
+          const itemsWithLosses = orderItems.filter((item) => {
+            const itemLoss = itemLosses.find((il) => il.item_id === item.orderItemId);
+            return itemLoss && itemLoss.ingredient_losses.length > 0;
+          });
+          const itemsWithoutLosses = orderItems.filter((item) => {
+            const itemLoss = itemLosses.find((il) => il.item_id === item.orderItemId);
+            return !itemLoss || itemLoss.ingredient_losses.length === 0;
+          });
+
+          // Fully restore items with no declared losses
+          if (itemsWithoutLosses.length > 0) {
+            await this._restoreIngredientsForItems(id, itemsWithoutLosses, tx);
           }
 
-          if (checkedItems.length > 0) {
-            await this._createLossRecords(id, checkedItems, userId, tx);
+          // For items with declared losses: create loss records + restore non-lost portions
+          if (itemsWithLosses.length > 0) {
+            await this._createLossRecords(id, itemsWithLosses, userId, tx, itemLosses, costMap);
+            await this._restorePartialItems(id, itemsWithLosses, itemLosses, tx);
           }
         }
       }
@@ -420,6 +546,15 @@ export const orderService = {
         cancelledBy: userId,
         reason: reason || null,
       }, tx);
+
+      if (refundAmount > 0 && order.amountPaid && Number(order.amountPaid) > 0) {
+        await orderRepository.createRefund({
+          orderId: id,
+          amount: refundAmount,
+          reason: reason || `Cancelled (${lossOption}, refund: ${refundOption})`,
+          refundedById: userId,
+        }, tx);
+      }
     });
 
     if (affectedIngredientIds.length > 0) {
@@ -435,6 +570,155 @@ export const orderService = {
     }).catch(() => {});
 
     return { order_id: id, action: "cancelled" };
+  },
+
+  /* ── Remove Single Item ────────────── */
+
+  async removeOrderItem(orderId, orderItemId, userId, reason, options = {}) {
+    const order = await orderRepository.findById(orderId);
+    if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
+
+    if (order.status !== "accepted" && order.status !== "preparing") {
+      throw new AppError(400, "Only accepted or preparing orders can have items removed", "INVALID_STATUS");
+    }
+
+    const orderItem = await orderRepository.getOrderItemById(orderItemId);
+    if (!orderItem || orderItem.orderId !== orderId) {
+      throw new AppError(404, "Order item not found", "ORDER_ITEM_NOT_FOUND");
+    }
+
+    const lossOption = options.loss_option || "no_loss";
+    const refundOption = options.refund_option || "partial";
+    const ingredientLosses = options.ingredient_losses || [];
+    const isPrepared = orderItem.isPrepared;
+
+    // Fetch recipes for this item's variant
+    const recipes = await orderRepository.getRecipesByVariantIds([orderItem.variantId]);
+    const itemRecipes = recipes.filter((r) => r.variantId === orderItem.variantId);
+
+    // Calculate refund based on refund_option
+    const itemSubtotal = Number(orderItem.subtotal || 0);
+
+    // Get active deductions for restore/loss calculations
+    const deductions = await orderRepository.getActiveDeductions(orderId);
+    const affectedIngredientIds = [...new Set(deductions.map((d) => d.ingredientId))];
+
+    // Build weighted cost map from deductions
+    const deductionCostMap = new Map();
+    for (const d of deductions) {
+      const cost = d.batch ? Number(d.batch.costPerUnit) : 0;
+      const existing = deductionCostMap.get(d.ingredientId);
+      if (existing) {
+        const totalQty = existing.qty + Number(d.quantityDeducted);
+        const weightedCost = totalQty > 0
+          ? ((existing.cost * existing.qty) + (cost * Number(d.quantityDeducted))) / totalQty
+          : 0;
+        deductionCostMap.set(d.ingredientId, { cost: weightedCost, qty: totalQty });
+      } else {
+        deductionCostMap.set(d.ingredientId, { cost, qty: Number(d.quantityDeducted) });
+      }
+    }
+    const itemCostMap = new Map();
+    for (const [ingId, data] of deductionCostMap) {
+      itemCostMap.set(ingId, data.cost);
+    }
+
+    // Calculate total loss cost from user-specified ingredient losses
+    let totalLossCost = 0;
+    if (lossOption === "with_loss" && ingredientLosses.length > 0) {
+      for (const loss of ingredientLosses) {
+        const cost = itemCostMap.get(loss.ingredient_id) || 0;
+        totalLossCost += Number(loss.quantity_lost) * cost;
+      }
+    }
+
+    // Calculate refund based on refund_option (or custom override)
+    let refundAmount;
+    if (options.refund_amount != null) {
+      refundAmount = Math.min(Number(options.refund_amount), itemSubtotal);
+    } else if (refundOption === "full") {
+      refundAmount = itemSubtotal;
+    } else if (refundOption === "none") {
+      refundAmount = 0;
+    } else {
+      // partial: subtotal minus loss cost, floored at 0
+      refundAmount = Math.max(itemSubtotal - totalLossCost, 0);
+    }
+
+    await prisma.$transaction(async (tx) => {
+      if (!isPrepared) {
+        // Unchecked item: restore this item's ingredients proportionally
+        await this._restoreIngredientsForSingleItem(orderItem, itemRecipes, deductions, tx);
+      } else {
+        // Checked (served) item: loss handling
+        if (lossOption === "no_loss") {
+          // Restore anyway (item was served but we still restore)
+          await this._restoreIngredientsForSingleItem(orderItem, itemRecipes, deductions, tx);
+        } else {
+          // With loss: create loss records, restore non-lost portions
+          await this._createLossRecordsForSingleItem(orderId, orderItem, itemRecipes, userId, tx, ingredientLosses, itemCostMap);
+          await this._restorePartialForSingleItem(orderItem, itemRecipes, ingredientLosses, deductions, tx);
+        }
+      }
+
+      // Delete the order item
+      await orderRepository.deleteOrderItem(orderItemId, tx);
+
+      // Recalculate order total
+      const newTotal = Number(order.totalAmount) - refundAmount;
+      await orderRepository.updateOrder(orderId, { totalAmount: Math.max(newTotal, 0) }, tx);
+
+      // Count remaining items
+      const remainingCount = await orderRepository.countOrderItems(orderId, tx);
+
+      // If no items left, cancel the entire order
+      if (remainingCount === 0) {
+        await orderRepository.updateStatus(orderId, "cancelled", { userId }, tx);
+        await orderRepository.createCancellation({
+          orderId,
+          cancelledBy: userId,
+          reason: reason || "All items removed",
+        }, tx);
+      }
+
+      // Create refund if amount was paid
+      if (refundAmount > 0 && order.amountPaid && Number(order.amountPaid) > 0) {
+        const itemLabel = orderItem.product?.productName
+          ? (orderItem.variant?.sizeName ? `${orderItem.product.productName} (${orderItem.variant.sizeName})` : orderItem.product.productName)
+          : null;
+        await orderRepository.createRefund({
+          orderId,
+          amount: refundAmount,
+          reason: reason || (itemLabel ? `${itemLabel} removed (${lossOption})` : `Item removed (${lossOption})`),
+          refundedById: userId,
+        }, tx);
+      }
+    });
+
+    if (affectedIngredientIds.length > 0) {
+      await productService.recomputeVariantAvailability(affectedIngredientIds);
+    }
+
+    auditLogService.logAction({
+      userId,
+      action: "order_item_removed",
+      targetType: "order_item",
+      targetId: String(orderItemId),
+      details: {
+        order_id: orderId,
+        product_name: orderItem.product?.productName,
+        reason,
+        loss_option: lossOption,
+        refund_amount: refundAmount,
+      },
+    }).catch(() => {});
+
+    const remainingCount = await orderRepository.countOrderItems(orderId);
+    return {
+      order_id: orderId,
+      action: remainingCount === 0 ? "cancelled" : "item_removed",
+      refund_amount: refundAmount,
+    };
   },
 
   /* ── Override Loss ───────────────────── */
@@ -507,6 +791,7 @@ export const orderService = {
           ingredientId,
           restockBatchId: batch.restockId,
           quantityDeducted: toDeduct,
+          costPerUnit: Number(batch.costPerUnit),
         });
 
         remaining -= toDeduct;
@@ -555,16 +840,22 @@ export const orderService = {
       }
     }
 
+    const restoreTracker = new Map(restoreNeeds);
     for (const deduction of allDeductions) {
-      const restoreQty = restoreNeeds.get(deduction.ingredientId) || 0;
+      const remaining = restoreTracker.get(deduction.ingredientId) || 0;
+      if (remaining <= 0) continue;
+
+      const restoreQty = Math.min(remaining, Number(deduction.quantityDeducted));
       if (restoreQty > 0) {
         await orderRepository.restoreBatch(deduction.restockBatchId, restoreQty, tx);
-        restoreNeeds.set(deduction.ingredientId, restoreQty - restoreQty);
+        restoreTracker.set(deduction.ingredientId, remaining - restoreQty);
       }
     }
   },
 
-  async _createLossRecords(orderId, preparedItems, userId, tx) {
+  async _restorePartialItems(orderId, preparedItems, itemLosses, tx) {
+    const allDeductions = await orderRepository.getActiveDeductions(orderId, tx);
+
     const variantIds = [...new Set(preparedItems.map((i) => i.variantId))];
     const recipes = await orderRepository.getRecipesByVariantIds(variantIds);
 
@@ -574,11 +865,194 @@ export const orderService = {
       recipeMap.get(r.variantId).push(r);
     }
 
+    // Build loss lookup: { order_item_id -> Set<ingredient_id> }
+    const lossSetMap = new Map();
+    for (const entry of itemLosses) {
+      const lostIds = new Set((entry.ingredient_losses || []).map((il) => il.ingredient_id));
+      lossSetMap.set(entry.order_item_id, lostIds);
+    }
+
+    // For each prepared item, calculate total recipe needs per ingredient,
+    // then restore the difference (total - lost amount)
+    const restoreNeeds = new Map();
     for (const item of preparedItems) {
+      const lostIds = lossSetMap.get(item.orderItemId);
+      if (!lostIds) continue; // No partial loss specified for this item — auto mode, no restore
+
       const itemRecipes = recipeMap.get(item.variantId) || [];
       for (const recipe of itemRecipes) {
-        const quantityLost = Number(recipe.quantityNeeded) * item.quantity;
-        const costPerUnit = Number(recipe.costPerUnit || 0);
+        const totalNeeded = Number(recipe.quantityNeeded) * item.quantity;
+        if (lostIds.has(recipe.ingredientId)) {
+          // This ingredient is declared as loss — restore = total - lost_amount (which is total in auto, or user-specified)
+          // The loss amount is handled by _createLossRecords; restore only the non-lost portion
+          const lossEntry = (itemLosses.find((e) => e.order_item_id === item.orderItemId))
+            ?.ingredient_losses?.find((il) => il.ingredient_id === recipe.ingredientId);
+          const lostQty = lossEntry ? Number(lossEntry.quantity_lost) : totalNeeded;
+          const restoreQty = totalNeeded - lostQty;
+          if (restoreQty > 0) {
+            restoreNeeds.set(recipe.ingredientId, (restoreNeeds.get(recipe.ingredientId) || 0) + restoreQty);
+          }
+        } else {
+          // Not declared as loss — restore all
+          restoreNeeds.set(recipe.ingredientId, (restoreNeeds.get(recipe.ingredientId) || 0) + totalNeeded);
+        }
+      }
+    }
+
+    for (const deduction of allDeductions) {
+      const restoreQty = restoreNeeds.get(deduction.ingredientId) || 0;
+      if (restoreQty > 0) {
+        await orderRepository.restoreBatch(deduction.restockBatchId, restoreQty, tx);
+        restoreNeeds.set(deduction.ingredientId, 0);
+      }
+    }
+  },
+
+  /* ── Single-Item Restore/Loss Helpers ── */
+
+  /**
+   * Restore ingredients for a single item proportionally from deductions.
+   */
+  async _restoreIngredientsForSingleItem(orderItem, itemRecipes, allDeductions, tx) {
+    // Calculate what this item needs per ingredient
+    const needs = new Map();
+    for (const recipe of itemRecipes) {
+      const needed = Number(recipe.quantityNeeded) * orderItem.quantity;
+      needs.set(recipe.ingredientId, (needs.get(recipe.ingredientId) || 0) + needed);
+    }
+
+    // Restore from deductions (FIFO order)
+    const restoreTracker = new Map(); // ingredientId -> remaining to restore
+    for (const [ingId, qty] of needs) {
+      restoreTracker.set(ingId, qty);
+    }
+
+    for (const deduction of allDeductions) {
+      const remaining = restoreTracker.get(deduction.ingredientId) || 0;
+      if (remaining <= 0) continue;
+
+      const restoreQty = Math.min(remaining, Number(deduction.quantityDeducted));
+      if (restoreQty > 0) {
+        await orderRepository.restoreBatch(deduction.restockBatchId, restoreQty, tx);
+        restoreTracker.set(deduction.ingredientId, remaining - restoreQty);
+      }
+    }
+  },
+
+  /**
+   * Create loss records for a single checked item.
+   */
+  async _createLossRecordsForSingleItem(orderId, orderItem, itemRecipes, userId, tx, ingredientLosses = [], deductionCostMap = new Map()) {
+    // Build lookup for user-specified losses: { ingredient_id -> quantity_lost }
+    const lossMap = new Map();
+    for (const entry of ingredientLosses) {
+      lossMap.set(entry.ingredient_id, entry.quantity_lost);
+    }
+
+    const itemLabel = orderItem.product?.productName
+      ? (orderItem.variant?.sizeName ? `${orderItem.product.productName} (${orderItem.variant.sizeName})` : orderItem.product.productName)
+      : null;
+
+    for (const recipe of itemRecipes) {
+      const totalNeeded = Number(recipe.quantityNeeded) * orderItem.quantity;
+      const quantityLost = lossMap.has(recipe.ingredientId)
+        ? Number(lossMap.get(recipe.ingredientId))
+        : totalNeeded;
+
+      if (quantityLost <= 0) continue;
+
+      const costPerUnit = deductionCostMap.get(recipe.ingredientId) || 0;
+
+      await orderRepository.createOrderItemLoss({
+        ingredientId: recipe.ingredientId,
+        declaredById: userId,
+        lossType: "cancellation",
+        quantityLost,
+        costPerUnit,
+        totalCostLost: quantityLost * costPerUnit,
+        relatedOrderId: orderId,
+        relatedOrderItemId: orderItem.orderItemId,
+        notes: lossMap.has(recipe.ingredientId)
+          ? `${itemLabel}: Partial loss declared`
+          : `${itemLabel}: Item cancelled mid-preparation`,
+      }, tx);
+    }
+  },
+
+  /**
+   * Restore non-lost portion of a single checked item's ingredients.
+   */
+  async _restorePartialForSingleItem(orderItem, itemRecipes, ingredientLosses, allDeductions, tx) {
+    const lossMap = new Map();
+    for (const entry of ingredientLosses) {
+      lossMap.set(entry.ingredient_id, entry.quantity_lost);
+    }
+
+    const restoreNeeds = new Map();
+    for (const recipe of itemRecipes) {
+      const totalNeeded = Number(recipe.quantityNeeded) * orderItem.quantity;
+      if (lossMap.has(recipe.ingredientId)) {
+        const lostQty = Number(lossMap.get(recipe.ingredientId));
+        const restoreQty = totalNeeded - lostQty;
+        if (restoreQty > 0) {
+          restoreNeeds.set(recipe.ingredientId, (restoreNeeds.get(recipe.ingredientId) || 0) + restoreQty);
+        }
+      } else {
+        // Not declared as loss — restore all
+        restoreNeeds.set(recipe.ingredientId, (restoreNeeds.get(recipe.ingredientId) || 0) + totalNeeded);
+      }
+    }
+
+    const restoreTracker = new Map(restoreNeeds);
+    for (const deduction of allDeductions) {
+      const remaining = restoreTracker.get(deduction.ingredientId) || 0;
+      if (remaining <= 0) continue;
+
+      const restoreQty = Math.min(remaining, Number(deduction.quantityDeducted));
+      if (restoreQty > 0) {
+        await orderRepository.restoreBatch(deduction.restockBatchId, restoreQty, tx);
+        restoreTracker.set(deduction.ingredientId, remaining - restoreQty);
+      }
+    }
+  },
+
+  async _createLossRecords(orderId, preparedItems, userId, tx, itemLosses = [], deductionCostMap = new Map()) {
+    const variantIds = [...new Set(preparedItems.map((i) => i.variantId))];
+    const recipes = await orderRepository.getRecipesByVariantIds(variantIds);
+
+    const recipeMap = new Map();
+    for (const r of recipes) {
+      if (!recipeMap.has(r.variantId)) recipeMap.set(r.variantId, []);
+      recipeMap.get(r.variantId).push(r);
+    }
+
+    // Build lookup for user-specified partial losses: { order_item_id -> { ingredient_id -> quantity_lost } }
+    const partialLossMap = new Map();
+    for (const entry of itemLosses) {
+      const ingredientMap = new Map();
+      for (const il of entry.ingredient_losses || []) {
+        ingredientMap.set(il.ingredient_id, il.quantity_lost);
+      }
+      partialLossMap.set(entry.order_item_id, ingredientMap);
+    }
+
+    for (const item of preparedItems) {
+      const itemRecipes = recipeMap.get(item.variantId) || [];
+      const partialMap = partialLossMap.get(item.orderItemId);
+
+      for (const recipe of itemRecipes) {
+        // If partial loss specified for this item, use user-declared quantity; otherwise auto-calculate
+        const quantityLost = partialMap?.has(recipe.ingredientId)
+          ? Number(partialMap.get(recipe.ingredientId))
+          : Number(recipe.quantityNeeded) * item.quantity;
+
+        if (quantityLost <= 0) continue;
+
+        const costPerUnit = deductionCostMap.get(recipe.ingredientId) || 0;
+
+        const itemLabel = item.product?.productName
+          ? (item.variant?.sizeName ? `${item.product.productName} (${item.variant.sizeName})` : item.product.productName)
+          : null;
 
         await orderRepository.createOrderItemLoss({
           ingredientId: recipe.ingredientId,
@@ -589,7 +1063,9 @@ export const orderService = {
           totalCostLost: quantityLost * costPerUnit,
           relatedOrderId: orderId,
           relatedOrderItemId: item.orderItemId,
-          notes: `Item cancelled mid-preparation`,
+          notes: partialMap?.has(recipe.ingredientId)
+            ? `${itemLabel}: Partial loss declared`
+            : `${itemLabel}: Item cancelled mid-preparation`,
         }, tx);
       }
     }

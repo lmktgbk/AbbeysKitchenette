@@ -135,7 +135,7 @@ export const productController = {
       if (skipped.length === 0) {
         message = "Product activated";
       } else if (activated.length === 0) {
-        message = `Product enabled but ${total} variant${total !== 1 ? "s" : ""} ${total !== 1 ? "have" : "has"} insufficient stock`;
+        message = `0 of ${total} variant${total !== 1 ? "s" : ""} activated — insufficient stock`;
       } else {
         message = `${activated.length} of ${total} variant${total !== 1 ? "s" : ""} activated`;
       }

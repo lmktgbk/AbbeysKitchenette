@@ -83,19 +83,83 @@ export const updateStatusSchema = z.object({
   amount_paid: z.number().positive().optional(),
 });
 
+// ── Shared Constants ──────────────────────────────
+
+export const CANCEL_REASONS = [
+  { value: "customer_changed_mind", label: "Customer changed mind" },
+  { value: "wrong_order", label: "Wrong order" },
+  { value: "duplicate", label: "Duplicate order" },
+  { value: "out_of_stock", label: "Out of stock" },
+  { value: "other", label: "Other" },
+];
+
+const cancelReasonEnum = z.enum(
+  CANCEL_REASONS.map((r) => r.value),
+  { errorMap: () => ({ message: "Invalid cancellation reason" }) },
+);
+
 // POST /api/orders/:id/cancel — cancel/delete order
 export const cancelOrderSchema = z.object({
-  reason: z
-    .string()
-    .trim()
-    .max(500, "Reason must not exceed 500 characters")
-    .optional(),
+  reason: cancelReasonEnum.optional(),
+  custom_reason: z.string().trim().max(500, "Custom reason must not exceed 500 characters").optional(),
   loss_option: z
     .enum(["no_loss", "with_loss"], {
       errorMap: () => ({ message: "loss_option must be 'no_loss' or 'with_loss'" }),
     })
     .optional()
     .default("no_loss"),
+  refund_option: z
+    .enum(["full", "partial", "none"], {
+      errorMap: () => ({ message: "refund_option must be 'full', 'partial', or 'none'" }),
+    })
+    .optional()
+    .default("partial"),
+  refund_amount: z.number().min(0, "Refund amount must be non-negative").optional(),
+  item_losses: z
+    .array(
+      z.object({
+        order_item_id: z.number().int().positive(),
+        ingredient_losses: z
+          .array(
+            z.object({
+              ingredient_id: z.string().uuid(),
+              quantity_lost: z.number().positive(),
+            })
+          )
+          .optional()
+          .default([]),
+      })
+    )
+    .optional()
+    .default([]),
+});
+
+// POST /api/orders/:id/items/:itemId/remove — remove item from order
+export const removeItemSchema = z.object({
+  reason: cancelReasonEnum,
+  custom_reason: z.string().trim().max(500, "Custom reason must not exceed 500 characters").optional(),
+  loss_option: z
+    .enum(["no_loss", "with_loss"], {
+      errorMap: () => ({ message: "loss_option must be 'no_loss' or 'with_loss'" }),
+    })
+    .optional()
+    .default("no_loss"),
+  refund_option: z
+    .enum(["full", "partial", "none"], {
+      errorMap: () => ({ message: "refund_option must be 'full', 'partial', or 'none'" }),
+    })
+    .optional()
+    .default("partial"),
+  refund_amount: z.number().min(0, "Refund amount must be non-negative").optional(),
+  ingredient_losses: z
+    .array(
+      z.object({
+        ingredient_id: z.string().uuid(),
+        quantity_lost: z.number().positive(),
+      }),
+    )
+    .optional()
+    .default([]),
 });
 
 // POST /api/orders/:id/prepare — transition to preparing

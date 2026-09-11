@@ -11,6 +11,7 @@ export default function OrderCard({
   disabled,
   preparing,
   togglingItem,
+  roleCategory,
 }) {
   const [elapsed, setElapsed] = useState(0);
 
@@ -31,8 +32,13 @@ export default function OrderCard({
   const isAccepted = order.status === "accepted";
   const isCompleted = order.status === "completed";
 
-  const totalItems = order.total_items_all_roles ?? order.items?.length ?? 0;
-  const preparedCount = order.total_prepared_all_roles ?? order.items?.filter((i) => i.is_prepared).length ?? 0;
+  // Items this role can actually check (admin sees all)
+  const checkableItems = roleCategory
+    ? (order.items ?? []).filter((item) => !item.category_name || item.category_name === roleCategory)
+    : (order.items ?? []);
+
+  const totalItems = checkableItems.length;
+  const preparedCount = checkableItems.filter((i) => i.is_prepared).length;
   const allChecked = totalItems > 0 && preparedCount === totalItems;
   const progressPct = totalItems ? Math.round((preparedCount / totalItems) * 100) : 0;
 
@@ -101,6 +107,7 @@ export default function OrderCard({
       {/* Items */}
       <div className="px-2.5 py-1 space-y-0.5 flex-1 min-h-0 overflow-y-auto modal-scroll">
         {order.items?.map((item) => {
+          const canCheck = !roleCategory || !item.category_name || item.category_name === roleCategory;
           const done = item.is_prepared;
           const label = item.size_name
             ? `${item.product_name} (${item.size_name})`
@@ -114,30 +121,43 @@ export default function OrderCard({
                 type="button"
                 className={cn(
                   "flex items-center gap-1.5 w-full text-left px-2 py-1 rounded transition-all",
-                  "cursor-pointer hover:bg-muted active:scale-[0.995]",
+                  canCheck
+                    ? "cursor-pointer hover:bg-muted active:scale-[0.995]"
+                    : "opacity-40 cursor-not-allowed",
                   done && "opacity-40",
                 )}
-                onClick={() => !isToggling && onToggleItem?.(order.order_id, item.order_item_id, !done)}
-                disabled={disabled || isToggling}
+                onClick={() => canCheck && !isToggling && onToggleItem?.(order.order_id, item.order_item_id, !done)}
+                disabled={disabled || isToggling || !canCheck}
               >
-                <div className={cn(
-                  "w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-all",
-                  done
-                    ? "bg-primary/10 border-primary/25"
-                    : "border-border",
-                )}>
-                  {isToggling ? (
-                    <div className="h-2.5 w-2.5 animate-spin rounded-full border-[1.5px] border-primary border-t-transparent" />
-                  ) : done ? (
-                    <Icon name="check" size={9} className="text-primary" />
-                  ) : null}
+                {canCheck ? (
+                  <div className={cn(
+                    "w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-all",
+                    done
+                      ? "bg-primary/10 border-primary/25"
+                      : "border-border",
+                  )}>
+                    {isToggling ? (
+                      <div className="h-2.5 w-2.5 animate-spin rounded-full border-[1.5px] border-primary border-t-transparent" />
+                    ) : done ? (
+                      <Icon name="check" size={9} className="text-primary" />
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="w-3.5 h-3.5 rounded border border-border/40 bg-muted/30 shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <span className={cn(
+                    "text-[11px] font-medium block truncate leading-tight",
+                    done && "line-through text-muted-foreground",
+                  )}>
+                    {label}
+                  </span>
+                  {done && item.prepared_by_name && (
+                    <span className="text-[9px] text-muted-foreground leading-tight">
+                      by {item.prepared_by_name}
+                    </span>
+                  )}
                 </div>
-                <span className={cn(
-                  "text-[11px] font-medium flex-1 min-w-0 truncate",
-                  done && "line-through text-muted-foreground",
-                )}>
-                  {label}
-                </span>
                 <span className="text-[10px] font-bold text-muted-foreground shrink-0">
                   ×{item.quantity}
                 </span>
@@ -148,7 +168,7 @@ export default function OrderCard({
           return (
             <div
               key={item.order_item_id}
-              className="flex items-center gap-1.5 px-2 py-0.5"
+              className={cn("flex items-center gap-1.5 px-2 py-0.5", !canCheck && "opacity-40")}
             >
               <span className="text-[11px] font-medium flex-1 min-w-0 truncate text-foreground/80">
                 {label}

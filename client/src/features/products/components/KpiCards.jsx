@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  * KpiCards
  *
  * Summary cards showing product status at a glance.
- * 4 cards: Total Products, Available, Unavailable, Categories Used.
+ * 4 cards: Total Products, Available, Unavailable, Total Categories.
  */
 export default function KpiCards() {
   const { data: summaryData, isLoading, error } = useProductSummary();
@@ -14,7 +14,7 @@ export default function KpiCards() {
     total: 0,
     available: 0,
     unavailable: 0,
-    categories_used: 0,
+    total_categories: 0,
   };
 
   if (isLoading) {
@@ -67,7 +67,7 @@ export default function KpiCards() {
         color="text-red-600 dark:text-red-400"
         ring="ring-red-500/20"
       />
-      <StatCard label="Categories Used" value={summary.categories_used} />
+      <StatCard label="Total Categories" value={summary.total_categories} />
     </div>
   );
 }

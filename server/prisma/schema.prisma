@@ -38,7 +38,8 @@ model User {
   preparingOrders   Order[]          @relation("OrderPreparingBy")
   completedOrders   Order[]          @relation("OrderCompletedBy")
   preparedOrderItems OrderItem[]     @relation("OrderItemPreparedBy")
-  cancelledCancellations OrderCancellation[] @relation("OrderCancelledBy")
+   cancelledCancellations OrderCancellation[] @relation("OrderCancelledBy")
+   refundedOrders    PaymentRefund[]    @relation("OrderRefundedBy")
   auditLogs        AuditLog[]
 }
 
@@ -365,6 +366,7 @@ model Order {
 
   items         OrderItem[]
   cancellation  OrderCancellation?
+  refund        PaymentRefund?
   deductions    OrderIngredientDeduction[]
   losses        LossRecord[]
   receipt       Receipt?
@@ -408,12 +410,27 @@ model OrderCancellation {
   @@map("order_cancellations")
 }
 
+model PaymentRefund {
+  refundId       Int      @id @default(autoincrement()) @map("refund_id")
+  orderId        String   @unique @map("order_id") @db.Uuid
+  amount         Decimal  @map("amount") @db.Decimal(10, 2)
+  reason         String?  @db.VarChar(500)
+  refundedById   String   @map("refunded_by") @db.Uuid
+  refundedAt     DateTime @default(now()) @map("refunded_at") @db.Timestamptz
+
+  order          Order    @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  refundedByUser User     @relation("OrderRefundedBy", fields: [refundedById], references: [id])
+
+  @@map("payment_refunds")
+}
+
 model OrderIngredientDeduction {
   id               Int       @id @default(autoincrement()) @map("id")
   orderId          String    @map("order_id") @db.Uuid
   ingredientId     String    @map("ingredient_id") @db.Uuid
   restockBatchId   Int       @map("restock_batch_id")
   quantityDeducted Decimal   @map("quantity_deducted") @db.Decimal(10, 3)
+  costPerUnit      Decimal   @default(0) @map("cost_per_unit") @db.Decimal(10, 4)
   reversedAt       DateTime? @map("reversed_at") @db.Timestamptz
   reversedBy       String?   @map("reversed_by") @db.Uuid
 

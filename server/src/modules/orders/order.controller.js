@@ -172,11 +172,33 @@ export const orderController = {
    */
   async cancelOrder(req, res) {
     try {
-      const { reason, loss_option } = req.body || {};
-      const result = await orderService.cancelOrDelete(req.params.id, req.user.id, reason, { loss_option });
+      const { reason, custom_reason, loss_option, refund_option, refund_amount, item_losses } = req.body || {};
+      const finalReason = reason === "other" ? custom_reason : reason;
+      const result = await orderService.cancelOrDelete(req.params.id, req.user.id, finalReason, { loss_option, refund_option, refund_amount, item_losses });
       return successResponse(res, result.action === "deleted" ? "Order deleted" : "Order cancelled", result);
     } catch (error) {
       return handleError(res, error, "CANCEL_ORDER_ERROR");
+    }
+  },
+
+  /**
+   * POST /api/orders/:id/items/:itemId/remove
+   * Remove a single item from an order.
+   */
+  async removeItem(req, res) {
+    try {
+      const { reason, custom_reason, loss_option, refund_option, refund_amount, ingredient_losses } = req.body;
+      const finalReason = reason === "other" ? custom_reason : reason;
+      const result = await orderService.removeOrderItem(
+        req.params.id,
+        Number(req.params.itemId),
+        req.user.id,
+        finalReason,
+        { loss_option, refund_option, refund_amount, ingredient_losses },
+      );
+      return successResponse(res, result.action === "cancelled" ? "Order cancelled (no items left)" : "Item removed", result);
+    } catch (error) {
+      return handleError(res, error, "REMOVE_ITEM_ERROR");
     }
   },
 

@@ -79,8 +79,21 @@ export const productRepository = {
     }
 
     if (category) {
-      values.push(Number(category));
-      clauses.push(`sc.category_id = $${idx++}`);
+      if (category.startsWith("root:")) {
+        const id = Number(category.replace("root:", ""));
+        values.push(id);
+        clauses.push(`sc.category_id = $${idx++}`);
+      } else if (category.startsWith("sub:")) {
+        const id = Number(category.replace("sub:", ""));
+        values.push(id);
+        clauses.push(`p.subcategory_id = $${idx++}`);
+      } else {
+        const id = Number(category);
+        if (!isNaN(id)) {
+          values.push(id);
+          clauses.push(`sc.category_id = $${idx++}`);
+        }
+      }
     }
 
     if (status === "active") {
@@ -163,7 +176,7 @@ export const productRepository = {
         COUNT(*)::int AS total,
         COUNT(*) FILTER (WHERE p.is_available = true)::int AS available,
         COUNT(*) FILTER (WHERE p.is_available = false)::int AS unavailable,
-        COUNT(DISTINCT p.subcategory_id)::int AS categories_used
+        (SELECT COUNT(*)::int FROM subcategories)::int AS total_categories
       FROM products p
       WHERE p.is_archived = false
     `;
@@ -172,7 +185,7 @@ export const productRepository = {
       total: result[0].total,
       available: result[0].available,
       unavailable: result[0].unavailable,
-      categories_used: result[0].categories_used,
+      total_categories: result[0].total_categories,
     };
   },
 

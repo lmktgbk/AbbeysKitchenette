@@ -241,6 +241,12 @@ export function useOrderMutations() {
         queryClient.invalidateQueries({ queryKey: orderKeys.all });
       },
     }),
+
+    /** Remove single item from order */
+    removeItem: useMutation({
+      mutationFn: ({ orderId, itemId, data }) => api.removeOrderItemRequest(orderId, itemId, data),
+      onSuccess: () => invalidateAll(),
+    }),
   };
 }
 

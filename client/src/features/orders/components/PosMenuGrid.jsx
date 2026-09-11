@@ -202,10 +202,10 @@ function ProductCard({ product, onAddItem }) {
           )}
           {singleVariant && !singleAvailable && (
             <p className="mt-1 text-[11px] text-destructive">
-              {singleVariant.is_manually_deactivated ? "Deactivated" : "Out of stock"}
+              {singleVariant.is_manually_deactivated ? "Unavailable" : "Out of stock"}
             </p>
           )}
-          {!isProductAvailable && (
+          {hasVariants && availableVariants.length === 0 && (
             <p className="mt-1 text-[11px] font-medium text-destructive">Unavailable</p>
           )}
         </button>

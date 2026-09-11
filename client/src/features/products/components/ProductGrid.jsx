@@ -81,7 +81,13 @@ export default function ProductGrid({
 
   const categoryOptions = [
     { value: "all", label: "All Categories" },
-    ...categories.map((c) => ({ value: String(c.category_id), label: c.category_name })),
+    ...categories.flatMap((cat) => [
+      { value: `root:${cat.category_id}`, label: cat.category_name },
+      ...(cat.subcategories || []).map((sub) => ({
+        value: `sub:${sub.subcategory_id}`,
+        label: `  ${sub.subcategory_name}`,
+      })),
+    ]),
   ];
 
   const filterOptions = [

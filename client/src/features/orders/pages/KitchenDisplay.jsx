@@ -39,23 +39,16 @@ export default function KitchenDisplay({ embedded = false }) {
   const [togglingItem, setTogglingItem] = useState(null);
 
   // Role-based filtering: cashier sees beverages, kitchen sees food, admin sees all
+  // Items are NOT filtered out — they're passed to OrderCard which greys out non-checkable ones
   const categoryFilter = user?.role === "cashier" ? "Beverages" : user?.role === "kitchen" ? "Food" : null;
 
-  // Filter items by role (category_name from backend = root category)
   const filterByRole = (orders) => {
     if (!categoryFilter) return orders;
-    return orders.map((order) => {
-      const allItems = order.items ?? [];
-      return {
-        ...order,
-        items: allItems.filter((item) => {
-          if (!item.category_name) return true;
-          return item.category_name === categoryFilter;
-        }),
-        total_items_all_roles: allItems.length,
-        total_prepared_all_roles: allItems.filter((i) => i.is_prepared).length,
-      };
-    }).filter((order) => order.items.length > 0);
+    return orders.map((order) => ({
+      ...order,
+      total_items_all_roles: order.items?.length ?? 0,
+      total_prepared_all_roles: order.items?.filter((i) => i.is_prepared).length ?? 0,
+    }));
   };
 
   const allOrders = useMemo(() => [...preparing, ...accepted, ...completedToday], [preparing, accepted, completedToday]);
@@ -196,6 +189,7 @@ export default function KitchenDisplay({ embedded = false }) {
                   disabled={markingReady || animatingOut}
                   preparing={preparingId === order.order_id}
                   togglingItem={togglingItem}
+                  roleCategory={categoryFilter}
                 />
               ))}
             </div>

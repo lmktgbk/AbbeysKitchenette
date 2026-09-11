@@ -12,6 +12,7 @@ import {
   fulfillOrderSchema,
   checkOrderItemSchema,
   overrideLossSchema,
+  removeItemSchema,
   orderIdParamSchema,
   orderItemParamSchema,
   lossIdParamSchema,
@@ -130,6 +131,16 @@ router.patch(
   validateParams(orderItemParamSchema),
   validate(checkOrderItemSchema),
   orderController.checkOrderItem,
+);
+
+// POST /api/orders/:id/items/:itemId/remove — remove item from order
+router.post(
+  "/:id/items/:itemId/remove",
+  authenticate,
+  authorize("admin", "cashier"),
+  validateParams(orderItemParamSchema),
+  validate(removeItemSchema),
+  orderController.removeItem,
 );
 
 // POST /api/orders/losses/:lossId/override — override a loss

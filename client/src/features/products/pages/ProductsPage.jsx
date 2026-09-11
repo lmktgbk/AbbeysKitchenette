@@ -167,7 +167,16 @@ export default function ProductsPage() {
         activateResultRef.current = res;
       },
     });
-    if (ok) toast.success(activateResultRef.current?.message || "Product activated");
+    if (ok) {
+      const msg = activateResultRef.current?.message || "Product activated";
+      const activated = activateResultRef.current?.data?.summary?.activated?.length ?? 0;
+      const skipped = activateResultRef.current?.data?.summary?.skipped?.length ?? 0;
+      if (activated === 0 && skipped > 0) {
+        toast.warning(msg);
+      } else {
+        toast.success(msg);
+      }
+    }
   }
 
   async function handleDelete(product) {
