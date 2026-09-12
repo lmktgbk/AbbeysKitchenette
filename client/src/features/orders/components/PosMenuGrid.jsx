@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useGuestMenu, usePendingOnlineOrders } from "../query";
-import useAuthStore from "@/features/auth/authStore";
 import { Skeleton } from "@/components/ui/skeleton";
 import Icon from "@/components/ui/icon";
 import {
@@ -20,8 +19,6 @@ import {
 export default function PosMenuGrid({ onAddItem, sidebarOpen, onToggleSidebar }) {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
-  const user = useAuthStore((s) => s.user);
-
   const { data: menuData, isPending, isFetching } = useGuestMenu({
     search: search || undefined,
   });
@@ -31,11 +28,8 @@ export default function PosMenuGrid({ onAddItem, sidebarOpen, onToggleSidebar })
 
   const allProducts = menuData?.data?.menu ?? [];
 
-  // Cashier → beverages only; others → all
-  const isCashier = user?.role === "cashier";
-  const visibleProducts = isCashier
-    ? allProducts.filter((p) => !p.category_name || p.category_name === "Beverages")
-    : allProducts;
+  // All roles see all products in POS
+  const visibleProducts = allProducts;
 
   const categories = [
     { id: "all", name: "All" },

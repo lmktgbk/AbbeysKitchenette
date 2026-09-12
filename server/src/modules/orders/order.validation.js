@@ -100,7 +100,7 @@ const cancelReasonEnum = z.enum(
 
 // POST /api/orders/:id/cancel — cancel/delete order
 export const cancelOrderSchema = z.object({
-  reason: cancelReasonEnum.optional(),
+  reason: cancelReasonEnum,
   custom_reason: z.string().trim().max(500, "Custom reason must not exceed 500 characters").optional(),
   loss_option: z
     .enum(["no_loss", "with_loss"], {

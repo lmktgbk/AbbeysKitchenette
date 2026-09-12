@@ -391,51 +391,6 @@ export const dashboardRepository = {
   },
 
   /**
-   * Stock vs forecasted weekly usage per ingredient.
-   * @returns {Array<{name, stock, weeklyUsage, daysCovered, unit}>}
-   */
-  async getStockVsForecast() {
-    return prisma.$queryRawUnsafe(`
-      WITH latest_job AS (
-        SELECT id FROM forecast_jobs
-        WHERE status = 'completed'
-        ORDER BY completed_at DESC LIMIT 1
-      )
-      SELECT
-        i.ingredient_name AS name,
-        COALESCE(SUM(rb.quantity_left), 0)::float AS stock,
-        COALESCE(iw.total_usage, 0)::float AS "weeklyUsage",
-        CASE
-          WHEN COALESCE(iw.total_usage, 0) > 0
-          THEN ROUND((COALESCE(SUM(rb.quantity_left), 0) / iw.total_usage * 7)::numeric, 1)
-          ELSE 999
-        END AS "daysCovered",
-        i.unit
-      FROM ingredients i
-      LEFT JOIN restock_batches rb
-        ON rb.ingredient_id = i.ingredient_id AND rb.quantity_left > 0
-      LEFT JOIN (
-        SELECT
-          r.ingredient_id,
-          SUM(daily.total)::float AS total_usage
-        FROM forecast_results fr
-        CROSS JOIN latest_job lj
-        JOIN recipes r ON r.variant_id = fr.variant_id
-        JOIN LATERAL (
-          SELECT (elem->>'units')::float * r.quantity_needed AS total
-          FROM jsonb_array_elements(fr.daily_data) AS elem
-        ) daily ON true
-        WHERE fr.job_id = lj.id AND fr.skipped = false
-        GROUP BY r.ingredient_id
-      ) iw ON iw.ingredient_id = i.ingredient_id
-      WHERE i.is_archived = false
-      GROUP BY i.ingredient_name, i.unit, iw.total_usage
-      HAVING COALESCE(SUM(rb.quantity_left), 0) > 0
-      ORDER BY "daysCovered" ASC
-    `);
-  },
-
-  /**
    * Orders grouped by hour of day.
    */
   async getOrdersByHour(dateFrom, dateTo) {
@@ -624,24 +579,6 @@ export const dashboardRepository = {
   },
 
   /**
-   * Top combo pairs from MBA rules.
-   */
-  async getTopCombos(limit = 5) {
-    return prisma.$queryRawUnsafe(`
-      SELECT
-        product_name_a AS "productA",
-        product_name_b AS "productB",
-        support,
-        confidence,
-        lift,
-        is_combo AS "isCombo"
-      FROM mba_rules
-      ORDER BY lift DESC
-      LIMIT $1
-    `, limit);
-  },
-
-  /**
    * Previous period KPIs for comparison (same duration, shifted back).
    */
   async getPreviousPeriodKpis(dateFrom, dateTo) {
@@ -735,6 +672,67 @@ export const dashboardRepository = {
       cancelled: row.cancelled,
       total: row.total,
     };
+  },
+
+  /**
+   * Least selling products by revenue (bottom N).
+   * @param {number} limit
+   * @param {string|null} dateFrom
+   * @param {string|null} dateTo
+   * @returns {Array<{productName, unitsSold, revenue}>}
+   */
+  async getLeastProducts(limit = 10, dateFrom, dateTo) {
+    const clauses = ["o.status = 'completed'"];
+    const values = [];
+    let idx = 1;
+
+    if (dateFrom) {
+      clauses.push(`o.order_date >= $${idx++}::date`);
+      values.push(dateFrom);
+    }
+    if (dateTo) {
+      clauses.push(`o.order_date <= $${idx++}::date`);
+      values.push(dateTo);
+    }
+
+    values.push(limit);
+    const where = `WHERE ${clauses.join(" AND ")}`;
+    const sql = `
+      SELECT
+        p.product_name AS "productName",
+        SUM(oi.quantity)::int AS "unitsSold",
+        ROUND(SUM(oi.subtotal)::numeric, 2)::float AS revenue
+      FROM order_items oi
+      JOIN products p ON p.product_id = oi.product_id
+      JOIN orders o ON o.order_id = oi.order_id
+      ${where}
+      GROUP BY p.product_name
+      ORDER BY revenue ASC
+      LIMIT $${idx}
+    `;
+    return prisma.$queryRawUnsafe(sql, ...values);
+  },
+
+  /**
+   * Most frequently restocked ingredients.
+   * @param {number} limit
+   * @returns {Array<{name, restockCount, totalQuantity, totalCost, unit}>}
+   */
+  async getMostRestocked(limit = 10) {
+    return prisma.$queryRawUnsafe(`
+      SELECT
+        i.ingredient_name AS name,
+        COUNT(rb.restock_id)::int AS "restockCount",
+        ROUND(SUM(rb.quantity_added)::numeric, 2)::float AS "totalQuantity",
+        ROUND(SUM(rb.total_cost)::numeric, 2)::float AS "totalCost",
+        i.unit
+      FROM restock_batches rb
+      JOIN ingredients i ON i.ingredient_id = rb.ingredient_id
+      WHERE i.is_archived = false
+      GROUP BY i.ingredient_name, i.unit
+      ORDER BY "restockCount" DESC
+      LIMIT $1
+    `, limit);
   },
 
   /**

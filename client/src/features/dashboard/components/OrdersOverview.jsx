@@ -23,14 +23,15 @@ const STATUS_LABELS = {
 };
 
 /**
- * OrdersOverview — side-by-side order status donut + order source bar chart.
+ * OrdersOverview — order status donut + order source bar chart.
  *
  * @param {Object} props
  * @param {object} props.statusData - { pending, accepted, preparing, completed, cancelled }
  * @param {Array} props.sourceData - [{ source, count }]
  * @param {boolean} props.isLoading
+ * @param {"both"|"status"|"source"} props.variant - Which card(s) to render (default: "both")
  */
-function OrdersOverview({ statusData, sourceData, isLoading }) {
+function OrdersOverview({ statusData, sourceData, isLoading, variant = "both" }) {
   const pieData = useMemo(() => {
     if (!statusData) return [];
     return Object.entries(statusData)
@@ -73,9 +74,13 @@ function OrdersOverview({ statusData, sourceData, isLoading }) {
     );
   }
 
+  const showStatus = variant === "both" || variant === "status";
+  const showSource = variant === "both" || variant === "source";
+
   return (
     <>
       {/* Order Status Donut */}
+      {showStatus && (
       <div className="rounded-lg border border-border bg-card">
         <div className="border-b border-border px-4 py-3">
           <h3 className="text-sm font-semibold text-foreground">Order Status</h3>
@@ -129,8 +134,10 @@ function OrdersOverview({ statusData, sourceData, isLoading }) {
           </div>
         )}
       </div>
+      )}
 
       {/* Order Source Bar */}
+      {showSource && (
       <div className="rounded-lg border border-border bg-card">
         <div className="border-b border-border px-4 py-3">
           <h3 className="text-sm font-semibold text-foreground">Orders by Source</h3>
@@ -169,6 +176,7 @@ function OrdersOverview({ statusData, sourceData, isLoading }) {
           </div>
         )}
       </div>
+      )}
     </>
   );
 }

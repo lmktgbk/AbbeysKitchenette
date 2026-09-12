@@ -38,9 +38,10 @@ export default function RemoveItemDialog({
   const itemSubtotal = Number(item?.subtotal || 0);
 
   const [lossOption, setLossOption] = useState(isPrepared ? "with_loss" : "no_loss");
-  const [refundOption, setRefundOption] = useState("partial");
+  const [refundOption, setRefundOption] = useState("full");
   const [customRefundAmount, setCustomRefundAmount] = useState("");
   const [reason, setReason] = useState("");
+  const [reasonError, setReasonError] = useState("");
   const [customReason, setCustomReason] = useState("");
   const [expandedIngredients, setExpandedIngredients] = useState(false);
   const [ingredientLosses, setIngredientLosses] = useState(() => {
@@ -59,9 +60,10 @@ export default function RemoveItemDialog({
   if (prevItemId !== lastItemId) {
     setLastItemId(prevItemId);
     setLossOption(isPrepared ? "with_loss" : "no_loss");
-    setRefundOption("partial");
+    setRefundOption("full");
     setCustomRefundAmount("");
     setReason("");
+    setReasonError("");
     setCustomReason("");
     setExpandedIngredients(false);
     if (isPrepared && recipes.length > 0) {
@@ -86,18 +88,13 @@ export default function RemoveItemDialog({
     return cost;
   }, [ingredientLosses, recipes]);
 
-  const calculatedPartial = useMemo(
-    () => Math.max(itemSubtotal - totalLossCost, 0),
-    [itemSubtotal, totalLossCost],
-  );
-
   const refundAmount = useMemo(() => {
     if (refundOption === "full") return itemSubtotal;
     if (refundOption === "none") return 0;
     const parsed = parseFloat(customRefundAmount);
     if (!isNaN(parsed) && parsed >= 0) return Math.min(parsed, itemSubtotal);
-    return calculatedPartial;
-  }, [refundOption, itemSubtotal, calculatedPartial, customRefundAmount]);
+    return 0;
+  }, [refundOption, itemSubtotal, customRefundAmount]);
 
   if (!item) return null;
 
@@ -127,6 +124,15 @@ export default function RemoveItemDialog({
   }
 
   function handleConfirm() {
+    if (!reason) {
+      setReasonError("Please select a reason");
+      return;
+    }
+    if (reason === "other" && !customReason.trim()) {
+      setReasonError("Please specify a reason");
+      return;
+    }
+
     const lossesArray = lossOption === "with_loss"
       ? Object.entries(ingredientLosses).map(([ingId, qty]) => ({
           ingredient_id: ingId,
@@ -134,13 +140,13 @@ export default function RemoveItemDialog({
         }))
       : [];
 
-    const finalReason = reason === "other" ? customReason : reason;
+    const finalReason = reason === "other" ? customReason.trim() : reason;
 
     const parsedCustom = parseFloat(customRefundAmount);
     const hasOverride = refundOption === "partial" && !isNaN(parsedCustom) && parsedCustom >= 0;
 
     onConfirm?.({
-      reason: finalReason || reason,
+      reason: finalReason,
       loss_option: lossOption,
       refund_option: refundOption,
       refund_amount: hasOverride ? Math.min(parsedCustom, itemSubtotal) : undefined,
@@ -342,8 +348,11 @@ export default function RemoveItemDialog({
               <label className="text-xs font-medium text-muted-foreground block mb-1">Reason</label>
               <select
                 value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                onChange={(e) => { setReason(e.target.value); setReasonError(""); }}
+                className={cn(
+                  "flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                  reasonError ? "border-destructive" : "border-border",
+                )}
               >
                 <option value="">Select reason...</option>
                 {CANCEL_REASONS.map((r) => (
@@ -353,10 +362,13 @@ export default function RemoveItemDialog({
               {reason === "other" && (
                 <Input
                   value={customReason}
-                  onChange={(e) => setCustomReason(e.target.value)}
+                  onChange={(e) => { setCustomReason(e.target.value); setReasonError(""); }}
                   placeholder="Specify reason..."
-                  className="text-sm mt-2"
+                  className={cn("text-sm mt-2", reasonError && "border-destructive")}
                 />
+              )}
+              {reasonError && (
+                <p className="text-xs text-destructive mt-1">{reasonError}</p>
               )}
             </div>
 
@@ -407,17 +419,19 @@ export default function RemoveItemDialog({
                     <span className="text-xs text-muted-foreground">₱</span>
                     <Input
                       type="number"
-                      value={customRefundAmount || calculatedPartial}
+                      value={customRefundAmount}
                       onChange={(e) => setCustomRefundAmount(e.target.value)}
+                      placeholder="0"
                       className="w-20 h-6 text-xs text-right px-1.5 py-0 font-semibold"
                       min="0"
                       max={itemSubtotal}
                       step="1"
+                      autoFocus
                     />
                   </div>
                 ) : (
-                  <span className="text-xs font-semibold text-primary ml-auto">
-                    ₱{calculatedPartial.toLocaleString()}
+                  <span className="text-xs font-semibold text-muted-foreground ml-auto">
+                    ₱0
                   </span>
                 )}
               </div>
@@ -450,16 +464,16 @@ export default function RemoveItemDialog({
                 <span className="text-muted-foreground">Subtotal</span>
                 <span className="font-medium">₱{itemSubtotal.toLocaleString()}</span>
               </div>
-              {refundOption !== "none" && totalLossCost > 0 && (
+              {refundOption === "partial" && customRefundAmount && (
                 <div className="flex justify-between text-xs">
-                  <span className="text-destructive">Ingredient loss</span>
-                  <span className="font-medium text-destructive">-₱{totalLossCost.toLocaleString()}</span>
+                  <span className="text-muted-foreground">You enter</span>
+                  <span className="font-medium text-primary">₱{parseFloat(customRefundAmount).toLocaleString()}</span>
                 </div>
               )}
-              {refundOption === "partial" && parseFloat(customRefundAmount) >= 0 && customRefundAmount !== String(calculatedPartial) && (
+              {lossOption === "with_loss" && totalLossCost > 0 && (
                 <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Override</span>
-                  <span className="font-medium text-muted-foreground">custom</span>
+                  <span className="text-muted-foreground">Ingredient loss</span>
+                  <span className="font-medium text-muted-foreground">₱{totalLossCost.toLocaleString()}</span>
                 </div>
               )}
               <div className="flex justify-between text-xs font-semibold border-t border-border/60 pt-1">

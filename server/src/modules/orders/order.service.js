@@ -494,15 +494,15 @@ export const orderService = {
 
     // Calculate refund based on refund_option (or custom override)
     let refundAmount;
-    if (options.refund_amount != null) {
-      refundAmount = Math.min(Number(options.refund_amount), orderAmountPaid);
-    } else if (refundOption === "full") {
+    if (refundOption === "full") {
       refundAmount = orderAmountPaid;
     } else if (refundOption === "none") {
       refundAmount = 0;
+    } else if (options.refund_amount != null) {
+      // partial: user-specified amount, capped at what was paid
+      refundAmount = Math.min(Number(options.refund_amount), orderAmountPaid);
     } else {
-      // partial: paid amount minus loss cost, floored at 0
-      refundAmount = Math.max(orderAmountPaid - totalLossCost, 0);
+      refundAmount = 0;
     }
 
     await prisma.$transaction(async (tx) => {
@@ -634,15 +634,15 @@ export const orderService = {
 
     // Calculate refund based on refund_option (or custom override)
     let refundAmount;
-    if (options.refund_amount != null) {
-      refundAmount = Math.min(Number(options.refund_amount), itemSubtotal);
-    } else if (refundOption === "full") {
+    if (refundOption === "full") {
       refundAmount = itemSubtotal;
     } else if (refundOption === "none") {
       refundAmount = 0;
+    } else if (options.refund_amount != null) {
+      // partial: user-specified amount, capped at item subtotal
+      refundAmount = Math.min(Number(options.refund_amount), itemSubtotal);
     } else {
-      // partial: subtotal minus loss cost, floored at 0
-      refundAmount = Math.max(itemSubtotal - totalLossCost, 0);
+      refundAmount = 0;
     }
 
     await prisma.$transaction(async (tx) => {
