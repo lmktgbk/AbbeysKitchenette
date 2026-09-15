@@ -137,6 +137,7 @@ export const orderRepository = {
           include: {
             product: { select: { productName: true } },
             variant: { select: { sizeName: true } },
+            preparedByUser: { select: { name: true, role: true } },
           },
         },
         creator: { select: { id: true, name: true, role: true } },
@@ -606,7 +607,15 @@ export const orderRepository = {
 
   async createRefund(data, tx) {
     const client = tx || prisma;
-    return client.paymentRefund.create({ data });
+    return client.paymentRefund.upsert({
+      where: { orderId: data.orderId },
+      create: data,
+      update: {
+        amount: { increment: data.amount },
+        reason: data.reason,
+        refundedById: data.refundedById,
+      },
+    });
   },
 
   /* ── Kitchen Display ───────────────────── */

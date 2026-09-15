@@ -150,7 +150,6 @@ export const staffRepository = {
             { acceptedBy: id },
             { preparingBy: id },
             { completedBy: id },
-            { nextInLineBy: id },
           ],
         },
       }),

@@ -215,7 +215,7 @@ export const orderService = {
     });
 
     const affectedIngredientIds = [...aggregatedIngredients.keys()];
-    await productService.recomputeVariantAvailability(affectedIngredientIds);
+    productService.recomputeVariantAvailability(affectedIngredientIds).catch(() => {});
 
     auditLogService.logAction({
       userId: createdBy,
@@ -333,7 +333,7 @@ export const orderService = {
     });
 
     const affectedIngredientIds = [...aggregatedIngredients.keys()];
-    await productService.recomputeVariantAvailability(affectedIngredientIds);
+    productService.recomputeVariantAvailability(affectedIngredientIds).catch(() => {});
 
     auditLogService.logAction({
       userId,
@@ -370,6 +370,10 @@ export const orderService = {
 
     const updateMeta = { userId: meta.userId };
     if (targetStatus === "completed") {
+      const items = await orderRepository.getOrderItems(id);
+      if (items.length === 0 || !items.every((i) => i.isPrepared)) {
+        throw new AppError(400, "All items must be marked as prepared before completing", "NOT_ALL_PREPARED");
+      }
       const createdAt = new Date(order.createdAt).getTime();
       updateMeta.fulfillmentMinutes = Math.round((Date.now() - createdAt) / 60000);
     }
@@ -558,7 +562,7 @@ export const orderService = {
     });
 
     if (affectedIngredientIds.length > 0) {
-      await productService.recomputeVariantAvailability(affectedIngredientIds);
+      productService.recomputeVariantAvailability(affectedIngredientIds).catch(() => {});
     }
 
     auditLogService.logAction({
@@ -696,7 +700,7 @@ export const orderService = {
     });
 
     if (affectedIngredientIds.length > 0) {
-      await productService.recomputeVariantAvailability(affectedIngredientIds);
+      productService.recomputeVariantAvailability(affectedIngredientIds).catch(() => {});
     }
 
     auditLogService.logAction({
@@ -1082,15 +1086,10 @@ export const orderService = {
       throw new AppError(400, "Amount paid is less than total", "INSUFFICIENT_PAYMENT");
     }
 
-    const needs = new Map();
-    for (const item of order.items) {
-      const recipes = await orderRepository.getRecipesByVariantId(item.variantId);
-      for (const recipe of recipes) {
-        const key = recipe.ingredientId;
-        const needed = Number(recipe.quantityNeeded) * item.quantity;
-        needs.set(key, (needs.get(key) || 0) + needed);
-      }
-    }
+    // Batch recipe lookup (1 query instead of N per-item queries)
+    const needs = await this._aggregateIngredientNeeds(
+      order.items.map((item) => ({ variant_id: item.variantId, quantity: item.quantity }))
+    );
 
     await prisma.$transaction(async (tx) => {
       await this._deductIngredients(id, needs, tx);
@@ -1102,7 +1101,7 @@ export const orderService = {
     });
 
     const affectedIngredientIds = [...needs.keys()];
-    await productService.recomputeVariantAvailability(affectedIngredientIds);
+    productService.recomputeVariantAvailability(affectedIngredientIds).catch(() => {});
 
     return this.getById(id);
   },
