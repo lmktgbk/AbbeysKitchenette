@@ -19,7 +19,7 @@ export default function KpiCards() {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
             <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
@@ -35,7 +35,7 @@ export default function KpiCards() {
 
   if (error) {
     return (
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
             <div className="flex-1">
@@ -51,7 +51,7 @@ export default function KpiCards() {
   const total = summary.total || 1;
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
       <StatCard label="Total Products" value={summary.total} />
       <RingCard
         label="Available"

@@ -129,7 +129,7 @@ function GeneralTab({ settings, onSave, isSaving }) {
           <CardDescription>Your store details displayed on receipts and the ordering page.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-foreground">Store Name</label>
               <Input placeholder="Abbey's Kitchenette" error={errors.storeName?.message} {...register("storeName")} />
@@ -139,7 +139,7 @@ function GeneralTab({ settings, onSave, isSaving }) {
               <Input type="email" placeholder="contact@abbey.com" error={errors.storeEmail?.message} {...register("storeEmail")} />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-foreground">Phone</label>
               <Input placeholder="09171234567" error={errors.storePhone?.message} {...register("storePhone")} />
@@ -160,11 +160,11 @@ function GeneralTab({ settings, onSave, isSaving }) {
             {DAYS.map(({ key, label }) => {
               const day = storeHours[key];
               return (
-                <div key={key} className="flex items-center gap-4">
+                <div key={key} className="flex flex-wrap items-center gap-2 sm:gap-4">
                   <button
                     type="button"
                     onClick={() => toggleDay(key)}
-                    className={`w-16 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                    className={`w-16 shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                       day.enabled
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted text-muted-foreground"
@@ -245,7 +245,7 @@ function BusinessTab({ settings, onSave, isSaving }) {
           <CardDescription>Configure tax rate, combo discounts, and minimum margin thresholds.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-foreground">Tax Rate (%)</label>
               <Input type="number" step="0.5" min="0" max="100" error={errors.taxRate?.message} {...register("taxRate")} />

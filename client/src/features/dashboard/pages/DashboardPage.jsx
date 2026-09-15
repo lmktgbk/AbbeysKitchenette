@@ -12,6 +12,7 @@ import FulfillmentTimeCard from "../components/FulfillmentTimeCard";
 import CancellationChart from "../components/CancellationChart";
 import IngredientOverview from "../components/IngredientOverview";
 import WasteSummaryCard from "../components/WasteSummaryCard";
+import IngredientCostChart from "../components/IngredientCostChart";
 import MostRestockedTable from "../components/MostRestockedTable";
 import TableUtilizationChart from "../components/TableUtilizationChart";
 import StaffPerformanceChart from "../components/StaffPerformanceChart";
@@ -74,12 +75,12 @@ export default function DashboardPage() {
         onGranularityChange={setGranularity}
       />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <HourlyOrdersChart data={d?.ordersByHour} isLoading={isLoading} />
         <DayOfWeekChart data={d?.ordersByDayOfWeek} isLoading={isLoading} />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <TopProductsTable title="Top 10 Most Sold" data={d?.topProducts} isLoading={isLoading} />
         <TopProductsTable title="Top 10 Least Sold" data={d?.leastProducts} isLoading={isLoading} />
       </div>
@@ -89,7 +90,7 @@ export default function DashboardPage() {
       {/* ─── Operations ─── */}
       <SectionDivider title="Operations" />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         <OrdersOverview
           statusData={d?.ordersByStatus}
           isLoading={isLoading}
@@ -103,7 +104,7 @@ export default function DashboardPage() {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <CancellationChart data={d?.cancellationReasons} isLoading={isLoading} />
         <StaffPerformanceChart data={d?.staffPerformance} isLoading={isLoading} />
       </div>
@@ -120,12 +121,13 @@ export default function DashboardPage() {
         isLoading={isLoading}
       />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <WasteSummaryCard
           data={d?.wasteByType}
           totalLosses={d?.kpis?.totalLosses}
           isLoading={isLoading}
         />
+        <IngredientCostChart data={d?.ingredientCosts} isLoading={isLoading} />
         <MostRestockedTable data={d?.mostRestocked} isLoading={isLoading} />
       </div>
     </div>

@@ -26,13 +26,13 @@ export function SearchBar({ value, onChange, placeholder = "Search...", classNam
                     placeholder={placeholder}
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
-                    className="pl-8 h-8 text-xs"
+                    className="pl-8 h-10 text-sm"
                 />
             </div>
             {onFilterClick && (
                 <button
                     onClick={onFilterClick}
-                    className={`flex items-center justify-center h-8 w-8 rounded-md border transition-colors ${
+                    className={`flex items-center justify-center h-10 w-10 rounded-md border transition-colors ${
                         filterActive
                             ? "bg-primary text-primary-foreground border-primary"
                             : "text-muted-foreground border-border hover:bg-muted hover:text-foreground"
