@@ -100,39 +100,56 @@ export default function ProductGrid({
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card">
-      {/* Toolbar — aligned with ingredients pattern */}
-      <div className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        {/* Left: Search + Filter icon */}
-        <div className="flex items-center gap-2">
-          <SearchBar
-            value={search}
-            onChange={setSearch}
-            placeholder="Search products..."
-            onFilterClick={() => setFilterOpen(true)}
-            filterActive={filterActive}
-          />
+    <div className="flex flex-col rounded-xl border border-border bg-card">
+      {/* Toolbar — responsive: separate rows on mobile/tablet, row on lg+ */}
+      <div className="relative z-20 border-b border-border bg-card px-3 py-3 sm:px-4">
+        {/* Row 1: Search + Filter icon + Status pill (lg+) + Action buttons */}
+        <div className="flex flex-wrap items-center gap-2 lg:justify-between">
+          {/* Left: Search + Filter icon */}
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <SearchBar
+              value={search}
+              onChange={setSearch}
+              placeholder="Search products..."
+              onFilterClick={() => setFilterOpen(true)}
+              filterActive={filterActive}
+            />
+          </div>
+
+          {/* Right: Status pill (desktop) + Manage Categories + Add */}
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {/* Status pill - hidden on mobile/tablet, shown on lg+ */}
+            <div className="hidden lg:block">
+              <FilterPill
+                options={STATUS_OPTIONS}
+                value={statusFilter}
+                onChange={setStatusFilter}
+              />
+            </div>
+            <Button
+              size="default"
+              variant="secondary"
+              onClick={() => setCategoryOpen(true)}
+              className="hidden sm:inline-flex"
+            >
+              <Icon name="tag" size={16} className="mr-1" />
+              <span className="hidden lg:inline">Manage Categories</span>
+              <span className="hidden sm:inline lg:hidden">Categories</span>
+            </Button>
+            <Button size="default" onClick={onAdd} className="shrink-0">
+              <Icon name="plus" size={16} className="sm:mr-1" />
+              <span className="hidden sm:inline">Add Product</span>
+            </Button>
+          </div>
         </div>
 
-        {/* Right: Status pill + Manage Categories + Add */}
-        <div className="flex items-center gap-2">
+        {/* Row 2: Status Filter Pills (mobile/tablet only, below search) */}
+        <div className="mt-2 flex items-center gap-2 lg:hidden">
           <FilterPill
             options={STATUS_OPTIONS}
             value={statusFilter}
             onChange={setStatusFilter}
           />
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => setCategoryOpen(true)}
-          >
-            <Icon name="tag" size={14} className="mr-1" />
-            <span className="hidden sm:inline">Manage Categories</span>
-          </Button>
-          <Button size="sm" onClick={onAdd}>
-            <Icon name="plus" size={14} className="mr-1" />
-            <span className="hidden sm:inline">Add Product</span>
-          </Button>
         </div>
       </div>
 
@@ -148,13 +165,13 @@ export default function ProductGrid({
       />
 
       {/* Grid */}
-      <div className="relative p-4">
+      <div className="relative z-10 p-4">
         {isRefetching && (
           <div className="absolute inset-0 z-10 bg-card/60" />
         )}
 
         {isLoading ? (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
               <SkeletonCard key={i} />
             ))}
@@ -184,7 +201,7 @@ export default function ProductGrid({
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
             {products.map((product) => (
               <ProductCard
                 key={product.product_id}

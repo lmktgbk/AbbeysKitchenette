@@ -13,7 +13,7 @@ export function FilterPill({ options, value, onChange, className }) {
   return (
     <div
       className={cn(
-        "inline-flex rounded-lg border border-border overflow-hidden",
+        "inline-flex shrink-0 rounded-lg border border-border overflow-hidden",
         className
       )}
     >
@@ -22,7 +22,7 @@ export function FilterPill({ options, value, onChange, className }) {
           key={opt.value}
           onClick={() => onChange(opt.value)}
           className={cn(
-            "px-3 py-1.5 text-xs font-medium transition-colors",
+            "px-4 py-2 text-sm font-medium transition-colors",
             value === opt.value
               ? "bg-primary text-primary-foreground"
               : "text-muted-foreground hover:bg-muted"

@@ -123,7 +123,7 @@ export default function ProductFormModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-full sm:max-w-3xl">
         <DialogClose onClick={handleClose} />
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Product" : "Add New Product"}</DialogTitle>
@@ -147,9 +147,9 @@ export default function ProductFormModal({
                 Product Information
               </h3>
 
-              <div className="grid grid-cols-[1fr_220px] grid-rows-[auto_auto_auto] gap-4">
-                {/* Product Name — row 1, col 1 */}
-                <div className="[grid-row:1] [grid-column:1]">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_220px]">
+                {/* Product Name */}
+                <div>
                   <label className="mb-1.5 block text-sm font-semibold text-foreground">
                     Product Name
                   </label>
@@ -160,8 +160,8 @@ export default function ProductFormModal({
                   />
                 </div>
 
-                {/* Category — row 2, col 1 */}
-                <div className="[grid-row:2] [grid-column:1]">
+                {/* Category */}
+                <div>
                   <label className="mb-1.5 block text-sm font-semibold text-foreground">
                     Category
                   </label>
@@ -189,8 +189,8 @@ export default function ProductFormModal({
                   )}
                 </div>
 
-                {/* Description — row 3, col 1 */}
-                <div className="[grid-row:3] [grid-column:1]">
+                {/* Description */}
+                <div>
                   <label className="mb-1.5 block text-sm font-semibold text-foreground">
                     Description
                   </label>
@@ -202,8 +202,8 @@ export default function ProductFormModal({
                   />
                 </div>
 
-                {/* Image — rows 1-3, col 2 */}
-                <div className="[grid-row:1/4] [grid-column:2]">
+                {/* Image */}
+                <div className="sm:row-span-3">
                   <label className="mb-1.5 block text-sm font-semibold text-foreground">
                     Image
                   </label>
@@ -305,11 +305,11 @@ function EditSkeleton() {
       {/* Product Information skeleton */}
       <section>
         <Skeleton className="mb-3 h-4 w-36" />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-full" />
-          <Skeleton className="col-span-2 h-16 w-full" />
-          <Skeleton className="h-28 w-full" />
+          <Skeleton className="h-16 w-full sm:col-span-2" />
+          <Skeleton className="h-28 w-full sm:col-span-2" />
         </div>
       </section>
 

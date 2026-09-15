@@ -36,20 +36,21 @@ const NAV_GROUPS = [
     },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ expanded = false }) {
     const collapsed = useLayoutStore((s) => s.collapsed);
     const user = useAuthStore((s) => s.user);
     const [profileOpen, setProfileOpen] = useState(false);
+    const isExpanded = expanded || !collapsed;
 
     return (
         <aside
             className={`flex h-full flex-col border-r bg-card ${
-                collapsed ? "w-16" : "w-64"
+                isExpanded ? "w-64" : "w-16"
             }`}
         >
             <div className="flex h-14 items-center gap-2 border-b px-4">
                 <Icon name="chefHat" size={24} className="shrink-0 text-primary" />
-                {!collapsed && (
+                {isExpanded && (
                     <span className="truncate text-sm font-semibold animate-in fade-in duration-150">
                         Abbey's Kitchenette
                     </span>
@@ -59,7 +60,7 @@ export default function Sidebar() {
             <nav className="flex-1 space-y-4 overflow-y-auto px-2 py-4">
                 {NAV_GROUPS.map((group) => (
                     <div key={group.label}>
-                        {!collapsed && (
+                        {isExpanded && (
                             <p className="mb-1 px-3 text-xs font-medium uppercase text-muted-foreground animate-in fade-in duration-150">
                                 {group.label}
                             </p>
@@ -71,7 +72,7 @@ export default function Sidebar() {
                                     icon={item.icon}
                                     label={item.label}
                                     href={item.href}
-                                    collapsed={collapsed}
+                                    collapsed={!isExpanded}
                                 />
                             ))}
                         </div>
@@ -81,7 +82,7 @@ export default function Sidebar() {
 
             <div className="border-t px-2 py-3">
                 <AvatarDropdown
-                    collapsed={collapsed}
+                    collapsed={!isExpanded}
                     user={user}
                     onOpenProfile={() => setProfileOpen(true)}
                 />

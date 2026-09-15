@@ -108,7 +108,7 @@ export default function ProductDetailModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-full sm:max-w-2xl">
         <DialogClose onClick={() => onOpenChange(false)} />
 
         <DialogHeader>
@@ -119,10 +119,10 @@ export default function ProductDetailModal({
           <DetailSkeleton />
         ) : (
           <>
-            {/* Product Info — image left, details right */}
-            <div className="flex gap-4">
+            {/* Product Info — image left, details right; stacks on mobile */}
+            <div className="flex flex-col gap-4 sm:flex-row">
               {/* Image */}
-              <div className="h-32 w-40 shrink-0 overflow-hidden rounded-lg border border-border">
+              <div className="h-32 w-full shrink-0 overflow-hidden rounded-lg border border-border sm:w-40">
                 <ImagePlaceholder
                   src={data.image_url}
                   alt={data.product_name}
@@ -314,8 +314,8 @@ export default function ProductDetailModal({
 
 function DetailSkeleton() {
   return (
-    <div className="flex gap-4">
-      <Skeleton className="h-32 w-40 rounded-lg" />
+    <div className="flex flex-col gap-4 sm:flex-row">
+      <Skeleton className="h-32 w-full rounded-lg sm:w-40" />
       <div className="flex flex-1 flex-col gap-2">
         <Skeleton className="h-5 w-24" />
         <Skeleton className="h-4 w-16" />
