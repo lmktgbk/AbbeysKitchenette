@@ -2,6 +2,7 @@ import React from "react";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { formatPeso } from "../utils/dashboardUtils";
 
 function TrendArrow({ value }) {
   if (value === null || value === undefined) return null;
@@ -43,8 +44,8 @@ function DashboardKpis({ kpis, isLoading }) {
     {
       icon: "dollarSign",
       label: "Revenue",
-      value: `₱${Number(kpis?.revenuePeriod || 0).toLocaleString()}`,
-      sub: `₱${Number(kpis?.revenueToday || 0).toLocaleString()} today`,
+      value: formatPeso(kpis?.revenuePeriod),
+      sub: `${formatPeso(kpis?.revenueToday)} today`,
       delta: kpis?.deltas?.revenue,
       iconBg: "bg-emerald-500/10",
       iconColor: "text-emerald-600 dark:text-emerald-400",
@@ -61,8 +62,8 @@ function DashboardKpis({ kpis, isLoading }) {
     {
       icon: "trendingUp",
       label: "Avg Order Value",
-      value: `₱${Number(kpis?.aovPeriod || 0).toLocaleString()}`,
-      sub: `₱${Number(kpis?.aovToday || 0)} today`,
+      value: formatPeso(kpis?.aovPeriod),
+      sub: `${formatPeso(kpis?.aovToday)} today`,
       delta: kpis?.deltas?.aov,
       iconBg: "bg-purple-500/10",
       iconColor: "text-purple-600 dark:text-purple-400",
@@ -70,7 +71,7 @@ function DashboardKpis({ kpis, isLoading }) {
     {
       icon: "package",
       label: "COGS",
-      value: `₱${Number(kpis?.cogs || 0).toLocaleString()}`,
+      value: formatPeso(kpis?.cogs),
       sub: "Cost of goods sold",
       delta: null,
       iconBg: "bg-orange-500/10",
@@ -79,22 +80,20 @@ function DashboardKpis({ kpis, isLoading }) {
     {
       icon: "wallet",
       label: "Profit",
-      value: `₱${Number(kpis?.profit || 0).toLocaleString()}`,
+      value: formatPeso(kpis?.profit),
       sub: `${kpis?.margin || 0}% margin`,
       delta: null,
       iconBg: "bg-amber-500/10",
       iconColor: "text-amber-600 dark:text-amber-400",
     },
     {
-      icon: "alertTriangle",
-      label: "Cancel Rate",
-      value: `${kpis?.cancellationRate || 0}%`,
-      sub: `${kpis?.cancellationsCancelled || 0} of ${kpis?.cancellationsTotal || 0}`,
+      icon: "alertCircle",
+      label: "Total Loss",
+      value: formatPeso(kpis?.totalLosses),
+      sub: `${kpis?.lossRate || 0}% of COGS`,
       delta: null,
-      iconBg: kpis?.cancellationRate > 10 ? "bg-red-500/10" : "bg-emerald-500/10",
-      iconColor: kpis?.cancellationRate > 10
-        ? "text-red-600 dark:text-red-400"
-        : "text-emerald-600 dark:text-emerald-400",
+      iconBg: "bg-red-500/10",
+      iconColor: "text-red-600 dark:text-red-400",
     },
   ];
 

@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
-import { useDashboardData } from "../query";
+import { useDashboardData, useRevenueTrend } from "../query";
 import DashboardHeader from "../components/DashboardHeader";
 import DashboardKpis from "../components/DashboardKpis";
 import RevenueChart from "../components/RevenueChart";
@@ -11,7 +11,7 @@ import OrdersOverview from "../components/OrdersOverview";
 import FulfillmentTimeCard from "../components/FulfillmentTimeCard";
 import CancellationChart from "../components/CancellationChart";
 import IngredientOverview from "../components/IngredientOverview";
-import IngredientCostChart from "../components/IngredientCostChart";
+import WasteSummaryCard from "../components/WasteSummaryCard";
 import MostRestockedTable from "../components/MostRestockedTable";
 import TableUtilizationChart from "../components/TableUtilizationChart";
 import StaffPerformanceChart from "../components/StaffPerformanceChart";
@@ -30,15 +30,22 @@ function SectionDivider({ title }) {
 export default function DashboardPage() {
   const [dateFrom, setDateFrom] = useState(null);
   const [dateTo, setDateTo] = useState(null);
+  const [granularity, setGranularity] = useState("daily");
 
-  const params = useMemo(() => {
+  const dateParams = useMemo(() => {
     const p = {};
     if (dateFrom) p.dateFrom = dateFrom;
     if (dateTo) p.dateTo = dateTo;
     return p;
   }, [dateFrom, dateTo]);
 
-  const { data, isLoading } = useDashboardData(params);
+  const trendParams = useMemo(() => ({
+    ...dateParams,
+    granularity,
+  }), [dateParams, granularity]);
+
+  const { data, isLoading } = useDashboardData(dateParams);
+  const { data: trendData, isLoading: trendLoading } = useRevenueTrend(trendParams);
 
   const handleDateChange = useCallback((from, to) => {
     setDateFrom(from);
@@ -60,7 +67,12 @@ export default function DashboardPage() {
       {/* ─── Financial Overview ─── */}
       <SectionDivider title="Financial Overview" />
 
-      <RevenueChart data={d?.revenueTrend} isLoading={isLoading} />
+      <RevenueChart
+        data={trendData?.data}
+        isLoading={trendLoading}
+        granularity={granularity}
+        onGranularityChange={setGranularity}
+      />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <HourlyOrdersChart data={d?.ordersByHour} isLoading={isLoading} />
@@ -104,11 +116,16 @@ export default function DashboardPage() {
       <IngredientOverview
         statusData={d?.ingredientStatus}
         lowStockData={d?.lowStockIngredients}
+        stockValue={d?.stockValue}
         isLoading={isLoading}
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <IngredientCostChart data={d?.ingredientCosts} isLoading={isLoading} />
+        <WasteSummaryCard
+          data={d?.wasteByType}
+          totalLosses={d?.kpis?.totalLosses}
+          isLoading={isLoading}
+        />
         <MostRestockedTable data={d?.mostRestocked} isLoading={isLoading} />
       </div>
     </div>

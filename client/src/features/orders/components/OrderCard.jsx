@@ -42,6 +42,14 @@ export default function OrderCard({
   const allChecked = totalItems > 0 && preparedCount === totalItems;
   const progressPct = totalItems ? Math.round((preparedCount / totalItems) * 100) : 0;
 
+  // Two-step ready: check if this role's items are all checked and this station is ready
+  const isRoleReady = roleCategory === "Food"
+    ? order.kitchen_ready
+    : roleCategory === "Beverages"
+      ? order.cashier_ready
+      : false;
+  const canMarkReady = allChecked && !isRoleReady;
+
   const m = Math.floor(elapsed / 60000);
   const s = Math.floor((elapsed % 60000) / 1000);
   const elapsedDisplay = isCompleted
@@ -102,6 +110,27 @@ export default function OrderCard({
             </div>
           </div>
         </div>
+        {/* Station Readiness Badges */}
+        {isPreparing && (
+          <div className="flex items-center gap-2 mt-1 text-[9px]">
+            <span className={cn(
+              "flex items-center gap-1 px-1.5 py-0.5 rounded-full font-semibold",
+              order.kitchen_ready
+                ? "bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20"
+                : "bg-muted text-muted-foreground border border-border/40"
+            )}>
+              {order.kitchen_ready ? "✓" : "○"} Kitchen
+            </span>
+            <span className={cn(
+              "flex items-center gap-1 px-1.5 py-0.5 rounded-full font-semibold",
+              order.cashier_ready
+                ? "bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20"
+                : "bg-muted text-muted-foreground border border-border/40"
+            )}>
+              {order.cashier_ready ? "✓" : "○"} Cashier
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Items */}
@@ -201,7 +230,7 @@ export default function OrderCard({
           <Button
             className={cn(
               "w-full font-bold text-xs py-1 rounded-lg",
-              allChecked && "kds-pulse-ring",
+              canMarkReady && "kds-pulse-ring",
             )}
             onClick={() => {
               if (!allChecked) {
@@ -210,10 +239,14 @@ export default function OrderCard({
               }
               onMarkReady(order.order_id);
             }}
-            disabled={disabled || !allChecked}
+            disabled={disabled || !canMarkReady}
           >
             <Icon name="check" size={12} />
-            {allChecked ? "Mark Ready" : `Done (${preparedCount}/${totalItems})`}
+            {isRoleReady
+              ? "✓ Ready"
+              : allChecked
+                ? `Mark Ready (${roleCategory === "Food" ? "Food" : "Beverages"})`
+                : `Done (${preparedCount}/${totalItems})`}
           </Button>
         </div>
       )}

@@ -12,3 +12,9 @@ export async function getDashboardRequest(params = {}) {
   const res = await api.get("/dashboard", { params });
   return res.data;
 }
+
+// GET /api/dashboard/revenue-trend — revenue trend with granularity
+export async function getRevenueTrendRequest(params = {}) {
+  const res = await api.get("/dashboard/revenue-trend", { params });
+  return res.data;
+}

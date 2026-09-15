@@ -140,7 +140,7 @@ export function useKitchenDisplay() {
   }, [orders]);
 
   const markReady = useMutation({
-    mutationFn: (id) => api.advanceOrderStatusRequest(id, { status: "completed" }),
+    mutationFn: ({ id, userRole }) => api.advanceOrderStatusRequest(id, { status: "completed", user_role: userRole }),
     onSuccess: (_data, id) => {
       setCheckedItems((prev) => {
         const next = new Map(prev);

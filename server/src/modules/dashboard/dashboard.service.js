@@ -27,11 +27,14 @@ export const dashboardService = {
       cogs,
       cancellationRate,
       profit,
+      totalLosses,
+      wasteByType,
+      stockValue,
     ] = await Promise.all([
       dashboardRepository.getTodayKpis(),
       dashboardRepository.getOrderKpis(dateFrom, dateTo),
       dashboardRepository.getPreviousPeriodKpis(dateFrom, dateTo),
-      dashboardRepository.getDailyRevenueTrend(dateFrom, dateTo),
+      dashboardRepository.getRevenueTrend(dateFrom, dateTo),
       dashboardRepository.getOrdersByStatus(),
       dashboardRepository.getOrdersBySource(dateFrom, dateTo),
       dashboardRepository.getTopProducts(10, dateFrom, dateTo),
@@ -52,6 +55,9 @@ export const dashboardService = {
       dashboardRepository.getCOGS(dateFrom, dateTo),
       dashboardRepository.getCancellationRate(dateFrom, dateTo),
       dashboardRepository.getProfit(dateFrom, dateTo),
+      dashboardRepository.getTotalLosses(dateFrom, dateTo),
+      dashboardRepository.getWasteByType(dateFrom, dateTo),
+      dashboardRepository.getStockValue(),
     ]);
 
     const calcDelta = (current, previous) => {
@@ -75,6 +81,10 @@ export const dashboardService = {
         cancellationRate: cancellationRate.rate,
         cancellationsCancelled: cancellationRate.cancelled,
         cancellationsTotal: cancellationRate.total,
+        totalLosses: totalLosses.total_losses,
+        orderLosses: totalLosses.order_losses,
+        inventoryLosses: totalLosses.inventory_losses,
+        lossRate: cogs > 0 ? Math.round((totalLosses.total_losses / cogs) * 1000) / 10 : 0,
         deltas: {
           revenue: calcDelta(periodKpis.revenue, previousPeriodKpis.revenue),
           orders: calcDelta(periodKpis.orders, previousPeriodKpis.orders),
@@ -93,6 +103,8 @@ export const dashboardService = {
       lowStockIngredients,
       ingredientCosts,
       mostRestocked,
+      wasteByType,
+      stockValue,
       ordersByHour,
       ordersByDayOfWeek,
       cancellationReasons,

@@ -347,6 +347,10 @@ model Order {
   completedBy     String?     @map("completed_by") @db.Uuid
   fulfillmentMinutes Int?    @map("fulfillment_minutes")
 
+  // Station readiness (two-step ready)
+  kitchenReady  Boolean  @default(false) @map("kitchen_ready")
+  cashierReady  Boolean  @default(false) @map("cashier_ready")
+
   // Payment
   totalAmount   Decimal     @default(0) @map("total_amount") @db.Decimal(10, 2)
   amountPaid    Decimal?    @map("amount_paid") @db.Decimal(10, 2)

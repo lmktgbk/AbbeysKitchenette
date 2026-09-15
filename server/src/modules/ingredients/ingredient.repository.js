@@ -452,59 +452,29 @@ export const ingredientRepository = {
     });
   },
 
-  /**
-   * Check if an unresolved stock alert already exists for this ingredient.
-   * Prevents duplicate alerts when stock is restocked but still below threshold.
-   * @param {string} ingredientId - ingredient UUID
-   * @param {object} [tx] - optional Prisma transaction client
-   * @returns {object|null} - existing StockAlert or null
-   */
-  async findOpenAlert(ingredientId, tx) {
-    const client = tx || prisma;
-    return client.stockAlert.findFirst({
-      where: { ingredientId, isResolved: false },
-    });
-  },
-
-  /**
-   * Create a stock alert when ingredient falls below minimum threshold.
-   * Alert type is "out_of_stock" if qty <= 0, otherwise "low_stock".
-   * @param {object} data - { ingredientId, alertType, stockAtTrigger }
-   * @param {object} [tx] - optional Prisma transaction client
-   * @returns {object} - created StockAlert
-   */
-  async createStockAlert(data, tx) {
-    const client = tx || prisma;
-    return client.stockAlert.create({ data });
-  },
-
-  /**
-   * Resolve all open stock alerts for an ingredient.
-   * Called when stock is restored above the minimum threshold.
-   * @param {string} ingredientId - ingredient UUID
-   * @param {object} [tx] - optional Prisma transaction client
-   * @returns {object} - Prisma batch update result
-   */
-  async resolveStockAlerts(ingredientId, tx) {
-    const client = tx || prisma;
-    return client.stockAlert.updateMany({
-      where: { ingredientId, isResolved: false },
-      data: { isResolved: true, resolvedAt: new Date() },
-    });
-  },
-
   /* ── Stock Alerts (GET) ────────────────── */
 
   /**
-   * Fetch all unresolved stock alerts with ingredient info.
-   * @returns {Array<object>} - list of open alerts with ingredient name/unit
+   * Compute live low-stock and out-of-stock alerts from current batch quantities.
+   * @returns {Array<object>} - list of ingredients below threshold with current stock
    */
   async getActiveAlerts() {
-    return prisma.stockAlert.findMany({
-      where: { isResolved: false },
-      include: { ingredient: true },
-      orderBy: { triggeredAt: "desc" },
-    });
+    const stockExpr = "(SELECT COALESCE(SUM(rb.quantity_left), 0) FROM restock_batches rb WHERE rb.ingredient_id = i.ingredient_id AND rb.quantity_left > 0)";
+    return prisma.$queryRawUnsafe(`
+      SELECT
+        i.ingredient_id AS "ingredient_id",
+        i.ingredient_name AS "ingredient_name",
+        i.unit AS unit,
+        ROUND((${stockExpr})::numeric, 2)::float AS "stock_at_trigger",
+        CASE
+          WHEN ${stockExpr} <= 0 THEN 'out_of_stock'
+          ELSE 'low_stock'
+        END AS "alert_type"
+      FROM ingredients i
+      WHERE i.is_archived = false
+        AND ${stockExpr} <= i.minimum_threshold
+      ORDER BY ${stockExpr} ASC
+    `);
   },
 
   /* ── Batches ─────────────────────────── */

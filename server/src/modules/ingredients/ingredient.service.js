@@ -47,37 +47,6 @@ function mapToBatchResponse(batch) {
 }
 
 /**
- * Check stock level and create/resolve alerts accordingly.
- * Shared by restock and declareLoss transaction flows.
- * @param {string} ingredientId - ingredient UUID
- * @param {number} qtyAfter - stock level after operation
- * @param {number} threshold - minimum threshold
- * @param {object} tx - Prisma transaction client
- * @param {object} [options]
- * @param {boolean} [options.belowOnly=false] - if true, only alert when strictly below threshold
- *   (restock uses this: restocking to exactly threshold is "ok", declareLoss does not)
- */
-async function checkStockAlerts(ingredientId, qtyAfter, threshold, tx, { belowOnly = false } = {}) {
-  const isLow = belowOnly ? qtyAfter < threshold : qtyAfter <= threshold;
-
-  if (isLow) {
-    const existingAlert = await ingredientRepository.findOpenAlert(ingredientId, tx);
-    if (!existingAlert) {
-      await ingredientRepository.createStockAlert(
-        {
-          ingredientId,
-          alertType: qtyAfter <= 0 ? "out_of_stock" : "low_stock",
-          stockAtTrigger: qtyAfter,
-        },
-        tx,
-      );
-    }
-  } else {
-    await ingredientRepository.resolveStockAlerts(ingredientId, tx);
-  }
-}
-
-/**
  * Ingredient Service
  *
  * Business logic for ingredient operations.
@@ -138,19 +107,19 @@ export const ingredientService = {
   },
 
   /**
-   * Get all active (unresolved) stock alerts.
+   * Get all active (unresolved) stock alerts — computed live from restock batches.
    * @returns {Array<object>} - alerts with ingredient details
    */
   async getActiveAlerts() {
     const rows = await ingredientRepository.getActiveAlerts();
     return rows.map((r) => ({
-      alert_id: r.alertId,
-      ingredient_id: r.ingredientId,
-      alert_type: r.alertType,
-      stock_at_trigger: Number(r.stockAtTrigger),
-      triggered_at: r.triggeredAt?.toISOString?.() ?? r.triggeredAt,
-      ingredient_name: r.ingredient?.ingredientName,
-      unit: r.ingredient?.unit,
+      alert_id: r.ingredient_id,
+      ingredient_id: r.ingredient_id,
+      alert_type: r.alert_type,
+      stock_at_trigger: Number(r.stock_at_trigger),
+      triggered_at: null,
+      ingredient_name: r.ingredient_name,
+      unit: r.unit,
     }));
   },
 
@@ -319,10 +288,7 @@ export const ingredientService = {
         tx,
       );
 
-      // Step 4: Check stock level after restock — create or resolve alerts
-      const qtyAfter = qtyBefore + qty;
-      const threshold = Number(existing.minimumThreshold);
-      await checkStockAlerts(id, qtyAfter, threshold, tx, { belowOnly: true });
+      // Step 4: Done
     });
 
     // Step 5: Ensure FIFO leader is starred (auto-star first/oldest batch)
@@ -460,11 +426,6 @@ export const ingredientService = {
         },
         tx,
       );
-
-      // Step 5f: Check stock alerts — create if low/out, resolve if healthy
-      const qtyAfter = qtyBefore - qty;
-      const threshold = Number(existing.minimumThreshold);
-      await checkStockAlerts(id, qtyAfter, threshold, tx);
     });
 
     // Step 6: Return updated ingredient

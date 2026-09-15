@@ -355,24 +355,66 @@ export const orderService = {
     const updateMeta = { userId: meta.userId };
     if (targetStatus === "completed") {
       const items = await orderRepository.getOrderItems(id);
-      if (items.length === 0 || !items.every((i) => i.isPrepared)) {
-        throw new AppError(400, "All items must be marked as prepared before completing", "NOT_ALL_PREPARED");
+      if (items.length === 0) {
+        throw new AppError(400, "Order has no items", "NO_ITEMS");
       }
-      const createdAt = new Date(order.createdAt).getTime();
-      updateMeta.fulfillmentMinutes = Math.round((Date.now() - createdAt) / 60000);
+
+      // Two-step ready: check only items for the calling role's category
+      const userRole = meta.userRole;
+      if (!userRole || (userRole !== "kitchen" && userRole !== "cashier")) {
+        throw new AppError(400, "User role must be kitchen or cashier to mark ready", "INVALID_ROLE");
+      }
+
+      const roleCategory = userRole === "cashier" ? "Beverages" : "Food";
+      const roleItems = items.filter((i) => i.product?.subcategory?.categoryName === roleCategory);
+
+      if (roleItems.length === 0) {
+        throw new AppError(400, `No ${roleCategory} items found in this order`, "NO_ROLE_ITEMS");
+      }
+
+      if (!roleItems.every((i) => i.isPrepared)) {
+        throw new AppError(400, `All ${roleCategory} items must be marked as prepared`, "NOT_ALL_PREPARED");
+      }
+
+      // Set this role's ready flag
+      if (userRole === "kitchen") {
+        updateMeta.kitchenReady = true;
+      } else {
+        updateMeta.cashierReady = true;
+      }
+
+      await orderRepository.updateStatus(id, order.status, updateMeta);
+
+      // Check if BOTH roles are ready after this update
+      const updatedOrder = await orderRepository.findById(id);
+      if (updatedOrder.kitchenReady && updatedOrder.cashierReady) {
+        // Both ready → complete the order
+        const createdAt = new Date(order.createdAt).getTime();
+        const fulfillmentMinutes = Math.round((Date.now() - createdAt) / 60000);
+        await orderRepository.updateStatus(id, "completed", { userId: meta.userId, fulfillmentMinutes });
+
+        auditLogService.logAction({
+          userId: meta.userId,
+          action: ACTIONS.ORDER_COMPLETED,
+          targetType: "order",
+          targetId: id,
+          details: { total: Number(order.totalAmount), fulfillmentMinutes },
+        }).catch(() => {});
+      } else {
+        // Only one role ready → log which role confirmed
+        auditLogService.logAction({
+          userId: meta.userId,
+          action: userRole === "kitchen" ? ACTIONS.ORDER_KITCHEN_READY : ACTIONS.ORDER_CASHIER_READY,
+          targetType: "order",
+          targetId: id,
+          details: { total: Number(order.totalAmount), role: userRole },
+        }).catch(() => {});
+      }
+
+      return this.getById(id);
     }
 
     await orderRepository.updateStatus(id, targetStatus, updateMeta);
-
-    if (targetStatus === "completed") {
-      auditLogService.logAction({
-        userId: meta.userId,
-        action: ACTIONS.ORDER_COMPLETED,
-        targetType: "order",
-        targetId: id,
-        details: { total: Number(order.totalAmount), fulfillmentMinutes: updateMeta.fulfillmentMinutes },
-      }).catch(() => {});
-    }
 
     return this.getById(id);
   },
@@ -464,12 +506,12 @@ export const orderService = {
     // Calculate refund based on refund_option (or custom override)
     let refundAmount;
     if (refundOption === "full") {
-      refundAmount = orderTotalAmount;
+      refundAmount = Number(order.totalAmount);
     } else if (refundOption === "none") {
       refundAmount = 0;
     } else if (options.refund_amount != null) {
       // partial: user-specified amount, capped at order total
-      refundAmount = Math.min(Number(options.refund_amount), orderTotalAmount);
+      refundAmount = Math.min(Number(options.refund_amount), Number(order.totalAmount));
     } else {
       refundAmount = 0;
     }

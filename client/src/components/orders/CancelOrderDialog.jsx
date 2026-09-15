@@ -51,6 +51,7 @@ export default function CancelOrderDialog({
   const [expandedItems, setExpandedItems] = useState(new Set());
   const [itemLossQuantities, setItemLossQuantities] = useState({});
   const [itemLosses, setItemLosses] = useState({});
+  const [manualOverrides, setManualOverrides] = useState({});
 
   const isPreparing = order?.status === "preparing";
   const allItems = order?.items || [];
@@ -63,6 +64,7 @@ export default function CancelOrderDialog({
     if (lossOption !== "with_loss") {
       setItemLossQuantities({});
       setItemLosses({});
+      setManualOverrides({});
       return;
     }
     const quantities = {};
@@ -136,6 +138,21 @@ export default function CancelOrderDialog({
       }
       return itemLosses;
     });
+    setManualOverrides((prev) => {
+      const next = { ...prev };
+      const itemSet = new Set(next[itemId] || []);
+      if (itemSet.has(ingredientId)) {
+        itemSet.delete(ingredientId);
+      } else {
+        itemSet.add(ingredientId);
+      }
+      if (itemSet.size === 0) {
+        delete next[itemId];
+      } else {
+        next[itemId] = itemSet;
+      }
+      return next;
+    });
   }
 
   function updateIngredientQty(itemId, ingredientId, qty) {
@@ -156,6 +173,13 @@ export default function CancelOrderDialog({
       }
       return itemLosses;
     });
+    setManualOverrides((prev) => {
+      const next = { ...prev };
+      const itemSet = new Set(next[itemId] || []);
+      itemSet.add(ingredientId);
+      next[itemId] = itemSet;
+      return next;
+    });
   }
 
   function adjustLossQuantity(itemId, delta) {
@@ -170,12 +194,25 @@ export default function CancelOrderDialog({
         delete next_[itemId];
         return next_;
       });
+      setManualOverrides((prev) => {
+        const next_ = { ...prev };
+        delete next_[itemId];
+        return next_;
+      });
     } else {
-      const itemLoss = {};
-      for (const recipe of item.recipes || []) {
-        itemLoss[recipe.ingredient_id] = recipe.quantity_needed * next;
-      }
-      setItemLosses((prev) => ({ ...prev, [itemId]: itemLoss }));
+      const itemManualOverrides = manualOverrides[itemId] || new Set();
+      setItemLosses((prev) => {
+        const prevItemLoss = prev[itemId] || {};
+        const itemLoss = {};
+        for (const recipe of item.recipes || []) {
+          if (itemManualOverrides.has(recipe.ingredient_id) && prevItemLoss[recipe.ingredient_id] !== undefined) {
+            itemLoss[recipe.ingredient_id] = prevItemLoss[recipe.ingredient_id];
+          } else {
+            itemLoss[recipe.ingredient_id] = recipe.quantity_needed * next;
+          }
+        }
+        return { ...prev, [itemId]: itemLoss };
+      });
     }
   }
 
@@ -229,6 +266,7 @@ export default function CancelOrderDialog({
       setLossOption("no_loss");
       setItemLossQuantities({});
       setItemLosses({});
+      setManualOverrides({});
       setRefundOption("full");
       setCustomRefundAmount("");
       setReason("");

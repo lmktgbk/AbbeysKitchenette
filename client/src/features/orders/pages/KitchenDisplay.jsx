@@ -95,13 +95,13 @@ export default function KitchenDisplay({ embedded = false }) {
     try {
       setAnimatingOut(true);
       await new Promise((r) => setTimeout(r, 550));
-      await markReady(pendingAction.orderId);
-      toast.success("Order completed");
+      await markReady({ id: pendingAction.orderId, userRole: user?.role });
+      toast.success("Station marked as ready");
       setPendingAction(null);
       setAnimatingOut(false);
     } catch (err) {
       setAnimatingOut(false);
-      toast.error(err.response?.data?.message || "Could not complete order");
+      toast.error(err.response?.data?.message || "Could not mark as ready");
     }
   }
 
@@ -211,6 +211,7 @@ export default function KitchenDisplay({ embedded = false }) {
         onConfirm={handleConfirmReady}
         onCancel={() => !markingReady && setPendingAction(null)}
         loading={markingReady}
+        userRole={user?.role}
       />
     </div>
   );

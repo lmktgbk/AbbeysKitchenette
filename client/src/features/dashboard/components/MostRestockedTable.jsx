@@ -35,7 +35,7 @@ function MostRestockedTable({ data, isLoading }) {
   return (
     <div className="rounded-lg border border-border bg-card">
       <div className="border-b border-border px-4 py-3">
-        <h3 className="text-sm font-semibold text-foreground">Most Restocked Ingredients</h3>
+        <h3 className="text-sm font-semibold text-foreground">Top 10 Most Restocked Ingredients</h3>
       </div>
       <div className="p-2">
         <table className="w-full">

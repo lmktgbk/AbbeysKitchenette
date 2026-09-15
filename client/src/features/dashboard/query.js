@@ -13,6 +13,7 @@ import * as api from "./api";
 const dashboardKeys = {
   all: ["dashboard"],
   data: (params) => ["dashboard", "data", params],
+  revenueTrend: (params) => ["dashboard", "revenueTrend", params],
 };
 
 /* ── Query Hooks ───────────────────────────────── */
@@ -25,5 +26,17 @@ export function useDashboardData(params) {
   return useQuery({
     queryKey: dashboardKeys.data(params),
     queryFn: () => api.getDashboardRequest(params),
+  });
+}
+
+/**
+ * useRevenueTrend — revenue trend with granularity.
+ * Separate from main dashboard to avoid refetching everything on granularity change.
+ * @param {object} params - { dateFrom, dateTo, granularity }
+ */
+export function useRevenueTrend(params) {
+  return useQuery({
+    queryKey: dashboardKeys.revenueTrend(params),
+    queryFn: () => api.getRevenueTrendRequest(params),
   });
 }

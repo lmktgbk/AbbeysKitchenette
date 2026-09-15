@@ -8,41 +8,41 @@ import prisma from "../../config/prisma.js";
  */
 export const dashboardRepository = {
   /**
-   * Get order KPIs for a date range: total revenue, order count, average order value.
-   * Excludes cancelled orders.
+   * Get order KPIs for a date range: revenue, order count, average order value.
+   * Revenue uses only completed orders. Orders count includes all statuses.
+   * AOV = revenue / completed orders.
    * @param {string|null} dateFrom - YYYY-MM-DD or null for all time
    * @param {string|null} dateTo - YYYY-MM-DD or null for all time
    * @returns {object} - { revenue, orders, aov }
    */
   async getOrderKpis(dateFrom, dateTo) {
-    const clauses = ["o.status != 'cancelled'"];
     const values = [];
     let idx = 1;
 
     if (dateFrom) {
-      clauses.push(`o.order_date >= $${idx++}::date`);
       values.push(dateFrom);
     }
     if (dateTo) {
-      clauses.push(`o.order_date <= $${idx++}::date`);
       values.push(dateTo);
     }
 
-    const where = `WHERE ${clauses.join(" AND ")}`;
+    const dateClauses = [];
+    if (dateFrom) dateClauses.push(`o.order_date >= $${idx++}::date`);
+    if (dateTo) dateClauses.push(`o.order_date <= $${idx++}::date`);
+    const dateWhere = dateClauses.length ? `WHERE ${dateClauses.join(" AND ")}` : '';
+
     const sql = `
       SELECT
-        COALESCE(SUM(o.total_amount), 0)::float AS revenue,
+        COALESCE(SUM(CASE WHEN o.status = 'completed' THEN o.total_amount END), 0)::float AS revenue,
         COUNT(*)::int AS orders,
-        CASE
-          WHEN COUNT(*) > 0
-          THEN ROUND(SUM(o.total_amount) / COUNT(*)::numeric, 2)
-          ELSE 0
-        END AS aov
+        COUNT(*) FILTER (WHERE o.status = 'completed')::int AS completed_orders
       FROM orders o
-      ${where}
+      ${dateWhere}
     `;
     const result = await prisma.$queryRawUnsafe(sql, ...values);
-    return result[0] || { revenue: 0, orders: 0, aov: 0 };
+    const row = result[0] || { revenue: 0, orders: 0, completed_orders: 0 };
+    const aov = row.completed_orders > 0 ? Math.round((row.revenue / row.completed_orders) * 100) / 100 : 0;
+    return { revenue: row.revenue, orders: row.orders, aov };
   },
 
   /**
@@ -52,27 +52,25 @@ export const dashboardRepository = {
   async getTodayKpis() {
     const result = await prisma.$queryRaw`
       SELECT
-        COALESCE(SUM(o.total_amount), 0)::float AS revenue,
+        COALESCE(SUM(CASE WHEN o.status = 'completed' THEN o.total_amount END), 0)::float AS revenue,
         COUNT(*)::int AS orders,
-        CASE
-          WHEN COUNT(*) > 0
-          THEN ROUND(SUM(o.total_amount) / COUNT(*)::numeric, 2)
-          ELSE 0
-        END AS aov
+        COUNT(*) FILTER (WHERE o.status = 'completed')::int AS completed_orders
       FROM orders o
       WHERE o.order_date = CURRENT_DATE
-        AND o.status != 'cancelled'
     `;
-    return result[0] || { revenue: 0, orders: 0, aov: 0 };
+    const row = result[0] || { revenue: 0, orders: 0, completed_orders: 0 };
+    const aov = row.completed_orders > 0 ? Math.round((row.revenue / row.completed_orders) * 100) / 100 : 0;
+    return { revenue: row.revenue, orders: row.orders, aov };
   },
 
   /**
-   * Daily revenue trend for completed orders.
+   * Revenue trend grouped by day, week, or month.
    * @param {string|null} dateFrom
    * @param {string|null} dateTo
+   * @param {string} granularity - 'daily' | 'weekly' | 'monthly'
    * @returns {Array<{date, revenue, orders}>}
    */
-  async getDailyRevenueTrend(dateFrom, dateTo) {
+  async getRevenueTrend(dateFrom, dateTo, granularity = "daily") {
     const clauses = ["o.status = 'completed'"];
     const values = [];
     let idx = 1;
@@ -86,16 +84,23 @@ export const dashboardRepository = {
       values.push(dateTo);
     }
 
+    const trunc =
+      granularity === "monthly"
+        ? "month"
+        : granularity === "weekly"
+          ? "week"
+          : "day";
+
     const where = `WHERE ${clauses.join(" AND ")}`;
     const sql = `
       SELECT
-        o.order_date::date AS date,
+        date_trunc('${trunc}', o.order_date)::date AS date,
         ROUND(SUM(o.total_amount)::numeric, 2)::float AS revenue,
         COUNT(*)::int AS orders
       FROM orders o
       ${where}
-      GROUP BY o.order_date::date
-      ORDER BY o.order_date::date ASC
+      GROUP BY date_trunc('${trunc}', o.order_date)::date
+      ORDER BY date_trunc('${trunc}', o.order_date)::date ASC
     `;
     return prisma.$queryRawUnsafe(sql, ...values);
   },
@@ -254,17 +259,16 @@ export const dashboardRepository = {
     const where = `WHERE ${clauses.join(" AND ")}`;
     const sql = `
       SELECT
-        c.category_name AS "categoryName",
+        sc.subcategory_name AS "categoryName",
         ROUND(SUM(oi.subtotal)::numeric, 2)::float AS revenue,
         COUNT(DISTINCT o.order_id)::int AS "orderCount"
       FROM order_items oi
       JOIN products p ON p.product_id = oi.product_id
       JOIN subcategories sc ON sc.subcategory_id = p.subcategory_id
-      JOIN categories c ON c.category_id = sc.category_id
       JOIN orders o ON o.order_id = oi.order_id
       AND oi.removed_at IS NULL
       ${where}
-      GROUP BY c.category_name
+      GROUP BY sc.subcategory_name
       ORDER BY revenue DESC
     `;
     return prisma.$queryRawUnsafe(sql, ...values);
@@ -478,11 +482,16 @@ export const dashboardRepository = {
     const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
     return prisma.$queryRawUnsafe(`
       SELECT
-        COALESCE(oc.reason, 'No reason') AS reason,
+        CASE
+          WHEN oc.reason IS NULL THEN 'other'
+          WHEN oc.reason IN ('customer_changed_mind', 'wrong_order', 'duplicate', 'out_of_stock', 'all_items_removed', 'other')
+          THEN oc.reason
+          ELSE 'other'
+        END AS reason,
         COUNT(*)::int AS count
       FROM order_cancellations oc
       ${where}
-      GROUP BY oc.reason
+      GROUP BY reason
       ORDER BY count DESC
     `, ...values);
   },
@@ -591,19 +600,16 @@ export const dashboardRepository = {
     }
     const result = await prisma.$queryRawUnsafe(`
       SELECT
-        COALESCE(SUM(o.total_amount), 0)::float AS revenue,
+        COALESCE(SUM(CASE WHEN o.status = 'completed' THEN o.total_amount END), 0)::float AS revenue,
         COUNT(*)::int AS orders,
-        CASE
-          WHEN COUNT(*) > 0
-          THEN ROUND(SUM(o.total_amount) / COUNT(*)::numeric, 2)
-          ELSE 0
-        END AS aov
+        COUNT(*) FILTER (WHERE o.status = 'completed')::int AS completed_orders
       FROM orders o
-      WHERE o.status != 'cancelled'
-        AND o.order_date >= ($1::date - ($2::date - $1::date))
+      WHERE o.order_date >= ($1::date - ($2::date - $1::date))
         AND o.order_date < $1::date
     `, dateFrom, dateTo);
-    return result[0] || { revenue: 0, orders: 0, aov: 0 };
+    const row = result[0] || { revenue: 0, orders: 0, completed_orders: 0 };
+    const aov = row.completed_orders > 0 ? Math.round((row.revenue / row.completed_orders) * 100) / 100 : 0;
+    return { revenue: row.revenue, orders: row.orders, aov };
   },
 
   /**
@@ -700,20 +706,24 @@ export const dashboardRepository = {
       values.push(dateTo);
     }
 
+    const dateFilter = clauses.length > 0 ? `AND ${clauses.join(" AND ")}` : "";
     values.push(limit);
-    const where = `WHERE ${clauses.join(" AND ")}`;
     const sql = `
       SELECT
         p.product_name AS "productName",
-        SUM(oi.quantity)::int AS "unitsSold",
-        ROUND(SUM(oi.subtotal)::numeric, 2)::float AS revenue
-      FROM order_items oi
-      JOIN products p ON p.product_id = oi.product_id
-      JOIN orders o ON o.order_id = oi.order_id
-      AND oi.removed_at IS NULL
-      ${where}
+        COALESCE(SUM(oi.quantity), 0)::int AS "unitsSold",
+        COALESCE(ROUND(SUM(oi.subtotal)::numeric, 2), 0)::float AS revenue
+      FROM products p
+      LEFT JOIN order_items oi
+        ON oi.product_id = p.product_id
+        AND oi.removed_at IS NULL
+        AND EXISTS (
+          SELECT 1 FROM orders o
+          WHERE o.order_id = oi.order_id ${dateFilter}
+        )
+      WHERE p.is_archived = false
       GROUP BY p.product_name
-      ORDER BY revenue ASC
+      ORDER BY revenue ASC, "unitsSold" ASC
       LIMIT $${idx}
     `;
     return prisma.$queryRawUnsafe(sql, ...values);
@@ -743,13 +753,97 @@ export const dashboardRepository = {
 
   /**
    * Profit = Revenue - COGS for a period.
-   */
+    */
   async getProfit(dateFrom, dateTo) {
     const revenueResult = await this.getOrderKpis(dateFrom, dateTo);
     const cogs = await this.getCOGS(dateFrom, dateTo);
+    const losses = await this.getTotalLosses(dateFrom, dateTo);
     const revenue = revenueResult.revenue || 0;
-    const profit = revenue - cogs;
+    const lossAmount = losses.total_losses || 0;
+    const profit = revenue - cogs - lossAmount;
     const margin = revenue > 0 ? Math.round((profit / revenue) * 1000) / 10 : 0;
     return { profit, margin };
+  },
+
+  /**
+   * Total cost of losses for a period from loss_records.
+   * @param {string|null} dateFrom
+   * @param {string|null} dateTo
+   * @returns {object} - { total_losses, order_losses, inventory_losses }
+   */
+  async getTotalLosses(dateFrom, dateTo) {
+    const clauses = [];
+    const values = [];
+    let idx = 1;
+
+    if (dateFrom) {
+      clauses.push(`lr.logged_at >= $${idx++}::date`);
+      values.push(dateFrom);
+    }
+    if (dateTo) {
+      clauses.push(`lr.logged_at <= ($${idx++}::date + interval '1 day' - interval '1 second')`);
+      values.push(dateTo);
+    }
+
+    const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : '';
+    const sql = `
+      SELECT
+        COALESCE(SUM(lr.total_cost_lost), 0)::float AS total_losses,
+        COALESCE(SUM(lr.total_cost_lost) FILTER (WHERE lr.loss_type = 'cancellation'), 0)::float AS order_losses,
+        COALESCE(SUM(lr.total_cost_lost) FILTER (WHERE lr.loss_type != 'cancellation'), 0)::float AS inventory_losses
+      FROM loss_records lr
+      ${where}
+    `;
+    const result = await prisma.$queryRawUnsafe(sql, ...values);
+    return result[0] || { total_losses: 0, order_losses: 0, inventory_losses: 0 };
+  },
+
+  /**
+   * Waste/loss breakdown by type for a period.
+   * @param {string|null} dateFrom
+   * @param {string|null} dateTo
+   * @returns {Array<{type, count, totalCost}>}
+   */
+  async getWasteByType(dateFrom, dateTo) {
+    const clauses = [];
+    const values = [];
+    let idx = 1;
+
+    if (dateFrom) {
+      clauses.push(`lr.logged_at >= $${idx++}::date`);
+      values.push(dateFrom);
+    }
+    if (dateTo) {
+      clauses.push(`lr.logged_at <= ($${idx++}::date + interval '1 day' - interval '1 second')`);
+      values.push(dateTo);
+    }
+
+    const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : '';
+    const sql = `
+      SELECT
+        lr.loss_type AS type,
+        COUNT(*)::int AS count,
+        COALESCE(SUM(lr.total_cost_lost), 0)::float AS "totalCost"
+      FROM loss_records lr
+      ${where}
+      GROUP BY lr.loss_type
+      ORDER BY "totalCost" DESC
+    `;
+    return prisma.$queryRawUnsafe(sql, ...values);
+  },
+
+  /**
+   * Total value of current inventory (remaining stock × cost).
+   * @returns {object} - { totalValue, ingredientCount }
+   */
+  async getStockValue() {
+    const result = await prisma.$queryRawUnsafe(`
+      SELECT
+        COALESCE(SUM(rb.quantity_left * rb.cost_per_unit), 0)::float AS "totalValue",
+        COUNT(DISTINCT rb.ingredient_id)::int AS "ingredientCount"
+      FROM restock_batches rb
+      WHERE rb.quantity_left > 0
+    `);
+    return result[0] || { totalValue: 0, ingredientCount: 0 };
   },
 };

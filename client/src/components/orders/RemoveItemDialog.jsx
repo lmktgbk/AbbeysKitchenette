@@ -49,6 +49,7 @@ export default function RemoveItemDialog({
   const [expandedIngredients, setExpandedIngredients] = useState(false);
   const [lossQuantity, setLossQuantity] = useState(0);
   const [ingredientLosses, setIngredientLosses] = useState({});
+  const [manualOverrides, setManualOverrides] = useState(new Set());
 
   const prevItemId = item?.order_item_id;
   const [lastItemId, setLastItemId] = useState(null);
@@ -63,6 +64,7 @@ export default function RemoveItemDialog({
     setExpandedIngredients(false);
     setLossQuantity(0);
     setIngredientLosses({});
+    setManualOverrides(new Set());
   }
 
   const totalLossCost = useMemo(() => {
@@ -96,6 +98,15 @@ export default function RemoveItemDialog({
       }
       return next;
     });
+    setManualOverrides((prev) => {
+      const next = new Set(prev);
+      if (next.has(ingredientId)) {
+        next.delete(ingredientId);
+      } else {
+        next.add(ingredientId);
+      }
+      return next;
+    });
   }
 
   function updateIngredientQty(ingredientId, qty) {
@@ -110,19 +121,29 @@ export default function RemoveItemDialog({
       }
       return next;
     });
+    setManualOverrides((prev) => new Set(prev).add(ingredientId));
   }
 
   function adjustLossQuantity(delta) {
     const max = item?.quantity || 1;
     setLossQuantity((prev) => {
       const next = Math.max(0, Math.min(max, prev + delta));
-      const newLosses = {};
-      if (next > 0) {
-        for (const recipe of recipes) {
-          newLosses[recipe.ingredient_id] = recipe.quantity_needed * next;
-        }
+      if (next <= 0) {
+        setIngredientLosses({});
+        setManualOverrides(new Set());
+      } else {
+        setIngredientLosses((prevLosses) => {
+          const nextLosses = {};
+          for (const recipe of recipes) {
+            if (manualOverrides.has(recipe.ingredient_id) && prevLosses[recipe.ingredient_id] !== undefined) {
+              nextLosses[recipe.ingredient_id] = prevLosses[recipe.ingredient_id];
+            } else {
+              nextLosses[recipe.ingredient_id] = recipe.quantity_needed * next;
+            }
+          }
+          return nextLosses;
+        });
       }
-      setIngredientLosses(newLosses);
       return next;
     });
   }
@@ -174,6 +195,7 @@ export default function RemoveItemDialog({
       setExpandedIngredients(false);
       setLossQuantity(0);
       setIngredientLosses({});
+      setManualOverrides(new Set());
     }
     onOpenChange(isOpen);
   }

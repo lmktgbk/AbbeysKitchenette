@@ -14,11 +14,20 @@ const COLORS = [
   "#f97316",
 ];
 
+const REASON_LABELS = {
+  customer_changed_mind: "Customer changed mind",
+  wrong_order: "Wrong order",
+  duplicate: "Duplicate order",
+  out_of_stock: "Out of stock",
+  all_items_removed: "All items removed",
+  other: "Other",
+};
+
 function CancellationChart({ data, isLoading }) {
   const pieData = useMemo(() => {
     if (!data?.length) return [];
     return data.map((d, i) => ({
-      name: d.reason,
+      name: REASON_LABELS[d.reason] || d.reason,
       value: d.count,
       color: COLORS[i % COLORS.length],
     }));

@@ -4,6 +4,7 @@ import {
 } from "recharts";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatPeso } from "../utils/dashboardUtils";
 
 const STATUS_CONFIG = {
   healthy: { label: "Healthy", color: "#22c55e" },
@@ -17,9 +18,10 @@ const STATUS_CONFIG = {
  * @param {Object} props
  * @param {object} props.statusData - { total, healthy, low, out }
  * @param {Array} props.lowStockData - [{ name, stock, threshold, unit }]
+ * @param {object} props.stockValue - { totalValue, ingredientCount }
  * @param {boolean} props.isLoading
  */
-function IngredientOverview({ statusData, lowStockData, isLoading }) {
+function IngredientOverview({ statusData, lowStockData, stockValue, isLoading }) {
   const pieData = useMemo(() => {
     if (!statusData) return [];
     return Object.entries(STATUS_CONFIG)
@@ -60,8 +62,13 @@ function IngredientOverview({ statusData, lowStockData, isLoading }) {
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       {/* Stock Status Donut */}
       <div className="rounded-lg border border-border bg-card">
-        <div className="border-b border-border px-4 py-3">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h3 className="text-sm font-semibold text-foreground">Stock Status</h3>
+          {stockValue?.totalValue != null && (
+            <span className="text-xs font-medium text-muted-foreground">
+              Stock Value: <span className="text-foreground">{formatPeso(stockValue.totalValue)}</span>
+            </span>
+          )}
         </div>
         {pieData.length === 0 ? (
           <div className="flex h-[252px] flex-col items-center justify-center gap-2 text-sm text-muted-foreground">

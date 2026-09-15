@@ -17,4 +17,11 @@ router.get(
   dashboardController.getDashboard,
 );
 
+router.get(
+  "/revenue-trend",
+  authenticate,
+  authorize("admin"),
+  dashboardController.getRevenueTrend,
+);
+
 export default router;

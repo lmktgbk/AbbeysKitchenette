@@ -68,6 +68,8 @@ export function formatOrderResponse(row, extra = {}) {
     completed_at: row.completed_at ?? row.completedAt ?? null,
     completed_by: row.completed_by ?? row.completedBy ?? null,
     fulfillment_minutes: row.fulfillment_minutes ?? row.fulfillmentMinutes ?? null,
+    kitchen_ready: row.kitchen_ready ?? row.kitchenReady ?? false,
+    cashier_ready: row.cashier_ready ?? row.cashierReady ?? false,
     created_by: row.created_by ?? row.createdBy,
     created_at: row.created_at ?? row.createdAt,
     updated_at: row.updated_at ?? row.updatedAt,

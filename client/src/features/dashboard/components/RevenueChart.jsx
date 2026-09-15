@@ -5,15 +5,16 @@ import {
 } from "recharts";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import { formatPeso } from "../utils/dashboardUtils";
 
-/**
- * RevenueChart — daily revenue area chart with gradient fill.
- *
- * @param {Object} props
- * @param {Array} props.data - [{ date, revenue, orders }]
- * @param {boolean} props.isLoading
- */
-function RevenueChart({ data, isLoading }) {
+const GRANULARITY_OPTIONS = [
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
+];
+
+function RevenueChart({ data, isLoading, granularity = "daily", onGranularityChange }) {
   const totals = useMemo(() => {
     if (!data?.length) return { revenue: 0, orders: 0 };
     return data.reduce(
@@ -21,6 +22,30 @@ function RevenueChart({ data, isLoading }) {
       { revenue: 0, orders: 0 }
     );
   }, [data]);
+
+  const formatTick = (v) => {
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return "";
+    if (granularity === "monthly") {
+      return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+    }
+    if (granularity === "weekly") {
+      return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    }
+    return `${d.getMonth() + 1}/${d.getDate()}`;
+  };
+
+  const formatTooltipLabel = (v) => {
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return "";
+    if (granularity === "monthly") {
+      return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    }
+    if (granularity === "weekly") {
+      return `Week of ${d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+    }
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  };
 
   if (isLoading) {
     return (
@@ -53,9 +78,27 @@ function RevenueChart({ data, isLoading }) {
     <div className="rounded-lg border border-border bg-card">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
         <h3 className="text-sm font-semibold text-foreground">Revenue Trend</h3>
-        <span className="text-xs font-medium text-muted-foreground">
-          ₱{totals.revenue.toLocaleString()} total
-        </span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center rounded-md border border-border bg-muted p-0.5">
+            {GRANULARITY_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => onGranularityChange?.(opt.value)}
+                className={cn(
+                  "px-2.5 py-1 text-xs font-medium rounded-[5px] transition-colors",
+                  granularity === opt.value
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <span className="text-xs font-medium text-muted-foreground">
+            {formatPeso(totals.revenue)} total
+          </span>
+        </div>
       </div>
       <div className="px-4 pt-3 pb-4">
         <ResponsiveContainer width="100%" height={300}>
@@ -70,10 +113,7 @@ function RevenueChart({ data, isLoading }) {
             <XAxis
               dataKey="date"
               tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
-              tickFormatter={(v) => {
-                const d = new Date(v + "T00:00:00");
-                return `${d.getMonth() + 1}/${d.getDate()}`;
-              }}
+              tickFormatter={formatTick}
             />
             <YAxis
               tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
@@ -88,10 +128,7 @@ function RevenueChart({ data, isLoading }) {
                 color: "var(--color-foreground)",
               }}
               formatter={(value) => [`₱${Number(value).toLocaleString()}`, "Revenue"]}
-              labelFormatter={(label) => {
-                const d = new Date(label + "T00:00:00");
-                return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-              }}
+              labelFormatter={formatTooltipLabel}
             />
             <Area
               type="monotone"

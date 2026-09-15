@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import Icon from "@/components/ui/icon";
 import { formatDate } from "@/lib/date";
+import { cn } from "@/lib/utils";
 
 /**
  * STATUS_CONFIG — display info for each order status.
@@ -108,7 +109,25 @@ export default function OrderTable({ orders, isLoading, onView, onAdvance }) {
                   ₱{Number(order.total_amount).toLocaleString()}
                 </TableCell>
                 <TableCell>
-                  <Badge variant={status.variant}>{status.label}</Badge>
+                  <div className="flex flex-col gap-1">
+                    <Badge variant={status.variant}>{status.label}</Badge>
+                    {order.status === "preparing" && (
+                      <div className="flex items-center gap-1 text-[9px]">
+                        <span className={cn(
+                          "px-1 py-0.5 rounded font-medium",
+                          order.kitchen_ready ? "bg-green-500/10 text-green-600" : "bg-muted text-muted-foreground"
+                        )}>
+                          K:{order.kitchen_ready ? "✓" : "○"}
+                        </span>
+                        <span className={cn(
+                          "px-1 py-0.5 rounded font-medium",
+                          order.cashier_ready ? "bg-green-500/10 text-green-600" : "bg-muted text-muted-foreground"
+                        )}>
+                          C:{order.cashier_ready ? "✓" : "○"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground">
                   {formatDate(order.created_at, "shortDate")}
