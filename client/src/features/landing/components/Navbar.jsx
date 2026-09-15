@@ -6,11 +6,11 @@ import Icon from "@/components/ui/icon";
  * Navbar
  * Fixed top navigation bar for the landing page.
  * Transparent on hero, solid (glassmorphism) on scroll.
- * Mobile: animated slide-down hamburger menu.
+ * Mobile: CSS-animated slide-down hamburger menu.
  * Desktop: inline "Order Online" CTA button.
  */
 export default function Navbar() {
-    const [scrolled, setScrolled] = useState(false);
+    const [scrolled, setScrolled]     = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
 
     useEffect(() => {
@@ -27,6 +27,12 @@ export default function Navbar() {
         window.addEventListener("resize", onResize);
         return () => window.removeEventListener("resize", onResize);
     }, []);
+
+    // Prevent body scroll when mobile menu is open
+    useEffect(() => {
+        document.body.style.overflow = mobileOpen ? "hidden" : "";
+        return () => { document.body.style.overflow = ""; };
+    }, [mobileOpen]);
 
     const links = [
         { label: "Home",     href: "#home" },
@@ -51,6 +57,7 @@ export default function Navbar() {
                     href="#home"
                     className="flex items-center gap-2.5 text-decoration-none"
                     onClick={(e) => handleNavClick(e, "#home")}
+                    aria-label="Abbey's Kitchenette — back to top"
                 >
                     <img
                         src="/favicon.png"
@@ -66,10 +73,13 @@ export default function Navbar() {
                             fontWeight: 700,
                             letterSpacing: "-0.01em",
                             color: scrolled ? "#1c1008" : "#fff",
-                            transition: "color 0.28s",
+                            transition: "color 0.32s cubic-bezier(0.4,0,0.2,1)",
+                            display: "flex",
+                            alignItems: "center",
                         }}
                     >
-                        Abbey's Kitchenette
+                        <span className="navbar-brand-cursive">Abbey's</span>
+                        <span>Kitchenette</span>
                     </span>
                 </a>
 
@@ -90,7 +100,7 @@ export default function Navbar() {
                 {/* Desktop CTA */}
                 <div className="hidden items-center gap-3 md:flex">
                     <Link to="/order" className="navbar-cta">
-                        <Icon name="shoppingBag" size={16} />
+                        <Icon name="shoppingBag" size={15} />
                         Order Online
                     </Link>
                 </div>
@@ -99,16 +109,22 @@ export default function Navbar() {
                 <button
                     className="navbar-mobile-btn md:hidden"
                     onClick={() => setMobileOpen(!mobileOpen)}
-                    aria-label="Toggle menu"
+                    aria-label={mobileOpen ? "Close menu" : "Open menu"}
                     aria-expanded={mobileOpen}
+                    aria-controls="navbar-mobile-menu"
                 >
                     <Icon name={mobileOpen ? "x" : "menu"} size={22} />
                 </button>
             </div>
 
-            {/* Mobile Menu — animated slide-down */}
+            {/* Mobile Menu — CSS-animated slide-down */}
             {mobileOpen && (
-                <div className="navbar-mobile-menu md:hidden">
+                <div
+                    id="navbar-mobile-menu"
+                    className="navbar-mobile-menu md:hidden"
+                    role="navigation"
+                    aria-label="Mobile navigation"
+                >
                     <div className="flex flex-col">
                         {links.map((link) => (
                             <a

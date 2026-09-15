@@ -30,22 +30,14 @@ export default function About() {
                         src="/landing/diners.jpg"
                         alt="Diners enjoying food at Abbey's Kitchenette"
                         className="about-image"
+                        loading="lazy"
                     />
                 </div>
 
                 {/* Text */}
                 <div className="about-text lp-reveal lp-reveal-delay-2">
-                    <p style={{
-                        fontSize: "0.75rem",
-                        fontWeight: 700,
-                        letterSpacing: "0.1em",
-                        textTransform: "uppercase",
-                        color: "#d97706",
-                        marginBottom: "0.5rem",
-                    }}>
-                        About Us
-                    </p>
-                    <h3>A Cafe Built in Love & Perseverance</h3>
+                    <p className="about-eyebrow">About Us</p>
+                    <h3>A Cafe Built in Love &amp; Perseverance</h3>
                     <p>
                         Abbey's Kitchenette is a restaurant cafe built in love and
                         perseverance. What started as a passion project has grown into a

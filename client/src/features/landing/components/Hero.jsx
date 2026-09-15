@@ -41,7 +41,7 @@ export default function Hero() {
                 </div>
 
                 <h1 className="hero-title">
-                    Abbey's{" "}
+                    <span className="hero-title-cursive">Abbey's</span>{" "}
                     <span className="hero-title-accent">Kitchenette</span>
                 </h1>
 

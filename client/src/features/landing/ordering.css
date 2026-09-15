@@ -6,12 +6,21 @@
  * ──────────────────────────────────────────────────────────────────────
  */
 
+/* ── Breathing font (same as landing page brand identity) ─────────── */
+@font-face {
+  font-family: "Breathing";
+  src: url("/fonts/Breathing.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ── Design Tokens (same palette as landing.css) ─────────────────── */
 :root {
-  --ord-amber:        #f59e0b;
-  --ord-amber-dark:   #d97706;
-  --ord-amber-light:  #fef3c7;
-  --ord-terra:        #c2410c;
+  --ord-amber:        oklch(0.6688 0.1174 50.1276);
+  --ord-amber-dark:   oklch(0.58 0.12 50.1276);
+  --ord-amber-light:  #fbf0ea;
+  --ord-terra:        oklch(0.52 0.12 50.1276);
   --ord-cream:        #fffbf5;
   --ord-dark:         #1c1008;
   --ord-radius:       0.875rem;
@@ -95,6 +104,17 @@
   color: #1c1008;
   letter-spacing: -0.01em;
 }
+
+/* Breathing cursive accent for "Abbey's" in header */
+.ord-brand-cursive {
+  font-family: "Breathing", cursive, sans-serif;
+  font-weight: normal;
+  font-size: 1.35em;
+  letter-spacing: 0.02em;
+  display: inline-block;
+  vertical-align: -2px;
+  padding-right: 0.08em;
+}
 .ord-header-tagline {
   font-size: 0.75rem;
   color: #7c5c3e;
@@ -106,27 +126,7 @@
   }
 }
 
-/* Cart summary button in header */
-.ord-cart-header-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1.1rem;
-  border-radius: 999px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  background: var(--ord-amber);
-  color: #fff;
-  border: none;
-  cursor: pointer;
-  transition: all var(--ord-transition);
-  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.35);
-  position: relative;
-}
-.ord-cart-header-btn:hover {
-  background: var(--ord-amber-dark);
-  transform: translateY(-1px);
-}
+/* Cart badge (used if needed) */
 .ord-cart-badge {
   display: inline-flex;
   align-items: center;
@@ -195,7 +195,18 @@
     grid-template-columns: 1fr;
   }
   .ord-sidebar-desktop {
-    display: none;
+    display: flex;
+    height: auto;
+    position: static;
+    border-left: none;
+    border-top: 1px solid rgba(189, 83, 43, 0.15);
+    margin: 1.5rem auto 3rem;
+    max-width: 600px;
+    width: 100%;
+    border-radius: var(--ord-radius);
+    box-shadow: var(--ord-shadow-md);
+    background: #fff;
+    overflow: hidden;
   }
 }
 
@@ -541,6 +552,28 @@
   display: flex;
   flex-direction: column;
   gap: 0.875rem;
+}
+
+/* Empty cart state */
+.ord-cart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1rem;
+  text-align: center;
+  margin: auto 0;
+}
+.ord-cart-empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 999px;
+  background: rgba(189, 83, 43, 0.06);
+  border: 1px dashed rgba(189, 83, 43, 0.15);
+  margin-bottom: 0.25rem;
 }
 
 /* Cart item */

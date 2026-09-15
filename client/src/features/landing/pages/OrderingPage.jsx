@@ -97,9 +97,6 @@ function OrderingUI({ onOrderSuccess }) {
     // ── Checkout modal ────────────────────────────
     const [showCheckout, setShowCheckout] = useState(false);
 
-    // ── Mobile drawer ─────────────────────────────
-    const [showDrawer, setShowDrawer] = useState(false);
-
     return (
         <div className="ord-root">
             {/* Header */}
@@ -108,25 +105,11 @@ function OrderingUI({ onOrderSuccess }) {
                     <Link to="/" className="ord-header-brand" style={{ textDecoration: "none" }}>
                         <img src="/favicon.png" alt="Abbey's Kitchenette" />
                         <div>
-                            <div className="ord-header-brand-name">Abbey's Kitchenette</div>
+                            <div className="ord-header-brand-name"><span className="ord-brand-cursive">Abbey's</span> Kitchenette</div>
                             <div className="ord-header-tagline">Online Ordering</div>
                         </div>
                     </Link>
                 </div>
-
-                {/* Mobile cart button */}
-                <button
-                    className="ord-cart-header-btn"
-                    onClick={() => setShowDrawer(true)}
-                    aria-label="Open cart"
-                    style={{ display: "flex" }}
-                >
-                    <Icon name="shoppingBag" size={17} />
-                    <span className="hidden sm:inline">Cart</span>
-                    {cartCount > 0 && (
-                        <span className="ord-cart-badge">{cartCount}</span>
-                    )}
-                </button>
             </header>
 
             {/* Page hero strip */}
@@ -203,7 +186,7 @@ function OrderingUI({ onOrderSuccess }) {
                     )}
                 </div>
 
-                {/* Right: Cart sidebar (desktop) */}
+                {/* Right: Cart sidebar (desktop and mobile responsive) */}
                 <aside className="ord-sidebar-desktop">
                     <CartPanel
                         cart={cart}
@@ -214,44 +197,6 @@ function OrderingUI({ onOrderSuccess }) {
                     />
                 </aside>
             </div>
-
-            {/* Mobile Bottom Bar */}
-            {cartCount > 0 && (
-                <div className="ord-mobile-bar">
-                    <button
-                        className="ord-mobile-bar-btn"
-                        onClick={() => setShowDrawer(true)}
-                    >
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                            <span className="ord-cart-badge">{cartCount}</span>
-                            <span>View Order</span>
-                        </div>
-                        <span>₱{subtotal.toLocaleString()}</span>
-                    </button>
-                </div>
-            )}
-
-            {/* Mobile Cart Drawer */}
-            {showDrawer && (
-                <div className="ord-drawer-overlay" onClick={() => setShowDrawer(false)}>
-                    <div
-                        className="ord-drawer"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="ord-drawer-handle" />
-                        <CartPanel
-                            cart={cart}
-                            subtotal={subtotal}
-                            onUpdateQty={updateQty}
-                            onRemove={removeItem}
-                            onCheckout={() => {
-                                setShowDrawer(false);
-                                setShowCheckout(true);
-                            }}
-                        />
-                    </div>
-                </div>
-            )}
 
             {/* Variant Selector Modal */}
             {variantProduct && (
@@ -379,11 +324,13 @@ function CartPanel({ cart, subtotal, onUpdateQty, onRemove, onCheckout }) {
             <div className="ord-sidebar-body">
                 {cart.length === 0 ? (
                     <div className="ord-cart-empty">
-                        <div className="ord-cart-empty-icon">🛒</div>
-                        <p style={{ margin: 0, fontWeight: 600, color: "#5c3d1e" }}>
+                        <div className="ord-cart-empty-icon">
+                            <Icon name="cart" size={42} style={{ color: "#8c6e54", opacity: 0.65 }} />
+                        </div>
+                        <p style={{ margin: "0.5rem 0 0", fontWeight: 600, color: "#5c3d1e", fontSize: "0.9375rem" }}>
                             Your cart is empty
                         </p>
-                        <p style={{ margin: 0, fontSize: "0.8125rem" }}>
+                        <p style={{ margin: "0.25rem 0 0", fontSize: "0.8125rem", color: "#8c6e54" }}>
                             Add items from the menu to get started.
                         </p>
                     </div>

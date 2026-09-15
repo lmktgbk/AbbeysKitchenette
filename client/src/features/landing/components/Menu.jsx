@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import Icon from "@/components/ui/icon";
 
@@ -6,6 +6,7 @@ import Icon from "@/components/ui/icon";
  * Menu
  * Menu showcase section with category filter tabs and food/drink cards.
  * Uses real photos from public/landing/.
+ * Cards re-animate via key changes when the active filter changes.
  * Includes "Order Online" CTA at the bottom.
  */
 
@@ -77,6 +78,16 @@ const categories = [
 
 export default function Menu() {
     const [active, setActive] = useState("all");
+    // Epoch key — bump on filter change to re-mount cards and replay animations
+    const [filterEpoch, setFilterEpoch] = useState(0);
+    const prevActive = useRef(active);
+
+    const handleFilter = (key) => {
+        if (key === active) return;
+        setActive(key);
+        setFilterEpoch((e) => e + 1);
+        prevActive.current = key;
+    };
 
     const filtered =
         active === "all"
@@ -101,19 +112,20 @@ export default function Menu() {
                     <button
                         key={cat.key}
                         className={`menu-tab ${active === cat.key ? "menu-tab-active" : ""}`}
-                        onClick={() => setActive(cat.key)}
+                        onClick={() => handleFilter(cat.key)}
+                        aria-pressed={active === cat.key}
                     >
                         {cat.label}
                     </button>
                 ))}
             </div>
 
-            {/* Menu Grid */}
-            <div className="menu-grid">
+            {/* Menu Grid — filterEpoch key re-triggers lp-reveal animations */}
+            <div className="menu-grid" key={filterEpoch}>
                 {filtered.map((item, i) => (
                     <div
-                        key={item.name}
-                        className={`menu-card lp-reveal lp-reveal-delay-${Math.min(i % 4 + 1, 4)}`}
+                        key={`${filterEpoch}-${item.name}`}
+                        className={`menu-card lp-reveal lp-reveal-delay-${Math.min(i % 4 + 1, 4)} lp-visible`}
                     >
                         <div className="menu-card-img-wrap">
                             <img
