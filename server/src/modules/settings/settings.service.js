@@ -1,6 +1,7 @@
 import { settingsRepository } from "./settings.repository.js";
 import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
+import { notificationService } from "../notifications/notification.service.js";
 
 export const settingsService = {
   async getSettings() {
@@ -21,6 +22,14 @@ export const settingsService = {
       targetType: "settings",
       details: { fields: Object.keys(data) },
     }).catch(() => {});
+
+    notificationService.create({
+      type: "system",
+      title: "Settings Updated",
+      message: `System settings updated: ${Object.keys(data).join(", ")}`,
+      referenceType: "settings",
+    }).catch(() => {});
+
     return settings;
   },
 };

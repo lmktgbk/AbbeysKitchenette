@@ -4,6 +4,7 @@ import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { sendEmail, generateNewPinEmail } from "../../utils/email.js";
 import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
+import { notificationService } from "../notifications/notification.service.js";
 
 const SALT_ROUNDS = 10;
 
@@ -101,6 +102,14 @@ export const staffService = {
 
     auditLogService.logAction({ userId, action: ACTIONS.STAFF_CREATED, targetType: "staff", targetId: user.id, details: { name: user.name, email: user.email, role: user.role } });
 
+    notificationService.create({
+      type: "system",
+      title: "New Staff Added",
+      message: `${user.name} (${role}) has been added to the team`,
+      referenceType: "staff",
+      referenceId: user.id,
+    }).catch(() => {});
+
     return {
       staff: mapToStaffResponse(user),
       raw_pin: rawPin,
@@ -149,6 +158,15 @@ export const staffService = {
 
     const updated = await staffRepository.setActive(id, !user.isActive);
     auditLogService.logAction({ userId, action: !user.isActive ? ACTIONS.STAFF_ACTIVATED : ACTIONS.STAFF_DEACTIVATED, targetType: "staff", targetId: id, details: { name: user.name } });
+
+    notificationService.create({
+      type: "system",
+      title: user.isActive ? "Staff Deactivated" : "Staff Activated",
+      message: `${user.name} has been ${user.isActive ? "deactivated" : "activated"}`,
+      referenceType: "staff",
+      referenceId: id,
+    }).catch(() => {});
+
     return {
       staff_id: updated.id,
       is_active: updated.isActive,

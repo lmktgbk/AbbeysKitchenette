@@ -5,6 +5,7 @@ import { productService } from "../products/product.service.js";
 import prisma from "../../config/prisma.js";
 import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
+import { notificationService } from "../notifications/notification.service.js";
 
 export const orderService = {
   /* ── Queries ─────────────────────────── */
@@ -209,6 +210,14 @@ export const orderService = {
       details: { total: totalAmount, source: "walk_in" },
     }).catch(() => {});
 
+    notificationService.create({
+      type: "order_new",
+      title: "New Walk-In Order",
+      message: `Order #${order.order.orderNumber} from ${customerName} — ₱${totalAmount.toFixed(2)}`,
+      referenceType: "order",
+      referenceId: order.order.orderId,
+    }).catch(() => {});
+
     return this.getById(order.order.orderId);
   },
 
@@ -239,7 +248,17 @@ export const orderService = {
       })), tx);
     });
 
-    return this.getById(result.orderId);
+    const fullOrder = await this.getById(result.orderId);
+
+    notificationService.create({
+      type: "order_new",
+      title: "New Online Order",
+      message: `Order #${fullOrder.order_number} from ${customerName} — ₱${totalAmount.toFixed(2)}`,
+      referenceType: "order",
+      referenceId: result.orderId,
+    }).catch(() => {});
+
+    return fullOrder;
   },
 
   /* ── Edit Pending Order ──────────────── */
@@ -349,6 +368,15 @@ export const orderService = {
         targetId: id,
         details: { total: Number(order.totalAmount), source: order.orderSource },
       }).catch(() => {});
+
+      notificationService.create({
+        type: "order_completed",
+        title: "Order Accepted",
+        message: `Order #${order.orderNumber} has been accepted`,
+        referenceType: "order",
+        referenceId: id,
+      }).catch(() => {});
+
       return result;
     }
 
@@ -399,6 +427,14 @@ export const orderService = {
           targetType: "order",
           targetId: id,
           details: { total: Number(order.totalAmount), fulfillmentMinutes },
+        }).catch(() => {});
+
+        notificationService.create({
+          type: "order_completed",
+          title: "Order Completed",
+          message: `Order #${order.orderNumber} completed in ${fulfillmentMinutes} min — ₱${Number(order.totalAmount).toFixed(2)}`,
+          referenceType: "order",
+          referenceId: id,
         }).catch(() => {});
       } else {
         // Only one role ready → log which role confirmed
@@ -588,6 +624,14 @@ export const orderService = {
       targetType: "order",
       targetId: id,
       details: { reason: reason || null, loss_option: lossOption },
+    }).catch(() => {});
+
+    notificationService.create({
+      type: "order_cancelled",
+      title: "Order Cancelled",
+      message: `Order #${order.orderNumber} has been cancelled${reason ? ` (${reason})` : ""}`,
+      referenceType: "order",
+      referenceId: id,
     }).catch(() => {});
 
     return { order_id: id, action: "cancelled" };
@@ -815,6 +859,34 @@ export const orderService = {
 
     if (deductions.length > 0) {
       await orderRepository.createDeductions(deductions, tx);
+    }
+
+    // Check stock levels after deductions (fire-and-forget)
+    for (const ingredientId of needs.keys()) {
+      const stockAfter = await orderRepository.getIngredientStockAfterDeduction(ingredientId, tx);
+      if (stockAfter !== null && stockAfter <= 0) {
+        const ing = await orderRepository.getIngredientBasic(ingredientId, tx);
+        if (ing) {
+          notificationService.create({
+            type: "stock_out",
+            title: "Out of Stock",
+            message: `${ing.ingredientName} is now out of stock`,
+            referenceType: "ingredient",
+            referenceId: ingredientId,
+          }).catch(() => {});
+        }
+      } else if (stockAfter !== null) {
+        const ing = await orderRepository.getIngredientBasic(ingredientId, tx);
+        if (ing && stockAfter <= Number(ing.minimumThreshold) && stockAfter > 0) {
+          notificationService.create({
+            type: "stock_low",
+            title: "Low Stock Alert",
+            message: `${ing.ingredientName} is running low — ${stockAfter} ${ing.unit} remaining`,
+            referenceType: "ingredient",
+            referenceId: ingredientId,
+          }).catch(() => {});
+        }
+      }
     }
 
     return deductions;
