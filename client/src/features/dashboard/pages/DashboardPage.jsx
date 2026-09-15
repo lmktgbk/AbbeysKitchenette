@@ -12,7 +12,6 @@ import FulfillmentTimeCard from "../components/FulfillmentTimeCard";
 import CancellationChart from "../components/CancellationChart";
 import IngredientOverview from "../components/IngredientOverview";
 import WasteSummaryCard from "../components/WasteSummaryCard";
-import IngredientCostChart from "../components/IngredientCostChart";
 import MostRestockedTable from "../components/MostRestockedTable";
 import TableUtilizationChart from "../components/TableUtilizationChart";
 import StaffPerformanceChart from "../components/StaffPerformanceChart";
@@ -127,7 +126,6 @@ export default function DashboardPage() {
           totalLosses={d?.kpis?.totalLosses}
           isLoading={isLoading}
         />
-        <IngredientCostChart data={d?.ingredientCosts} isLoading={isLoading} />
         <MostRestockedTable data={d?.mostRestocked} isLoading={isLoading} />
       </div>
     </div>
