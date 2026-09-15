@@ -180,6 +180,7 @@ export const dashboardRepository = {
       FROM order_items oi
       JOIN products p ON p.product_id = oi.product_id
       JOIN orders o ON o.order_id = oi.order_id
+      AND oi.removed_at IS NULL
       ${where}
       GROUP BY p.product_name
       ORDER BY revenue DESC
@@ -221,6 +222,7 @@ export const dashboardRepository = {
       JOIN products p ON p.product_id = oi.product_id
       JOIN product_variants pv ON pv.variant_id = oi.variant_id
       JOIN orders o ON o.order_id = oi.order_id
+      AND oi.removed_at IS NULL
       ${where}
       GROUP BY p.product_name, pv.size_name
       ORDER BY revenue DESC
@@ -260,6 +262,7 @@ export const dashboardRepository = {
       JOIN subcategories sc ON sc.subcategory_id = p.subcategory_id
       JOIN categories c ON c.category_id = sc.category_id
       JOIN orders o ON o.order_id = oi.order_id
+      AND oi.removed_at IS NULL
       ${where}
       GROUP BY c.category_name
       ORDER BY revenue DESC
@@ -306,6 +309,7 @@ export const dashboardRepository = {
         JOIN products p ON p.product_id = oi.product_id
         JOIN product_variants pv ON pv.variant_id = oi.variant_id
         JOIN orders o ON o.order_id = oi.order_id
+        AND oi.removed_at IS NULL
         ${where}
         GROUP BY pv.variant_id, p.product_name, pv.size_name, pv.price
       ),
@@ -629,6 +633,7 @@ export const dashboardRepository = {
           COALESCE(SUM(r.quantity_needed * rb.cost_per_unit), 0) AS cost_per_unit
         FROM order_items oi
         JOIN orders o ON o.order_id = oi.order_id
+        AND oi.removed_at IS NULL
         LEFT JOIN recipes r ON r.variant_id = oi.variant_id
         LEFT JOIN restock_batches rb ON rb.ingredient_id = r.ingredient_id AND rb.quantity_left > 0
         ${where}
@@ -705,6 +710,7 @@ export const dashboardRepository = {
       FROM order_items oi
       JOIN products p ON p.product_id = oi.product_id
       JOIN orders o ON o.order_id = oi.order_id
+      AND oi.removed_at IS NULL
       ${where}
       GROUP BY p.product_name
       ORDER BY revenue ASC

@@ -29,6 +29,7 @@ export default function ProductsPage() {
   const [showFormModal, setShowFormModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [addKey, setAddKey] = useState(0);
   const [showPriceModal, setShowPriceModal] = useState(false);
   const [priceModalProduct, setPriceModalProduct] = useState(null);
 
@@ -118,6 +119,7 @@ export default function ProductsPage() {
   function handleAdd() {
     setSelectedProduct(null);
     setIsEditMode(false);
+    setAddKey((k) => k + 1);
     setShowFormModal(true);
   }
 
@@ -263,7 +265,7 @@ export default function ProductsPage() {
 
       {/* Add/Edit Product Modal */}
       <ProductFormModal
-        key={isEditMode && selectedProduct?.product_id ? selectedProduct.product_id : "add"}
+        key={isEditMode && selectedProduct?.product_id ? selectedProduct.product_id : `add-${addKey}`}
         open={showFormModal}
         onOpenChange={(open) => {
           if (!open) {

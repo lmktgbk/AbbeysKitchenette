@@ -31,6 +31,7 @@ const priceOptimizationRepository = {
         JOIN orders o ON o.order_id = oi.order_id
         WHERE o.status = 'completed'
           AND o.order_date >= CURRENT_DATE - INTERVAL '30 days'
+          AND oi.removed_at IS NULL
         GROUP BY oi.variant_id
       ),
       forecast_trends AS (

@@ -25,7 +25,7 @@ const SOURCE_CONFIG = {
  *
  * Paginated table of orders with status badges and action buttons.
  */
-export default function OrderTable({ orders, isLoading, onView, onAdvance, onCancel }) {
+export default function OrderTable({ orders, isLoading, onView, onAdvance }) {
   if (isLoading) {
     return (
       <div className="rounded-xl border border-border bg-card">
@@ -68,7 +68,7 @@ export default function OrderTable({ orders, isLoading, onView, onAdvance, onCan
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card">
+    <div className="flex flex-col">
       <Table>
         <TableHeader>
           <TableRow>
@@ -86,7 +86,6 @@ export default function OrderTable({ orders, isLoading, onView, onAdvance, onCan
           {orders.map((order) => {
             const status = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
             const source = SOURCE_CONFIG[order.order_source] || SOURCE_CONFIG.walk_in;
-            const canCancel = order.status === "pending" || order.status === "accepted" || order.status === "preparing";
 
             return (
               <TableRow
@@ -115,10 +114,10 @@ export default function OrderTable({ orders, isLoading, onView, onAdvance, onCan
                   {formatDate(order.created_at, "shortDate")}
                 </TableCell>
                 <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
                     {order.status === "pending" && (
                       <Button
-                        variant="outline"
+                        variant="primary"
                         size="icon"
                         onClick={() => onAdvance?.(order)}
                         title="Accept"
@@ -128,7 +127,7 @@ export default function OrderTable({ orders, isLoading, onView, onAdvance, onCan
                     )}
                     {order.status === "accepted" && (
                       <Button
-                        variant="outline"
+                        variant="primary"
                         size="icon"
                         onClick={() => onAdvance?.(order)}
                         title="Start Preparing"
@@ -136,15 +135,14 @@ export default function OrderTable({ orders, isLoading, onView, onAdvance, onCan
                         <Icon name="play" size={16} />
                       </Button>
                     )}
-                    {canCancel && (
+                    {order.status === "preparing" && (
                       <Button
-                        variant="outline"
+                        variant="primary"
                         size="icon"
-                        onClick={() => onCancel?.(order)}
-                        title="Cancel"
-                        className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => onAdvance?.(order)}
+                        title="Complete"
                       >
-                        <Icon name="trash2" size={16} />
+                        <Icon name="check" size={16} />
                       </Button>
                     )}
                   </div>

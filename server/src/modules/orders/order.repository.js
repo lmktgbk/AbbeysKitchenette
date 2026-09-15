@@ -138,6 +138,7 @@ export const orderRepository = {
             product: { select: { productName: true } },
             variant: { select: { sizeName: true } },
             preparedByUser: { select: { name: true, role: true } },
+            removedByUser: { select: { name: true, role: true } },
           },
         },
         creator: { select: { id: true, name: true, role: true } },
@@ -333,7 +334,7 @@ export const orderRepository = {
    */
   async recalculateTotal(orderId, tx) {
     const client = tx || prisma;
-    const items = await client.orderItem.findMany({ where: { orderId } });
+    const items = await client.orderItem.findMany({ where: { orderId, removedAt: null } });
     const total = items.reduce((sum, item) => sum + Number(item.subtotal || 0), 0);
     return client.order.update({
       where: { orderId },
@@ -367,7 +368,7 @@ export const orderRepository = {
 
   async getOrderItems(orderId) {
     return prisma.orderItem.findMany({
-      where: { orderId },
+      where: { orderId, removedAt: null },
       include: {
         product: { select: { productName: true } },
         variant: { select: { sizeName: true } },
@@ -393,24 +394,33 @@ export const orderRepository = {
   },
 
   /**
-   * Hard-delete a single order item.
+   * Soft-delete a single order item.
    * @param {number} orderItemId - order item integer ID
+   * @param {object} data - { userId, reason, lossOption }
    * @param {object} [tx] - transaction client
    */
-  async deleteOrderItem(orderItemId, tx) {
+  async removeOrderItem(orderItemId, { userId, reason, lossOption }, tx) {
     const client = tx || prisma;
-    return client.orderItem.delete({ where: { orderItemId } });
+    return client.orderItem.update({
+      where: { orderItemId },
+      data: {
+        removedAt: new Date(),
+        removedBy: userId,
+        removedReason: reason || null,
+        removedLossOption: lossOption || null,
+      },
+    });
   },
 
   /**
-   * Count order items.
+   * Count active (non-removed) order items.
    * @param {string} orderId - order UUID
    * @param {object} [tx] - transaction client
-   * @returns {number} - item count
+   * @returns {number} - active item count
    */
   async countOrderItems(orderId, tx) {
     const client = tx || prisma;
-    return client.orderItem.count({ where: { orderId } });
+    return client.orderItem.count({ where: { orderId, removedAt: null } });
   },
 
   /* ── Loss Records ─────────────────────── */
@@ -658,7 +668,7 @@ export const orderRepository = {
           '[]'
         ) AS items
       FROM orders o
-      LEFT JOIN order_items oi ON oi.order_id = o.order_id
+      LEFT JOIN order_items oi ON oi.order_id = o.order_id AND oi.removed_at IS NULL
       LEFT JOIN products p ON p.product_id = oi.product_id
       LEFT JOIN product_variants v ON v.variant_id = oi.variant_id
       LEFT JOIN subcategories sc ON sc.subcategory_id = p.subcategory_id
@@ -708,6 +718,7 @@ export const orderRepository = {
       JOIN product_variants v ON v.variant_id = oi.variant_id
       WHERE o.status = 'preparing'
         AND oi.is_prepared = false
+        AND oi.removed_at IS NULL
       GROUP BY p.product_id, p.product_name, v.variant_id, v.size_name
       ORDER BY p.product_name, v.size_name
     `;

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Icon from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
+import { DropDown } from "@/components/filters/DropDown";
 
 const CANCEL_REASONS = [
   { value: "customer_changed_mind", label: "Customer changed mind" },
@@ -30,51 +31,38 @@ export default function RemoveItemDialog({
   open,
   onOpenChange,
   item,
+  orderStatus,
   onConfirm,
   loading,
 }) {
-  const isPrepared = item?.is_prepared;
+  const isAccepted = orderStatus === "accepted";
+  const showLossOptions = !isAccepted;
   const recipes = item?.recipes || [];
   const itemSubtotal = Number(item?.subtotal || 0);
 
-  const [lossOption, setLossOption] = useState(isPrepared ? "with_loss" : "no_loss");
+  const [lossOption, setLossOption] = useState("no_loss");
   const [refundOption, setRefundOption] = useState("full");
   const [customRefundAmount, setCustomRefundAmount] = useState("");
   const [reason, setReason] = useState("");
   const [reasonError, setReasonError] = useState("");
   const [customReason, setCustomReason] = useState("");
   const [expandedIngredients, setExpandedIngredients] = useState(false);
-  const [ingredientLosses, setIngredientLosses] = useState(() => {
-    if (isPrepared && recipes.length > 0) {
-      const initial = {};
-      for (const recipe of recipes) {
-        initial[recipe.ingredient_id] = recipe.quantity_needed;
-      }
-      return initial;
-    }
-    return {};
-  });
+  const [lossQuantity, setLossQuantity] = useState(0);
+  const [ingredientLosses, setIngredientLosses] = useState({});
 
   const prevItemId = item?.order_item_id;
   const [lastItemId, setLastItemId] = useState(null);
   if (prevItemId !== lastItemId) {
     setLastItemId(prevItemId);
-    setLossOption(isPrepared ? "with_loss" : "no_loss");
+    setLossOption("no_loss");
     setRefundOption("full");
     setCustomRefundAmount("");
     setReason("");
     setReasonError("");
     setCustomReason("");
     setExpandedIngredients(false);
-    if (isPrepared && recipes.length > 0) {
-      const initial = {};
-      for (const recipe of recipes) {
-        initial[recipe.ingredient_id] = recipe.quantity_needed;
-      }
-      setIngredientLosses(initial);
-    } else {
-      setIngredientLosses({});
-    }
+    setLossQuantity(0);
+    setIngredientLosses({});
   }
 
   const totalLossCost = useMemo(() => {
@@ -111,6 +99,7 @@ export default function RemoveItemDialog({
   }
 
   function updateIngredientQty(ingredientId, qty) {
+    if (qty === "") return;
     const val = parseFloat(qty);
     setIngredientLosses((prev) => {
       const next = { ...prev };
@@ -119,6 +108,21 @@ export default function RemoveItemDialog({
       } else {
         next[ingredientId] = val;
       }
+      return next;
+    });
+  }
+
+  function adjustLossQuantity(delta) {
+    const max = item?.quantity || 1;
+    setLossQuantity((prev) => {
+      const next = Math.max(0, Math.min(max, prev + delta));
+      const newLosses = {};
+      if (next > 0) {
+        for (const recipe of recipes) {
+          newLosses[recipe.ingredient_id] = recipe.quantity_needed * next;
+        }
+      }
+      setIngredientLosses(newLosses);
       return next;
     });
   }
@@ -140,13 +144,12 @@ export default function RemoveItemDialog({
         }))
       : [];
 
-    const finalReason = reason === "other" ? customReason.trim() : reason;
-
     const parsedCustom = parseFloat(customRefundAmount);
     const hasOverride = refundOption === "partial" && !isNaN(parsedCustom) && parsedCustom >= 0;
 
     onConfirm?.({
-      reason: finalReason,
+      reason,
+      custom_reason: reason === "other" ? customReason.trim() : undefined,
       loss_option: lossOption,
       refund_option: refundOption,
       refund_amount: hasOverride ? Math.min(parsedCustom, itemSubtotal) : undefined,
@@ -160,9 +163,24 @@ export default function RemoveItemDialog({
 
   const lossCount = Object.keys(ingredientLosses).length;
 
+  function handleDialogChange(isOpen) {
+    if (!isOpen) {
+      setLossOption("no_loss");
+      setRefundOption("full");
+      setCustomRefundAmount("");
+      setReason("");
+      setReasonError("");
+      setCustomReason("");
+      setExpandedIngredients(false);
+      setLossQuantity(0);
+      setIngredientLosses({});
+    }
+    onOpenChange(isOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
+    <Dialog open={open} onOpenChange={handleDialogChange}>
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
             Remove {label}?
@@ -176,15 +194,43 @@ export default function RemoveItemDialog({
             <div className="flex items-center justify-between text-sm bg-muted/50 rounded-lg px-3 py-2">
               <div>
                 <p className="font-medium">{label}</p>
-                <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
+                {lossOption === "with_loss" ? (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-muted-foreground">Loss qty:</span>
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        className="w-4 h-4 rounded border border-border flex items-center justify-center hover:bg-muted/80 transition-colors disabled:opacity-30"
+                        onClick={() => adjustLossQuantity(-1)}
+                        disabled={lossQuantity <= 0}
+                      >
+                        <Icon name="minus" size={10} />
+                      </button>
+                      <span className="text-xs font-medium w-4 text-center tabular-nums">
+                        {lossQuantity}
+                      </span>
+                      <button
+                        type="button"
+                        className="w-4 h-4 rounded border border-border flex items-center justify-center hover:bg-muted/80 transition-colors disabled:opacity-30"
+                        onClick={() => adjustLossQuantity(1)}
+                        disabled={lossQuantity >= (item?.quantity || 1)}
+                      >
+                        <Icon name="plus" size={10} />
+                      </button>
+                      <span className="text-[10px] text-muted-foreground">/ {item?.quantity || 1}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground mt-1">Qty: {item?.quantity}</p>
+                )}
               </div>
               <p className="font-semibold">₱{itemSubtotal.toLocaleString()}</p>
             </div>
 
             {/* Status message */}
-            {isPrepared ? (
+            {isAccepted ? (
               <p className="text-xs text-muted-foreground">
-                This item was fully served. All ingredients have been used.
+                This order has not started preparation. All ingredients will be restored.
               </p>
             ) : (
               <p className="text-xs text-muted-foreground">
@@ -193,7 +239,7 @@ export default function RemoveItemDialog({
             )}
 
             {/* Loss options for unchecked items */}
-            {!isPrepared && (
+            {showLossOptions && (
               <div className="space-y-2">
                 <button
                   type="button"
@@ -217,7 +263,7 @@ export default function RemoveItemDialog({
                   </div>
                   <Icon name="check" size={16} className="text-muted-foreground shrink-0" />
                   <div>
-                    <div className="text-sm font-medium">No Loss</div>
+                    <div className="text-sm font-medium text-foreground">No Loss</div>
                     <div className="text-[11px] text-muted-foreground">Restore all ingredients</div>
                   </div>
                 </button>
@@ -244,7 +290,7 @@ export default function RemoveItemDialog({
                   </div>
                   <Icon name="trendingDown" size={16} className="text-muted-foreground shrink-0" />
                   <div>
-                    <div className="text-sm font-medium">With Loss</div>
+                    <div className="text-sm font-medium text-foreground">With Loss</div>
                     <div className="text-[11px] text-muted-foreground">Declare ingredients that were used</div>
                   </div>
                 </button>
@@ -266,7 +312,7 @@ export default function RemoveItemDialog({
                   />
                   <span>Ingredients</span>
                   <span className="text-[10px] normal-case tracking-normal font-normal">
-                    — {isPrepared ? "all marked as loss" : "select used"}
+                    — select used
                   </span>
                   {lossCount > 0 && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive font-medium ml-auto">
@@ -279,7 +325,7 @@ export default function RemoveItemDialog({
                   <div className="space-y-1.5 pt-1">
                     {recipes.map((recipe) => {
                       const isChecked = ingredientLosses[recipe.ingredient_id] !== undefined;
-                      const qty = ingredientLosses[recipe.ingredient_id] ?? recipe.quantity_needed;
+                      const qty = ingredientLosses[recipe.ingredient_id] ?? recipe.quantity_needed * (item?.quantity || 1);
                       const lossCost = qty * recipe.cost_per_unit;
 
                       return (
@@ -294,7 +340,7 @@ export default function RemoveItemDialog({
                             )}
                             onClick={() => toggleIngredientLoss(
                               recipe.ingredient_id,
-                              recipe.quantity_needed,
+                              recipe.quantity_needed * (item?.quantity || 1),
                             )}
                           >
                             {isChecked && <Icon name="check" size={8} className="text-destructive" />}
@@ -329,7 +375,7 @@ export default function RemoveItemDialog({
                             </div>
                           ) : (
                             <span className="text-[10px] text-muted-foreground shrink-0">
-                              {recipe.quantity_needed} {recipe.unit || "g"}
+                              {recipe.quantity_needed * (item?.quantity || 1)} {recipe.unit || "g"}
                             </span>
                           )}
                         </div>
@@ -346,19 +392,14 @@ export default function RemoveItemDialog({
             {/* Reason */}
             <div>
               <label className="text-xs font-medium text-muted-foreground block mb-1">Reason</label>
-              <select
+              <DropDown
+                options={CANCEL_REASONS}
                 value={reason}
-                onChange={(e) => { setReason(e.target.value); setReasonError(""); }}
-                className={cn(
-                  "flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                  reasonError ? "border-destructive" : "border-border",
-                )}
-              >
-                <option value="">Select reason...</option>
-                {CANCEL_REASONS.map((r) => (
-                  <option key={r.value} value={r.value}>{r.label}</option>
-                ))}
-              </select>
+                onChange={(val) => { setReason(val); setReasonError(""); }}
+                placeholder="Select reason..."
+                size="sm"
+                className={cn(reasonError && "[&>button]:border-destructive")}
+              />
               {reason === "other" && (
                 <Input
                   value={customReason}
@@ -393,7 +434,7 @@ export default function RemoveItemDialog({
                 )}>
                   {refundOption === "full" && <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />}
                 </div>
-                <span className="text-sm font-medium flex-1">Full Refund</span>
+                <span className="text-sm font-medium text-foreground flex-1">Full Refund</span>
                 <span className="text-xs font-semibold text-primary">₱{itemSubtotal.toLocaleString()}</span>
               </button>
 
@@ -413,7 +454,7 @@ export default function RemoveItemDialog({
                 )}>
                   {refundOption === "partial" && <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />}
                 </div>
-                <span className="text-sm font-medium shrink-0">Partial</span>
+                <span className="text-sm font-medium text-foreground shrink-0">Partial</span>
                 {refundOption === "partial" ? (
                   <div className="flex items-center gap-0.5 ml-auto" onClick={(e) => e.stopPropagation()}>
                     <span className="text-xs text-muted-foreground">₱</span>
@@ -453,7 +494,7 @@ export default function RemoveItemDialog({
                 )}>
                   {refundOption === "none" && <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />}
                 </div>
-                <span className="text-sm font-medium flex-1">No Refund</span>
+                <span className="text-sm font-medium text-foreground flex-1">No Refund</span>
                 <span className="text-xs font-semibold text-muted-foreground">₱0</span>
               </button>
             </div>
@@ -471,16 +512,17 @@ export default function RemoveItemDialog({
                 </div>
               )}
               {lossOption === "with_loss" && totalLossCost > 0 && (
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Ingredient loss</span>
-                  <span className="font-medium text-muted-foreground">₱{totalLossCost.toLocaleString()}</span>
-                </div>
+                <>
+                  <div className="border-t border-border/60 my-1" />
+                  <div className="flex justify-between text-xs">
+                    <span className="text-destructive font-semibold">Ingredient Loss</span>
+                    <span className="text-destructive font-semibold">₱{totalLossCost.toLocaleString()}</span>
+                  </div>
+                </>
               )}
               <div className="flex justify-between text-xs font-semibold border-t border-border/60 pt-1">
-                <span>Refund</span>
-                <span className={cn(refundOption === "none" ? "text-muted-foreground" : refundAmount < itemSubtotal ? "text-amber-500" : "text-primary")}>
-                  ₱{refundAmount.toLocaleString()}
-                </span>
+                <span className="text-primary">Refund</span>
+                <span className="text-primary">₱{refundAmount.toLocaleString()}</span>
               </div>
             </div>
           </div>
@@ -490,7 +532,7 @@ export default function RemoveItemDialog({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => onOpenChange(false)}
+            onClick={() => handleDialogChange(false)}
             disabled={loading}
           >
             Keep Item

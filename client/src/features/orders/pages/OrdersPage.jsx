@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { useOrderList, useOrderDetail, useOrderMutations } from "../query";
-import { confirm } from "@/components/alerts/ConfirmDialog";
+import { confirm, confirmWithReason } from "@/components/alerts/ConfirmDialog";
 import OrderStats from "../components/OrderStats";
 import OrderTable from "../components/OrderTable";
 import OrderDetailModal from "../components/OrderDetailModal";
@@ -13,6 +13,14 @@ import { SearchBar } from "@/components/filters/SearchBar";
 import DateRangeFilter from "@/components/filters/DateRangeFilter";
 import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
+
+const CANCEL_REASONS = [
+  { value: "customer_changed_mind", label: "Customer changed mind" },
+  { value: "wrong_order", label: "Wrong order" },
+  { value: "duplicate", label: "Duplicate order" },
+  { value: "out_of_stock", label: "Out of stock" },
+  { value: "other", label: "Other" },
+];
 
 /**
  * OrdersPage
@@ -144,34 +152,57 @@ export default function OrdersPage({ embedded = false }) {
 
   async function handleCancelClick(order) {
     const isPending = order.status === "pending";
+    const isAccepted = order.status === "accepted";
 
-    // Pending orders: simple delete confirmation (no recipes involved)
+    // Pending orders: reason required, soft-cancel (no ingredients deducted, no payment received)
     if (isPending) {
-      const ok = await confirm({
+      await confirmWithReason({
         title: "Delete Order?",
-        message: `This will permanently delete order #${order.order_number}. This cannot be undone.`,
+        message: `Delete order #${order.order_number}? This will permanently remove the order.`,
         confirmLabel: "Delete",
+        reasons: CANCEL_REASONS,
         loadingText: "Deleting...",
-        variant: "danger",
-        onConfirm: () => mutations.cancel.mutateAsync({
-          id: order.order_id,
-          data: { reason: "other", custom_reason: "Pending order deleted" },
-        }),
+        onConfirm: async ({ reason, custom_reason }) => {
+          await mutations.cancel.mutateAsync({
+            id: order.order_id,
+            data: { reason, custom_reason },
+          });
+          toast.success("Order deleted");
+        },
       });
-      if (ok) toast.success("Order deleted");
       return;
     }
 
-    // Accepted / preparing orders: open rich cancel dialog
+    // Accepted orders: reason required, auto full refund + ingredient restore
+    if (isAccepted) {
+      const total = Number(order.total_amount).toLocaleString();
+      await confirmWithReason({
+        title: `Cancel Order #${order.order_number}?`,
+        message: `Cancelling will restore all ingredients and issue a full refund of ₱${total}.`,
+        confirmLabel: "Yes, Cancel Order",
+        reasons: CANCEL_REASONS,
+        loadingText: "Cancelling...",
+        onConfirm: async ({ reason, custom_reason }) => {
+          await mutations.cancel.mutateAsync({
+            id: order.order_id,
+            data: { reason, custom_reason, refund_option: "full" },
+          });
+          toast.success("Order cancelled");
+        },
+      });
+      return;
+    }
+
+    // Preparing orders: open rich cancel dialog
     setCancellingOrderId(order.order_id);
   }
 
-  async function handleCancelConfirm({ loss_option, refund_option, refund_amount, reason, item_losses }) {
+  async function handleCancelConfirm({ loss_option, refund_option, refund_amount, reason, custom_reason, item_losses }) {
     if (!cancellingOrderId) return;
     try {
       await mutations.cancel.mutateAsync({
         id: cancellingOrderId,
-        data: { reason, loss_option, refund_option, refund_amount, item_losses },
+        data: { reason, custom_reason, loss_option, refund_option, refund_amount, item_losses },
       });
       toast.success("Order cancelled");
       setCancellingOrderId(null);
@@ -180,17 +211,44 @@ export default function OrdersPage({ embedded = false }) {
     }
   }
 
-  function handleRemoveItemClick(order, item) {
-    setRemovingItem({ orderId: order.order_id, item });
+  async function handleRemoveItemClick(order, item) {
+    if (order.status === "accepted") {
+      const label = item.size_name
+        ? `${item.product_name} (${item.size_name})`
+        : item.product_name;
+
+      await confirmWithReason({
+        title: `Remove ${label}?`,
+        message: `All ingredients will be restored. Full refund of ₱${Number(item.subtotal || 0).toLocaleString()} will be issued.`,
+        reasons: CANCEL_REASONS,
+        confirmLabel: "Remove Item",
+        cancelLabel: "Keep Item",
+        loadingText: "Removing...",
+        onConfirm: async ({ reason, custom_reason }) => {
+          const result = await mutations.removeItem.mutateAsync({
+            orderId: order.order_id,
+            itemId: item.order_item_id,
+            data: { reason, custom_reason, loss_option: "no_loss", refund_option: "full", ingredient_losses: [] },
+          });
+          const msg = result?.data?.action === "cancelled"
+            ? "Order cancelled (no items left)"
+            : "Item removed";
+          toast.success(msg);
+        },
+      });
+      return;
+    }
+
+    setRemovingItem({ orderId: order.order_id, orderStatus: order.status, item });
   }
 
-  async function handleRemoveItemConfirm({ reason, loss_option, refund_option, refund_amount, ingredient_losses }) {
+  async function handleRemoveItemConfirm({ reason, custom_reason, loss_option, refund_option, refund_amount, ingredient_losses }) {
     if (!removingItem) return;
     try {
       const result = await mutations.removeItem.mutateAsync({
         orderId: removingItem.orderId,
         itemId: removingItem.item.order_item_id,
-        data: { reason, loss_option, refund_option, refund_amount, ingredient_losses },
+        data: { reason, custom_reason, loss_option, refund_option, refund_amount, ingredient_losses },
       });
       const msg = result?.data?.action === "cancelled"
         ? "Order cancelled (no items left)"
@@ -261,27 +319,28 @@ export default function OrdersPage({ embedded = false }) {
         )}
       </div>
 
-      {/* Order Table */}
-      <OrderTable
-        orders={orders}
-        isLoading={isLoading}
-        onView={handleView}
-        onAdvance={handleAdvance}
-        onCancel={handleCancelClick}
-      />
+      {/* Order Table + Pagination */}
+      <div className="rounded-xl border border-border bg-card">
+        <OrderTable
+          orders={orders}
+          isLoading={isLoading}
+          onView={handleView}
+          onAdvance={handleAdvance}
+        />
 
-      {/* Pagination */}
-      <Pagination
-        currentPage={page}
-        totalItems={totalItems}
-        pageSize={pageSize}
-        onPageChange={setPage}
-        onPageSizeChange={(size) => {
-          setPageSize(size);
-          setPage(1);
-        }}
-        itemLabel="orders"
-      />
+        {/* Pagination */}
+        <Pagination
+          currentPage={page}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+          itemLabel="orders"
+        />
+      </div>
 
       {/* Detail Modal */}
       <OrderDetailModal
@@ -295,6 +354,10 @@ export default function OrdersPage({ embedded = false }) {
         onCancel={(order) => {
           setShowDetailModal(false);
           handleCancelClick(order);
+        }}
+        onAdvance={(order) => {
+          setShowDetailModal(false);
+          handleAdvance(order);
         }}
         onRemoveItem={handleRemoveItemClick}
       />
@@ -322,6 +385,7 @@ export default function OrdersPage({ embedded = false }) {
         open={!!removingItem}
         onOpenChange={(open) => { if (!open) setRemovingItem(null); }}
         item={removingItem?.item ?? null}
+        orderStatus={removingItem?.orderStatus}
         loading={mutations.removeItem.isPending}
         onConfirm={handleRemoveItemConfirm}
       />

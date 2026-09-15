@@ -1,9 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Icon from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
+import { DropDown } from "@/components/filters/DropDown";
 
 const LOSS_OPTIONS = [
   {
@@ -48,13 +49,38 @@ export default function CancelOrderDialog({
   const [reasonError, setReasonError] = useState("");
   const [customReason, setCustomReason] = useState("");
   const [expandedItems, setExpandedItems] = useState(new Set());
+  const [itemLossQuantities, setItemLossQuantities] = useState({});
   const [itemLosses, setItemLosses] = useState({});
 
   const isPreparing = order?.status === "preparing";
   const allItems = order?.items || [];
-  const checkedItems = useMemo(() => allItems.filter((i) => i.is_prepared), [allItems]);
-  const uncheckedItems = useMemo(() => allItems.filter((i) => !i.is_prepared), [allItems]);
+  const activeItems = useMemo(() => allItems.filter((i) => !i.is_removed), [allItems]);
+  const checkedItems = useMemo(() => activeItems.filter((i) => i.is_prepared), [activeItems]);
+  const uncheckedItems = useMemo(() => activeItems.filter((i) => !i.is_prepared), [activeItems]);
   const showLossOptions = isPreparing;
+
+  useEffect(() => {
+    if (lossOption !== "with_loss") {
+      setItemLossQuantities({});
+      setItemLosses({});
+      return;
+    }
+    const quantities = {};
+    const losses = {};
+    for (const item of allItems) {
+      const lossQty = item.is_prepared ? item.quantity : 0;
+      quantities[item.order_item_id] = lossQty;
+      if (lossQty > 0) {
+        const itemLoss = {};
+        for (const recipe of item.recipes || []) {
+          itemLoss[recipe.ingredient_id] = recipe.quantity_needed * lossQty;
+        }
+        losses[item.order_item_id] = itemLoss;
+      }
+    }
+    setItemLossQuantities(quantities);
+    setItemLosses(losses);
+  }, [lossOption]);
 
   const totalAmount = Number(order?.total_amount || 0);
 
@@ -113,6 +139,7 @@ export default function CancelOrderDialog({
   }
 
   function updateIngredientQty(itemId, ingredientId, qty) {
+    if (qty === "") return;
     const val = parseFloat(qty);
     setItemLosses((prev) => {
       const itemLosses = { ...prev };
@@ -129,6 +156,27 @@ export default function CancelOrderDialog({
       }
       return itemLosses;
     });
+  }
+
+  function adjustLossQuantity(itemId, delta) {
+    const item = allItems.find((i) => i.order_item_id === itemId);
+    if (!item) return;
+    const current = itemLossQuantities[itemId] ?? 0;
+    const next = Math.max(0, Math.min(item.quantity, current + delta));
+    setItemLossQuantities((prev) => ({ ...prev, [itemId]: next }));
+    if (next <= 0) {
+      setItemLosses((prev) => {
+        const next_ = { ...prev };
+        delete next_[itemId];
+        return next_;
+      });
+    } else {
+      const itemLoss = {};
+      for (const recipe of item.recipes || []) {
+        itemLoss[recipe.ingredient_id] = recipe.quantity_needed * next;
+      }
+      setItemLosses((prev) => ({ ...prev, [itemId]: itemLoss }));
+    }
   }
 
   function handleConfirm() {
@@ -151,8 +199,6 @@ export default function CancelOrderDialog({
         }))
       : [];
 
-    const finalReason = reason === "other" ? customReason.trim() : reason;
-
     const parsedCustom = parseFloat(customRefundAmount);
     const hasOverride = refundOption === "partial" && !isNaN(parsedCustom) && parsedCustom >= 0;
 
@@ -160,12 +206,13 @@ export default function CancelOrderDialog({
       loss_option: lossOption,
       refund_option: refundOption,
       refund_amount: hasOverride ? Math.min(parsedCustom, totalAmount) : undefined,
-      reason: finalReason,
+      reason,
+      custom_reason: reason === "other" ? customReason.trim() : undefined,
       item_losses: itemLossesArray,
     });
   }
 
-  const allItemRows = allItems.map((item) => {
+  const allItemRows = activeItems.map((item) => {
     const label = item.size_name
       ? `${item.product_name} (${item.size_name})`
       : item.product_name;
@@ -177,8 +224,23 @@ export default function CancelOrderDialog({
     return { item, label, isExpanded, itemLoss, lossCount, isChecked };
   });
 
+  function handleDialogChange(isOpen) {
+    if (!isOpen) {
+      setLossOption("no_loss");
+      setItemLossQuantities({});
+      setItemLosses({});
+      setRefundOption("full");
+      setCustomRefundAmount("");
+      setReason("");
+      setReasonError("");
+      setCustomReason("");
+      setExpandedItems(new Set());
+    }
+    onOpenChange(isOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
@@ -187,7 +249,7 @@ export default function CancelOrderDialog({
         </DialogHeader>
 
         {/* Summary */}
-        <div className="text-sm text-muted-foreground">
+        <div className="text-xs text-muted-foreground/70 leading-relaxed">
           {isPreparing
             ? `${checkedItems.length} served, ${uncheckedItems.length} still preparing. Choose how to handle cancellation:`
             : order.status === "accepted"
@@ -225,7 +287,7 @@ export default function CancelOrderDialog({
                     </div>
                     <Icon name={opt.icon} size={16} className="text-muted-foreground shrink-0" />
                     <div>
-                      <div className="text-sm font-medium">{opt.label}</div>
+                      <div className="text-sm font-medium text-foreground">{opt.label}</div>
                       <div className="text-[11px] text-muted-foreground">{opt.description}</div>
                     </div>
                   </button>
@@ -235,9 +297,9 @@ export default function CancelOrderDialog({
 
             {/* Item list with ingredient pickers */}
             {showLossOptions && lossOption === "with_loss" && (
-              <div className="space-y-2 border border-border rounded-lg p-3">
+              <div className="space-y-2 border border-border rounded-lg p-3 max-h-[280px] overflow-y-auto">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-                  Items — select lost ingredients
+                  Items — adjust loss quantity per item
                 </p>
 
                 {allItemRows.map(({ item, label, isExpanded, itemLoss, lossCount, isChecked }) => (
@@ -261,7 +323,28 @@ export default function CancelOrderDialog({
                       )}>
                         {isChecked ? "Served" : "Preparing"}
                       </span>
-                      <span className="text-[10px] text-muted-foreground">×{item.quantity}</span>
+                      <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          className="w-4 h-4 rounded border border-border flex items-center justify-center hover:bg-muted/80 transition-colors disabled:opacity-30"
+                          onClick={() => adjustLossQuantity(item.order_item_id, -1)}
+                          disabled={(itemLossQuantities[item.order_item_id] ?? 0) <= 0}
+                        >
+                          <Icon name="minus" size={10} />
+                        </button>
+                        <span className="text-[11px] font-medium w-4 text-center tabular-nums">
+                          {itemLossQuantities[item.order_item_id] ?? 0}
+                        </span>
+                        <button
+                          type="button"
+                          className="w-4 h-4 rounded border border-border flex items-center justify-center hover:bg-muted/80 transition-colors disabled:opacity-30"
+                          onClick={() => adjustLossQuantity(item.order_item_id, 1)}
+                          disabled={(itemLossQuantities[item.order_item_id] ?? 0) >= item.quantity}
+                        >
+                          <Icon name="plus" size={10} />
+                        </button>
+                        <span className="text-[10px] text-muted-foreground">/ {item.quantity}</span>
+                      </div>
                       {lossCount > 0 && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive font-medium">
                           {lossCount} lost
@@ -273,7 +356,7 @@ export default function CancelOrderDialog({
                       <div className="px-3 py-2 border-t border-border/60 space-y-1.5">
                         {(item.recipes || []).map((recipe) => {
                           const isIngredientLoss = itemLoss[recipe.ingredient_id] !== undefined;
-                          const qty = itemLoss[recipe.ingredient_id] ?? recipe.quantity_needed;
+                           const qty = itemLoss[recipe.ingredient_id] ?? recipe.quantity_needed * item.quantity;
                           const lossCost = qty * recipe.cost_per_unit;
 
                           return (
@@ -289,7 +372,7 @@ export default function CancelOrderDialog({
                                 onClick={() => toggleIngredientLoss(
                                   item.order_item_id,
                                   recipe.ingredient_id,
-                                  recipe.quantity_needed,
+                                  recipe.quantity_needed * item.quantity,
                                 )}
                               >
                                 {isIngredientLoss && <Icon name="check" size={8} className="text-destructive" />}
@@ -325,7 +408,7 @@ export default function CancelOrderDialog({
                                 </div>
                               ) : (
                                 <span className="text-[10px] text-muted-foreground shrink-0">
-                                  {recipe.quantity_needed} {recipe.unit || "g"}
+                                  {recipe.quantity_needed * item.quantity} {recipe.unit || "g"}
                                 </span>
                               )}
                             </div>
@@ -344,19 +427,14 @@ export default function CancelOrderDialog({
             {/* Reason */}
             <div>
               <label className="text-xs font-medium text-muted-foreground block mb-1">Reason</label>
-              <select
+              <DropDown
+                options={CANCEL_REASONS}
                 value={reason}
-                onChange={(e) => { setReason(e.target.value); setReasonError(""); }}
-                className={cn(
-                  "flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                  reasonError ? "border-destructive" : "border-border",
-                )}
-              >
-                <option value="">Select reason...</option>
-                {CANCEL_REASONS.map((r) => (
-                  <option key={r.value} value={r.value}>{r.label}</option>
-                ))}
-              </select>
+                onChange={(val) => { setReason(val); setReasonError(""); }}
+                placeholder="Select reason..."
+                size="sm"
+                className={cn(reasonError && "[&>button]:border-destructive")}
+              />
               {reason === "other" && (
                 <Input
                   value={customReason}
@@ -391,7 +469,7 @@ export default function CancelOrderDialog({
                 )}>
                   {refundOption === "full" && <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />}
                 </div>
-                <span className="text-sm font-medium flex-1">Full Refund</span>
+                <span className="text-sm font-medium text-foreground flex-1">Full Refund</span>
                 <span className="text-xs font-semibold text-primary">₱{totalAmount.toLocaleString()}</span>
               </button>
 
@@ -411,7 +489,7 @@ export default function CancelOrderDialog({
                 )}>
                   {refundOption === "partial" && <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />}
                 </div>
-                <span className="text-sm font-medium shrink-0">Partial</span>
+                <span className="text-sm font-medium text-foreground shrink-0">Partial</span>
                 {refundOption === "partial" ? (
                   <div className="flex items-center gap-0.5 ml-auto" onClick={(e) => e.stopPropagation()}>
                     <span className="text-xs text-muted-foreground">₱</span>
@@ -451,7 +529,7 @@ export default function CancelOrderDialog({
                 )}>
                   {refundOption === "none" && <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />}
                 </div>
-                <span className="text-sm font-medium flex-1">No Refund</span>
+                <span className="text-sm font-medium text-foreground flex-1">No Refund</span>
                 <span className="text-xs font-semibold text-muted-foreground">₱0</span>
               </button>
             </div>
@@ -460,26 +538,21 @@ export default function CancelOrderDialog({
             {order.amount_paid != null && (
               <div className="bg-muted/50 rounded-lg px-3 py-2 space-y-1">
                 <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Order total</span>
-                  <span className="font-medium">₱{totalAmount.toLocaleString()}</span>
+                  <span className="text-muted-foreground">Order Total</span>
+                  <span className="text-muted-foreground">₱{totalAmount.toLocaleString()}</span>
                 </div>
-                {refundOption === "partial" && customRefundAmount && (
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">You enter</span>
-                    <span className="font-medium text-primary">₱{parseFloat(customRefundAmount).toLocaleString()}</span>
-                  </div>
-                )}
                 {lossOption === "with_loss" && totalLossCost > 0 && (
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Ingredient loss</span>
-                    <span className="font-medium text-muted-foreground">₱{totalLossCost.toLocaleString()}</span>
-                  </div>
+                  <>
+                    <div className="border-t border-border/60 my-1" />
+                    <div className="flex justify-between text-xs">
+                      <span className="text-destructive font-semibold">Ingredient Loss</span>
+                      <span className="text-destructive font-semibold">₱{totalLossCost.toLocaleString()}</span>
+                    </div>
+                  </>
                 )}
-                <div className="flex justify-between text-xs font-semibold border-t border-border/60 pt-1">
-                  <span>Refund</span>
-                  <span className={cn(refundOption === "none" ? "text-muted-foreground" : refundAmount < totalAmount ? "text-amber-500" : "text-primary")}>
-                    ₱{refundAmount.toLocaleString()}
-                  </span>
+                <div className="flex justify-between text-xs font-semibold">
+                  <span className="text-primary">Refund</span>
+                  <span className="text-primary">₱{refundAmount.toLocaleString()}</span>
                 </div>
               </div>
             )}
@@ -490,7 +563,7 @@ export default function CancelOrderDialog({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => onOpenChange(false)}
+            onClick={() => handleDialogChange(false)}
             disabled={loading}
           >
             Keep Order

@@ -89,35 +89,13 @@ export const orderService = {
       deductionCostMap.set(dc.ingredient_id, Number(dc.weighted_cost_per_unit));
     }
 
-    // Get item removals (loss records from cancellation)
-    const itemRemovals = await prisma.lossRecord.findMany({
-      where: { relatedOrderId: id, lossType: "cancellation" },
-      include: {
-        ingredient: { select: { ingredientName: true, unit: true } },
-        declaredBy: { select: { name: true, role: true } },
-      },
-      orderBy: { loggedAt: "asc" },
-    });
-
-    // Group removals by order_item_id
-    const removalsByItem = new Map();
-    for (const removal of itemRemovals) {
-      const key = removal.relatedOrderItemId ?? "order";
-      if (!removalsByItem.has(key)) removalsByItem.set(key, []);
-
-      // Parse product name from notes (format: "Product Name: reason")
-      const productName = removal.notes?.match(/^(.+?): /)?.[1] || null;
-
-      removalsByItem.get(key).push({
-        ingredient_name: removal.ingredient?.ingredientName ?? null,
-        quantity_lost: Number(removal.quantityLost),
-        cost_per_unit: Number(removal.costPerUnit),
-        total_cost_lost: Number(removal.totalCostLost),
-        declared_by: removal.declaredBy ? { name: removal.declaredBy.name, role: removal.declaredBy.role } : null,
-        logged_at: removal.loggedAt,
-        notes: removal.notes ?? null,
-        product_name: productName,
-      });
+    // Query loss records and group by order item
+    const lossRecords = await orderRepository.getOrderItemLosses(id);
+    const lossCostMap = new Map();
+    for (const record of lossRecords) {
+      const itemId = record.relatedOrderItemId;
+      if (itemId == null) continue;
+      lossCostMap.set(itemId, (lossCostMap.get(itemId) || 0) + Number(record.totalCostLost));
     }
 
     return {
@@ -140,15 +118,21 @@ export const orderService = {
               ? { name: order.refund.refundedByUser.name, role: order.refund.refundedByUser.role }
               : null,
             item_name: order.refund.reason?.match(/^(.+?) removed/)?.[1] || null,
+            cancel_reason: order.refund.reason?.match(/— (.+?) \(/)?.[1] || null,
           }
         : null,
-      item_removals: Object.fromEntries(removalsByItem),
       items: order.items.map((item) => ({
         ...formatOrderItemResponse({
           ...item,
           productName: item.product?.productName ?? null,
           sizeName: item.variant?.sizeName ?? null,
         }),
+        is_removed: !!item.removedAt,
+        removed_at: item.removedAt ?? null,
+        removed_by: item.removedByUser ? { name: item.removedByUser.name, role: item.removedByUser.role } : null,
+        removed_reason: item.removedReason ?? null,
+        removed_loss_option: item.removedLossOption ?? null,
+        ingredient_loss_cost: lossCostMap.get(item.orderItemId) || 0,
         recipes: (recipeMap.get(item.variantId) || []).map((r) => ({
           ingredient_id: r.ingredientId,
           ingredient_name: r.ingredient?.ingredientName ?? null,
@@ -436,18 +420,6 @@ export const orderService = {
     const order = await orderRepository.findById(id);
     if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
 
-    if (order.status === "pending") {
-      await orderRepository.delete(id);
-      auditLogService.logAction({
-        userId,
-        action: ACTIONS.ORDER_DELETED,
-        targetType: "order",
-        targetId: id,
-        details: { total: Number(order.totalAmount) },
-      }).catch(() => {});
-      return { order_id: id, action: "deleted" };
-    }
-
     if (order.status === "completed") {
       throw new AppError(400, "Cannot cancel a completed order", "INVALID_CANCELLATION");
     }
@@ -480,31 +452,24 @@ export const orderService = {
     }
 
     // Determine loss handling based on options
-    const lossOption = options.loss_option || "no_loss"; // "no_loss" | "with_loss"
+    let lossOption = options.loss_option || "no_loss"; // "no_loss" | "with_loss"
+
+    // Accepted orders: no preparation has started, force no loss
+    if (order.status === "accepted") {
+      lossOption = "no_loss";
+    }
     const refundOption = options.refund_option || "partial"; // "full" | "partial" | "none"
     const itemLosses = options.item_losses || []; // [{ item_id, ingredient_losses: [{ ingredient_id, quantity_lost }] }]
-
-    // Calculate total loss cost for refund calculation
-    const orderAmountPaid = Number(order.amountPaid || 0);
-    let totalLossCost = 0;
-    if (lossOption === "with_loss" && itemLosses.length > 0) {
-      for (const il of itemLosses) {
-        for (const loss of il.ingredient_losses || []) {
-          const cost = costMap.get(loss.ingredient_id) || 0;
-          totalLossCost += Number(loss.quantity_lost) * cost;
-        }
-      }
-    }
 
     // Calculate refund based on refund_option (or custom override)
     let refundAmount;
     if (refundOption === "full") {
-      refundAmount = orderAmountPaid;
+      refundAmount = orderTotalAmount;
     } else if (refundOption === "none") {
       refundAmount = 0;
     } else if (options.refund_amount != null) {
-      // partial: user-specified amount, capped at what was paid
-      refundAmount = Math.min(Number(options.refund_amount), orderAmountPaid);
+      // partial: user-specified amount, capped at order total
+      refundAmount = Math.min(Number(options.refund_amount), orderTotalAmount);
     } else {
       refundAmount = 0;
     }
@@ -522,11 +487,11 @@ export const orderService = {
         } else {
           // With loss: create loss records for items with declared losses, restore the rest
           const itemsWithLosses = orderItems.filter((item) => {
-            const itemLoss = itemLosses.find((il) => il.item_id === item.orderItemId);
+            const itemLoss = itemLosses.find((il) => il.order_item_id === item.orderItemId);
             return itemLoss && itemLoss.ingredient_losses.length > 0;
           });
           const itemsWithoutLosses = orderItems.filter((item) => {
-            const itemLoss = itemLosses.find((il) => il.item_id === item.orderItemId);
+            const itemLoss = itemLosses.find((il) => il.order_item_id === item.orderItemId);
             return !itemLoss || itemLoss.ingredient_losses.length === 0;
           });
 
@@ -541,6 +506,16 @@ export const orderService = {
             await this._restorePartialItems(id, itemsWithLosses, itemLosses, tx);
           }
         }
+      }
+
+      // Tag each item with its loss option for frontend display
+      for (const item of orderItems) {
+        const itemLoss = itemLosses.find((il) => il.order_item_id === item.orderItemId);
+        const hasLoss = lossOption === "with_loss" && itemLoss && itemLoss.ingredient_losses?.length > 0;
+        await tx.orderItem.update({
+          where: { orderItemId: item.orderItemId },
+          data: { removedLossOption: hasLoss ? "with_loss" : "no_loss" },
+        });
       }
 
       await orderRepository.updateStatus(id, "cancelled", { userId }, tx);
@@ -591,10 +566,13 @@ export const orderService = {
       throw new AppError(404, "Order item not found", "ORDER_ITEM_NOT_FOUND");
     }
 
+    if (orderItem.isPrepared) {
+      throw new AppError(400, "Cannot remove a prepared item — it has already been served", "ITEM_ALREADY_SERVED");
+    }
+
     const lossOption = options.loss_option || "no_loss";
     const refundOption = options.refund_option || "partial";
     const ingredientLosses = options.ingredient_losses || [];
-    const isPrepared = orderItem.isPrepared;
 
     // Fetch recipes for this item's variant
     const recipes = await orderRepository.getRecipesByVariantIds([orderItem.variantId]);
@@ -627,15 +605,6 @@ export const orderService = {
       itemCostMap.set(ingId, data.cost);
     }
 
-    // Calculate total loss cost from user-specified ingredient losses
-    let totalLossCost = 0;
-    if (lossOption === "with_loss" && ingredientLosses.length > 0) {
-      for (const loss of ingredientLosses) {
-        const cost = itemCostMap.get(loss.ingredient_id) || 0;
-        totalLossCost += Number(loss.quantity_lost) * cost;
-      }
-    }
-
     // Calculate refund based on refund_option (or custom override)
     let refundAmount;
     if (refundOption === "full") {
@@ -650,23 +619,17 @@ export const orderService = {
     }
 
     await prisma.$transaction(async (tx) => {
-      if (!isPrepared) {
-        // Unchecked item: restore this item's ingredients proportionally
+      if (lossOption === "no_loss") {
+        // No loss: restore this item's ingredients
         await this._restoreIngredientsForSingleItem(orderItem, itemRecipes, deductions, tx);
       } else {
-        // Checked (served) item: loss handling
-        if (lossOption === "no_loss") {
-          // Restore anyway (item was served but we still restore)
-          await this._restoreIngredientsForSingleItem(orderItem, itemRecipes, deductions, tx);
-        } else {
-          // With loss: create loss records, restore non-lost portions
-          await this._createLossRecordsForSingleItem(orderId, orderItem, itemRecipes, userId, tx, ingredientLosses, itemCostMap);
-          await this._restorePartialForSingleItem(orderItem, itemRecipes, ingredientLosses, deductions, tx);
-        }
+        // With loss: create loss records, restore non-lost portions
+        await this._createLossRecordsForSingleItem(orderId, orderItem, itemRecipes, userId, tx, ingredientLosses, itemCostMap);
+        await this._restorePartialForSingleItem(orderItem, itemRecipes, ingredientLosses, deductions, tx);
       }
 
-      // Delete the order item
-      await orderRepository.deleteOrderItem(orderItemId, tx);
+      // Soft-delete the order item
+      await orderRepository.removeOrderItem(orderItemId, { userId, reason, lossOption }, tx);
 
       // Recalculate order total
       const newTotal = Number(order.totalAmount) - refundAmount;
@@ -681,7 +644,7 @@ export const orderService = {
         await orderRepository.createCancellation({
           orderId,
           cancelledBy: userId,
-          reason: reason || "All items removed",
+          reason: "all_items_removed",
         }, tx);
       }
 
@@ -693,7 +656,9 @@ export const orderService = {
         await orderRepository.createRefund({
           orderId,
           amount: refundAmount,
-          reason: reason || (itemLabel ? `${itemLabel} removed (${lossOption})` : `Item removed (${lossOption})`),
+          reason: itemLabel
+            ? `${itemLabel} removed${reason ? ` — ${reason}` : ""} (${lossOption})`
+            : `Item removed${reason ? ` — ${reason}` : ""} (${lossOption})`,
           refundedById: userId,
         }, tx);
       }

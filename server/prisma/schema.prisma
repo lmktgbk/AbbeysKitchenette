@@ -37,8 +37,9 @@ model User {
   acceptedOrders    Order[]          @relation("OrderAcceptedBy")
   preparingOrders   Order[]          @relation("OrderPreparingBy")
   completedOrders   Order[]          @relation("OrderCompletedBy")
-  preparedOrderItems OrderItem[]     @relation("OrderItemPreparedBy")
-   cancelledCancellations OrderCancellation[] @relation("OrderCancelledBy")
+   preparedOrderItems OrderItem[]     @relation("OrderItemPreparedBy")
+   removedOrderItems  OrderItem[]     @relation("OrderItemRemovedBy")
+    cancelledCancellations OrderCancellation[] @relation("OrderCancelledBy")
    refundedOrders    PaymentRefund[]    @relation("OrderRefundedBy")
   auditLogs        AuditLog[]
 }
@@ -388,11 +389,16 @@ model OrderItem {
   isPrepared   Boolean  @default(false) @map("is_prepared")
   preparedBy   String?  @map("prepared_by") @db.Uuid
   preparedAt   DateTime? @map("prepared_at") @db.Timestamptz
+  removedAt         DateTime?  @map("removed_at") @db.Timestamptz
+  removedBy         String?    @map("removed_by") @db.Uuid
+  removedReason     String?    @map("removed_reason")
+  removedLossOption String?    @map("removed_loss_option")
 
   order    Order           @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
   product  Product         @relation(fields: [productId], references: [productId])
   variant  ProductVariant  @relation(fields: [variantId], references: [variantId])
   preparedByUser User?    @relation("OrderItemPreparedBy", fields: [preparedBy], references: [id])
+  removedByUser   User?    @relation("OrderItemRemovedBy", fields: [removedBy], references: [id])
 
   @@map("order_items")
 }

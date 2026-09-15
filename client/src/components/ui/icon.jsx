@@ -63,6 +63,7 @@ import {
     LayoutGrid,
     FolderPlus,
     Inbox,
+    Play,
 } from "lucide-react";
 
 const iconMap = {
@@ -130,6 +131,7 @@ const iconMap = {
     layoutGrid: LayoutGrid,
     folderPlus: FolderPlus,
     inbox: Inbox,
+    play: Play,
 };
 
 /**

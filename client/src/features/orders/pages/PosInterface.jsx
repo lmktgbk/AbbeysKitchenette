@@ -10,6 +10,14 @@ import { confirm } from "@/components/alerts/ConfirmDialog";
 import { confirmWithReason } from "@/components/alerts/ConfirmDialog";
 import { toLocalDate } from "@/lib/date";
 
+const CANCEL_REASONS = [
+  { value: "customer_changed_mind", label: "Customer changed mind" },
+  { value: "wrong_order", label: "Wrong order" },
+  { value: "duplicate", label: "Duplicate order" },
+  { value: "out_of_stock", label: "Out of stock" },
+  { value: "other", label: "Other" },
+];
+
 /**
  * PosInterface — POS content only (no header).
  *
@@ -135,19 +143,17 @@ export default function PosInterface() {
   }
 
   async function handleRejectOnlineOrder(order) {
-    const { confirmed, reason } = await confirmWithReason({
-      title: "Reject Order?",
-      message: `Reject order #${order.order_number}? This will delete the pending order.`,
-      confirmLabel: "Reject",
+    await confirmWithReason({
+      title: "Delete Order?",
+      message: `Delete order #${order.order_number}? This will permanently remove the order.`,
+      confirmLabel: "Delete",
+      reasons: CANCEL_REASONS,
+      loadingText: "Deleting...",
+      onConfirm: async ({ reason, custom_reason }) => {
+        await mutations.cancel.mutateAsync({ id: order.order_id, data: { reason, custom_reason } });
+        toast.success("Order deleted");
+      },
     });
-    if (!confirmed) return;
-
-    try {
-      await mutations.cancel.mutateAsync({ id: order.order_id, data: { reason } });
-      toast.success(`Order #${order.order_number} rejected`);
-    } catch {
-      toast.error("Failed to reject order");
-    }
   }
 
   return (

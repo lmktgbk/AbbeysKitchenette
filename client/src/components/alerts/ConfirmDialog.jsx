@@ -79,20 +79,27 @@ export async function confirm({ title, message, note, confirmLabel = "Confirm", 
  * @param {string[]} [opts.reasons] - Predefined reasons (defaults to DEFAULT_REASONS)
  * @param {string} [opts.confirmLabel] - Confirm button text
  * @param {string} [opts.cancelLabel] - Cancel button text
- * @returns {Promise<{ confirmed: boolean, reason: string }>}
+ * @param {Function} [opts.onConfirm] - async callback receiving { reason, custom_reason }. Modal stays open with loading text until it resolves.
+ * @param {string} [opts.loadingText] - text shown on confirm button while onConfirm is running
+ * @returns {Promise<{ confirmed: boolean, reason: string, custom_reason: string }>}
  */
-export async function confirmWithReason({ title, message, reasons = DEFAULT_REASONS, confirmLabel = "Confirm", cancelLabel = "Cancel" }) {
-    let selectedReason = "";
+export async function confirmWithReason({ title, message, reasons = DEFAULT_REASONS, confirmLabel = "Confirm", cancelLabel = "Cancel", onConfirm, loadingText }) {
+    let selectedValue = "";
     let customReason = "";
+
+    const normalizedReasons = reasons.map((r) =>
+        typeof r === "string" ? { value: r, label: r } : r
+    );
+    const isOther = (val) => val === "other";
 
     const htmlContent = `
     <p style="text-align:center; margin:0 0 12px 0;">${message}</p>
     <div id="reason-chips" style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:12px;">
-      ${reasons.map((r) => `
-        <button type="button" class="reason-chip" data-reason="${r}"
+      ${normalizedReasons.map((r) => `
+        <button type="button" class="reason-chip" data-value="${r.value}"
           style="padding:6px 14px; border-radius:20px; border:1.5px solid var(--border); background:var(--background);
                  color:var(--foreground); font-size:13px; cursor:pointer; transition:all 0.15s;">
-          ${r}
+          ${r.label}
         </button>
       `).join("")}
     </div>
@@ -104,7 +111,6 @@ export async function confirmWithReason({ title, message, reasons = DEFAULT_REAS
     </div>
   `;
 
-    // We need to inject styles for the selected state via a <style> tag since SweetAlert renders in a portal
     const styleTag = document.createElement("style");
     styleTag.textContent = `
       .reason-chip:hover { border-color: var(--primary) !important; background: var(--primary/10) !important; }
@@ -130,15 +136,11 @@ export async function confirmWithReason({ title, message, reasons = DEFAULT_REAS
 
             chips.forEach((chip) => {
                 chip.addEventListener("click", () => {
-                    const reason = chip.dataset.reason;
-                    selectedReason = reason;
-
-                    // Update active state
+                    selectedValue = chip.dataset.value;
                     chips.forEach((c) => c.classList.remove("active"));
                     chip.classList.add("active");
 
-                    // Show/hide textarea
-                    if (reason === "Other") {
+                    if (isOther(selectedValue)) {
                         otherInput.style.display = "block";
                     } else {
                         otherInput.style.display = "none";
@@ -147,12 +149,12 @@ export async function confirmWithReason({ title, message, reasons = DEFAULT_REAS
                 });
             });
         },
-        preConfirm: () => {
-            if (!selectedReason) {
+        preConfirm: async () => {
+            if (!selectedValue) {
                 Swal.showValidationMessage("Please select a reason");
                 return false;
             }
-            if (selectedReason === "Other") {
+            if (isOther(selectedValue)) {
                 const textarea = Swal.getPopup().querySelector("#custom-reason");
                 const text = textarea?.value?.trim();
                 if (!text) {
@@ -161,15 +163,38 @@ export async function confirmWithReason({ title, message, reasons = DEFAULT_REAS
                 }
                 customReason = text;
             }
+
+            const reasonPayload = isOther(selectedValue)
+                ? { reason: "other", custom_reason: customReason }
+                : { reason: selectedValue, custom_reason: "" };
+
+            if (onConfirm) {
+                const btn = Swal.getConfirmButton();
+                btn.disabled = true;
+                btn.textContent = loadingText || confirmLabel;
+                try {
+                    await onConfirm(reasonPayload);
+                } catch (err) {
+                    Swal.close();
+                    toast.error(err?.response?.data?.message || "Operation failed");
+                    return false;
+                }
+            }
+
             return true;
         },
+        ...(onConfirm && { allowOutsideClick: () => !Swal.isLoading() }),
     });
 
-    // Clean up injected style
     styleTag.remove();
 
-    const finalReason = selectedReason === "Other" ? customReason : selectedReason;
-    return { confirmed: result.isConfirmed, reason: result.isConfirmed ? finalReason : "" };
+    if (!result.isConfirmed) {
+        return { confirmed: false, reason: "", custom_reason: "" };
+    }
+    if (isOther(selectedValue)) {
+        return { confirmed: true, reason: "other", custom_reason: customReason };
+    }
+    return { confirmed: true, reason: selectedValue, custom_reason: "" };
 }
 
 /**
