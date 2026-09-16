@@ -134,11 +134,10 @@ export const orderController = {
    */
   async updateStatus(req, res) {
     try {
-      const { status, amount_paid, user_role } = req.body;
+      const { status, amount_paid } = req.body;
       const order = await orderService.advanceStatus(req.params.id, status, {
         userId: req.user.id,
         amountPaid: amount_paid,
-        userRole: user_role || req.user.role,
       });
       return successResponse(res, "Order status updated", { order });
     } catch (error) {

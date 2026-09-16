@@ -142,29 +142,6 @@ export default function OrderDetailModal({
                   />
                 </div>
 
-                {/* Station Readiness */}
-                {isPreparing && (
-                  <div className="flex items-center gap-3 p-2 bg-muted/50 rounded-lg">
-                    <span className="text-xs font-medium text-muted-foreground">Station Readiness:</span>
-                    <span className={cn(
-                      "flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold",
-                      order?.kitchen_ready
-                        ? "bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20"
-                        : "bg-muted text-muted-foreground border border-border/40"
-                    )}>
-                      {order?.kitchen_ready ? "✓" : "○"} Kitchen
-                    </span>
-                    <span className={cn(
-                      "flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold",
-                      order?.cashier_ready
-                        ? "bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20"
-                        : "bg-muted text-muted-foreground border border-border/40"
-                    )}>
-                      {order?.cashier_ready ? "✓" : "○"} Cashier
-                    </span>
-                  </div>
-                )}
-
                 {/* Items */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">

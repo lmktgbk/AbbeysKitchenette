@@ -39,16 +39,13 @@ export default function OrderCard({
 
   const totalItems = checkableItems.length;
   const preparedCount = checkableItems.filter((i) => i.is_prepared).length;
-  const allChecked = totalItems > 0 && preparedCount === totalItems;
+  const roleAllChecked = totalItems > 0 && preparedCount === totalItems;
   const progressPct = totalItems ? Math.round((preparedCount / totalItems) * 100) : 0;
 
-  // Two-step ready: check if this role's items are all checked and this station is ready
-  const isRoleReady = roleCategory === "Food"
-    ? order.kitchen_ready
-    : roleCategory === "Beverages"
-      ? order.cashier_ready
-      : false;
-  const canMarkReady = allChecked && !isRoleReady;
+  // ALL items must be checked before either role can mark ready
+  const allItems = order.items ?? [];
+  const allItemsChecked = allItems.length > 0 && allItems.every((i) => i.is_prepared);
+  const canMarkReady = allItemsChecked;
 
   const m = Math.floor(elapsed / 60000);
   const s = Math.floor((elapsed % 60000) / 1000);
@@ -110,27 +107,6 @@ export default function OrderCard({
             </div>
           </div>
         </div>
-        {/* Station Readiness Badges */}
-        {isPreparing && (
-          <div className="flex items-center gap-2 mt-1 text-[9px]">
-            <span className={cn(
-              "flex items-center gap-1 px-1.5 py-0.5 rounded-full font-semibold",
-              order.kitchen_ready
-                ? "bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20"
-                : "bg-muted text-muted-foreground border border-border/40"
-            )}>
-              {order.kitchen_ready ? "✓" : "○"} Kitchen
-            </span>
-            <span className={cn(
-              "flex items-center gap-1 px-1.5 py-0.5 rounded-full font-semibold",
-              order.cashier_ready
-                ? "bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20"
-                : "bg-muted text-muted-foreground border border-border/40"
-            )}>
-              {order.cashier_ready ? "✓" : "○"} Cashier
-            </span>
-          </div>
-        )}
       </div>
 
       {/* Items */}
@@ -218,12 +194,12 @@ export default function OrderCard({
               <div
                 className="h-full rounded-full transition-all duration-300"
                 style={{
-                  background: allChecked ? "hsl(160 50% 40%)" : "hsl(200 70% 55%)",
+                   background: allItemsChecked ? "hsl(160 50% 40%)" : "hsl(200 70% 55%)",
                   width: `${progressPct}%`,
                 }}
               />
             </div>
-            <span className={cn("text-[9px] font-semibold tabular-nums", allChecked ? "text-primary" : "text-muted-foreground")}>
+            <span className={cn("text-[9px] font-semibold tabular-nums", allItemsChecked ? "text-primary" : "text-muted-foreground")}>
               {preparedCount}/{totalItems}
             </span>
           </div>
@@ -233,8 +209,8 @@ export default function OrderCard({
               canMarkReady && "kds-pulse-ring",
             )}
             onClick={() => {
-              if (!allChecked) {
-                toast.error("Check off all items before marking ready");
+              if (!allItemsChecked) {
+                toast.error("All items must be checked before marking ready");
                 return;
               }
               onMarkReady(order.order_id);
@@ -242,11 +218,7 @@ export default function OrderCard({
             disabled={disabled || !canMarkReady}
           >
             <Icon name="check" size={12} />
-            {isRoleReady
-              ? "✓ Ready"
-              : allChecked
-                ? `Mark Ready (${roleCategory === "Food" ? "Food" : "Beverages"})`
-                : `Done (${preparedCount}/${totalItems})`}
+            {allItemsChecked ? "Mark Ready" : `Done (${preparedCount}/${totalItems})`}
           </Button>
         </div>
       )}

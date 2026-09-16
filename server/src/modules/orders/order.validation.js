@@ -81,8 +81,6 @@ export const updateStatusSchema = z.object({
   }),
   // Payment fields (only for pending → accepted)
   amount_paid: z.number().positive().optional(),
-  // Role for two-step ready (kitchen or cashier)
-  user_role: z.enum(["kitchen", "cashier"]).optional(),
 });
 
 // ── Shared Constants ──────────────────────────────

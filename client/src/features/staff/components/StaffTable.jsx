@@ -14,7 +14,6 @@ const ROLE_FILTER_OPTIONS = [
   { value: "all", label: "All Roles" },
   { value: "cashier", label: "Cashier" },
   { value: "kitchen", label: "Kitchen" },
-  { value: "admin", label: "Admin" },
 ];
 
 const STATUS_FILTER_OPTIONS = [
@@ -63,7 +62,8 @@ export default function StaffTable({
   };
 
   const { data, isLoading } = useStaffList(queryParams);
-  const staff = data?.data?.staff ?? [];
+  const allStaff = data?.data?.staff ?? [];
+  const staff = allStaff.filter((s) => s.role !== "admin");
   const totalItems = data?.data?.totalItems ?? 0;
 
   return (

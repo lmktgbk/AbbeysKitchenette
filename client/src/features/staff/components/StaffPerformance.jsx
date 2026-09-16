@@ -162,7 +162,7 @@ function StaffColumn({ title, icon, members, role, onSelect }) {
                       </>
                     ) : (
                       <>
-                        <span>{m.orders_completed} orders</span>
+                        <span>{m.orders_completed} items</span>
                         <span className="font-semibold text-foreground">
                           {m.avg_prep_time != null ? `${m.avg_prep_time} min avg` : "—"}
                         </span>
@@ -236,7 +236,7 @@ function StaffOrdersView({ staff, onBack, onSelectOrder }) {
           <p className="text-xs text-muted-foreground">
             {isCashier
               ? `${staff.orders_created} orders · ₱${Number(staff.total_revenue || 0).toLocaleString()} revenue · ₱${Number(staff.avg_order_value || 0).toLocaleString()} avg`
-              : `${staff.orders_completed} orders completed · ${staff.avg_prep_time != null ? `${staff.avg_prep_time} min avg prep` : "—"}`}
+              : `${staff.orders_completed} items prepared · ${staff.avg_prep_time != null ? `${staff.avg_prep_time} min avg prep` : "—"}`}
           </p>
         </div>
       </div>

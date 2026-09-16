@@ -211,7 +211,6 @@ export const orderRepository = {
         o.accepted_at, o.accepted_by,
         o.preparing_at, o.preparing_by,
         o.completed_at, o.completed_by,
-        o.kitchen_ready, o.cashier_ready,
         o.created_by, o.created_at, o.updated_at,
         u.name AS creator_name,
         COUNT(*) OVER() AS total_count
@@ -284,10 +283,6 @@ export const orderRepository = {
       data.completedBy = meta.userId;
       if (meta.fulfillmentMinutes !== undefined) data.fulfillmentMinutes = meta.fulfillmentMinutes;
     }
-
-    // Handle station readiness flags
-    if (meta.kitchenReady !== undefined) data.kitchenReady = meta.kitchenReady;
-    if (meta.cashierReady !== undefined) data.cashierReady = meta.cashierReady;
 
     return client.order.update({
       where: { orderId: id },
@@ -375,16 +370,7 @@ export const orderRepository = {
     return prisma.orderItem.findMany({
       where: { orderId, removedAt: null },
       include: {
-        product: {
-          select: {
-            productName: true,
-            subcategory: {
-              select: {
-                categoryName: true,
-              },
-            },
-          },
-        },
+        product: { select: { productName: true } },
         variant: { select: { sizeName: true } },
         preparedByUser: { select: { name: true, role: true } },
       },
@@ -658,7 +644,6 @@ export const orderRepository = {
         o.accepted_at, o.accepted_by,
         o.preparing_at, o.preparing_by,
         o.completed_at, o.completed_by,
-        o.kitchen_ready, o.cashier_ready,
         o.created_by, o.created_at, o.updated_at,
         COALESCE(
           json_agg(
@@ -784,7 +769,7 @@ export const orderRepository = {
     }
 
     if (staffId) {
-      clauses.push(`(o.created_by = $${idx} OR o.completed_by = $${idx})`);
+      clauses.push(`(o.created_by = $${idx} OR o.completed_by = $${idx} OR EXISTS (SELECT 1 FROM order_items oi WHERE oi.order_id = o.order_id AND oi.prepared_by = $${idx}))`);
       values.push(staffId);
       idx++;
     }

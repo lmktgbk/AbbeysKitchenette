@@ -55,6 +55,6 @@ export const ROLE_OPTIONS = [
 
 export const ROLE_CONFIG = {
   admin: { label: "Admin", variant: "warning" },
-  cashier: { label: "Cashier", variant: "default" },
-  kitchen: { label: "Kitchen", variant: "outline" },
+  cashier: { label: "Cashier", variant: "orange" },
+  kitchen: { label: "Kitchen", variant: "info" },
 };

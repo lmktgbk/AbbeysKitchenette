@@ -1,10 +1,8 @@
 import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
 
-export default function ConfirmReadyModal({ order, open, onConfirm, onCancel, loading, userRole }) {
+export default function ConfirmReadyModal({ order, open, onConfirm, onCancel, loading }) {
   if (!open || !order) return null;
-
-  const roleLabel = userRole === "kitchen" ? "Food" : userRole === "cashier" ? "Beverages" : "Items";
 
   return (
     <div
@@ -19,18 +17,15 @@ export default function ConfirmReadyModal({ order, open, onConfirm, onCancel, lo
           <Icon name="check" size={32} className="text-primary" />
         </div>
         <div className="text-base font-bold mb-1 text-foreground">
-          Mark {roleLabel} as Ready?
+          Mark Order as Ready?
         </div>
         <div className="text-[11px] mb-2 text-muted-foreground">
-          {order.customer_name} · Table {order.table_number}
+          {order.customer_name} · Table {order.table_number} · This will advance the queue.
         </div>
         <div className="bg-muted border border-border rounded-xl px-4 py-3 mb-5 text-center">
           <div className="text-[10px] mb-0.5 text-muted-foreground">Order</div>
           <div className="font-serif text-xl font-bold text-primary">
             #{order.order_number}
-          </div>
-          <div className="text-[10px] mt-1 text-muted-foreground">
-            Kitchen: {order.kitchen_ready ? "✓ Ready" : "Pending"} · Cashier: {order.cashier_ready ? "✓ Ready" : "Pending"}
           </div>
         </div>
         <div className="flex gap-2">
@@ -40,7 +35,7 @@ export default function ConfirmReadyModal({ order, open, onConfirm, onCancel, lo
             disabled={loading}
           >
             <Icon name="check" size={16} />
-            {loading ? "Saving…" : "Confirm Ready"}
+            {loading ? "Saving…" : "Mark as Ready"}
           </Button>
           <Button
             variant="secondary"

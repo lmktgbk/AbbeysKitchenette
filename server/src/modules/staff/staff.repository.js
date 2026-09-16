@@ -160,7 +160,7 @@ export const staffRepository = {
   /**
    * Get performance metrics for staff.
    * Cashier: orders created, revenue, avg order value.
-   * Kitchen: orders completed, avg prep time.
+   * Kitchen: items prepared (from order_items), avg prep time per item.
    * Admin is excluded.
    */
   async getPerformance({ role, dateFrom, dateTo }) {
@@ -231,48 +231,60 @@ export const staffRepository = {
     }
 
     // ── Kitchen metrics ──────────────────────────
+    // Track at item level: who prepared what, not just who clicked "complete"
     if (kitchenIds.length > 0) {
-      const completedWhere = {
-        completedBy: { in: kitchenIds },
-        status: "completed",
-      };
-      if (dateFrom || dateTo) {
-        completedWhere.completedAt = {};
-        if (dateFrom) completedWhere.completedAt.gte = new Date(dateFrom);
-        if (dateTo) {
-          const end = new Date(dateTo);
-          end.setHours(23, 59, 59, 999);
-          completedWhere.completedAt.lte = end;
-        }
+      const kitchenPlaceholders = kitchenIds.map((_, i) => `$${i + 1}`).join(", ");
+      let idx = kitchenIds.length + 1;
+
+      const dateConditions = [];
+      const values = [...kitchenIds];
+
+      if (dateFrom) {
+        dateConditions.push(`o.order_date >= $${idx++}::date`);
+        values.push(dateFrom);
+      }
+      if (dateTo) {
+        dateConditions.push(`o.order_date <= $${idx++}::date`);
+        values.push(dateTo);
       }
 
-      const kitchenOrders = await prisma.order.findMany({
-        where: completedWhere,
-        select: {
-          completedBy: true,
-          preparingAt: true,
-          completedAt: true,
-        },
-      });
+      const dateClause = dateConditions.length > 0 ? `AND ${dateConditions.join(" AND ")}` : "";
+
+      const kitchenRows = await prisma.$queryRawUnsafe(`
+        SELECT
+          oi.prepared_by AS "userId",
+          COUNT(*)::int AS "itemsPrepared",
+          COUNT(DISTINCT oi.order_id)::int AS "ordersInvolved",
+          ROUND(AVG(EXTRACT(EPOCH FROM (oi.prepared_at - o.preparing_at)) / 60)::numeric, 0)::int AS "avgPrepMinutes"
+        FROM order_items oi
+        JOIN orders o ON o.order_id = oi.order_id
+        WHERE oi.prepared_by IN (${kitchenPlaceholders})
+          AND oi.is_prepared = true
+          AND oi.removed_at IS NULL
+          AND o.preparing_at IS NOT NULL
+          AND o.status != 'cancelled'
+          ${dateClause}
+        GROUP BY oi.prepared_by
+      `, ...values);
 
       const kitchenAgg = {};
-      for (const o of kitchenOrders) {
-        if (!kitchenAgg[o.completedBy]) kitchenAgg[o.completedBy] = { count: 0, totalMinutes: 0 };
-        kitchenAgg[o.completedBy].count += 1;
-        if (o.preparingAt && o.completedAt) {
-          kitchenAgg[o.completedBy].totalMinutes += (new Date(o.completedAt) - new Date(o.preparingAt)) / 60000;
-        }
+      for (const row of kitchenRows) {
+        kitchenAgg[row.userId] = {
+          itemsPrepared: row.itemsPrepared,
+          ordersInvolved: row.ordersInvolved,
+          avgPrepMinutes: row.avgPrepMinutes,
+        };
       }
 
       for (const user of users.filter((u) => u.role === "kitchen")) {
-        const agg = kitchenAgg[user.id] || { count: 0, totalMinutes: 0 };
+        const agg = kitchenAgg[user.id] || { itemsPrepared: 0, ordersInvolved: 0, avgPrepMinutes: null };
         results.push({
           user_id: user.id,
           name: user.name,
           email: user.email,
           role: user.role,
-          orders_completed: agg.count,
-          avg_prep_time: agg.count > 0 ? Math.round(agg.totalMinutes / agg.count) : null,
+          orders_completed: agg.itemsPrepared,
+          avg_prep_time: agg.avgPrepMinutes,
         });
       }
     }
