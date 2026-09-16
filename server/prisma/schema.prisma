@@ -646,3 +646,19 @@ model AuditLog {
   @@index([targetType, targetId])
   @@map("audit_logs")
 }
+
+// ── Notifications ──────────────────────────────────────────
+model Notification {
+  id           String   @id @default(uuid()) @db.Uuid
+  type         String   @db.VarChar(50)   // order_new, order_completed, order_cancelled, stock_low, stock_out, stock_restocked, system
+  title        String   @db.VarChar(200)
+  message      String   @db.VarChar(500)
+  referenceType String? @map("reference_type") @db.VarChar(50)  // order, ingredient, settings
+  referenceId  String?  @map("reference_id") @db.Uuid
+  isRead       Boolean  @default(false) @map("is_read")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}

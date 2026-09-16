@@ -4,6 +4,7 @@ import { productService } from "../products/product.service.js";
 import prisma from "../../config/prisma.js";
 import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
+import { notificationService } from "../notifications/notification.service.js";
 
 /**
  * Map Prisma Ingredient + stock quantity to snake_case API response format.
@@ -306,6 +307,17 @@ export const ingredientService = {
 
     // Recompute variant availability for this ingredient
     await productService.recomputeVariantAvailability([id]);
+
+    // Notify if stock was previously low and is now healthy
+    if (qtyBefore <= Number(existing.minimumThreshold) && stockQuantity > Number(existing.minimumThreshold)) {
+      notificationService.create({
+        type: "stock_restocked",
+        title: "Stock Restored",
+        message: `${existing.ingredientName} stock restored to ${stockQuantity} ${existing.unit}`,
+        referenceType: "ingredient",
+        referenceId: id,
+      }).catch(() => {});
+    }
 
     auditLogService.logAction({
       userId,

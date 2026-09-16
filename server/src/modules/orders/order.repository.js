@@ -631,6 +631,39 @@ export const orderRepository = {
   /* ── Kitchen Display ───────────────────── */
 
   /**
+   * Get current stock for an ingredient after deductions.
+   * @param {string} ingredientId - ingredient UUID
+   * @param {object} tx - transaction client
+   * @returns {number|null} - stock quantity or null if not found
+   */
+  async getIngredientStockAfterDeduction(ingredientId, tx) {
+    const client = tx || prisma;
+    const result = await client.restockBatch.aggregate({
+      where: { ingredientId, quantityLeft: { gt: 0 } },
+      _sum: { quantityLeft: true },
+    });
+    return result._sum.quantityLeft ? Number(result._sum.quantityLeft) : 0;
+  },
+
+  /**
+   * Get basic ingredient info (name, unit, threshold).
+   * @param {string} ingredientId - ingredient UUID
+   * @param {object} tx - transaction client
+   * @returns {object|null} - basic ingredient data or null
+   */
+  async getIngredientBasic(ingredientId, tx) {
+    const client = tx || prisma;
+    return client.ingredient.findUnique({
+      where: { ingredientId },
+      select: {
+        ingredientName: true,
+        unit: true,
+        minimumThreshold: true,
+      },
+    });
+  },
+
+  /**
    * Get kitchen display orders with items in a single query.
    * Uses json_agg to nest order_items under each order.
    * Filters for active + today's completed orders only.
