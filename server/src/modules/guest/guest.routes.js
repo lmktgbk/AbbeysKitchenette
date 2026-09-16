@@ -9,9 +9,13 @@ const router = Router();
 /**
  * Guest Routes (Public — No Auth)
  *
- * GET  /api/guest/menu   — Available products for customer menu
- * POST /api/guest/orders — Place online order
+ * GET  /api/guest/menu     — Available products for customer menu
+ * GET  /api/guest/settings — Store settings for landing page
+ * POST /api/guest/orders   — Place online order
  */
+
+// GET /api/guest/settings — public store settings
+router.get("/settings", guestController.getStoreSettings);
 
 // GET /api/guest/menu — available products
 router.get(

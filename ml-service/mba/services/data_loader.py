@@ -21,6 +21,8 @@ async def load_order_baskets(min_date: str | None = None) -> pd.DataFrame:
         JOIN products p ON p.product_id = pv.product_id
         WHERE o.status = 'completed'
           AND p.is_archived = FALSE
+          AND pv.is_available = TRUE
+          AND oi.removed_at IS NULL
           {where}
         ORDER BY o.order_id, pv.variant_id
     """
@@ -37,7 +39,7 @@ async def load_product_details() -> pd.DataFrame:
         SELECT
             p.product_id,
             p.product_name,
-            p.category_id,
+            sc.category_id,
             c.category_name,
             pv.variant_id,
             pv.size_name,
@@ -47,18 +49,19 @@ async def load_product_details() -> pd.DataFrame:
             i.unit,
             r.quantity_needed::float AS quantity_needed,
             COALESCE(
-                (SELECT rb.cost_per_unit
+                (SELECT SUM(rb.quantity_added * rb.cost_per_unit) / SUM(rb.quantity_added)
                  FROM restock_batches rb
-                 WHERE rb.ingredient_id = r.ingredient_id AND rb.quantity_left > 0
-                 ORDER BY rb.restocked_at DESC LIMIT 1),
+                 WHERE rb.ingredient_id = r.ingredient_id),
                 0
             )::float AS cost_per_unit
         FROM products p
-        JOIN categories c ON c.category_id = p.category_id
+        JOIN subcategories sc ON sc.subcategory_id = p.subcategory_id
+        JOIN categories c ON c.category_id = sc.category_id
         JOIN product_variants pv ON pv.product_id = p.product_id
         JOIN recipes r ON r.variant_id = pv.variant_id
         JOIN ingredients i ON i.ingredient_id = r.ingredient_id
         WHERE p.is_archived = FALSE
+          AND pv.is_available = TRUE
           AND i.is_archived = FALSE
         ORDER BY p.product_id, pv.size_name, i.ingredient_name
     """)
@@ -78,3 +81,12 @@ async def load_combo_discount() -> float:
     if row and row["combo_discount_percent"] is not None:
         return float(row["combo_discount_percent"])
     return 15.0
+
+
+async def load_margin_target() -> float:
+    """Load minimum margin percentage from system settings."""
+    pool = await get_pool()
+    row = await pool.fetchrow("SELECT min_margin_percent FROM system_settings WHERE id = 1")
+    if row and row["min_margin_percent"] is not None:
+        return float(row["min_margin_percent"]) / 100
+    return 0.30

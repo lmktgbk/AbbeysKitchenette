@@ -1,13 +1,32 @@
 import { Link } from "react-router-dom";
 import Icon from "@/components/ui/icon";
 
-/**
- * Footer
- * Landing page footer with brand, quick links, contact, socials, and staff login.
- * Staff login link is intentionally subtle — not visible to regular customers.
- */
-export default function Footer() {
+function formatStoreHours(hours) {
+  if (!hours) return "Hours not set";
+  const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+  const enabled = days.filter((d) => hours[d]?.enabled);
+  if (enabled.length === 0) return "Currently closed";
+  const open = hours[enabled[0]]?.open || "08:00";
+  const close = hours[enabled[0]]?.close || "20:00";
+  const fmt = (t) => {
+    const [h, m] = t.split(":");
+    const hr = parseInt(h);
+    if (hr === 0) return `12:${m} AM`;
+    if (hr === 12) return `12:${m} PM`;
+    return hr > 12 ? `${hr - 12}:${m} PM` : `${hr}:${m} AM`;
+  };
+  return `Mon – Sun: ${fmt(open)} – ${fmt(close)}`;
+}
+
+export default function Footer({ settings = {} }) {
     const currentYear = new Date().getFullYear();
+    const displayName = settings.storeName || "Abbey's Kitchenette";
+    const phone = settings.storePhone || "0929 781 1212";
+    const email = settings.storeEmail || "maryrosemendoza78@yahoo.com";
+    const address = settings.storeAddress || "Robledo Compound, Bulacnin, Lipa City";
+    const hours = formatStoreHours(settings.storeHours);
+
+    const phoneDigits = phone.replace(/\D/g, "");
 
     const quickLinks = [
         { label: "Home",      href: "#home" },
@@ -31,7 +50,7 @@ export default function Footer() {
                     <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
                         <img
                             src="/favicon.png"
-                            alt="Abbey's Kitchenette"
+                            alt={displayName}
                             style={{ width: 36, height: 36, borderRadius: "999px", objectFit: "cover" }}
                         />
                         <span
@@ -43,7 +62,7 @@ export default function Footer() {
                                 letterSpacing: "-0.01em",
                             }}
                         >
-                            Abbey's Kitchenette
+                            {displayName}
                         </span>
                     </div>
                     <p className="footer-brand-desc">
@@ -62,14 +81,14 @@ export default function Footer() {
                             <Icon name="users" size={16} />
                         </a>
                         <a
-                            href="mailto:maryrosemendoza78@yahoo.com"
+                            href={`mailto:${email}`}
                             className="footer-social-link"
                             aria-label="Email"
                         >
                             <Icon name="mail" size={16} />
                         </a>
                         <a
-                            href="tel:09297811212"
+                            href={`tel:${phoneDigits}`}
                             className="footer-social-link"
                             aria-label="Call us"
                         >
@@ -102,12 +121,12 @@ export default function Footer() {
                 <div>
                     <h4 className="footer-heading">Contact</h4>
                     <div className="footer-links">
-                        <span className="footer-link">Robledo Compound, Bulacnin, Lipa City</span>
-                        <a href="tel:09297811212" className="footer-link">0929 781 1212</a>
-                        <a href="mailto:maryrosemendoza78@yahoo.com" className="footer-link">
-                            maryrosemendoza78@yahoo.com
+                        <span className="footer-link">{address}</span>
+                        <a href={`tel:${phoneDigits}`} className="footer-link">{phone}</a>
+                        <a href={`mailto:${email}`} className="footer-link">
+                            {email}
                         </a>
-                        <span className="footer-link">Mon – Sun: 10AM – 10PM</span>
+                        <span className="footer-link">{hours}</span>
                     </div>
                 </div>
             </div>
@@ -118,11 +137,11 @@ export default function Footer() {
             {/* Bottom Bar */}
             <div className="footer-bottom">
                 <span>
-                    &copy; {currentYear} Abbey's Kitchenette. All rights reserved.
+                    &copy; {currentYear} {displayName}. All rights reserved.
                 </span>
                 <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
-                    <a href="#" className="footer-link">Privacy Policy</a>
-                    <a href="#" className="footer-link">Terms of Service</a>
+                    <Link to="/privacy-policy" className="footer-link">Privacy Policy</Link>
+                    <Link to="/terms-of-service" className="footer-link">Terms of Service</Link>
                     {/* Staff login — intentionally subtle */}
                     <Link to="/login" className="footer-staff-login">
                         Staff Login

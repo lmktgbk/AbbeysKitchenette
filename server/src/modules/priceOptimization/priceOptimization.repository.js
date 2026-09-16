@@ -13,13 +13,22 @@ const priceOptimizationRepository = {
    */
   async getVariantPricingContext(productId) {
     return prisma.$queryRawUnsafe(`
-      WITH variant_costs AS (
+      WITH avg_costs AS (
+        SELECT
+          ingredient_id,
+          CASE WHEN SUM(quantity_added) > 0
+            THEN SUM(quantity_added * cost_per_unit) / SUM(quantity_added)
+            ELSE 0
+          END AS avg_cost_per_unit
+        FROM restock_batches
+        GROUP BY ingredient_id
+      ),
+      variant_costs AS (
         SELECT
           r.variant_id,
-          SUM(r.quantity_needed * rb.cost_per_unit) AS total_cog
+          SUM(r.quantity_needed * ac.avg_cost_per_unit) AS total_cog
         FROM recipes r
-        JOIN restock_batches rb ON rb.ingredient_id = r.ingredient_id
-          AND rb.quantity_left > 0
+        LEFT JOIN avg_costs ac ON ac.ingredient_id = r.ingredient_id
         GROUP BY r.variant_id
       ),
       variant_sales AS (

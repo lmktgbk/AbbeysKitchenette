@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, memo } from "react";
 import { cn } from "@/lib/utils";
 import Icon from "@/components/ui/icon";
 import { SearchableDropDown } from "@/components/filters/SearchableDropDown";
@@ -10,7 +10,6 @@ import {
 
 const VIEW_OPTIONS = [
   { value: "7", label: "7 days" },
-  { value: "14", label: "14 days" },
 ];
 
 /**
@@ -18,7 +17,7 @@ const VIEW_OPTIONS = [
  * Accepts selectedVariant + onVariantChange from parent for drill-down.
  * When "all", shows aggregate. When specific variant, shows that variant only.
  */
-export default function ForecastChart({ results, previousResults, viewPeriod = 7, onViewPeriodChange, selectedVariant, onVariantChange, activeJobLabel, comparisonJobLabel }) {
+function ForecastChart({ results, previousResults, viewPeriod = 7, onViewPeriodChange, selectedVariant, onVariantChange, activeJobLabel, comparisonJobLabel }) {
   const [metric, setMetric] = useState("units");
 
   const variantOptions = useMemo(() => {
@@ -289,3 +288,5 @@ export default function ForecastChart({ results, previousResults, viewPeriod = 7
     </div>
   );
 }
+
+export default memo(ForecastChart);

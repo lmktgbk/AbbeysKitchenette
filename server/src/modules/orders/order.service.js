@@ -195,12 +195,13 @@ export const orderService = {
         unitPrice: item.unit_price,
       })), tx);
 
-      const deductions = await this._deductIngredients(newOrder.orderId, aggregatedIngredients, tx);
-      return { order: newOrder, deductions };
+      const { deductions, needs } = await this._deductIngredients(newOrder.orderId, aggregatedIngredients, tx, createdBy);
+      return { order: newOrder, deductions, needs };
     });
 
     const affectedIngredientIds = [...aggregatedIngredients.keys()];
     productService.recomputeVariantAvailability(affectedIngredientIds).catch(() => {});
+    this._checkStockLevels(order.needs).catch(() => {});
 
     auditLogService.logAction({
       userId: createdBy,
@@ -310,6 +311,8 @@ export const orderService = {
 
     const aggregatedIngredients = await this._aggregateIngredientNeeds(items);
 
+    let transactionNeeds;
+
     await prisma.$transaction(async (tx) => {
       const updateData = {};
       if (customerName !== undefined) updateData.customerName = customerName;
@@ -326,7 +329,8 @@ export const orderService = {
       })), tx);
       await orderRepository.recalculateTotal(id, tx);
 
-      await this._deductIngredients(id, aggregatedIngredients, tx);
+      const { needs } = await this._deductIngredients(id, aggregatedIngredients, tx, userId);
+      transactionNeeds = needs;
 
       await orderRepository.updateStatus(id, "accepted", {
         userId,
@@ -337,6 +341,7 @@ export const orderService = {
 
     const affectedIngredientIds = [...aggregatedIngredients.keys()];
     productService.recomputeVariantAvailability(affectedIngredientIds).catch(() => {});
+    this._checkStockLevels(transactionNeeds).catch(() => {});
 
     auditLogService.logAction({
       userId,
@@ -535,13 +540,13 @@ export const orderService = {
 
           // Fully restore items with no declared losses
           if (itemsWithoutLosses.length > 0) {
-            await this._restoreIngredientsForItems(id, itemsWithoutLosses, tx);
+            await this._restoreIngredientsForItems(id, itemsWithoutLosses, tx, userId);
           }
 
           // For items with declared losses: create loss records + restore non-lost portions
           if (itemsWithLosses.length > 0) {
             await this._createLossRecords(id, itemsWithLosses, userId, tx, itemLosses, costMap);
-            await this._restorePartialItems(id, itemsWithLosses, itemLosses, tx);
+            await this._restorePartialItems(id, itemsWithLosses, itemLosses, tx, userId);
           }
         }
       }
@@ -667,11 +672,11 @@ export const orderService = {
     await prisma.$transaction(async (tx) => {
       if (lossOption === "no_loss") {
         // No loss: restore this item's ingredients
-        await this._restoreIngredientsForSingleItem(orderItem, itemRecipes, deductions, tx);
+        await this._restoreIngredientsForSingleItem(orderItem, itemRecipes, deductions, tx, orderId, userId);
       } else {
         // With loss: create loss records, restore non-lost portions
         await this._createLossRecordsForSingleItem(orderId, orderItem, itemRecipes, userId, tx, ingredientLosses, itemCostMap);
-        await this._restorePartialForSingleItem(orderItem, itemRecipes, ingredientLosses, deductions, tx);
+        await this._restorePartialForSingleItem(orderItem, itemRecipes, ingredientLosses, deductions, tx, orderId, userId);
       }
 
       // Soft-delete the order item
@@ -783,11 +788,13 @@ export const orderService = {
     return needs;
   },
 
-  async _deductIngredients(orderId, needs, tx) {
+  async _deductIngredients(orderId, needs, tx, userId) {
     const deductions = [];
+    const adjustments = [];
 
     for (const [ingredientId, totalNeeded] of needs) {
       const batches = await orderRepository.getAvailableBatches(ingredientId, tx);
+      const stockBefore = batches.reduce((sum, b) => sum + Number(b.quantityLeft), 0);
       let remaining = totalNeeded;
 
       for (const batch of batches) {
@@ -815,54 +822,108 @@ export const orderService = {
       if (remaining > 0) {
         throw new AppError(400, "Insufficient ingredient stock", "INSUFFICIENT_STOCK");
       }
+
+      // Record stock adjustment for audit trail
+      if (userId) {
+        adjustments.push({
+          ingredientId,
+          adjustedById: userId,
+          adjustmentType: "deduction",
+          quantityBefore: stockBefore,
+          quantityChanged: -totalNeeded,
+          quantityAfter: stockBefore - totalNeeded,
+          relatedOrderId: orderId,
+        });
+      }
     }
 
     if (deductions.length > 0) {
       await orderRepository.createDeductions(deductions, tx);
     }
 
-    // Check stock levels after deductions (fire-and-forget)
-    for (const ingredientId of needs.keys()) {
-      const stockAfter = await orderRepository.getIngredientStockAfterDeduction(ingredientId, tx);
-      if (stockAfter !== null && stockAfter <= 0) {
-        const ing = await orderRepository.getIngredientBasic(ingredientId, tx);
-        if (ing) {
-          notificationService.create({
-            type: "stock_out",
-            title: "Out of Stock",
-            message: `${ing.ingredientName} is now out of stock`,
-            referenceType: "ingredient",
-            referenceId: ingredientId,
-          }).catch(() => {});
-        }
-      } else if (stockAfter !== null) {
-        const ing = await orderRepository.getIngredientBasic(ingredientId, tx);
-        if (ing && stockAfter <= Number(ing.minimumThreshold) && stockAfter > 0) {
-          notificationService.create({
-            type: "stock_low",
-            title: "Low Stock Alert",
-            message: `${ing.ingredientName} is running low — ${stockAfter} ${ing.unit} remaining`,
-            referenceType: "ingredient",
-            referenceId: ingredientId,
-          }).catch(() => {});
-        }
-      }
+    // Create stock adjustment records for audit trail
+    if (adjustments.length > 0) {
+      await tx.stockAdjustment.createMany({ data: adjustments });
     }
 
-    return deductions;
+    return { deductions, needs };
+  },
+
+  /**
+   * Check stock levels and fire notifications AFTER transaction commits.
+   * Runs outside the transaction to avoid timeout — uses regular prisma client.
+   * @param {Map<string, number>} needs - ingredientId -> quantity deducted
+   */
+  async _checkStockLevels(needs) {
+    const ingredientIds = [...needs.keys()];
+    const stockMap = await orderRepository.getIngredientsTotalStocks(ingredientIds);
+
+    for (const ingredientId of ingredientIds) {
+      const stockAfter = stockMap.get(ingredientId) ?? 0;
+      const ing = await orderRepository.getIngredientBasic(ingredientId);
+      if (!ing) continue;
+
+      if (stockAfter <= 0) {
+        notificationService.create({
+          type: "stock_out",
+          title: "Out of Stock",
+          message: `${ing.ingredientName} is now out of stock`,
+          referenceType: "ingredient",
+          referenceId: ingredientId,
+        }).catch(() => {});
+      } else if (stockAfter <= Number(ing.minimumThreshold)) {
+        notificationService.create({
+          type: "stock_low",
+          title: "Low Stock Alert",
+          message: `${ing.ingredientName} is running low — ${stockAfter} ${ing.unit} remaining`,
+          referenceType: "ingredient",
+          referenceId: ingredientId,
+        }).catch(() => {});
+      }
+    }
   },
 
   async _restoreIngredients(orderId, userId, tx) {
     const deductions = await orderRepository.getActiveDeductions(orderId, tx);
+
+    // Group deductions by ingredient to calculate total restored per ingredient
+    const restoreByIngredient = new Map();
+    for (const deduction of deductions) {
+      const key = deduction.ingredientId;
+      restoreByIngredient.set(key, (restoreByIngredient.get(key) || 0) + Number(deduction.quantityDeducted));
+    }
 
     for (const deduction of deductions) {
       await orderRepository.restoreBatch(deduction.restockBatchId, deduction.quantityDeducted, tx);
     }
 
     await orderRepository.reverseDeductions(orderId, userId, tx);
+
+    // Create stock adjustment records for audit trail (batch query for stocks)
+    if (userId) {
+      const ingredientIds = [...restoreByIngredient.keys()];
+      const stockMap = await orderRepository.getIngredientsTotalStocks(ingredientIds, tx);
+      const adjustments = [];
+      for (const [ingredientId, totalRestored] of restoreByIngredient) {
+        const currentStock = stockMap.get(ingredientId) || 0;
+        adjustments.push({
+          ingredientId,
+          adjustedById: userId,
+          adjustmentType: "manual",
+          quantityBefore: currentStock - totalRestored,
+          quantityChanged: totalRestored,
+          quantityAfter: currentStock,
+          relatedOrderId: orderId,
+          notes: "Order cancelled — stock restored",
+        });
+      }
+      if (adjustments.length > 0) {
+        await tx.stockAdjustment.createMany({ data: adjustments });
+      }
+    }
   },
 
-  async _restoreIngredientsForItems(orderId, unpreparedItems, tx) {
+  async _restoreIngredientsForItems(orderId, unpreparedItems, tx, userId) {
     const allDeductions = await orderRepository.getActiveDeductions(orderId, tx);
 
     const variantIds = [...new Set(unpreparedItems.map((i) => i.variantId))];
@@ -894,9 +955,35 @@ export const orderService = {
         restoreTracker.set(deduction.ingredientId, remaining - restoreQty);
       }
     }
+
+    // Create stock adjustment records for audit trail
+    if (userId) {
+      const restoreIngredientIds = [...restoreNeeds.keys()].filter(id => restoreNeeds.get(id) > 0);
+      if (restoreIngredientIds.length > 0) {
+        const stockMap = await orderRepository.getIngredientsTotalStocks(restoreIngredientIds, tx);
+        const adjustments = [];
+        for (const ingredientId of restoreIngredientIds) {
+          const totalRestored = restoreNeeds.get(ingredientId);
+          const currentStock = stockMap.get(ingredientId) || 0;
+          adjustments.push({
+            ingredientId,
+            adjustedById: userId,
+            adjustmentType: "manual",
+            quantityBefore: currentStock - totalRestored,
+            quantityChanged: totalRestored,
+            quantityAfter: currentStock,
+            relatedOrderId: orderId,
+            notes: "Order cancelled — unprepared items restored",
+          });
+        }
+        if (adjustments.length > 0) {
+          await tx.stockAdjustment.createMany({ data: adjustments });
+        }
+      }
+    }
   },
 
-  async _restorePartialItems(orderId, preparedItems, itemLosses, tx) {
+  async _restorePartialItems(orderId, preparedItems, itemLosses, tx, userId) {
     const allDeductions = await orderRepository.getActiveDeductions(orderId, tx);
 
     const variantIds = [...new Set(preparedItems.map((i) => i.variantId))];
@@ -926,8 +1013,6 @@ export const orderService = {
       for (const recipe of itemRecipes) {
         const totalNeeded = Number(recipe.quantityNeeded) * item.quantity;
         if (lostIds.has(recipe.ingredientId)) {
-          // This ingredient is declared as loss — restore = total - lost_amount (which is total in auto, or user-specified)
-          // The loss amount is handled by _createLossRecords; restore only the non-lost portion
           const lossEntry = (itemLosses.find((e) => e.order_item_id === item.orderItemId))
             ?.ingredient_losses?.find((il) => il.ingredient_id === recipe.ingredientId);
           const lostQty = lossEntry ? Number(lossEntry.quantity_lost) : totalNeeded;
@@ -936,7 +1021,6 @@ export const orderService = {
             restoreNeeds.set(recipe.ingredientId, (restoreNeeds.get(recipe.ingredientId) || 0) + restoreQty);
           }
         } else {
-          // Not declared as loss — restore all
           restoreNeeds.set(recipe.ingredientId, (restoreNeeds.get(recipe.ingredientId) || 0) + totalNeeded);
         }
       }
@@ -949,6 +1033,32 @@ export const orderService = {
         restoreNeeds.set(deduction.ingredientId, 0);
       }
     }
+
+    // Create stock adjustment records for audit trail (partial restore)
+    if (userId) {
+      const restoreIngredientIds = [...restoreNeeds.keys()].filter(id => restoreNeeds.get(id) > 0);
+      if (restoreIngredientIds.length > 0) {
+        const stockMap = await orderRepository.getIngredientsTotalStocks(restoreIngredientIds, tx);
+        const adjustments = [];
+        for (const ingredientId of restoreIngredientIds) {
+          const totalRestored = restoreNeeds.get(ingredientId);
+          const currentStock = stockMap.get(ingredientId) || 0;
+          adjustments.push({
+            ingredientId,
+            adjustedById: userId,
+            adjustmentType: "manual",
+            quantityBefore: currentStock - totalRestored,
+            quantityChanged: totalRestored,
+            quantityAfter: currentStock,
+            relatedOrderId: orderId,
+            notes: "Order cancelled — partial restore (with loss)",
+          });
+        }
+        if (adjustments.length > 0) {
+          await tx.stockAdjustment.createMany({ data: adjustments });
+        }
+      }
+    }
   },
 
   /* ── Single-Item Restore/Loss Helpers ── */
@@ -956,7 +1066,7 @@ export const orderService = {
   /**
    * Restore ingredients for a single item proportionally from deductions.
    */
-  async _restoreIngredientsForSingleItem(orderItem, itemRecipes, allDeductions, tx) {
+  async _restoreIngredientsForSingleItem(orderItem, itemRecipes, allDeductions, tx, orderId, userId) {
     // Calculate what this item needs per ingredient
     const needs = new Map();
     for (const recipe of itemRecipes) {
@@ -978,6 +1088,31 @@ export const orderService = {
       if (restoreQty > 0) {
         await orderRepository.restoreBatch(deduction.restockBatchId, restoreQty, tx);
         restoreTracker.set(deduction.ingredientId, remaining - restoreQty);
+      }
+    }
+
+    // Create stock adjustment records for audit trail
+    if (userId && orderId) {
+      const ingredientIds = [...needs.keys()];
+      if (ingredientIds.length > 0) {
+        const stockMap = await orderRepository.getIngredientsTotalStocks(ingredientIds, tx);
+        const adjustments = [];
+        for (const [ingredientId, totalNeeded] of needs) {
+          const currentStock = stockMap.get(ingredientId) || 0;
+          adjustments.push({
+            ingredientId,
+            adjustedById: userId,
+            adjustmentType: "manual",
+            quantityBefore: currentStock - totalNeeded,
+            quantityChanged: totalNeeded,
+            quantityAfter: currentStock,
+            relatedOrderId: orderId,
+            notes: "Item removed — stock restored",
+          });
+        }
+        if (adjustments.length > 0) {
+          await tx.stockAdjustment.createMany({ data: adjustments });
+        }
       }
     }
   },
@@ -1025,7 +1160,7 @@ export const orderService = {
   /**
    * Restore non-lost portion of a single checked item's ingredients.
    */
-  async _restorePartialForSingleItem(orderItem, itemRecipes, ingredientLosses, allDeductions, tx) {
+  async _restorePartialForSingleItem(orderItem, itemRecipes, ingredientLosses, allDeductions, tx, orderId, userId) {
     const lossMap = new Map();
     for (const entry of ingredientLosses) {
       lossMap.set(entry.ingredient_id, entry.quantity_lost);
@@ -1041,7 +1176,6 @@ export const orderService = {
           restoreNeeds.set(recipe.ingredientId, (restoreNeeds.get(recipe.ingredientId) || 0) + restoreQty);
         }
       } else {
-        // Not declared as loss — restore all
         restoreNeeds.set(recipe.ingredientId, (restoreNeeds.get(recipe.ingredientId) || 0) + totalNeeded);
       }
     }
@@ -1055,6 +1189,32 @@ export const orderService = {
       if (restoreQty > 0) {
         await orderRepository.restoreBatch(deduction.restockBatchId, restoreQty, tx);
         restoreTracker.set(deduction.ingredientId, remaining - restoreQty);
+      }
+    }
+
+    // Create stock adjustment records for audit trail (partial restore)
+    if (userId && orderId) {
+      const restoreIngredientIds = [...restoreNeeds.keys()].filter(id => restoreNeeds.get(id) > 0);
+      if (restoreIngredientIds.length > 0) {
+        const stockMap = await orderRepository.getIngredientsTotalStocks(restoreIngredientIds, tx);
+        const adjustments = [];
+        for (const ingredientId of restoreIngredientIds) {
+          const totalRestored = restoreNeeds.get(ingredientId);
+          const currentStock = stockMap.get(ingredientId) || 0;
+          adjustments.push({
+            ingredientId,
+            adjustedById: userId,
+            adjustmentType: "manual",
+            quantityBefore: currentStock - totalRestored,
+            quantityChanged: totalRestored,
+            quantityAfter: currentStock,
+            relatedOrderId: orderId,
+            notes: "Item removed — partial restore (with loss)",
+          });
+        }
+        if (adjustments.length > 0) {
+          await tx.stockAdjustment.createMany({ data: adjustments });
+        }
       }
     }
   },
@@ -1126,12 +1286,15 @@ export const orderService = {
     }
 
     // Batch recipe lookup (1 query instead of N per-item queries)
-    const needs = await this._aggregateIngredientNeeds(
+    const ingredientNeeds = await this._aggregateIngredientNeeds(
       order.items.map((item) => ({ variant_id: item.variantId, quantity: item.quantity }))
     );
 
+    let transactionNeeds;
+
     await prisma.$transaction(async (tx) => {
-      await this._deductIngredients(id, needs, tx);
+      const { needs } = await this._deductIngredients(id, ingredientNeeds, tx, meta.userId);
+      transactionNeeds = needs;
       await orderRepository.updateStatus(id, "accepted", {
         userId: meta.userId,
         amountPaid: meta.amountPaid,
@@ -1139,8 +1302,9 @@ export const orderService = {
       }, tx);
     });
 
-    const affectedIngredientIds = [...needs.keys()];
+    const affectedIngredientIds = [...ingredientNeeds.keys()];
     productService.recomputeVariantAvailability(affectedIngredientIds).catch(() => {});
+    this._checkStockLevels(transactionNeeds).catch(() => {});
 
     return this.getById(id);
   },

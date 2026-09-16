@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SearchBar } from "@/components/filters/SearchBar";
@@ -30,34 +30,34 @@ export default function MarketBasketPage() {
   const isFailed = job?.status === "failed";
 
   // Compute stats
-  const avgConfidence = rules.length > 0
+  const avgConfidence = useMemo(() => rules.length > 0
     ? rules.reduce((sum, r) => sum + r.confidence, 0) / rules.length
-    : 0;
+    : 0, [rules]);
   const topPair = job?.top_pair || "—";
   const combosFound = job?.combos_found ?? 0;
 
   // Filter rules by search
-  const filteredRules = rules.filter((r) => {
+  const filteredRules = useMemo(() => rules.filter((r) => {
     if (!search) return true;
     const q = search.toLowerCase();
     const nameA = `${r.product_a} ${r.size_name_a || ""}`.toLowerCase();
     const nameB = `${r.product_b} ${r.size_name_b || ""}`.toLowerCase();
     return nameA.includes(q) || nameB.includes(q);
-  });
+  }), [rules, search]);
 
   // Paginate
   const totalPages = Math.ceil(filteredRules.length / pageSize);
-  const paginatedRules = filteredRules.slice((page - 1) * pageSize, page * pageSize);
+  const paginatedRules = useMemo(() => filteredRules.slice((page - 1) * pageSize, page * pageSize), [filteredRules, page, pageSize]);
 
-  function handleCreateCombo(combo) {
+  const handleCreateCombo = useCallback((combo) => {
     setSelectedCombo(combo);
     setShowComboModal(true);
-  }
+  }, []);
 
-  function handleSearchChange(value) {
+  const handleSearchChange = useCallback((value) => {
     setSearch(value);
     setPage(1);
-  }
+  }, []);
 
   const isLoading = jobLoading;
   const hasResults = rules.length > 0 && !isRunning;

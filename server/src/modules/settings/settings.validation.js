@@ -23,11 +23,8 @@ export const updateSettingsSchema = z.object({
   storePhone: z.string().max(20).optional(),
   storeEmail: z.string().email("Invalid email format").optional(),
   storeHours: storeHoursSchema.optional(),
-  taxRate: z.number().min(0, "Tax rate must be at least 0").max(100, "Tax rate must not exceed 100").optional(),
   comboDiscountPercent: z.number().min(0).max(100).optional(),
   minMarginPercent: z.number().min(0).max(100).optional(),
   storeIpWhitelist: z.string().max(500).optional(),
-  notifyLowStock: z.boolean().optional(),
-  notifyNewOrders: z.boolean().optional(),
   notifyDailyReport: z.boolean().optional(),
 });

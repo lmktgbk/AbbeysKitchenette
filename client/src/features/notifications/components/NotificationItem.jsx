@@ -8,6 +8,7 @@ const TYPE_ICONS = {
   stock_out: "trendingDown",
   stock_restocked: "checkCircle",
   system: "info",
+  anomaly: "alertTriangle",
 };
 
 const TYPE_COLORS = {
@@ -18,6 +19,7 @@ const TYPE_COLORS = {
   stock_out: "text-red-500",
   stock_restocked: "text-green-500",
   system: "text-muted-foreground",
+  anomaly: "text-amber-500",
 };
 
 function formatTimeAgo(dateStr) {

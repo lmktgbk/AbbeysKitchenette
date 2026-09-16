@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, memo } from "react";
 import { cn } from "@/lib/utils";
 import Icon from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,7 @@ const TREND_CONFIG = {
  * DemandTable — variant-level demand forecast table with pagination.
  * Accepts selectedVariant prop from parent. When set, filters to that variant only.
  */
-export default function DemandTable({ results, skipped = [], previousResults, viewPeriod = 7, selectedVariant }) {
+function DemandTable({ results, skipped = [], previousResults, viewPeriod = 7, selectedVariant }) {
   const [search, setSearch] = useState("");
   const [selectedDate, setSelectedDate] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -274,3 +274,5 @@ export default function DemandTable({ results, skipped = [], previousResults, vi
     </div>
   );
 }
+
+export default memo(DemandTable);

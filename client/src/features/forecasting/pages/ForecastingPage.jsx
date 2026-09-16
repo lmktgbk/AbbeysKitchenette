@@ -113,7 +113,7 @@ export default function ForecastingPage() {
   const { data: comparisonData } = useDemandResults(comparisonJobId);
   const previousResults = comparisonData?.data?.forecasted || [];
 
-  const formatJobLabel = (jobId) => {
+  const formatJobLabel = useCallback((jobId) => {
     const j = jobs.find((job) => job.id === jobId);
     if (!j) return "";
     const label = j === jobs[0] ? "Current" : "Previous";
@@ -121,7 +121,7 @@ export default function ForecastingPage() {
       ? new Date(j.completed_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })
       : "";
     return `${label} (${date})`;
-  };
+  }, [jobs]);
 
   const activeJobLabel = formatJobLabel(activeJobId);
   const comparisonJobLabel = comparisonJobId ? formatJobLabel(comparisonJobId) : null;
@@ -161,7 +161,7 @@ export default function ForecastingPage() {
           <Icon name="barChart2" size={48} className="mx-auto text-muted-foreground/30" />
           <h2 className="mt-4 text-base font-semibold text-foreground">Demand Forecasting</h2>
           <p className="mt-1 text-sm text-muted-foreground max-w-md mx-auto">
-            Predict unit demand per product variant for the next 14 days using historical sales data.
+            Predict unit demand per product variant for the next 7 days using historical sales data.
           </p>
           <div className="mt-4 flex items-center justify-center gap-6 text-xs text-muted-foreground">
             <div className="flex items-center gap-1.5">

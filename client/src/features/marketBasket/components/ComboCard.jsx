@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, memo } from "react";
 import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
 
@@ -12,7 +12,7 @@ import Icon from "@/components/ui/icon";
  * - rule: { id, product_a, product_b, size_name_a, size_name_b, support, confidence, lift, explanation, pricing }
  * - onCreateCombo: (rule) => void
  */
-export default function ComboCard({ rule, onCreateCombo }) {
+function ComboCard({ rule, onCreateCombo }) {
   const [expanded, setExpanded] = useState(false);
   const [isClamped, setIsClamped] = useState(false);
   const textRef = useRef(null);
@@ -141,3 +141,5 @@ export default function ComboCard({ rule, onCreateCombo }) {
     </div>
   );
 }
+
+export default memo(ComboCard);

@@ -320,10 +320,18 @@ export const dashboardRepository = {
       variant_costs AS (
         SELECT
           r.variant_id,
-          SUM(r.quantity_needed * rb.cost_per_unit)::float AS total_cost
+          SUM(r.quantity_needed * ac.avg_cost_per_unit)::float AS total_cost
         FROM recipes r
-        JOIN restock_batches rb ON rb.ingredient_id = r.ingredient_id
-          AND rb.quantity_left > 0
+        LEFT JOIN (
+          SELECT
+            ingredient_id,
+            CASE WHEN SUM(quantity_added) > 0
+              THEN SUM(quantity_added * cost_per_unit) / SUM(quantity_added)
+              ELSE 0
+            END AS avg_cost_per_unit
+          FROM restock_batches
+          GROUP BY ingredient_id
+        ) ac ON ac.ingredient_id = r.ingredient_id
         GROUP BY r.variant_id
       )
       SELECT
@@ -616,7 +624,7 @@ export const dashboardRepository = {
    * Cost of Goods Sold for a period — sum of restock costs consumed.
    */
   async getCOGS(dateFrom, dateTo) {
-    const clauses = ["o.status = 'completed'"];
+    const clauses = ["o.status = 'completed'", "oi.removed_at IS NULL"];
     const values = [];
     let idx = 1;
 
@@ -631,23 +639,23 @@ export const dashboardRepository = {
 
     const where = `WHERE ${clauses.join(" AND ")}`;
     const result = await prisma.$queryRawUnsafe(`
-      WITH order_costs AS (
+      WITH avg_costs AS (
         SELECT
-          oi.order_id,
-          oi.variant_id,
-          oi.quantity AS units_sold,
-          COALESCE(SUM(r.quantity_needed * rb.cost_per_unit), 0) AS cost_per_unit
-        FROM order_items oi
-        JOIN orders o ON o.order_id = oi.order_id
-        AND oi.removed_at IS NULL
-        LEFT JOIN recipes r ON r.variant_id = oi.variant_id
-        LEFT JOIN restock_batches rb ON rb.ingredient_id = r.ingredient_id AND rb.quantity_left > 0
-        ${where}
-        GROUP BY oi.order_id, oi.variant_id, oi.quantity
+          ingredient_id,
+          CASE WHEN SUM(quantity_added) > 0
+            THEN SUM(quantity_added * cost_per_unit) / SUM(quantity_added)
+            ELSE 0
+          END AS avg_cost_per_unit
+        FROM restock_batches
+        GROUP BY ingredient_id
       )
       SELECT
-        COALESCE(SUM(units_sold * cost_per_unit), 0)::float AS cogs
-      FROM order_costs
+        COALESCE(SUM(oi.quantity * r.quantity_needed * ac.avg_cost_per_unit), 0)::float AS cogs
+      FROM order_items oi
+      JOIN orders o ON o.order_id = oi.order_id
+      LEFT JOIN recipes r ON r.variant_id = oi.variant_id
+      LEFT JOIN avg_costs ac ON ac.ingredient_id = r.ingredient_id
+      ${where}
     `, ...values);
     return result[0]?.cogs || 0;
   },

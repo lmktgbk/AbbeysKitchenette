@@ -21,7 +21,7 @@ class MarkComboCreatedRequest(BaseModel):
 
 @router.post("/analyze")
 async def create_analysis_job(
-    min_support: float = Query(0.02, ge=0.01, le=1.0),
+    min_support: float = Query(0.005, ge=0.001, le=1.0),
     min_confidence: float = Query(0.3, ge=0.01, le=1.0),
     top_n: int = Query(20, ge=1, le=50),
 ):

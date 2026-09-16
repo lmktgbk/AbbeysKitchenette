@@ -50,7 +50,7 @@ export default function KitchenHeader({ refreshing }) {
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-background px-4">
       {/* Left — brand */}
       <div className="flex items-center gap-2">
-        <Icon name="coffee" size={20} className="text-primary" />
+        <img src="/favicon.png" alt="Abbey's Kitchenette" className="h-5 w-5 rounded" />
         <span className="font-serif text-lg font-semibold">Abbey's Kitchenette</span>
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg ml-2 bg-primary/5 border border-primary/10">
           <div className="w-1.5 h-1.5 rounded-full kds-pulse-dot bg-primary" />

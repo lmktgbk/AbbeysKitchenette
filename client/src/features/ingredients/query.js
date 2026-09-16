@@ -26,6 +26,7 @@ const ingredientKeys = {
   archived: (params) => ["ingredients", "archived", params],
   summary: ["ingredients", "summary"],
   alerts: ["ingredients", "alerts"],
+  stockValue: ["ingredients", "stockValue"],
   batches: (id) => ["ingredients", "batches", id],
   history: (id, params) => ["ingredients", "history", id, params],
   reorderSuggestions: ["reorderSuggestions"],
@@ -94,6 +95,17 @@ export function useIngredientAlerts() {
   return useQuery({
     queryKey: ingredientKeys.alerts,
     queryFn: api.getActiveAlertsRequest,
+  });
+}
+
+/**
+ * useStockValue — total monetary value of current inventory.
+ * No params needed — returns { totalValue, ingredientCount }.
+ */
+export function useStockValue() {
+  return useQuery({
+    queryKey: ingredientKeys.stockValue,
+    queryFn: api.getStockValueRequest,
   });
 }
 

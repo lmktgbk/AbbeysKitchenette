@@ -9,9 +9,13 @@ import Icon from "@/components/ui/icon";
  * Mobile: CSS-animated slide-down hamburger menu.
  * Desktop: inline "Order Online" CTA button.
  */
-export default function Navbar() {
+export default function Navbar({ storeName = "Abbey's Kitchenette" }) {
     const [scrolled, setScrolled]     = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
+
+    const displayName = storeName || "Abbey's Kitchenette";
+    const firstName = displayName.split(" ")[0] || "Abbey's";
+    const restOfName = displayName.slice(firstName.length).trim() || "Kitchenette";
 
     useEffect(() => {
         const onScroll = () => setScrolled(window.scrollY > 50);
@@ -57,11 +61,11 @@ export default function Navbar() {
                     href="#home"
                     className="flex items-center gap-2.5 text-decoration-none"
                     onClick={(e) => handleNavClick(e, "#home")}
-                    aria-label="Abbey's Kitchenette — back to top"
+                    aria-label={`${displayName} — back to top`}
                 >
                     <img
                         src="/favicon.png"
-                        alt="Abbey's Kitchenette"
+                        alt={displayName}
                         className="h-9 w-9 rounded-full"
                         style={{ objectFit: "cover" }}
                     />
@@ -78,8 +82,8 @@ export default function Navbar() {
                             alignItems: "center",
                         }}
                     >
-                        <span className="navbar-brand-cursive">Abbey's</span>
-                        <span>Kitchenette</span>
+                        <span className="navbar-brand-cursive">{firstName}</span>
+                        <span>{restOfName}</span>
                     </span>
                 </a>
 

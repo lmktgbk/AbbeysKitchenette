@@ -10,15 +10,15 @@ FORECASTER_URL = os.getenv("FORECASTER_URL", "http://localhost:5000")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
 
-# Prophet defaults — tunable as data grows
+# Prophet config — tuned for 2 years of daily sales data
 PROPHET_CONFIG = {
-    "changepoint_prior_scale": 0.05,
+    "changepoint_prior_scale": 0.1,
     "seasonality_mode": "additive",
     "seasonality_prior_scale": 10.0,
     "weekly_seasonality": True,
-    "yearly_seasonality": False,
+    "yearly_seasonality": True,
     "changepoint_range": 0.8,
-    "interval_width": 0.80,
+    "interval_width": 0.90,
 }
 
 # Restock config

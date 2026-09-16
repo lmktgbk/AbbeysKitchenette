@@ -13,6 +13,7 @@ from forecasting.services.data_loader import (
 
 MIN_DATA_DAYS = 7
 KEEP_JOBS = 2
+MAX_PAD_DAYS = 30
 
 
 # ── Job management ────────────────────────────────────────────
@@ -143,7 +144,7 @@ def compute_trend(pred_df) -> str:
     return "stable"
 
 
-FORECAST_PERIOD = 14
+FORECAST_PERIOD = 7
 
 
 # ── Main pipeline ─────────────────────────────────────────────
@@ -189,6 +190,15 @@ async def run_demand_forecast(job_id: int | None = None) -> dict:
                     await update_job_progress(job_id, completed_count, failed_count)
                     continue
 
+                if daily["units"].sum() == 0:
+                    reason = "No actual sales in training data"
+                    await save_skipped(job_id, variant_id, product_name, size_name,
+                                       price, category_id, days_of_data, reason)
+                    failed_count += 1
+                    failed_skips.append(f"{product_name} {size_name}: {reason}")
+                    await update_job_progress(job_id, completed_count, failed_count)
+                    continue
+
                 m = Prophet(
                     changepoint_prior_scale=PROPHET_CONFIG["changepoint_prior_scale"],
                     seasonality_mode=PROPHET_CONFIG["seasonality_mode"],
@@ -202,11 +212,15 @@ async def run_demand_forecast(job_id: int | None = None) -> dict:
                 train = daily[["ds", "units"]].rename(columns={"units": "y"})
 
                 # Pad training data to today so forecast starts from today,
-                # not from the last order date.
+                # not from the last order date. Cap gap to MAX_PAD_DAYS.
                 today = pd.Timestamp(date.today())
                 last_data_date = train["ds"].max()
                 if last_data_date < today:
                     gap_days = (today - last_data_date).days
+                    if gap_days > MAX_PAD_DAYS:
+                        cutoff = last_data_date - timedelta(days=MAX_PAD_DAYS)
+                        train = train[train["ds"] >= cutoff]
+                        gap_days = MAX_PAD_DAYS
                     pad = pd.DataFrame({
                         "ds": pd.date_range(last_data_date + timedelta(days=1), today),
                         "y": [0] * gap_days,

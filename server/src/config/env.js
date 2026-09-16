@@ -46,4 +46,7 @@ export const env = {
   // Gemini AI
   GEMINI_API_KEY: process.env.GEMINI_API_KEY,
   GEMINI_MODEL: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+
+  // Anomaly Detection
+  ANOMALY_CRON_SCHEDULE: process.env.ANOMALY_CRON_SCHEDULE || "0 6 * * *",
 };

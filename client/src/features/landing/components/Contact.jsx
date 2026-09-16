@@ -7,7 +7,24 @@ import Icon from "@/components/ui/icon";
  * Form is frontend-only — shows success state on submit.
  * Uses .lp-reveal for scroll-driven animations.
  */
-export default function Contact() {
+function formatStoreHours(hours) {
+  if (!hours) return "Hours not set";
+  const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+  const enabled = days.filter((d) => hours[d]?.enabled);
+  if (enabled.length === 0) return "Currently closed";
+  const open = hours[enabled[0]]?.open || "08:00";
+  const close = hours[enabled[0]]?.close || "20:00";
+  const fmt = (t) => {
+    const [h, m] = t.split(":");
+    const hr = parseInt(h);
+    if (hr === 0) return `12:${m} AM`;
+    if (hr === 12) return `12:${m} PM`;
+    return hr > 12 ? `${hr - 12}:${m} PM` : `${hr}:${m} AM`;
+  };
+  return `Mon – Sun: ${fmt(open)} – ${fmt(close)}`;
+}
+
+export default function Contact({ settings = {} }) {
     const [sent, setSent] = useState(false);
     const [form, setForm] = useState({ name: "", email: "", message: "" });
 
@@ -15,17 +32,22 @@ export default function Contact() {
         {
             icon: "mapPin",
             label: "Address",
-            value: "Robledo Compound, Bulacnin, Lipa City",
+            value: settings.storeAddress || "Robledo Compound, Bulacnin, Lipa City",
         },
         {
             icon: "phone",
             label: "Phone",
-            value: "0929 781 1212",
+            value: settings.storePhone || "0929 781 1212",
         },
         {
             icon: "mail",
             label: "Email",
-            value: "maryrosemendoza78@yahoo.com",
+            value: settings.storeEmail || "maryrosemendoza78@yahoo.com",
+        },
+        {
+            icon: "clock",
+            label: "Hours",
+            value: formatStoreHours(settings.storeHours),
         },
     ];
 

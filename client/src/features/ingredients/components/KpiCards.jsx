@@ -1,4 +1,4 @@
-import { useIngredientSummary } from "../query";
+import { useIngredientSummary, useStockValue } from "../query";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  */
 export default function KpiCards() {
   const { data: summaryData, isLoading } = useIngredientSummary();
+  const { data: stockValueData, isLoading: stockValueLoading } = useStockValue();
 
   const summary = summaryData?.data?.summary ?? {
     total: 0,
@@ -16,6 +17,8 @@ export default function KpiCards() {
     low: 0,
     out: 0,
   };
+
+  const totalValue = stockValueData?.data?.totalValue ?? 0;
 
   if (isLoading) {
     return (
@@ -39,7 +42,11 @@ export default function KpiCards() {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       <StatCard label="Total Items" value={summary.total} />
-      <StatCard label="Total Value" value="0" prefix="₱" />
+      <StatCard
+        label="Total Value"
+        value={stockValueLoading ? <Skeleton className="h-5 w-16" /> : totalValue}
+        prefix="₱"
+      />
       <RingCard
         label="Healthy"
         count={summary.healthy}

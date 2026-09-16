@@ -2,7 +2,7 @@ import json
 import pandas as pd
 from google import genai
 from mlxtend.frequent_patterns import fpgrowth, association_rules
-from mba.services.data_loader import load_order_baskets, load_product_details, load_combo_discount
+from mba.services.data_loader import load_order_baskets, load_product_details, load_combo_discount, load_margin_target
 from database import get_pool
 from config import GEMINI_API_KEY, GEMINI_MODEL
 
@@ -25,7 +25,7 @@ def _build_baskets(df: pd.DataFrame) -> pd.DataFrame:
         .set_index("order_id")
     )
 
-    basket = basket.map(lambda x: 1 if x > 0 else 0)
+    basket = basket.astype(bool)
     return basket
 
 
@@ -96,7 +96,7 @@ async def _get_variant_details(variant_label: str, product_details: pd.DataFrame
             "ingredient_name": row["ingredient_name"],
             "unit": row["unit"],
             "quantity_needed": float(row["quantity_needed"]),
-            "cost_per_unit": float(row["cost_per_unit"]),
+            "cost_per_unit": round(float(row["cost_per_unit"]), 2),
             "line_cost": round(float(row["quantity_needed"]) * float(row["cost_per_unit"]), 2),
         })
 
@@ -148,12 +148,10 @@ def _merge_recipes(details_a: dict, details_b: dict) -> list[dict]:
     return result
 
 
-def _compute_combo_price(merged_ingredients: list[dict], price_a: float, price_b: float, discount_percent: float = 15) -> dict:
+def _compute_combo_price(merged_ingredients: list[dict], price_a: float, price_b: float, discount_percent: float = 15, margin_target: float = 0.30) -> dict:
     """Compute suggested combo price based on margin floor and bundle discount off TOTAL price."""
     total_cogs = sum(ing["line_cost"] for ing in merged_ingredients)
 
-    # Margin floor (30% margin)
-    margin_target = 0.30
     min_price = round(total_cogs / (1 - margin_target), 2) if total_cogs > 0 else 0
 
     # Bundle discount off TOTAL price (not average)
@@ -248,13 +246,14 @@ async def mark_job_failed(job_id: int, error: str) -> None:
 
 
 async def run_market_basket_analysis(
-    min_support: float = 0.02,
+    min_support: float = 0.005,
     min_confidence: float = 0.3,
     top_n: int = 20,
 ) -> dict:
     """Run the full MBA pipeline: load data → FP-Growth → rules → explanations → pricing."""
-    # Load combo discount from settings
+    # Load config from settings
     discount_percent = await load_combo_discount()
+    margin_target = await load_margin_target()
 
     # Step 1: Load order baskets (variant level)
     baskets_df = await load_order_baskets()
@@ -262,6 +261,13 @@ async def run_market_basket_analysis(
         return {
             "rules": [],
             "stats": {"total_orders": 0, "products_analyzed": 0, "combos_found": 0},
+        }
+
+    unique_orders = baskets_df["order_id"].nunique()
+    if unique_orders < 50:
+        return {
+            "rules": [],
+            "stats": {"total_orders": unique_orders, "products_analyzed": 0, "combos_found": 0},
         }
 
     # Step 2: Build basket matrix
@@ -308,7 +314,7 @@ async def run_market_basket_analysis(
         merged_ingredients = _merge_recipes(details_a, details_b)
         price_a = details_a.get("price", 0)
         price_b = details_b.get("price", 0)
-        pricing = _compute_combo_price(merged_ingredients, price_a, price_b, discount_percent)
+        pricing = _compute_combo_price(merged_ingredients, price_a, price_b, discount_percent, margin_target)
 
         # Gemini explanation for top 5, fallback for rest
         if idx < 5:

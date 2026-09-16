@@ -802,7 +802,7 @@ export const orderRepository = {
     }
 
     if (staffId) {
-      clauses.push(`(o.created_by = $${idx} OR o.completed_by = $${idx} OR EXISTS (SELECT 1 FROM order_items oi WHERE oi.order_id = o.order_id AND oi.prepared_by = $${idx}))`);
+      clauses.push(`(o.created_by = $${idx} OR o.completed_by = $${idx} OR EXISTS (SELECT 1 FROM order_items oi WHERE oi.order_id = o.order_id AND oi.prepared_by = $${idx})) AND o.status != 'cancelled'`);
       values.push(staffId);
       idx++;
     }
@@ -828,5 +828,57 @@ export const orderRepository = {
     const col = columnMap[sortBy] || "o.created_at";
     const dir = sortDir === "asc" ? "ASC" : "DESC";
     return `${col} ${dir}`;
+  },
+
+  /* ── Stock Adjustments (audit trail) ── */
+
+  /**
+   * Create a StockAdjustment record for order-driven deductions or restorations.
+   * @param {object} data - adjustment fields
+   * @param {object} [tx] - optional Prisma transaction client
+   */
+  async createAdjustment(data, tx) {
+    const client = tx || prisma;
+    return client.stockAdjustment.create({ data });
+  },
+
+  /**
+   * Get total remaining stock for an ingredient across all active batches.
+   * @param {string} ingredientId - ingredient UUID
+   * @param {object} [tx] - optional transaction client
+   * @returns {number} - total stock quantity
+   */
+  async getIngredientTotalStock(ingredientId, tx) {
+    const client = tx || prisma;
+    const result = await client.restockBatch.aggregate({
+      where: { ingredientId, quantityLeft: { gt: 0 } },
+      _sum: { quantityLeft: true },
+    });
+    return Number(result._sum.quantityLeft || 0);
+  },
+
+  /**
+   * Get total remaining stock for multiple ingredients in one query.
+   * @param {string[]} ingredientIds - array of ingredient UUIDs
+   * @param {object} [tx] - optional transaction client
+   * @returns {Map<string, number>} - ingredientId -> total stock
+   */
+  async getIngredientsTotalStocks(ingredientIds, tx) {
+    if (ingredientIds.length === 0) return new Map();
+    const client = tx || prisma;
+    const results = await client.restockBatch.groupBy({
+      by: ['ingredientId'],
+      where: { ingredientId: { in: ingredientIds }, quantityLeft: { gt: 0 } },
+      _sum: { quantityLeft: true },
+    });
+    const stockMap = new Map();
+    for (const r of results) {
+      stockMap.set(r.ingredientId, Number(r._sum.quantityLeft || 0));
+    }
+    // Ensure all requested IDs are in the map (0 for missing)
+    for (const id of ingredientIds) {
+      if (!stockMap.has(id)) stockMap.set(id, 0);
+    }
+    return stockMap;
   },
 };

@@ -25,6 +25,7 @@ const NAV_GROUPS = [
             { icon: "users", label: "Staff", href: "/staff" },
             { icon: "trendingUp", label: "Forecasting", href: "/forecasting" },
             { icon: "shoppingBag", label: "Market Basket", href: "/market-basket" },
+            { icon: "alertTriangle", label: "Anomalies", href: "/anomalies" },
         ],
     },
     {
@@ -49,7 +50,7 @@ export default function Sidebar({ expanded = false }) {
             }`}
         >
             <div className="flex h-14 items-center gap-2 border-b px-4">
-                <Icon name="chefHat" size={24} className="shrink-0 text-primary" />
+                <img src="/favicon.png" alt="Abbey's Kitchenette" className="h-6 w-6 shrink-0 rounded" />
                 {isExpanded && (
                     <span className="truncate text-sm font-semibold animate-in fade-in duration-150">
                         Abbey's Kitchenette

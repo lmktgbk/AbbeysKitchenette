@@ -82,7 +82,7 @@ export default function PosTerminal() {
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
         {/* Left — brand */}
         <div className="flex items-center gap-2">
-          <Icon name="coffee" size={20} className="text-primary" />
+          <img src="/favicon.png" alt="Abbey's Kitchenette" className="h-5 w-5 rounded" />
           <span className="font-serif text-lg font-semibold">SmartCafe</span>
         </div>
 

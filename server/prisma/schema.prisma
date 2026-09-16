@@ -662,3 +662,26 @@ model Notification {
   @@index([createdAt])
   @@map("notifications")
 }
+
+// ── Anomaly Detection ─────────────────────────────────
+model AnomalyResult {
+  id            String   @id @default(uuid()) @db.Uuid
+  ruleId        String   @map("rule_id") @db.VarChar(50)
+  category      String   @db.VarChar(50)
+  severity      String   @db.VarChar(20)
+  title         String   @db.VarChar(200)
+  description   String   @db.VarChar(500)
+  actualValue   Decimal  @map("actual_value") @db.Decimal(12,2)
+  expectedValue Decimal  @map("expected_value") @db.Decimal(12,2)
+  expectedMin   Decimal  @map("expected_min") @db.Decimal(12,2)
+  expectedMax   Decimal  @map("expected_max") @db.Decimal(12,2)
+  confidence    Decimal  @db.Decimal(5,4)
+  geminiInsight String?  @map("gemini_insight") @db.Text
+  isAcknowledged Boolean @default(false) @map("is_acknowledged")
+  detectedAt    DateTime @default(now()) @map("detected_at") @db.Timestamptz
+
+  @@index([ruleId])
+  @@index([severity])
+  @@index([detectedAt])
+  @@map("anomaly_results")
+}

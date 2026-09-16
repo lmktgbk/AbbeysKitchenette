@@ -33,6 +33,12 @@ export async function getActiveAlertsRequest() {
   return res.data;
 }
 
+// GET /api/ingredients/stock-value — total inventory value
+export async function getStockValueRequest() {
+  const res = await api.get("/ingredients/stock-value");
+  return res.data;
+}
+
 // ── Create & Update ─────────────────
 
 // POST /api/ingredients — create ingredient

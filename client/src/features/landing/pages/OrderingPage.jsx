@@ -3,7 +3,28 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import "../ordering.css";
 import { useGuestMenu, useGuestOrderMutations } from "@/features/orders/query";
+import { useStoreSettings } from "@/features/landing/query";
 import Icon from "@/components/ui/icon";
+
+function isStoreOpenClient(storeHours) {
+    if (!storeHours) return { isOpen: true, opensAt: null, closesAt: null };
+    const now = new Date();
+    const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+    const today = dayNames[now.getDay()];
+    const todayHours = storeHours[today];
+    if (!todayHours || !todayHours.enabled) {
+        return { isOpen: false, opensAt: null, closesAt: null };
+    }
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const [openH, openM] = (todayHours.open || "08:00").split(":").map(Number);
+    const [closeH, closeM] = (todayHours.close || "20:00").split(":").map(Number);
+    const openMinutes = openH * 60 + openM;
+    const closeMinutes = closeH * 60 + closeM;
+    if (currentMinutes < openMinutes || currentMinutes >= closeMinutes) {
+        return { isOpen: false, opensAt: todayHours.open, closesAt: todayHours.close };
+    }
+    return { isOpen: true, opensAt: todayHours.open, closesAt: todayHours.close };
+}
 
 /**
  * OrderingPage
@@ -31,6 +52,26 @@ export default function OrderingPage() {
    ORDERING UI (main layout)
 ───────────────────────────────────────────────────────────── */
 function OrderingUI({ onOrderSuccess }) {
+    // ── Store hours ─────────────────────────────
+    const { data: settingsData } = useStoreSettings();
+    const storeHours = settingsData?.data?.storeHours;
+    const { isOpen: storeIsOpen, opensAt, closesAt } = isStoreOpenClient(storeHours);
+
+    const storeClosedMessage = useMemo(() => {
+        if (storeIsOpen) return null;
+        if (opensAt && closesAt) {
+            const fmt = (t) => {
+                const [h, m] = t.split(":");
+                const hr = parseInt(h);
+                if (hr === 0) return `12:${m} AM`;
+                if (hr === 12) return `12:${m} PM`;
+                return hr > 12 ? `${hr - 12}:${m} PM` : `${hr}:${m} AM`;
+            };
+            return `We're currently closed. Store opens at ${fmt(opensAt)}.`;
+        }
+        return "We're currently closed. Please try again during store hours.";
+    }, [storeIsOpen, opensAt, closesAt]);
+
     // ── Menu data ────────────────────────────────
     const [search, setSearch] = useState("");
     const [activeCategory, setActiveCategory] = useState("all");
@@ -120,6 +161,26 @@ function OrderingUI({ onOrderSuccess }) {
                 </p>
             </div>
 
+            {/* Store closed banner */}
+            {!storeIsOpen && (
+                <div className="ord-closed-banner" style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.75rem",
+                    padding: "1rem 1.5rem",
+                    margin: "0 1.5rem",
+                    background: "linear-gradient(135deg, #fef3cd, #fde68a)",
+                    border: "1.5px solid #f59e0b",
+                    borderRadius: "0.75rem",
+                    color: "#92400e",
+                    fontSize: "0.9375rem",
+                    fontWeight: 500,
+                }}>
+                    <Icon name="clock" size={20} style={{ color: "#d97706", flexShrink: 0 }} />
+                    <span>{storeClosedMessage}</span>
+                </div>
+            )}
+
             {/* Main layout */}
             <div className="ord-layout">
                 {/* Left: Menu panel */}
@@ -194,6 +255,7 @@ function OrderingUI({ onOrderSuccess }) {
                         onUpdateQty={updateQty}
                         onRemove={removeItem}
                         onCheckout={() => setShowCheckout(true)}
+                        storeIsOpen={storeIsOpen}
                     />
                 </aside>
             </div>
@@ -309,7 +371,7 @@ function ProductCard({ product, cart, onAddToCart, onOpenVariantModal }) {
 /* ─────────────────────────────────────────────────────────────
    CART PANEL (shared by sidebar + drawer)
 ───────────────────────────────────────────────────────────── */
-function CartPanel({ cart, subtotal, onUpdateQty, onRemove, onCheckout }) {
+function CartPanel({ cart, subtotal, onUpdateQty, onRemove, onCheckout, storeIsOpen = true }) {
     const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
 
     return (
@@ -364,10 +426,11 @@ function CartPanel({ cart, subtotal, onUpdateQty, onRemove, onCheckout }) {
                 <button
                     className="ord-checkout-btn"
                     onClick={onCheckout}
-                    disabled={cart.length === 0}
+                    disabled={cart.length === 0 || !storeIsOpen}
+                    title={!storeIsOpen ? "Store is currently closed" : ""}
                 >
                     <Icon name="receipt" size={18} />
-                    Place Order
+                    {!storeIsOpen ? "Store Closed" : "Place Order"}
                 </button>
             </div>
         </>
@@ -535,6 +598,7 @@ function MobileDrawer({ cart, subtotal, onUpdateQty, onRemove, onClose, onChecko
 function CheckoutModal({ cart, subtotal, onClose, onSuccess }) {
     const [customerName, setCustomerName] = useState("");
     const [tableNumber, setTableNumber] = useState("");
+    const [privacyConsent, setPrivacyConsent] = useState(false);
     const [errors, setErrors] = useState({});
     const { placeOrder } = useGuestOrderMutations();
 
@@ -542,6 +606,7 @@ function CheckoutModal({ cart, subtotal, onClose, onSuccess }) {
         const errs = {};
         if (!customerName.trim()) errs.name = "Name is required";
         if (!tableNumber.trim()) errs.table = "Table / reference is required";
+        if (!privacyConsent) errs.consent = "You must agree to the Privacy Policy";
         setErrors(errs);
         return Object.keys(errs).length === 0;
     };
@@ -622,6 +687,29 @@ function CheckoutModal({ cart, subtotal, onClose, onSuccess }) {
                                 }}
                             />
                             {errors.table && <span className="ord-field-error">{errors.table}</span>}
+                        </div>
+
+                        {/* Privacy consent */}
+                        <div className="ord-field">
+                            <label className="ord-checkbox-label">
+                                <input
+                                    type="checkbox"
+                                    className="ord-checkbox"
+                                    checked={privacyConsent}
+                                    onChange={(e) => {
+                                        setPrivacyConsent(e.target.checked);
+                                        if (errors.consent) setErrors((p) => ({ ...p, consent: "" }));
+                                    }}
+                                />
+                                <span className="ord-checkbox-text">
+                                    I agree to the{" "}
+                                    <Link to="/privacy-policy" target="_blank" rel="noopener noreferrer" className="ord-privacy-link">
+                                        Privacy Policy
+                                    </Link>{" "}
+                                    and consent to the collection and processing of my personal data for order fulfillment.
+                                </span>
+                            </label>
+                            {errors.consent && <span className="ord-field-error">{errors.consent}</span>}
                         </div>
 
                         {/* Order summary */}

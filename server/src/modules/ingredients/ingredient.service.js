@@ -831,4 +831,8 @@ export const ingredientService = {
 
     return { ingredient_id: id };
   },
+
+  async getStockValue() {
+    return ingredientRepository.getStockValue();
+  },
 };

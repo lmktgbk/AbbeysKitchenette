@@ -54,6 +54,14 @@ router.get(
   ingredientController.getActiveAlerts,
 );
 
+// GET /api/ingredients/stock-value — total inventory value (must be before /:id)
+router.get(
+  "/stock-value",
+  authenticate,
+  authorize("admin"),
+  ingredientController.getStockValue,
+);
+
 // GET /api/ingredients/archived — archived list (must be before /:id)
 router.get(
   "/archived",

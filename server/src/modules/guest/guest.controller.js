@@ -1,6 +1,8 @@
 import { guestService } from "./guest.service.js";
 import { successResponse, errorResponse } from "../../utils/response.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
+import { settingsRepository } from "../settings/settings.repository.js";
+import { isStoreOpen } from "../../utils/storeHours.js";
 
 /**
  * Guest Controller
@@ -17,6 +19,25 @@ function handleError(res, error, fallbackCode) {
 }
 
 export const guestController = {
+  /**
+   * GET /api/guest/settings
+   * Public store settings for the landing page.
+   */
+  async getStoreSettings(req, res) {
+    try {
+      const settings = await settingsRepository.find();
+      return successResponse(res, "Store settings retrieved", {
+        storeName: settings?.storeName || "Abbey's Kitchenette",
+        storeAddress: settings?.storeAddress || "",
+        storePhone: settings?.storePhone || "",
+        storeEmail: settings?.storeEmail || "",
+        storeHours: settings?.storeHours || null,
+      });
+    } catch (error) {
+      return handleError(res, error, "GET_STORE_SETTINGS_ERROR");
+    }
+  },
+
   /**
    * GET /api/guest/menu
    * Available products for the customer menu.
@@ -37,6 +58,18 @@ export const guestController = {
    */
   async placeOrder(req, res) {
     try {
+      const settings = await settingsRepository.find();
+      const { isOpen } = isStoreOpen(settings?.storeHours);
+      if (!isOpen) {
+        return errorResponse(
+          res,
+          "Store is currently closed. Please try again during store hours.",
+          null,
+          403,
+          "STORE_CLOSED"
+        );
+      }
+
       const { customer_name, table_number, items } = req.body;
       const order = await guestService.placeOrder({
         customerName: customer_name,

@@ -1,0 +1,41 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import * as api from "./api";
+
+const anomalyKeys = {
+  all: ["anomalies"],
+  results: (params) => ["anomalies", "results", params],
+  active: (severity) => ["anomalies", "active", severity],
+  stats: ["anomalies", "stats"],
+};
+
+export function useAnomalyResults(params = {}) {
+  return useQuery({
+    queryKey: anomalyKeys.results(params),
+    queryFn: () => api.getAnomalyResults(params),
+  });
+}
+
+export function useActiveAnomalies(severity = "critical,high") {
+  return useQuery({
+    queryKey: anomalyKeys.active(severity),
+    queryFn: () => api.getActiveAnomalies(severity),
+    refetchInterval: 60000,
+  });
+}
+
+export function useAnomalyStats() {
+  return useQuery({
+    queryKey: anomalyKeys.stats,
+    queryFn: api.getAnomalyStats,
+  });
+}
+
+export function useAcknowledgeAnomaly() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.acknowledgeAnomaly,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: anomalyKeys.all });
+    },
+  });
+}

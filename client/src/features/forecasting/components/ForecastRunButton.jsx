@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { useRunDemandForecast, useDemandStatus } from "../query";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -10,7 +10,7 @@ const STORAGE_KEY = "forecastJobId";
  * Persists active job ID in localStorage so progress survives navigation.
  * Shows spinner immediately on click (optimistic UI).
  */
-export default function ForecastRunButton({ onJobComplete }) {
+function ForecastRunButton({ onJobComplete }) {
   const [activeJobId, setActiveJobId] = useState(() => {
     try { return localStorage.getItem(STORAGE_KEY) || null; }
     catch { return null; }
@@ -141,3 +141,5 @@ export default function ForecastRunButton({ onJobComplete }) {
     </div>
   );
 }
+
+export default memo(ForecastRunButton);

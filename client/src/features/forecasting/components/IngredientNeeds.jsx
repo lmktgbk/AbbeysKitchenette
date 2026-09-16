@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, memo } from "react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import Icon from "@/components/ui/icon";
@@ -15,7 +15,7 @@ const STATUS_CONFIG = {
  * IngredientNeeds — ingredient requirements summary with stock coverage and pagination.
  * Always shows aggregate across all forecasted variants.
  */
-export default function IngredientNeeds({ ingredients }) {
+function IngredientNeeds({ ingredients }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState("");
@@ -146,3 +146,5 @@ export default function IngredientNeeds({ ingredients }) {
     </div>
   );
 }
+
+export default memo(IngredientNeeds);

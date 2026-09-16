@@ -28,10 +28,12 @@ export default function CreateComboModal({ open, onOpenChange, combo }) {
   const createMutation = useCreateComboProduct();
   const { data: categoriesData } = useCategoryList();
   const categories = categoriesData?.data?.categories || [];
-  const categoryOptions = categories.map((c) => ({
-    value: String(c.category_id),
-    label: c.category_name,
-  }));
+  const categoryOptions = categories.flatMap((c) =>
+    (c.subcategories || []).map((s) => ({
+      value: String(s.subcategory_id),
+      label: s.subcategory_name,
+    }))
+  );
 
   const variantA = combo ? `${combo.product_a} ${combo.size_name_a || ""}`.trim() : "";
   const variantB = combo ? `${combo.product_b} ${combo.size_name_b || ""}`.trim() : "";
@@ -88,7 +90,7 @@ export default function CreateComboModal({ open, onOpenChange, combo }) {
   async function onSubmit(data) {
     const payload = {
       product_name: data.name.trim(),
-      category_id: Number(data.categoryId),
+      subcategory_id: Number(data.categoryId),
       description: data.description.trim(),
       variants: [
         {
@@ -228,7 +230,7 @@ export default function CreateComboModal({ open, onOpenChange, combo }) {
                       {ing.ingredient_name}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      ₱{ing.cost_per_unit}/{ing.unit}
+                      ₱{Number(ing.cost_per_unit).toFixed(2)}/{ing.unit}
                     </p>
                   </div>
                   <div className="flex items-center gap-1">

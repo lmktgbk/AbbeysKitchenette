@@ -15,6 +15,7 @@ import WasteSummaryCard from "../components/WasteSummaryCard";
 import MostRestockedTable from "../components/MostRestockedTable";
 import TableUtilizationChart from "../components/TableUtilizationChart";
 import StaffPerformanceChart from "../components/StaffPerformanceChart";
+import DashboardAnomalyBanner from "@/features/anomalyDetection/components/DashboardAnomalyBanner";
 
 function SectionDivider({ title }) {
   return (
@@ -61,6 +62,8 @@ export default function DashboardPage() {
         dateTo={dateTo}
         onDateChange={handleDateChange}
       />
+
+      <DashboardAnomalyBanner />
 
       <DashboardKpis kpis={d?.kpis} isLoading={isLoading} />
 

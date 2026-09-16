@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import "../landing.css";
+import { useStoreSettings } from "../query";
 import Navbar from "../components/Navbar";
 import Hero from "../components/Hero";
 import About from "../components/About";
@@ -12,20 +13,18 @@ import Footer from "../components/Footer";
 /**
  * LandingPage
  * Public-facing landing page for Abbey's Kitchenette restaurant.
- * Composes all sections: Navbar, Hero, About, Menu, Location,
- * Testimonials, Contact, Footer.
- *
- * Mounts an Intersection Observer that adds `.lp-visible` to any
- * `.lp-reveal` element when it enters the viewport (scroll-reveal).
+ * Fetches store settings and passes them as props to child components.
  */
 export default function LandingPage() {
+    const { data: settingsData } = useStoreSettings();
+    const settings = settingsData?.data || {};
+
     useEffect(() => {
         const observer = new IntersectionObserver(
             (entries) => {
                 entries.forEach((entry) => {
                     if (entry.isIntersecting) {
                         entry.target.classList.add("lp-visible");
-                        // Once revealed, stop observing (one-shot)
                         observer.unobserve(entry.target);
                     }
                 });
@@ -41,10 +40,10 @@ export default function LandingPage() {
 
     return (
         <div className="lp-root">
-            <Navbar />
-            <Hero />
+            <Navbar storeName={settings.storeName} />
+            <Hero storeName={settings.storeName} />
 
-            {/* Info bar — clean, typography-only, no emojis */}
+            {/* Info bar */}
             <div className="info-bar" aria-label="Restaurant highlights">
                 <div className="info-bar-track">
                     {[
@@ -56,7 +55,6 @@ export default function LandingPage() {
                         "Refreshing Drinks",
                         "Built with Love",
                         "Lipa City, Batangas",
-                        /* duplicate for seamless loop */
                         "Freshly Cooked Daily",
                         "Artisan Coffee",
                         "House-Made Pastries",
@@ -83,12 +81,12 @@ export default function LandingPage() {
                 <Testimonials />
             </div>
             <div className="location-section">
-                <Location />
+                <Location settings={settings} />
             </div>
             <div className="contact-section">
-                <Contact />
+                <Contact settings={settings} />
             </div>
-            <Footer />
+            <Footer settings={settings} />
         </div>
     );
 }

@@ -17,6 +17,7 @@
  *   /staff           → Staff (protected, admin layout)
  *   /forecasting     → Forecasting (protected, admin layout)
  *   /market-basket   → Market Basket (protected, admin layout)
+ *   /anomalies       → Anomalies (protected, admin layout)
  *   /audit-logs      → Audit Logs (protected, admin layout)
  *   /settings        → Settings (protected, admin layout)
  */
@@ -28,6 +29,8 @@ import AdminLayout from "@/layouts/AdminLayout";
 import BlankLayout from "@/layouts/BlankLayout";
 import LandingPage from "@/features/landing/pages/LandingPage";
 import OrderingPage from "@/features/landing/pages/OrderingPage";
+import PrivacyPolicy from "@/features/landing/pages/PrivacyPolicy";
+import TermsOfService from "@/features/landing/pages/TermsOfService";
 import LoginPage from "@/features/auth/pages/LoginPage";
 import AdminLoginPage from "@/features/auth/pages/AdminLoginPage";
 import ForgotPasswordPage from "@/features/auth/pages/ForgotPasswordPage";
@@ -41,6 +44,7 @@ import PosInterface from "@/features/orders/pages/PosInterface";
 import StaffPage from "@/features/staff/pages/StaffPage";
 import ForecastingPage from "@/features/forecasting/pages/ForecastingPage";
 import MarketBasketPage from "@/features/marketBasket/pages/MarketBasketPage";
+import AnomalyPage from "@/features/anomalyDetection/pages/AnomalyPage";
 import SettingsPage from "@/features/settings/pages/SettingsPage";
 import AuditLogsPage from "@/features/auditLogs/pages/AuditLogsPage";
 import DashboardPage from "@/features/dashboard/pages/DashboardPage";
@@ -59,6 +63,16 @@ const router = createBrowserRouter([
     {
         path: "/order",
         element: <OrderingPage />,
+    },
+
+    // Privacy Policy & Terms of Service (public)
+    {
+        path: "/privacy-policy",
+        element: <PrivacyPolicy />,
+    },
+    {
+        path: "/terms-of-service",
+        element: <TermsOfService />,
     },
 
     // Public — AuthLayout (centered card)
@@ -109,6 +123,7 @@ const router = createBrowserRouter([
             { path: "/staff", element: <StaffPage /> },
             { path: "/forecasting", element: <ForecastingPage /> },
             { path: "/market-basket", element: <MarketBasketPage /> },
+            { path: "/anomalies", element: <AnomalyPage /> },
             { path: "/audit-logs", element: <AuditLogsPage /> },
             { path: "/settings", element: <SettingsPage /> },
         ],

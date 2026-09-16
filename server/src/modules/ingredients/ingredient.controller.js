@@ -263,4 +263,17 @@ export const ingredientController = {
       return handleError(res, error, "DELETE_INGREDIENT_ERROR");
     }
   },
+
+  /**
+   * GET /api/ingredients/stock-value
+   * Total monetary value of current inventory.
+   */
+  async getStockValue(req, res) {
+    try {
+      const stockValue = await ingredientService.getStockValue();
+      return successResponse(res, "Stock value retrieved", stockValue);
+    } catch (error) {
+      return handleError(res, error, "GET_STOCK_VALUE_ERROR");
+    }
+  },
 };

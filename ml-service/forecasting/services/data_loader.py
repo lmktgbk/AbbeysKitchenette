@@ -11,18 +11,21 @@ async def load_variant_daily_sales() -> pd.DataFrame:
             p.product_name,
             pv.size_name,
             pv.price::float AS price,
-            p.category_id,
+            sc.category_id,
             o.order_date::text AS ds,
             SUM(oi.quantity)::int AS units
         FROM product_variants pv
         JOIN products p ON p.product_id = pv.product_id
+        JOIN subcategories sc ON sc.subcategory_id = p.subcategory_id
         JOIN order_items oi ON oi.variant_id = pv.variant_id
         JOIN orders o ON o.order_id = oi.order_id
         WHERE o.status = 'completed'
           AND pv.is_available = TRUE
+          AND p.is_archived = FALSE
+          AND oi.removed_at IS NULL
           AND o.order_date IS NOT NULL
         GROUP BY pv.variant_id, p.product_id, p.product_name,
-                 pv.size_name, pv.price, p.category_id, o.order_date
+                 pv.size_name, pv.price, sc.category_id, o.order_date
         ORDER BY pv.variant_id, o.order_date
     """)
     if not rows:

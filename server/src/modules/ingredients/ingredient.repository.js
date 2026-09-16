@@ -736,4 +736,19 @@ export const ingredientRepository = {
       where: { ingredientId: id },
     });
   },
+
+  /**
+   * Total value of current inventory (remaining stock x cost).
+   * @returns {object} - { totalValue, ingredientCount }
+   */
+  async getStockValue() {
+    const result = await prisma.$queryRawUnsafe(`
+      SELECT
+        COALESCE(SUM(rb.quantity_left * rb.cost_per_unit), 0)::float AS "totalValue",
+        COUNT(DISTINCT rb.ingredient_id)::int AS "ingredientCount"
+      FROM restock_batches rb
+      WHERE rb.quantity_left > 0
+    `);
+    return result[0] || { totalValue: 0, ingredientCount: 0 };
+  },
 };

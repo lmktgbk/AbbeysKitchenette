@@ -17,6 +17,7 @@ const PAGE_TITLES = {
     "/market-basket": "Market Basket",
     "/audit-logs": "Audit Logs",
     "/settings": "Settings",
+    "/anomalies": "Anomalies"
 };
 
 export default function Header() {
@@ -50,7 +51,7 @@ export default function Header() {
                 >
                     <Icon name="menu" size={20} />
                 </button>
-                <h1 className="text-sm font-semibold text-foreground">
+                <h1 className="text-md font-semibold text-foreground">
                     {title}
                 </h1>
             </div>

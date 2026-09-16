@@ -1,11 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 import Icon from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
 
 /**
  * ForecastSidebar — skipped variants + top 5 sellers.
  */
-export default function ForecastSidebar({ forecasted, skipped, viewPeriod }) {
+function ForecastSidebar({ forecasted, skipped, viewPeriod }) {
   const topSellers = useMemo(() => {
     if (!forecasted?.length) return [];
     return [...forecasted]
@@ -111,3 +111,5 @@ export default function ForecastSidebar({ forecasted, skipped, viewPeriod }) {
     </div>
   );
 }
+
+export default memo(ForecastSidebar);

@@ -2,7 +2,7 @@ import React from "react";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { formatPeso } from "../utils/dashboardUtils";
+import { formatPeso, formatCompact } from "../utils/dashboardUtils";
 
 function TrendArrow({ value }) {
   if (value === null || value === undefined) return null;
@@ -53,7 +53,7 @@ function DashboardKpis({ kpis, isLoading }) {
     {
       icon: "receipt",
       label: "Orders",
-      value: Number(kpis?.ordersPeriod || 0).toLocaleString(),
+      value: formatCompact(kpis?.ordersPeriod),
       sub: `${Number(kpis?.ordersToday || 0)} today`,
       delta: kpis?.deltas?.orders,
       iconBg: "bg-blue-500/10",
@@ -112,7 +112,7 @@ function DashboardKpis({ kpis, isLoading }) {
               <Icon name={card.icon} size={14} className={card.iconColor} />
             </div>
           </div>
-          <div className="text-xl font-bold text-foreground mb-0.5">{card.value}</div>
+          <div className="text-lg font-bold text-foreground mb-0.5 truncate whitespace-nowrap">{card.value}</div>
           <div className="flex items-center gap-1.5">
             <span className="text-[11px] text-muted-foreground truncate">{card.sub}</span>
             {card.delta !== null && card.delta !== undefined && (

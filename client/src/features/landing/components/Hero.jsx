@@ -8,7 +8,11 @@ import Icon from "@/components/ui/icon";
  *  1. "Order Online" → /order (primary)
  *  2. "View Our Menu" → #menu (secondary outline)
  */
-export default function Hero() {
+export default function Hero({ storeName = "Abbey's Kitchenette" }) {
+    const displayName = storeName || "Abbey's Kitchenette";
+    const firstName = displayName.split(" ")[0] || "Abbey's";
+    const restOfName = displayName.slice(firstName.length).trim() || "Kitchenette";
+
     const handleMenuClick = (e) => {
         e.preventDefault();
         const el = document.querySelector("#menu");
@@ -41,8 +45,8 @@ export default function Hero() {
                 </div>
 
                 <h1 className="hero-title">
-                    <span className="hero-title-cursive">Abbey's</span>{" "}
-                    <span className="hero-title-accent">Kitchenette</span>
+                    <span className="hero-title-cursive">{firstName}</span>{" "}
+                    <span className="hero-title-accent">{restOfName}</span>
                 </h1>
 
                 <p className="hero-tagline">
