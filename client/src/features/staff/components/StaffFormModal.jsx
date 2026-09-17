@@ -35,6 +35,7 @@ export default function StaffFormModal({
     handleSubmit,
     reset,
     setValue,
+    watch,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(isEditMode ? editStaffSchema : createStaffSchema),
@@ -101,7 +102,7 @@ export default function StaffFormModal({
               Role
             </label>
             <DropDown
-              value={staff?.role || ""}
+              value={watch("role")}
               options={isEditMode ? ROLE_OPTIONS : ROLE_OPTIONS.filter(o => o.value !== "admin")}
               placeholder="Select role..."
               onChange={(val) => setValue("role", val, { shouldValidate: true })}
