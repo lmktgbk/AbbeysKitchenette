@@ -1,6 +1,7 @@
 import { useState, useMemo, memo } from "react";
 import { cn } from "@/lib/utils";
 import Icon from "@/components/ui/icon";
+import { Tooltip as HoverTooltip } from "@/components/ui/tooltip";
 import { SearchableDropDown } from "@/components/filters/SearchableDropDown";
 import { FilterPill } from "@/components/filters/FilterPill";
 import {
@@ -106,6 +107,40 @@ function ForecastChart({ results, previousResults, viewPeriod = 7, onViewPeriodC
 
   const hasPrevious = chartData.some((d) => d[`${metric}_prev`] != null);
 
+  const metricsInfo = useMemo(() => {
+    if (!results?.length) return null;
+
+    const filteredResults = selectedVariant === "all" || !selectedVariant
+      ? results
+      : results.filter((v) => String(v.variant_id) === String(selectedVariant));
+
+    const withMetrics = filteredResults.filter(
+      (v) => v.r_squared != null || v.mae != null
+    );
+
+    if (!withMetrics.length) return null;
+
+    const avg = (arr, key) => {
+      const vals = arr.map((v) => v[key]).filter((v) => v != null && v !== 0);
+      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    };
+
+    return {
+      r_squared: avg(withMetrics, "r_squared"),
+      mae: avg(withMetrics, "mae"),
+      rmse: avg(withMetrics, "rmse"),
+      count: withMetrics.length,
+    };
+  }, [results, selectedVariant]);
+
+  const qualityLabel = useMemo(() => {
+    if (!metricsInfo?.r_squared) return null;
+    const r2 = metricsInfo.r_squared;
+    if (r2 >= 0.8) return { text: "Strong", color: "text-emerald-600" };
+    if (r2 >= 0.5) return { text: "Moderate", color: "text-amber-600" };
+    return { text: "Weak", color: "text-red-500" };
+  }, [metricsInfo]);
+
   if (!results?.length) {
     return (
       <div className="rounded-xl border border-border bg-card p-6">
@@ -124,7 +159,56 @@ function ForecastChart({ results, previousResults, viewPeriod = 7, onViewPeriodC
     <div className="rounded-xl border border-border bg-card">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="flex flex-col gap-0.5">
-          <h3 className="text-sm font-semibold text-foreground">Daily Forecast</h3>
+          <div className="flex items-center gap-1.5">
+            <h3 className="text-sm font-semibold text-foreground">Daily Forecast</h3>
+            {metricsInfo && (
+              <HoverTooltip
+                content={
+                  <div className="space-y-1.5">
+                    <p className="font-medium text-foreground">Model Quality</p>
+                    <p className="text-muted-foreground">
+                      {metricsInfo.count === 1
+                        ? "Based on this variant's history"
+                        : `Average across ${metricsInfo.count} variants`}
+                    </p>
+                    <div className="space-y-1 pt-1 border-t border-border">
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">Accuracy (R²)</span>
+                        <span className="font-medium text-foreground">
+                          {(metricsInfo.r_squared * 100).toFixed(0)}%
+                          {qualityLabel && (
+                            <span className={cn("ml-1", qualityLabel.color)}>
+                              ({qualityLabel.text})
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">Avg Error</span>
+                        <span className="font-medium text-foreground">
+                          ±{metricsInfo.mae?.toFixed(1) ?? "—"} units/day
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">Worst-case</span>
+                        <span className="font-medium text-foreground">
+                          ±{metricsInfo.rmse?.toFixed(1) ?? "—"} units/day
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-muted-foreground pt-1 border-t border-border text-[10px]">
+                      Lower error = more reliable forecast
+                    </p>
+                  </div>
+                }
+                side="bottom"
+              >
+                <button className="rounded-full p-0.5 text-muted-foreground hover:text-foreground transition-colors">
+                  <Icon name="info" size={14} />
+                </button>
+              </HoverTooltip>
+            )}
+          </div>
           {hasPrevious && (
             <p className="text-[11px] text-muted-foreground">
               Comparing {activeJobLabel} with {comparisonJobLabel}

@@ -130,6 +130,10 @@ async def demand_results(job_id: int = Query(...)):
             "days_of_data": r["days_of_data"],
             "skipped": r["skipped"],
             "skip_reason": r["skip_reason"],
+            "rmse": float(r["rmse"]) if r["rmse"] is not None else None,
+            "mae": float(r["mae"]) if r["mae"] is not None else None,
+            "mse": float(r["mse"]) if r["mse"] is not None else None,
+            "r_squared": float(r["r_squared"]) if r["r_squared"] is not None else None,
         }
 
         if r["skipped"]:

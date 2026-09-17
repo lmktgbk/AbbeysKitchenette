@@ -82,21 +82,31 @@ async def cleanup_stale_jobs():
 
 async def save_result(job_id, variant_id, product_name, size_name, price,
                       category_id, daily_data, total_units, total_revenue,
-                      trend, days_of_data):
+                      trend, days_of_data, metrics=None):
     pool = await get_pool()
+    rmse = metrics.get("rmse", 0) if metrics else 0
+    mae = metrics.get("mae", 0) if metrics else 0
+    mse = metrics.get("mse", 0) if metrics else 0
+    r_squared = metrics.get("r_squared", 0) if metrics else 0
     await pool.execute("""
         INSERT INTO forecast_results
             (job_id, variant_id, product_name, size_name, price, category_id,
-             daily_data, total_units, total_revenue, trend, days_of_data, skipped)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, FALSE)
+             daily_data, total_units, total_revenue, trend, days_of_data, skipped,
+             rmse, mae, mse, r_squared)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, FALSE,$12,$13,$14,$15)
         ON CONFLICT (job_id, variant_id) DO UPDATE SET
             daily_data = EXCLUDED.daily_data,
             total_units = EXCLUDED.total_units,
             total_revenue = EXCLUDED.total_revenue,
-            trend = EXCLUDED.trend
+            trend = EXCLUDED.trend,
+            rmse = EXCLUDED.rmse,
+            mae = EXCLUDED.mae,
+            mse = EXCLUDED.mse,
+            r_squared = EXCLUDED.r_squared
     """, job_id, variant_id, product_name, size_name, price,
          category_id, json.dumps(daily_data),
-         total_units, total_revenue, trend, days_of_data)
+         total_units, total_revenue, trend, days_of_data,
+         rmse, mae, mse, r_squared)
 
 
 async def save_skipped(job_id, variant_id, product_name, size_name, price,
@@ -144,6 +154,44 @@ def compute_trend(pred_df) -> str:
     return "stable"
 
 
+# ── Evaluation metrics ────────────────────────────────────────
+
+def compute_metrics(pred_series, actual_series):
+    """Compare in-sample predictions against actuals.
+
+    Args:
+        pred_series: DataFrame with columns [ds, yhat] (predicted values)
+        actual_series: DataFrame with columns [ds, y] or [ds, units] (actual values)
+    Returns:
+        dict with rmse, mae, mse, r_squared
+    """
+    import numpy as np
+
+    actual_col = "y" if "y" in actual_series.columns else "units"
+    merged = pred_series.merge(actual_series.rename(columns={actual_col: "y"}), on="ds", how="inner")
+
+    if len(merged) < 3:
+        return {"rmse": 0.0, "mae": 0.0, "mse": 0.0, "r_squared": 0.0}
+
+    actual = merged["y"].values.astype(float)
+    predicted = merged["yhat"].values.astype(float)
+
+    mae = float(np.mean(np.abs(actual - predicted)))
+    mse = float(np.mean((actual - predicted) ** 2))
+    rmse = float(np.sqrt(mse))
+
+    ss_res = float(np.sum((actual - predicted) ** 2))
+    ss_tot = float(np.sum((actual - np.mean(actual)) ** 2))
+    r_squared = float(1 - (ss_res / ss_tot)) if ss_tot > 0 else 0.0
+
+    return {
+        "rmse": round(rmse, 2),
+        "mae": round(mae, 2),
+        "mse": round(mse, 2),
+        "r_squared": round(r_squared, 4),
+    }
+
+
 FORECAST_PERIOD = 7
 
 
@@ -178,7 +226,19 @@ async def run_demand_forecast(job_id: int | None = None) -> dict:
                 category_id = int(row["category_id"])
 
                 daily = vdf.groupby("ds")["units"].sum().reset_index()
-                daily = daily.sort_values("ds").reset_index(drop=True)
+
+                # Fill in missing calendar days with zeros so Prophet sees the
+                # full picture: many zero-days + occasional sales spikes.
+                all_dates = pd.date_range(start=vdf["ds"].min(), end=date.today(), freq="D")
+                daily = (
+                    pd.DataFrame({"ds": all_dates})
+                    .merge(daily, on="ds", how="left")
+                    .fillna(0)
+                    .sort_values("ds")
+                    .reset_index(drop=True)
+                )
+                daily["units"] = daily["units"].astype(int)
+
                 days_of_data = len(daily)
 
                 if days_of_data < MIN_DATA_DAYS:
@@ -230,7 +290,12 @@ async def run_demand_forecast(job_id: int | None = None) -> dict:
                 m.fit(train)
 
                 future = m.make_future_dataframe(periods=period)
-                pred = m.predict(future).tail(period)
+                full_pred = m.predict(future)
+                pred = full_pred.tail(period)
+
+                # In-sample evaluation on full calendar (including zero-sales days)
+                hist_pred = full_pred[full_pred["ds"].isin(daily["ds"])][["ds", "yhat"]]
+                metrics = compute_metrics(hist_pred, daily)
 
                 daily_data = []
                 total_units = 0
@@ -256,7 +321,7 @@ async def run_demand_forecast(job_id: int | None = None) -> dict:
                 await save_result(
                     job_id, variant_id, product_name, size_name, price,
                     category_id, daily_data, total_units, total_revenue,
-                    trend, days_of_data,
+                    trend, days_of_data, metrics,
                 )
 
                 completed_count += 1

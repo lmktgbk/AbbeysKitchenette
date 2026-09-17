@@ -197,7 +197,7 @@ export const orderService = {
 
       const { deductions, needs } = await this._deductIngredients(newOrder.orderId, aggregatedIngredients, tx, createdBy);
       return { order: newOrder, deductions, needs };
-    });
+    }, { timeout: 15000 });
 
     const affectedIngredientIds = [...aggregatedIngredients.keys()];
     productService.recomputeVariantAvailability(affectedIngredientIds).catch(() => {});
@@ -337,7 +337,7 @@ export const orderService = {
         amountPaid,
         change: amountPaid - totalAmount,
       }, tx);
-    });
+    }, { timeout: 15000 });
 
     const affectedIngredientIds = [...aggregatedIngredients.keys()];
     productService.recomputeVariantAvailability(affectedIngredientIds).catch(() => {});
@@ -577,7 +577,7 @@ export const orderService = {
           refundedById: userId,
         }, tx);
       }
-    });
+    }, { timeout: 15000 });
 
     if (affectedIngredientIds.length > 0) {
       productService.recomputeVariantAvailability(affectedIngredientIds).catch(() => {});
@@ -713,7 +713,7 @@ export const orderService = {
           refundedById: userId,
         }, tx);
       }
-    });
+    }, { timeout: 15000 });
 
     if (affectedIngredientIds.length > 0) {
       productService.recomputeVariantAvailability(affectedIngredientIds).catch(() => {});
@@ -789,24 +789,32 @@ export const orderService = {
   },
 
   async _deductIngredients(orderId, needs, tx, userId) {
-    const deductions = [];
-    const adjustments = [];
+    if (needs.size === 0) return { deductions: [], needs };
+
+    // Phase 2: Single query to fetch all available batches for all ingredients
+    const ingredientIds = [...needs.keys()];
+    const allBatches = await orderRepository.getAllAvailableBatches(ingredientIds, tx);
+
+    // Phase 2: Allocate deductions per ingredient (FIFO logic, in-memory)
+    const deductPayloads = [];     // for bulk SQL: { restockId, quantity, version }
+    const deductions = [];         // for createMany: deduction records
+    const adjustments = [];        // for stock adjustment audit trail
 
     for (const [ingredientId, totalNeeded] of needs) {
-      const batches = await orderRepository.getAvailableBatches(ingredientId, tx);
+      const batches = allBatches.get(ingredientId) || [];
       const stockBefore = batches.reduce((sum, b) => sum + Number(b.quantityLeft), 0);
       let remaining = totalNeeded;
 
       for (const batch of batches) {
         if (remaining <= 0) break;
-
         const available = Number(batch.quantityLeft);
         const toDeduct = Math.min(remaining, available);
 
-        const updated = await orderRepository.deductBatch(batch.restockId, toDeduct, tx);
-        if (!updated) {
-          throw new AppError(400, "Insufficient ingredient stock (concurrent modification)", "INSUFFICIENT_STOCK");
-        }
+        deductPayloads.push({
+          restockId: batch.restockId,
+          quantity: toDeduct,
+          version: batch.version,
+        });
 
         deductions.push({
           orderId,
@@ -823,7 +831,6 @@ export const orderService = {
         throw new AppError(400, "Insufficient ingredient stock", "INSUFFICIENT_STOCK");
       }
 
-      // Record stock adjustment for audit trail
       if (userId) {
         adjustments.push({
           ingredientId,
@@ -837,11 +844,16 @@ export const orderService = {
       }
     }
 
+    // Phase 2: Single bulk UPDATE instead of N*M individual updates
+    const rowsUpdated = await orderRepository.bulkDeductBatches(deductPayloads, tx);
+    if (rowsUpdated !== deductPayloads.length) {
+      throw new AppError(400, "Insufficient ingredient stock (concurrent modification)", "INSUFFICIENT_STOCK");
+    }
+
+    // Final batch writes: 2 queries total (createMany × 2)
     if (deductions.length > 0) {
       await orderRepository.createDeductions(deductions, tx);
     }
-
-    // Create stock adjustment records for audit trail
     if (adjustments.length > 0) {
       await tx.stockAdjustment.createMany({ data: adjustments });
     }
@@ -1300,7 +1312,7 @@ export const orderService = {
         amountPaid: meta.amountPaid,
         change: meta.amountPaid - Number(order.totalAmount),
       }, tx);
-    });
+    }, { timeout: 15000 });
 
     const affectedIngredientIds = [...ingredientNeeds.keys()];
     productService.recomputeVariantAvailability(affectedIngredientIds).catch(() => {});

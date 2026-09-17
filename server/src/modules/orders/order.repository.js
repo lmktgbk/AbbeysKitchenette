@@ -582,6 +582,62 @@ export const orderRepository = {
   },
 
   /**
+   * Get available batches for multiple ingredients at once (FIFO order).
+   * Single query instead of N individual findMany calls.
+   * @param {string[]} ingredientIds - array of ingredient UUIDs
+   * @param {object} tx - transaction client
+   * @returns {Map<string, Array<object>>} - ingredientId → batches sorted FIFO
+   */
+  async getAllAvailableBatches(ingredientIds, tx) {
+    if (ingredientIds.length === 0) return new Map();
+    const client = tx || prisma;
+    const batches = await client.restockBatch.findMany({
+      where: {
+        ingredientId: { in: ingredientIds },
+        quantityLeft: { gt: 0 },
+      },
+      orderBy: [
+        { ingredientId: "asc" },
+        { isPriority: "desc" },
+        { restockedAt: "asc" },
+      ],
+    });
+
+    const grouped = new Map();
+    for (const batch of batches) {
+      if (!grouped.has(batch.ingredientId)) grouped.set(batch.ingredientId, []);
+      grouped.get(batch.ingredientId).push(batch);
+    }
+    return grouped;
+  },
+
+  /**
+   * Bulk deduct quantities from multiple batches in a single SQL query.
+   * Uses optimistic locking (version check) via CASE/WHEN.
+   * @param {Array<{restockId: number, quantity: number, version: number}>} deductions
+   * @param {object} tx - transaction client
+   * @returns {number} - number of rows updated (should match deductions.length)
+   */
+  async bulkDeductBatches(deductions, tx) {
+    if (deductions.length === 0) return 0;
+    const client = tx || prisma;
+
+    const ids = deductions.map((d) => d.restockId);
+    const quantities = deductions.map((d) => d.quantity);
+    const versions = deductions.map((d) => d.version);
+
+    const result = await client.$executeRawUnsafe(`
+      UPDATE restock_batches
+      SET
+        quantity_left = quantity_left - CASE restock_id ${deductions.map((d, i) => `WHEN $${i * 3 + 1} THEN $${i * 3 + 2}`).join(" ")} ELSE 0 END,
+        version = version + 1
+      WHERE (${deductions.map((d, i) => `(restock_id = $${i * 3 + 1} AND version = $${i * 3 + 3} AND quantity_left >= $${i * 3 + 2})`).join(" OR ")})
+    `, ...deductions.flatMap((d) => [d.restockId, d.quantity, d.version]));
+
+    return result;
+  },
+
+  /**
    * Get recipe for a variant (ingredients + quantities needed).
    * @param {number} variantId - variant ID
    * @returns {Array<object>} - recipe entries

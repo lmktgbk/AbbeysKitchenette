@@ -54,6 +54,10 @@ class VariantResult(BaseModel):
     days_of_data: int
     skipped: bool
     skip_reason: str | None
+    rmse: float | None = None
+    mae: float | None = None
+    mse: float | None = None
+    r_squared: float | None = None
 
 
 class ForecastResultsResponse(BaseModel):

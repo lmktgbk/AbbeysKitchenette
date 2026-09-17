@@ -494,6 +494,10 @@ model ForecastResult {
   daysOfData  Int     @default(0) @map("days_of_data")
   skipped     Boolean @default(false)
   skipReason  String? @map("skip_reason") @db.VarChar(200)
+  rmse        Float?  @map("rmse")
+  mae         Float?  @map("mae")
+  mse         Float?  @map("mse")
+  rSquared    Float?  @map("r_squared")
 
   job ForecastJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
