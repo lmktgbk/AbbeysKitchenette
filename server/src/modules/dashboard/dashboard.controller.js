@@ -31,4 +31,13 @@ export const dashboardController = {
     );
     return successResponse(res, "Revenue trend retrieved", data);
   },
+
+  /**
+   * GET /api/dashboard/today
+   * Today-only dashboard — simplified KPIs + deep-dive sections.
+   */
+  async getTodayDashboard(req, res) {
+    const data = await dashboardService.getTodayData();
+    return successResponse(res, "Today dashboard data retrieved", data);
+  },
 };

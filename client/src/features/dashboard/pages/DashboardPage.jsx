@@ -1,141 +1,158 @@
-import { useState, useCallback, useMemo } from "react";
-import { useDashboardData, useRevenueTrend } from "../query";
-import DashboardHeader from "../components/DashboardHeader";
+import { useState, useCallback } from "react";
+import { useTodayDashboard } from "../query";
 import DashboardKpis from "../components/DashboardKpis";
-import RevenueChart from "../components/RevenueChart";
 import HourlyOrdersChart from "../components/HourlyOrdersChart";
-import DayOfWeekChart from "../components/DayOfWeekChart";
+import PaymentMethodChart from "../components/PaymentMethodChart";
 import TopProductsTable from "../components/TopProductsTable";
 import CategorySalesChart from "../components/CategorySalesChart";
-import OrdersOverview from "../components/OrdersOverview";
-import FulfillmentTimeCard from "../components/FulfillmentTimeCard";
-import CancellationChart from "../components/CancellationChart";
-import IngredientOverview from "../components/IngredientOverview";
-import WasteSummaryCard from "../components/WasteSummaryCard";
-import MostRestockedTable from "../components/MostRestockedTable";
-import TableUtilizationChart from "../components/TableUtilizationChart";
-import StaffPerformanceChart from "../components/StaffPerformanceChart";
-import PaymentMethodChart from "../components/PaymentMethodChart";
+import DiscountRefundVoidCard from "../components/DiscountRefundVoidCard";
+import InventoryVarianceCard from "../components/InventoryVarianceCard";
+import CashReconciliationCard from "../components/CashReconciliationCard";
+import SectionDetailModal from "../components/SectionDetailModal";
 import DashboardAnomalyBanner from "@/features/anomalyDetection/components/DashboardAnomalyBanner";
 
-function SectionDivider({ title }) {
-  return (
-    <div className="flex items-center gap-3 pt-6 pb-2">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        {title}
-      </h2>
-      <div className="flex-1 h-px bg-border" />
-    </div>
-  );
-}
-
 export default function DashboardPage() {
-  const [dateFrom, setDateFrom] = useState(null);
-  const [dateTo, setDateTo] = useState(null);
-  const [granularity, setGranularity] = useState("daily");
-
-  const dateParams = useMemo(() => {
-    const p = {};
-    if (dateFrom) p.dateFrom = dateFrom;
-    if (dateTo) p.dateTo = dateTo;
-    return p;
-  }, [dateFrom, dateTo]);
-
-  const trendParams = useMemo(() => ({
-    ...dateParams,
-    granularity,
-  }), [dateParams, granularity]);
-
-  const { data, isLoading } = useDashboardData(dateParams);
-  const { data: trendData, isLoading: trendLoading } = useRevenueTrend(trendParams);
-
-  const handleDateChange = useCallback((from, to) => {
-    setDateFrom(from);
-    setDateTo(to);
-  }, []);
-
+  const { data, isLoading } = useTodayDashboard();
   const d = data?.data;
+
+  const [modal, setModal] = useState(null);
+  const openModal = useCallback((section) => setModal(section), []);
+  const closeModal = useCallback(() => setModal(null), []);
 
   return (
     <div className="flex flex-col gap-4">
-      <DashboardHeader
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-        onDateChange={handleDateChange}
-      />
-
       <DashboardAnomalyBanner />
 
-      <DashboardKpis kpis={d?.kpis} isLoading={isLoading} discountSummary={d?.discountSummary} vatSummary={d?.vatSummary} />
+      <DashboardKpis kpis={d?.kpis} isLoading={isLoading} />
 
-      {/* ─── Financial Overview ─── */}
-      <SectionDivider title="Financial Overview" />
-
-      <RevenueChart
-        data={trendData?.data}
-        isLoading={trendLoading}
-        granularity={granularity}
-        onGranularityChange={setGranularity}
-      />
-
+      {/* ─── Sales Trend + Payment Breakdown ─── */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <HourlyOrdersChart data={d?.ordersByHour} isLoading={isLoading} />
-        <DayOfWeekChart data={d?.ordersByDayOfWeek} isLoading={isLoading} />
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <TopProductsTable title="Top 10 Most Sold" data={d?.topProducts} isLoading={isLoading} />
-        <TopProductsTable title="Top 10 Least Sold" data={d?.leastProducts} isLoading={isLoading} />
-      </div>
-
-      <CategorySalesChart data={d?.salesByCategory} isLoading={isLoading} />
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <PaymentMethodChart data={d?.paymentMethodBreakdown} isLoading={isLoading} />
-      </div>
-
-      {/* ─── Operations ─── */}
-      <SectionDivider title="Operations" />
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <OrdersOverview
-          statusData={d?.ordersByStatus}
+        <HourlyOrdersChart
+          data={d?.ordersByHour}
           isLoading={isLoading}
-          variant="status"
+          onDeepDive={() => openModal("salesTrend")}
         />
-        <FulfillmentTimeCard data={d?.fulfillmentTime} isLoading={isLoading} />
-        <OrdersOverview
-          sourceData={d?.ordersBySource}
+        <PaymentMethodChart
+          data={d?.paymentMethodBreakdown}
           isLoading={isLoading}
-          variant="source"
+          onDeepDive={() => openModal("paymentBreakdown")}
         />
       </div>
 
+      {/* ─── Sales by Product + Sales by Category ─── */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <CancellationChart data={d?.cancellationReasons} isLoading={isLoading} />
-        <StaffPerformanceChart data={d?.staffPerformance} isLoading={isLoading} />
+        <TopProductsTable
+          title="Top Products Today"
+          data={d?.topProducts}
+          isLoading={isLoading}
+          onDeepDive={() => openModal("salesByProduct")}
+          showCosts
+        />
+        <CategorySalesChart
+          data={d?.salesByCategory}
+          isLoading={isLoading}
+          onDeepDive={() => openModal("salesByCategory")}
+        />
       </div>
 
-      <TableUtilizationChart data={d?.tableUtilization} isLoading={isLoading} />
+      {/* ─── Discounts/Refunds/Voids + Inventory Variance ─── */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <DiscountRefundVoidCard
+          discountSummary={d?.discountSummary}
+          refundSummary={d?.refundSummary}
+          cancellationReasons={d?.cancellationReasons}
+          cancellationRate={d?.kpis?.cancellationRate}
+          isLoading={isLoading}
+          onDeepDive={() => openModal("discountsRefundsVoids")}
+        />
+        <InventoryVarianceCard
+          data={d?.inventoryVariance}
+          isLoading={isLoading}
+          onDeepDive={() => openModal("inventoryVariance")}
+        />
+      </div>
 
-      {/* ─── Inventory ─── */}
-      <SectionDivider title="Inventory" />
-
-      <IngredientOverview
-        statusData={d?.ingredientStatus}
-        lowStockData={d?.lowStockIngredients}
-        stockValue={d?.stockValue}
+      {/* ─── Cash Reconciliation (full width) ─── */}
+      <CashReconciliationCard
+        data={d?.cashReconciliation}
         isLoading={isLoading}
+        onDeepDive={() => openModal("cashReconciliation")}
       />
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <WasteSummaryCard
-          data={d?.wasteByType}
-          totalLosses={d?.kpis?.totalLosses}
+      {/* ─── Deep-Dive Modals ─── */}
+      <SectionDetailModal
+        open={modal === "salesTrend"}
+        onClose={closeModal}
+        title="Sales Trend — Hourly Breakdown"
+        icon="clock"
+      >
+        <HourlyOrdersChart data={d?.ordersByHour} isLoading={isLoading} />
+      </SectionDetailModal>
+
+      <SectionDetailModal
+        open={modal === "paymentBreakdown"}
+        onClose={closeModal}
+        title="Payment Method Breakdown"
+        icon="creditCard"
+      >
+        <PaymentMethodChart data={d?.paymentMethodBreakdown} isLoading={isLoading} />
+      </SectionDetailModal>
+
+      <SectionDetailModal
+        open={modal === "salesByProduct"}
+        onClose={closeModal}
+        title="Sales by Product — Today"
+        icon="barChart2"
+      >
+        <TopProductsTable
+          title="All Products"
+          data={d?.topProducts}
+          isLoading={isLoading}
+          showCosts
+        />
+      </SectionDetailModal>
+
+      <SectionDetailModal
+        open={modal === "salesByCategory"}
+        onClose={closeModal}
+        title="Sales by Category — Today"
+        icon="layers"
+      >
+        <CategorySalesChart data={d?.salesByCategory} isLoading={isLoading} />
+      </SectionDetailModal>
+
+      <SectionDetailModal
+        open={modal === "discountsRefundsVoids"}
+        onClose={closeModal}
+        title="Discounts, Refunds & Voids"
+        icon="tag"
+      >
+        <DiscountRefundVoidCard
+          discountSummary={d?.discountSummary}
+          refundSummary={d?.refundSummary}
+          cancellationReasons={d?.cancellationReasons}
+          cancellationRate={d?.kpis?.cancellationRate}
           isLoading={isLoading}
         />
-        <MostRestockedTable data={d?.mostRestocked} isLoading={isLoading} />
-      </div>
+      </SectionDetailModal>
+
+      <SectionDetailModal
+        open={modal === "inventoryVariance"}
+        onClose={closeModal}
+        title="Inventory Variance — Latest Count"
+        icon="clipboardList"
+      >
+        <InventoryVarianceCard data={d?.inventoryVariance} isLoading={isLoading} />
+      </SectionDetailModal>
+
+      <SectionDetailModal
+        open={modal === "cashReconciliation"}
+        onClose={closeModal}
+        title="Cash Reconciliation — Active Shift"
+        icon="banknote"
+      >
+        <CashReconciliationCard data={d?.cashReconciliation} isLoading={isLoading} />
+      </SectionDetailModal>
     </div>
   );
 }

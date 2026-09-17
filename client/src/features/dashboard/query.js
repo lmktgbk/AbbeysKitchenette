@@ -13,6 +13,7 @@ import * as api from "./api";
 const dashboardKeys = {
   all: ["dashboard"],
   data: (params) => ["dashboard", "data", params],
+  today: () => ["dashboard", "today"],
   revenueTrend: (params) => ["dashboard", "revenueTrend", params],
 };
 
@@ -38,5 +39,16 @@ export function useRevenueTrend(params) {
   return useQuery({
     queryKey: dashboardKeys.revenueTrend(params),
     queryFn: () => api.getRevenueTrendRequest(params),
+  });
+}
+
+/**
+ * useTodayDashboard — today-only dashboard data.
+ */
+export function useTodayDashboard() {
+  return useQuery({
+    queryKey: dashboardKeys.today(),
+    queryFn: () => api.getTodayDashboardRequest(),
+    refetchInterval: 60_000,
   });
 }

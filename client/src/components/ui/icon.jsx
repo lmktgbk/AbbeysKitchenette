@@ -66,6 +66,12 @@ import {
     Play,
     Droplets,
     Wallet,
+    ClipboardList,
+    XCircle,
+    RotateCcw,
+    Banknote,
+    CreditCard,
+    Layers,
 } from "lucide-react";
 
 const iconMap = {
@@ -136,6 +142,12 @@ const iconMap = {
     play: Play,
     droplets: Droplets,
     wallet: Wallet,
+    clipboardList: ClipboardList,
+    xCircle: XCircle,
+    rotateCcw: RotateCcw,
+    banknote: Banknote,
+    creditCard: CreditCard,
+    layers: Layers,
 };
 
 /**

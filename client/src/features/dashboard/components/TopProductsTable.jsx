@@ -2,7 +2,7 @@ import React from "react";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 
-function TopProductsTable({ title, data, isLoading }) {
+function TopProductsTable({ title, data, isLoading, onDeepDive, showCosts }) {
   if (isLoading) {
     return (
       <div className="rounded-lg border border-border bg-card">
@@ -33,9 +33,13 @@ function TopProductsTable({ title, data, isLoading }) {
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card">
-      <div className="border-b border-border px-4 py-3">
+    <div
+      className="rounded-lg border border-border bg-card cursor-pointer hover:border-muted-foreground/30 transition-colors"
+      onClick={onDeepDive}
+    >
+      <div className="border-b border-border px-4 py-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        {onDeepDive && <Icon name="chevronRight" size={14} className="text-muted-foreground" />}
       </div>
       <div className="p-2">
         <table className="w-full">
@@ -45,26 +49,43 @@ function TopProductsTable({ title, data, isLoading }) {
               <th className="px-3 py-2 text-left">Product</th>
               <th className="px-3 py-2 text-right">Units</th>
               <th className="px-3 py-2 text-right">Revenue</th>
+              {showCosts && <th className="px-3 py-2 text-right">COGS</th>}
+              {showCosts && <th className="px-3 py-2 text-right">Profit</th>}
             </tr>
           </thead>
           <tbody>
-            {data.map((p, i) => (
-              <tr
-                key={i}
-                className="text-xs hover:bg-muted/50 transition-colors"
-              >
-                <td className="px-3 py-2 font-bold text-muted-foreground">{i + 1}</td>
-                <td className="px-3 py-2 font-medium text-foreground truncate max-w-[160px]">
-                  {p.productName}
-                </td>
-                <td className="px-3 py-2 text-right text-muted-foreground">
-                  {p.unitsSold}
-                </td>
-                <td className="px-3 py-2 text-right font-semibold text-foreground">
-                  ₱{Number(p.revenue || 0).toLocaleString()}
-                </td>
-              </tr>
-            ))}
+            {data.map((p, i) => {
+              const revenue = Number(p.revenue || 0);
+              const cost = Number(p.cost || 0);
+              const profit = revenue - cost;
+              return (
+                <tr
+                  key={i}
+                  className="text-xs hover:bg-muted/50 transition-colors"
+                >
+                  <td className="px-3 py-2 font-bold text-muted-foreground">{i + 1}</td>
+                  <td className="px-3 py-2 font-medium text-foreground truncate max-w-[160px]">
+                    {p.productName}
+                  </td>
+                  <td className="px-3 py-2 text-right text-muted-foreground">
+                    {p.unitsSold}
+                  </td>
+                  <td className="px-3 py-2 text-right font-semibold text-foreground">
+                    ₱{revenue.toLocaleString()}
+                  </td>
+                  {showCosts && (
+                    <td className="px-3 py-2 text-right text-muted-foreground">
+                      ₱{cost.toLocaleString()}
+                    </td>
+                  )}
+                  {showCosts && (
+                    <td className={`px-3 py-2 text-right font-semibold ${profit >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                      ₱{profit.toLocaleString()}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

@@ -34,15 +34,16 @@ export const dashboardRepository = {
     const sql = `
       SELECT
         COALESCE(SUM(CASE WHEN o.status = 'completed' THEN o.total_amount END), 0)::float AS revenue,
+        COALESCE(SUM(CASE WHEN o.status = 'completed' THEN o.total_amount + o.discount_amount END), 0)::float AS gross_revenue,
         COUNT(*)::int AS orders,
         COUNT(*) FILTER (WHERE o.status = 'completed')::int AS completed_orders
       FROM orders o
       ${dateWhere}
     `;
     const result = await prisma.$queryRawUnsafe(sql, ...values);
-    const row = result[0] || { revenue: 0, orders: 0, completed_orders: 0 };
+    const row = result[0] || { revenue: 0, gross_revenue: 0, orders: 0, completed_orders: 0 };
     const aov = row.completed_orders > 0 ? Math.round((row.revenue / row.completed_orders) * 100) / 100 : 0;
-    return { revenue: row.revenue, orders: row.orders, aov };
+    return { revenue: row.revenue, gross_revenue: row.gross_revenue, orders: row.orders, aov };
   },
 
   /**
@@ -53,14 +54,15 @@ export const dashboardRepository = {
     const result = await prisma.$queryRaw`
       SELECT
         COALESCE(SUM(CASE WHEN o.status = 'completed' THEN o.total_amount END), 0)::float AS revenue,
+        COALESCE(SUM(CASE WHEN o.status = 'completed' THEN o.total_amount + o.discount_amount END), 0)::float AS gross_revenue,
         COUNT(*)::int AS orders,
         COUNT(*) FILTER (WHERE o.status = 'completed')::int AS completed_orders
       FROM orders o
       WHERE o.order_date = CURRENT_DATE
     `;
-    const row = result[0] || { revenue: 0, orders: 0, completed_orders: 0 };
+    const row = result[0] || { revenue: 0, gross_revenue: 0, orders: 0, completed_orders: 0 };
     const aov = row.completed_orders > 0 ? Math.round((row.revenue / row.completed_orders) * 100) / 100 : 0;
-    return { revenue: row.revenue, orders: row.orders, aov };
+    return { revenue: row.revenue, gross_revenue: row.gross_revenue, orders: row.orders, aov };
   },
 
   /**
@@ -940,5 +942,143 @@ export const dashboardRepository = {
     const actualTaxable = row.taxableSales - row.vatExemptSales;
     const totalVat = Math.round(actualTaxable / 1.12 * 0.12 * 100) / 100;
     return { totalVat, vatExemptSales: row.vatExemptSales, taxableSales: actualTaxable };
+  },
+
+  /**
+   * Refund summary for a date range.
+   * @param {string|null} dateFrom
+   * @param {string|null} dateTo
+   * @returns {object} - { totalRefunds, refundCount, byReason }
+   */
+  async getRefundSummary(dateFrom, dateTo) {
+    const values = [];
+    let idx = 1;
+    const dateClauses = [];
+    if (dateFrom) dateClauses.push(`pr.refunded_at >= $${idx++}::date`);
+    if (dateTo) dateClauses.push(`pr.refunded_at <= ($${idx++}::date + INTERVAL '1 day')`);
+    if (dateFrom) values.push(dateFrom);
+    if (dateTo) values.push(dateTo);
+    const dateWhere = dateClauses.length ? `WHERE ${dateClauses.join(" AND ")}` : "";
+
+    const sql = `
+      SELECT
+        COALESCE(SUM(pr.amount), 0)::float AS "totalRefunds",
+        COUNT(*)::int AS "refundCount"
+      FROM payment_refunds pr
+      ${dateWhere}
+    `;
+    const result = await prisma.$queryRawUnsafe(sql, ...values);
+    return result[0] || { totalRefunds: 0, refundCount: 0 };
+  },
+
+  /**
+   * Inventory variance summary from the most recent completed count.
+   * @returns {object} - { countDate, totalSystem, totalActual, totalVariance, variancePercent, topVariances[] }
+   */
+  async getInventoryVarianceSummary() {
+    const latestCount = await prisma.inventoryCount.findFirst({
+      where: { status: "completed" },
+      orderBy: { completedAt: "desc" },
+      include: {
+        items: {
+          include: { ingredient: { select: { ingredientName: true, unit: true } } },
+        },
+      },
+    });
+
+    if (!latestCount) {
+      return { countDate: null, totalSystem: 0, totalActual: 0, totalVariance: 0, variancePercent: 0, topVariances: [] };
+    }
+
+    let totalSystem = 0;
+    let totalActual = 0;
+    const topVariances = [];
+
+    for (const item of latestCount.items) {
+      const sys = Number(item.systemQuantity);
+      const act = Number(item.countedQuantity ?? item.systemQuantity);
+      totalSystem += sys;
+      totalActual += act;
+      if (item.variance && Number(item.variance) !== 0) {
+        topVariances.push({
+          name: item.ingredient.ingredientName,
+          unit: item.ingredient.unit,
+          system: sys,
+          actual: act,
+          variance: Number(item.variance),
+        });
+      }
+    }
+
+    topVariances.sort((a, b) => Math.abs(b.variance) - Math.abs(a.variance));
+
+    const totalVariance = totalActual - totalSystem;
+    const variancePercent = totalSystem > 0 ? Math.round((totalVariance / totalSystem) * 1000) / 10 : 0;
+
+    return {
+      countDate: latestCount.completedAt,
+      totalSystem,
+      totalActual,
+      totalVariance,
+      variancePercent,
+      topVariances: topVariances.slice(0, 5),
+    };
+  },
+
+  /**
+   * Cash reconciliation for the currently active shift.
+   * @returns {object} - { shiftId, openedAt, openingCash, cashSales, totalSales, expectedCash, paymentBreakdown[] }
+   */
+  async getCashReconciliationToday() {
+    const activeShift = await prisma.shift.findFirst({
+      where: { status: "active" },
+      orderBy: { startedAt: "desc" },
+    });
+
+    if (!activeShift) {
+      return { shiftId: null, openedAt: null, openingCash: 0, cashSales: 0, totalSales: 0, expectedCash: 0, paymentBreakdown: [] };
+    }
+
+    const orders = await prisma.order.findMany({
+      where: {
+        shiftId: activeShift.shiftId,
+        status: { in: ["accepted", "preparing", "completed"] },
+      },
+      select: { totalAmount: true, paymentMethod: true, discountAmount: true },
+    });
+
+    const refunds = await prisma.paymentRefund.findMany({
+      where: { order: { shiftId: activeShift.shiftId } },
+      select: { amount: true },
+    });
+
+    const totalSales = orders.reduce((s, o) => s + Number(o.totalAmount), 0);
+    const totalDiscounts = orders.reduce((s, o) => s + Number(o.discountAmount || 0), 0);
+    const cashSales = orders
+      .filter((o) => o.paymentMethod === "cash")
+      .reduce((s, o) => s + Number(o.totalAmount), 0);
+    const cashRefunds = refunds.reduce((s, r) => s + Number(r.amount), 0);
+    const openingCash = Number(activeShift.openingCash || 0);
+    const expectedCash = openingCash + cashSales - cashRefunds;
+
+    const paymentBreakdown = {};
+    for (const o of orders) {
+      const m = o.paymentMethod || "cash";
+      if (!paymentBreakdown[m]) paymentBreakdown[m] = { method: m, amount: 0, transactions: 0 };
+      paymentBreakdown[m].amount += Number(o.totalAmount);
+      paymentBreakdown[m].transactions += 1;
+    }
+
+    return {
+      shiftId: activeShift.shiftId,
+      openedAt: activeShift.startedAt,
+      openingCash,
+      totalSales,
+      totalDiscounts,
+      cashSales,
+      cashRefunds,
+      expectedCash,
+      paymentBreakdown: Object.values(paymentBreakdown),
+    };
   },
 };

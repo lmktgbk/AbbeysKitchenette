@@ -122,4 +122,83 @@ export const dashboardService = {
       vatSummary,
     };
   },
+
+  /**
+   * Today-only dashboard data — simplified for the main dashboard view.
+   * @returns {object}
+   */
+  async getTodayData() {
+    const today = new Date().toISOString().split("T")[0];
+
+    const [
+      todayKpis,
+      cogs,
+      discountSummary,
+      refundSummary,
+      paymentMethodBreakdown,
+      ordersByHour,
+      topProducts,
+      salesByCategory,
+      cancellationReasons,
+      cancellationRate,
+      inventoryVariance,
+      cashReconciliation,
+      ingredientStatus,
+      lowStockIngredients,
+    ] = await Promise.all([
+      dashboardRepository.getTodayKpis(),
+      dashboardRepository.getCOGS(today, today),
+      dashboardRepository.getDiscountSummary(today, today),
+      dashboardRepository.getRefundSummary(today, today),
+      dashboardRepository.getPaymentMethodBreakdown(today, today),
+      dashboardRepository.getOrdersByHour(today, today),
+      dashboardRepository.getTopProducts(10, today, today),
+      dashboardRepository.getSalesByCategory(today, today),
+      dashboardRepository.getCancellationReasons(today, today),
+      dashboardRepository.getCancellationRate(today, today),
+      dashboardRepository.getInventoryVarianceSummary(),
+      dashboardRepository.getCashReconciliationToday(),
+      dashboardRepository.getIngredientStockStatus(),
+      dashboardRepository.getLowStockIngredients(),
+    ]);
+
+    const grossRevenue = todayKpis.gross_revenue || 0;
+    const netRevenue = todayKpis.revenue || 0;
+    const totalDiscounts = discountSummary.totalDiscounts || 0;
+    const totalRefunds = refundSummary.totalRefunds || 0;
+    const grossProfit = netRevenue - cogs;
+    const grossMargin = netRevenue > 0 ? Math.round((grossProfit / netRevenue) * 1000) / 10 : 0;
+    const transactions = todayKpis.completed_orders || 0;
+    const avgTransactionValue = transactions > 0 ? Math.round((netRevenue / transactions) * 100) / 100 : 0;
+
+    return {
+      kpis: {
+        grossRevenue,
+        totalDiscounts,
+        netRevenue,
+        cogs,
+        grossProfit,
+        grossMargin,
+        transactions,
+        avgTransactionValue,
+        discountCount: discountSummary.discountCount || 0,
+        seniorDiscounts: discountSummary.senior || 0,
+        pwdDiscounts: discountSummary.pwd || 0,
+        promotionalDiscounts: discountSummary.promotional || 0,
+        employeeDiscounts: discountSummary.employee || 0,
+        cancellationRate: cancellationRate.rate,
+      },
+      discountSummary,
+      refundSummary,
+      paymentMethodBreakdown,
+      ordersByHour,
+      topProducts,
+      salesByCategory,
+      cancellationReasons,
+      inventoryVariance,
+      cashReconciliation,
+      ingredientStatus,
+      lowStockIngredients,
+    };
+  },
 };

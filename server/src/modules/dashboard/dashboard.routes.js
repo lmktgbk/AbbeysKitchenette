@@ -24,4 +24,11 @@ router.get(
   dashboardController.getRevenueTrend,
 );
 
+router.get(
+  "/today",
+  authenticate,
+  authorize("admin"),
+  dashboardController.getTodayDashboard,
+);
+
 export default router;

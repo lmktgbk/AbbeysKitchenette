@@ -18,3 +18,9 @@ export async function getRevenueTrendRequest(params = {}) {
   const res = await api.get("/dashboard/revenue-trend", { params });
   return res.data;
 }
+
+// GET /api/dashboard/today — today-only dashboard
+export async function getTodayDashboardRequest() {
+  const res = await api.get("/dashboard/today");
+  return res.data;
+}

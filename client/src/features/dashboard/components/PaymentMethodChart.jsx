@@ -22,7 +22,7 @@ const PAYMENT_LABELS = {
   other: "Other",
 };
 
-function PaymentMethodChart({ data, isLoading }) {
+function PaymentMethodChart({ data, isLoading, onDeepDive }) {
   if (isLoading) {
     return (
       <div className="rounded-lg border border-border bg-card">
@@ -54,9 +54,13 @@ function PaymentMethodChart({ data, isLoading }) {
   }));
 
   return (
-    <div className="rounded-lg border border-border bg-card">
-      <div className="border-b border-border px-4 py-3">
+    <div
+      className="rounded-lg border border-border bg-card cursor-pointer hover:border-muted-foreground/30 transition-colors"
+      onClick={onDeepDive}
+    >
+      <div className="border-b border-border px-4 py-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold">Payment Methods</h3>
+        {onDeepDive && <Icon name="chevronRight" size={14} className="text-muted-foreground" />}
       </div>
       <div className="p-4">
         <ResponsiveContainer width="100%" height={250}>

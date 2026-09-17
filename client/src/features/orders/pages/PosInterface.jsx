@@ -9,6 +9,7 @@ import PosOnlineOrders from "../components/PosOnlineOrders";
 import { confirm } from "@/components/alerts/ConfirmDialog";
 import { confirmWithReason } from "@/components/alerts/ConfirmDialog";
 import ShiftGate from "@/features/shifts/components/ShiftGate";
+import { useActiveShift } from "@/features/shifts/query";
 import { toLocalDate } from "@/lib/date";
 
 const CANCEL_REASONS = [
@@ -28,6 +29,7 @@ const CANCEL_REASONS = [
  */
 export default function PosInterface() {
   const mutations = useOrderMutations();
+  const { data: activeShift } = useActiveShift();
 
   // ── Order state ─────────────────────
   const [items, setItems] = useState([]);
@@ -127,6 +129,7 @@ export default function PosInterface() {
       payment_method: payment_method || "cash",
       payment_ref: payment_ref || undefined,
       discounts: discounts && discounts.length > 0 ? discounts : undefined,
+      shift_id: activeShift?.shiftId || undefined,
     };
 
     try {

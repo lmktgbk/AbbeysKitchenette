@@ -6,7 +6,7 @@ import {
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 
-function HourlyOrdersChart({ data, isLoading }) {
+function HourlyOrdersChart({ data, isLoading, onDeepDive }) {
   const chartData = useMemo(() => {
     if (!data?.length) return [];
     const hours = [];
@@ -47,9 +47,13 @@ function HourlyOrdersChart({ data, isLoading }) {
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card">
-      <div className="border-b border-border px-4 py-3">
+    <div
+      className="rounded-lg border border-border bg-card cursor-pointer hover:border-muted-foreground/30 transition-colors"
+      onClick={onDeepDive}
+    >
+      <div className="border-b border-border px-4 py-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">Peak Hours</h3>
+        {onDeepDive && <Icon name="chevronRight" size={14} className="text-muted-foreground" />}
       </div>
       <div className="px-4 pt-3 pb-4">
         <ResponsiveContainer width="100%" height={220}>
