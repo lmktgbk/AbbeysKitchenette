@@ -1,6 +1,11 @@
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { useOrderList, useOrderDetail, useOrderMutations } from "../query";
+import { useMyShifts, useShiftsList, useShiftMutations } from "@/features/shifts/query";
+import ShiftBanner from "@/features/shifts/components/ShiftBanner";
+import OpenShiftModal from "@/features/shifts/components/OpenShiftModal";
+import CloseShiftModal from "@/features/shifts/components/CloseShiftModal";
+import useAuthStore from "@/features/auth/authStore";
 import { confirm, confirmWithReason } from "@/components/alerts/ConfirmDialog";
 import OrderStats from "../components/OrderStats";
 import OrderTable from "../components/OrderTable";
@@ -30,6 +35,22 @@ const CANCEL_REASONS = [
  */
 export default function OrdersPage({ embedded = false }) {
   const mutations = useOrderMutations();
+  const shiftMutations = useShiftMutations();
+  const user = useAuthStore((s) => s.user);
+  const canHandleCash = user?.role === "admin" || user?.role === "cashier";
+
+  // ── Shifts (BR-02) ───────────────────
+  const { data: shiftsData, isLoading: shiftsLoading } = useMyShifts();
+  const myShifts = shiftsData?.data?.shifts ?? [];
+  const [showOpenShift, setShowOpenShift] = useState(false);
+  const [closingShift, setClosingShift] = useState(null);
+
+  // Admin: all shifts history (latest first).
+  const { data: allShiftsData } = useShiftsList(
+    { status: "all", limit: "10" },
+    { enabled: user?.role === "admin" && !embedded },
+  );
+  const allShifts = allShiftsData?.data?.shifts ?? [];
 
   // ── Filters ────────────────────────
   const [page, setPage] = useState(1);
@@ -119,6 +140,34 @@ export default function OrdersPage({ embedded = false }) {
     });
 
     if (ok) toast.success("Order updated");
+  }
+
+  async function handleOpenShiftConfirm(data) {
+    try {
+      await shiftMutations.open.mutateAsync(data);
+      toast.success("Shift opened");
+      setShowOpenShift(false);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to open shift");
+    }
+  }
+
+  async function handleCloseShiftConfirm(data) {
+    if (!closingShift) return;
+    const forced = user?.role === "admin" && closingShift.opened_by !== user?.id;
+    try {
+      const fn = forced ? shiftMutations.forceClose : shiftMutations.close;
+      const res = await fn.mutateAsync({ id: closingShift.shift_id, data });
+      const variance = Number(res?.data?.shift?.variance ?? 0);
+      toast.success(
+        variance === 0
+          ? "Shift closed — balanced"
+          : `Shift closed — variance ${variance > 0 ? "+" : ""}₱${variance.toLocaleString()}`,
+      );
+      setClosingShift(null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to close shift");
+    }
   }
 
   async function handleCancelClick(order) {
@@ -231,22 +280,48 @@ export default function OrdersPage({ embedded = false }) {
     }
   }
 
-  async function handleAcceptPaymentConfirm({ amount_paid }) {
+  async function handleAcceptPaymentConfirm({ amount_paid, discount_type, promo_mode, promo_value, discount_id_no, discount_label, payment_method, reference_no }) {
     if (!acceptingOrder) return;
     try {
       await mutations.advanceStatus.mutateAsync({
         id: acceptingOrder.order_id,
-        data: { status: "accepted", amount_paid },
+        data: {
+          status: "accepted",
+          amount_paid,
+          discount_type,
+          promo_mode,
+          promo_value,
+          discount_id_no,
+          discount_label,
+          payment_method,
+          reference_no,
+        },
       });
       toast.success(`Order #${acceptingOrder.order_number} accepted`);
       setAcceptingOrder(null);
     } catch (err) {
+      if (err.response?.data?.error === "SHIFT_REQUIRED") {
+        toast.error("Open a shift before taking payments");
+        setAcceptingOrder(null);
+        setShowOpenShift(true);
+        return;
+      }
       toast.error(err.response?.data?.message || "Failed to accept order");
     }
   }
 
   return (
     <div className={`flex flex-col gap-4 ${embedded ? "p-6 h-full overflow-y-auto" : ""}`}>
+      {/* Shift banner (BR-02) — drawer session + reconciliation entry */}
+      {canHandleCash && (
+        <ShiftBanner
+          shifts={myShifts}
+          isLoading={shiftsLoading}
+          onOpenShift={() => setShowOpenShift(true)}
+          onCloseShift={setClosingShift}
+        />
+      )}
+
       {/* KPI Stats */}
       <OrderStats activeStatus={statusFilter} onStatusClick={setStatusFilter} />
 
@@ -333,6 +408,49 @@ export default function OrdersPage({ embedded = false }) {
         onRemoveItem={handleRemoveItemClick}
       />
 
+      {/* Shift history (BR-02, admin) — system vs actual per drawer session */}
+      {user?.role === "admin" && !embedded && allShifts.length > 0 && (
+        <div className="rounded-xl border border-border bg-card px-4 py-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Recent shifts
+          </p>
+          <div className="space-y-1.5">
+            {allShifts.map((s) => {
+              const variance = s.variance != null ? Number(s.variance) : null;
+              return (
+                <div key={s.shift_id} className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                  <span className="font-medium">{s.opener_name ?? "—"}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {s.opened_at ? new Date(s.opened_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true }) : "—"}
+                  </span>
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${s.status === "open" ? "bg-green-500/10 text-green-600 dark:text-green-400" : "bg-muted text-muted-foreground"}`}>
+                    {s.status === "open" ? "Open" : "Closed"}
+                  </span>
+                  <span className="ml-auto tabular-nums">
+                    {s.status === "open" ? (
+                      <span className="text-muted-foreground">drawer open</span>
+                    ) : (
+                      <>
+                        <span className="text-muted-foreground">sys ₱{Number(s.expected_cash ?? 0).toLocaleString()} · </span>
+                        <span>act ₱{Number(s.actual_cash ?? 0).toLocaleString()} · </span>
+                        <span className={variance === 0 ? "font-semibold text-green-600 dark:text-green-400" : "font-semibold text-destructive"}>
+                          {variance > 0 ? "+" : ""}₱{(variance ?? 0).toLocaleString()}
+                        </span>
+                      </>
+                    )}
+                  </span>
+                  {s.status === "open" && (
+                    <Button variant="outline" size="sm" onClick={() => setClosingShift(s)}>
+                      {s.opened_by === user?.id ? "Close" : "Force-close"}
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Accept Payment Modal */}
       <PosPaymentModal
         open={!!acceptingOrder}
@@ -340,6 +458,22 @@ export default function OrdersPage({ embedded = false }) {
         totalAmount={acceptingOrder ? Number(acceptingOrder.total_amount) : 0}
         onConfirm={handleAcceptPaymentConfirm}
         isLoading={mutations.advanceStatus.isPending}
+      />
+
+      {/* Shift modals (BR-02) */}
+      <OpenShiftModal
+        open={showOpenShift}
+        onOpenChange={setShowOpenShift}
+        onConfirm={handleOpenShiftConfirm}
+        isLoading={shiftMutations.open.isPending}
+      />
+      <CloseShiftModal
+        open={!!closingShift}
+        onOpenChange={(open) => { if (!open) setClosingShift(null); }}
+        shift={closingShift}
+        forced={user?.role === "admin" && !!closingShift && closingShift.opened_by !== user?.id}
+        onConfirm={handleCloseShiftConfirm}
+        isLoading={shiftMutations.close.isPending || shiftMutations.forceClose.isPending}
       />
 
       {/* Cancel Order Dialog */}

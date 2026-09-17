@@ -1,6 +1,12 @@
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { useOrderMutations } from "../query";
+import { useMyShifts, useShiftMutations } from "@/features/shifts/query";
+import ShiftBanner from "@/features/shifts/components/ShiftBanner";
+import OpenShiftModal from "@/features/shifts/components/OpenShiftModal";
+import CloseShiftModal from "@/features/shifts/components/CloseShiftModal";
+import Icon from "@/components/ui/icon";
+import { Button } from "@/components/ui/button";
 import { getOrderDetailRequest } from "../api";
 import PosMenuGrid from "../components/PosMenuGrid";
 import PosOrderSummary from "../components/PosOrderSummary";
@@ -27,6 +33,13 @@ const CANCEL_REASONS = [
  */
 export default function PosInterface() {
   const mutations = useOrderMutations();
+  const shiftMutations = useShiftMutations();
+  const { data: shiftsData, isLoading: shiftsLoading } = useMyShifts();
+  const shifts = shiftsData?.data?.shifts ?? [];
+
+  // ── Shift state ───────────────────────
+  const [showOpenShift, setShowOpenShift] = useState(false);
+  const [closingShift, setClosingShift] = useState(null);
 
   // ── Order state ─────────────────────
   const [items, setItems] = useState([]);
@@ -145,6 +158,12 @@ export default function PosInterface() {
       setFulfillingOrderId(null);
       setShowPayment(false);
     } catch (err) {
+      if (err.response?.data?.error === "SHIFT_REQUIRED") {
+        toast.error("Open a shift before taking payments");
+        setShowPayment(false);
+        setShowOpenShift(true);
+        return;
+      }
       toast.error(err.response?.data?.message || "Failed to place order");
     }
   }
@@ -163,8 +182,74 @@ export default function PosInterface() {
     });
   }
 
+  async function handleOpenShiftConfirm(data) {
+    try {
+      await shiftMutations.open.mutateAsync(data);
+      toast.success("Shift opened");
+      setShowOpenShift(false);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to open shift");
+    }
+  }
+
+  async function handleCloseShiftConfirm(data) {
+    if (!closingShift) return;
+    try {
+      const res = await shiftMutations.close.mutateAsync({ id: closingShift.shift_id, data });
+      const variance = Number(res?.data?.shift?.variance ?? 0);
+      toast.success(
+        variance === 0
+          ? "Shift closed — balanced"
+          : `Shift closed — variance ${variance > 0 ? "+" : ""}₱${variance.toLocaleString()}`,
+      );
+      setClosingShift(null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to close shift");
+    }
+  }
+
+  // BR-02: no open drawer session → gate the whole POS behind shift open.
+  if (!shiftsLoading && shifts.length === 0) {
+    return (
+      <>
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+            <Icon name="wallet" size={26} className="text-muted-foreground" />
+          </span>
+          <div>
+            <h2 className="text-lg font-bold">Open a shift to start selling</h2>
+            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+              Count the drawer and declare the opening cash. Every payment you take is tracked against this shift.
+            </p>
+          </div>
+          <Button onClick={() => setShowOpenShift(true)}>
+            Open shift
+          </Button>
+        </div>
+
+        <OpenShiftModal
+          open={showOpenShift}
+          onOpenChange={setShowOpenShift}
+          onConfirm={handleOpenShiftConfirm}
+          isLoading={shiftMutations.open.isPending}
+        />
+      </>
+    );
+  }
+
   return (
     <>
+      {/* Shift bar */}
+      <div className="border-b border-border px-4 py-2">
+        <ShiftBanner
+          compact
+          shifts={shifts}
+          isLoading={shiftsLoading}
+          onOpenShift={() => setShowOpenShift(true)}
+          onCloseShift={setClosingShift}
+        />
+      </div>
+
       <div className="relative flex flex-1 overflow-hidden">
         {/* Center: Product menu */}
         <div className="flex-[7] overflow-y-auto p-4">
@@ -216,6 +301,21 @@ export default function PosInterface() {
         }}
         onConfirm={handlePaymentConfirm}
         isLoading={mutations.create.isPending || mutations.fulfill.isPending}
+      />
+
+      {/* Shift modals */}
+      <OpenShiftModal
+        open={showOpenShift}
+        onOpenChange={setShowOpenShift}
+        onConfirm={handleOpenShiftConfirm}
+        isLoading={shiftMutations.open.isPending}
+      />
+      <CloseShiftModal
+        open={!!closingShift}
+        onOpenChange={(open) => { if (!open) setClosingShift(null); }}
+        shift={closingShift}
+        onConfirm={handleCloseShiftConfirm}
+        isLoading={shiftMutations.close.isPending}
       />
     </>
   );

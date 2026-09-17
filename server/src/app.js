@@ -28,6 +28,7 @@ import auditLogRoutes from "./modules/auditLogs/auditLog.routes.js";
 import dashboardRoutes from "./modules/dashboard/dashboard.routes.js";
 import notificationRoutes from "./modules/notifications/notification.routes.js";
 import anomalyDetectionRoutes from "./modules/anomalyDetection/anomalyDetection.routes.js";
+import shiftRoutes from "./modules/shifts/shift.routes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -88,6 +89,7 @@ app.use("/api/audit-logs", auditLogRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/anomaly", anomalyDetectionRoutes);
+app.use("/api/shifts", shiftRoutes);
 
 // Health check endpoint (used by hosting platforms to verify server is running)
 app.get("/api/health", (req, res) => {

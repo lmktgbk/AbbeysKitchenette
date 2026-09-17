@@ -39,8 +39,10 @@ model User {
   completedOrders   Order[]          @relation("OrderCompletedBy")
    preparedOrderItems OrderItem[]     @relation("OrderItemPreparedBy")
    removedOrderItems  OrderItem[]     @relation("OrderItemRemovedBy")
-    cancelledCancellations OrderCancellation[] @relation("OrderCancelledBy")
-   refundedOrders    PaymentRefund[]    @relation("OrderRefundedBy")
+  cancelledCancellations OrderCancellation[] @relation("OrderCancelledBy")
+    refundedOrders    PaymentRefund[]    @relation("OrderRefundedBy")
+  openedShifts    Shift[]          @relation("ShiftOpener")
+  closedShifts    Shift[]          @relation("ShiftCloser")
   auditLogs        AuditLog[]
 }
 
@@ -356,6 +358,9 @@ model Order {
   discountAmount  Decimal  @default(0) @map("discount_amount") @db.Decimal(10, 2)
   discountBy      String?  @map("discount_by") @db.Uuid
 
+  // Shift attribution (BR-02: which drawer session took this payment)
+  shiftId         String?  @map("shift_id") @db.Uuid
+
   // Payment (BR-01: record-only, no gateway)
   paymentMethod   String   @default("cash") @map("payment_method") @db.VarChar(20) // cash | gcash | maya
   referenceNo     String?  @map("reference_no") @db.VarChar(100)
@@ -377,6 +382,7 @@ model Order {
   acceptedByUser  User?       @relation("OrderAcceptedBy", fields: [acceptedBy], references: [id])
   preparingByUser User?       @relation("OrderPreparingBy", fields: [preparingBy], references: [id])
   completedByUser  User?      @relation("OrderCompletedBy", fields: [completedBy], references: [id])
+  shift           Shift?      @relation(fields: [shiftId], references: [shiftId])
 
   items         OrderItem[]
   cancellation  OrderCancellation?
@@ -662,6 +668,31 @@ model AuditLog {
   @@index([createdAt])
   @@index([targetType, targetId])
   @@map("audit_logs")
+}
+
+// ── Shifts (BR-02: cashier drawer sessions) ────────────────
+model Shift {
+  shiftId       String    @id @default(uuid()) @map("shift_id") @db.Uuid
+  openedBy      String    @map("opened_by") @db.Uuid
+  openedAt      DateTime  @default(now()) @map("opened_at") @db.Timestamptz
+  openingCash   Decimal   @map("opening_cash") @db.Decimal(10, 2)
+  status        String    @default("open") @db.VarChar(20) // open | closed
+  closedAt      DateTime? @map("closed_at") @db.Timestamptz
+  closedBy      String?   @map("closed_by") @db.Uuid
+  expectedCash  Decimal?  @map("expected_cash") @db.Decimal(10, 2)
+  actualCash    Decimal?  @map("actual_cash") @db.Decimal(10, 2)
+  variance      Decimal?  @db.Decimal(10, 2)
+  closeNote     String?   @map("close_note") @db.VarChar(500)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  opener User  @relation("ShiftOpener", fields: [openedBy], references: [id])
+  closer User? @relation("ShiftCloser", fields: [closedBy], references: [id])
+  orders Order[]
+
+  @@index([status])
+  @@index([openedBy])
+  @@map("shifts")
 }
 
 // ── Notifications ──────────────────────────────────────────

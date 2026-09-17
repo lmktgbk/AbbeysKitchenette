@@ -1,5 +1,6 @@
 import { orderRepository } from "./order.repository.js";
 import { isValidTransition, formatOrderResponse, formatOrderItemResponse, computeDiscountedTotal, roundMoney } from "./order.utils.js";
+import { shiftService } from "../shifts/shift.service.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { productService } from "../products/product.service.js";
 import prisma from "../../config/prisma.js";
@@ -162,6 +163,9 @@ export const orderService = {
   /* ── Walk-In Order Creation ──────────── */
 
   async createWalkIn({ customerName, tableNumber, items, amountPaid, createdBy, orderDate: orderDateStr, discount = {}, payment = {} }) {
+    // BR-02: payment requires an open drawer session.
+    const { shiftId } = await shiftService.resolveShiftForUser(createdBy);
+
     const { pricedItems, subtotal, discount: discountResult, total } =
       await this._priceItemsAndTotals(items, discount);
 
@@ -195,6 +199,7 @@ export const orderService = {
         discountBy: discountResult.discountType === "none" ? null : createdBy,
         paymentMethod,
         referenceNo: payment.reference_no ?? null,
+        shiftId,
         totalAmount: total,
         amountPaid: paymentMethod === "cash" ? amountPaid : total,
         change,
@@ -317,6 +322,9 @@ export const orderService = {
       throw new AppError(400, "Only pending orders can be fulfilled", "INVALID_STATUS");
     }
 
+    // BR-02: payment requires an open drawer session.
+    const { shiftId } = await shiftService.resolveShiftForUser(userId);
+
     const { pricedItems, subtotal, discount: discountResult, total } =
       await this._priceItemsAndTotals(items, discount);
 
@@ -359,6 +367,7 @@ export const orderService = {
         discountBy: discountResult.discountType === "none" ? null : userId,
         paymentMethod,
         referenceNo: payment.reference_no ?? null,
+        shiftId,
         totalAmount: total,
         amountPaid: paidToStore,
         change,
@@ -1369,6 +1378,9 @@ export const orderService = {
       throw new AppError(400, "Amount paid is required for acceptance", "PAYMENT_REQUIRED");
     }
 
+    // BR-02: payment requires an open drawer session.
+    const { shiftId } = await shiftService.resolveShiftForUser(meta.userId);
+
     // Re-price from live variant prices so acceptance can't use stale totals.
     const orderItems = order.items.map((item) => ({
       product_id: item.productId,
@@ -1408,6 +1420,7 @@ export const orderService = {
         discountBy: discountResult.discountType === "none" ? null : meta.userId,
         paymentMethod,
         referenceNo: meta.reference_no ?? null,
+        shiftId,
         totalAmount: total,
         amountPaid: paidToStore,
         change,

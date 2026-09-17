@@ -59,6 +59,7 @@ export const orderRepository = {
         discountBy: data.discountBy ?? null,
         paymentMethod: data.paymentMethod ?? "cash",
         referenceNo: data.referenceNo ?? null,
+        shiftId: data.shiftId ?? null,
         totalAmount: data.totalAmount,
         amountPaid: data.amountPaid ?? null,
         change: data.change ?? null,
@@ -222,6 +223,7 @@ export const orderRepository = {
         o.order_source, o.status, o.subtotal_amount, o.discount_type, o.discount_percent,
         o.discount_label, o.discount_id_no, o.discount_amount, o.discount_by,
         o.payment_method, o.reference_no, o.total_amount, o.amount_paid, o.change,
+        o.shift_id,
         o.guest_token,
         o.accepted_at, o.accepted_by,
         o.preparing_at, o.preparing_by,
@@ -275,7 +277,7 @@ export const orderRepository = {
    * Update order status with timestamp and actor.
    * @param {string} id - order UUID
    * @param {string} status - new status
-   * @param {object} [meta] - { userId, amountPaid, change, subtotalAmount, discountType, discountPercent, discountLabel, discountIdNo, discountAmount, discountBy, paymentMethod, referenceNo, totalAmount }
+   * @param {object} [meta] - { userId, amountPaid, change, subtotalAmount, discountType, discountPercent, discountLabel, discountIdNo, discountAmount, discountBy, paymentMethod, referenceNo, shiftId, totalAmount }
    * @param {object} [tx] - transaction client
    * @returns {object} - updated order
    */
@@ -297,6 +299,7 @@ export const orderRepository = {
       if (meta.discountBy !== undefined) data.discountBy = meta.discountBy;
       if (meta.paymentMethod !== undefined) data.paymentMethod = meta.paymentMethod;
       if (meta.referenceNo !== undefined) data.referenceNo = meta.referenceNo;
+      if (meta.shiftId !== undefined) data.shiftId = meta.shiftId;
       if (meta.totalAmount !== undefined) data.totalAmount = meta.totalAmount;
       if (meta.amountPaid !== undefined) data.amountPaid = meta.amountPaid;
       if (meta.change !== undefined) data.change = meta.change;

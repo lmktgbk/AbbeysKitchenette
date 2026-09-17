@@ -112,6 +112,7 @@ export function formatOrderResponse(row, extra = {}) {
     discount_by: row.discount_by ?? row.discountBy ?? null,
     payment_method: row.payment_method ?? row.paymentMethod ?? "cash",
     reference_no: row.reference_no ?? row.referenceNo ?? null,
+    shift_id: row.shift_id ?? row.shiftId ?? null,
     total_amount: Number(row.total_amount ?? row.totalAmount ?? 0),
     amount_paid: row.amount_paid != null ? Number(row.amount_paid) : row.amountPaid != null ? Number(row.amountPaid) : null,
     change: row.change != null ? Number(row.change) : null,

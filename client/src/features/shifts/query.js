@@ -1,0 +1,81 @@
+/**
+ * Shift Query Layer (BR-02)
+ *
+ * Centralized query + mutation hooks for the shifts feature.
+ */
+
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import * as api from "./api";
+
+/* ── Key Factories (internal) ──────────────────── */
+
+const shiftKeys = {
+  all: ["shifts"],
+  mine: ["shifts", "mine"],
+  list: (params) => ["shifts", "list", params],
+  detail: (id) => ["shifts", "detail", id],
+  summary: (id) => ["shifts", "summary", id],
+};
+
+/* ── Query Hooks ───────────────────────────────── */
+
+/**
+ * useMyShifts — own open shifts with live expected cash.
+ * Polls every 30s so the banner stays fresh during a shift.
+ */
+export function useMyShifts() {
+  return useQuery({
+    queryKey: shiftKeys.mine,
+    queryFn: api.getMyShiftsRequest,
+    refetchInterval: 30000,
+  });
+}
+
+/**
+ * useShiftsList — admin shift history with filters.
+ */
+export function useShiftsList(params, options = {}) {
+  return useQuery({
+    queryKey: shiftKeys.list(params),
+    queryFn: () => api.getShiftsRequest(params),
+    ...options,
+  });
+}
+
+/**
+ * useShiftSummary — reconciliation breakdown for review/close.
+ * Fetched on demand (enabled when a shift id is selected).
+ */
+export function useShiftSummary(id, options = {}) {
+  return useQuery({
+    queryKey: shiftKeys.summary(id),
+    queryFn: () => api.getShiftSummaryRequest(id),
+    enabled: !!id,
+    ...options,
+  });
+}
+
+/* ── Mutation Hooks ─────────────────────────────── */
+
+export function useShiftMutations() {
+  const queryClient = useQueryClient();
+
+  function invalidateAll() {
+    queryClient.invalidateQueries({ queryKey: shiftKeys.all });
+  }
+
+  return {
+    open: useMutation({
+      mutationFn: api.openShiftRequest,
+      onSuccess: () => invalidateAll(),
+    }),
+    close: useMutation({
+      mutationFn: ({ id, data }) => api.closeShiftRequest(id, data),
+      onSuccess: () => invalidateAll(),
+    }),
+    forceClose: useMutation({
+      mutationFn: ({ id, data }) => api.forceCloseShiftRequest(id, data),
+      onSuccess: () => invalidateAll(),
+    }),
+  };
+}
