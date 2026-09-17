@@ -25,7 +25,7 @@ function TrendArrow({ value }) {
   );
 }
 
-function DashboardKpis({ kpis, isLoading }) {
+function DashboardKpis({ kpis, isLoading, discountSummary, vatSummary }) {
   if (isLoading) {
     return (
       <div className="grid grid-cols-3 gap-3 lg:grid-cols-6">
@@ -97,33 +97,67 @@ function DashboardKpis({ kpis, isLoading }) {
     },
   ];
 
+  const secondaryCards = [
+    {
+      icon: "tag",
+      label: "Total Discounts",
+      value: formatPeso(discountSummary?.totalDiscounts),
+      sub: `${discountSummary?.discountCount || 0} applied`,
+      iconBg: "bg-pink-500/10",
+      iconColor: "text-pink-600 dark:text-pink-400",
+    },
+  ];
+
   return (
-    <div className="grid grid-cols-3 gap-3 lg:grid-cols-6">
-      {cards.map((card) => (
-        <div
-          key={card.label}
-          className="rounded-lg border border-border bg-card px-4 py-3"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground truncate">
-              {card.label}
-            </span>
-            <div className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-md", card.iconBg)}>
-              <Icon name={card.icon} size={14} className={card.iconColor} />
+    <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-3 lg:grid-cols-6">
+        {cards.map((card) => (
+          <div
+            key={card.label}
+            className="rounded-lg border border-border bg-card px-4 py-3"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground truncate">
+                {card.label}
+              </span>
+              <div className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-md", card.iconBg)}>
+                <Icon name={card.icon} size={14} className={card.iconColor} />
+              </div>
+            </div>
+            <div className="text-lg font-bold text-foreground mb-0.5 truncate whitespace-nowrap">{card.value}</div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-muted-foreground truncate">{card.sub}</span>
+              {card.delta !== null && card.delta !== undefined && (
+                <>
+                  <span className="text-[11px] text-muted-foreground">·</span>
+                  <TrendArrow value={card.delta} />
+                </>
+              )}
             </div>
           </div>
-          <div className="text-lg font-bold text-foreground mb-0.5 truncate whitespace-nowrap">{card.value}</div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] text-muted-foreground truncate">{card.sub}</span>
-            {card.delta !== null && card.delta !== undefined && (
-              <>
-                <span className="text-[11px] text-muted-foreground">·</span>
-                <TrendArrow value={card.delta} />
-              </>
-            )}
-          </div>
+        ))}
+      </div>
+      {secondaryCards.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-2">
+          {secondaryCards.map((card) => (
+            <div
+              key={card.label}
+              className="rounded-lg border border-border bg-card px-4 py-3"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground truncate">
+                  {card.label}
+                </span>
+                <div className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-md", card.iconBg)}>
+                  <Icon name={card.icon} size={14} className={card.iconColor} />
+                </div>
+              </div>
+              <div className="text-lg font-bold text-foreground mb-0.5 truncate whitespace-nowrap">{card.value}</div>
+              <div className="text-[11px] text-muted-foreground truncate">{card.sub}</div>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
     </div>
   );
 }

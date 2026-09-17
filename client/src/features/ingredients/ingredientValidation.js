@@ -48,6 +48,7 @@ export const restockSchema = z.object({
     .string()
     .max(150, "Must not exceed 150 characters")
     .optional(),
+  expires_at: z.string().optional(),
   notes: z.string().max(500, "Must not exceed 500 characters").optional(),
 });
 

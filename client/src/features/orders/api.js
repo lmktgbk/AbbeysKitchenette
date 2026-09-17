@@ -83,6 +83,12 @@ export async function removeOrderItemRequest(orderId, itemId, data = {}) {
   return res.data;
 }
 
+// GET /api/orders/:id/receipt — get receipt data for printing
+export async function getReceiptRequest(orderId) {
+  const res = await api.get(`/orders/${orderId}/receipt`);
+  return res.data;
+}
+
 // ── Guest (Public) ──────────────────
 
 // GET /api/guest/menu — available products

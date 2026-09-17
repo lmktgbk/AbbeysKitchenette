@@ -249,7 +249,7 @@ export const ingredientService = {
       throw new AppError(404, "Ingredient not found", "INGREDIENT_NOT_FOUND");
     }
 
-    const { quantity_added, cost_per_unit, supplier_name, notes } = data;
+    const { quantity_added, cost_per_unit, supplier_name, notes, expires_at } = data;
     const qty = Number(quantity_added);
     const cost = Number(cost_per_unit);
     const total = qty * cost;
@@ -271,6 +271,7 @@ export const ingredientService = {
           totalCost: total,
           supplierName: supplier_name || null,
           notes: notes || null,
+          expiresAt: expires_at ? new Date(expires_at + "T23:59:59Z") : null,
         },
         tx,
       );
@@ -750,7 +751,7 @@ export const ingredientService = {
       action: ACTIONS.INGREDIENT_ARCHIVED,
       targetType: "ingredient",
       targetId: id,
-      details: { name: ingredient.name },
+      details: { name: ingredient.ingredientName },
     }).catch(() => {});
 
     return {
@@ -778,7 +779,7 @@ export const ingredientService = {
       action: ACTIONS.INGREDIENT_RESTORED,
       targetType: "ingredient",
       targetId: id,
-      details: { name: ingredient.name },
+      details: { name: ingredient.ingredientName },
     }).catch(() => {});
 
     return {

@@ -154,6 +154,17 @@ export default function RestockModal({
 
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-foreground">
+              Expiry Date (optional)
+            </label>
+            <Input
+              type="date"
+              error={errors.expires_at?.message}
+              {...register("expires_at")}
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-foreground">
               Notes
             </label>
             <Textarea

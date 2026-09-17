@@ -8,6 +8,7 @@ import PosPaymentModal from "../components/PosPaymentModal";
 import PosOnlineOrders from "../components/PosOnlineOrders";
 import { confirm } from "@/components/alerts/ConfirmDialog";
 import { confirmWithReason } from "@/components/alerts/ConfirmDialog";
+import ShiftGate from "@/features/shifts/components/ShiftGate";
 import { toLocalDate } from "@/lib/date";
 
 const CANCEL_REASONS = [
@@ -80,9 +81,11 @@ export default function PosInterface() {
 
   async function handleAcceptOnlineOrder(order) {
     if (items.length > 0) {
-      const yes = await confirm(
-        `Load order #${order.order_number}? This will replace the current order.`
-      );
+      const yes = await confirm({
+        title: "Load Order",
+        message: `Load order #${order.order_number}? This will replace the current order.`,
+        variant: "warning",
+      });
       if (!yes) return;
     }
 
@@ -110,7 +113,7 @@ export default function PosInterface() {
     }
   }
 
-  async function handlePaymentConfirm({ amount_paid }) {
+  async function handlePaymentConfirm({ amount_paid, payment_method, payment_ref, discounts }) {
     const payload = {
       customer_name: customerName,
       table_number: tableName,
@@ -121,6 +124,9 @@ export default function PosInterface() {
         unit_price: i.unit_price,
       })),
       amount_paid,
+      payment_method: payment_method || "cash",
+      payment_ref: payment_ref || undefined,
+      discounts: discounts && discounts.length > 0 ? discounts : undefined,
     };
 
     try {
@@ -157,10 +163,10 @@ export default function PosInterface() {
   }
 
   return (
-    <>
-      <div className="relative flex flex-1 overflow-hidden">
+    <ShiftGate>
+      <div className="relative flex min-h-0 flex-1 overflow-hidden">
         {/* Center: Product menu */}
-        <div className="flex-[7] overflow-y-auto p-4">
+        <div className="flex-[7] min-h-0 overflow-y-auto p-4">
           <PosMenuGrid
             onAddItem={handleAddItem}
             sidebarOpen={sidebarOpen}
@@ -169,7 +175,7 @@ export default function PosInterface() {
         </div>
 
         {/* Right: Order summary (30%) */}
-        <div className="flex-[3] border-l border-border">
+        <div className="flex-[3] min-h-0 overflow-hidden border-l border-border">
           <PosOrderSummary
             items={items}
             customerName={customerName}
@@ -199,6 +205,6 @@ export default function PosInterface() {
         onConfirm={handlePaymentConfirm}
         isLoading={mutations.create.isPending || mutations.fulfill.isPending}
       />
-    </>
+    </ShiftGate>
   );
 }

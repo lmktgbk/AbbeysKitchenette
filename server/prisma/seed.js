@@ -796,6 +796,28 @@ async function main() {
   console.log(`  Adjustments:     ${adjustmentRecords.length}`);
   console.log(`  Restock Batches: ${initialBatches.length + restockInsertData.length}`);
   console.log(`  Loss Records:    ${lossInsertData.length}`);
+
+  // ── Unit Conversions ─────────────────────────────────
+  const unitConversions = [
+    { fromUnit: "kg", toUnit: "g", factor: 1000 },
+    { fromUnit: "g", toUnit: "kg", factor: 0.001 },
+    { fromUnit: "L", toUnit: "ml", factor: 1000 },
+    { fromUnit: "ml", toUnit: "L", factor: 0.001 },
+    { fromUnit: "lb", toUnit: "g", factor: 453.592 },
+    { fromUnit: "g", toUnit: "lb", factor: 0.00220462 },
+    { fromUnit: "oz", toUnit: "g", factor: 28.3495 },
+    { fromUnit: "g", toUnit: "oz", factor: 0.035274 },
+  ];
+
+  for (const conv of unitConversions) {
+    await prisma.unitConversion.upsert({
+      where: { fromUnit_toUnit: { fromUnit: conv.fromUnit, toUnit: conv.toUnit } },
+      update: { factor: conv.factor },
+      create: conv,
+    });
+  }
+  console.log(`  Unit Conversions: ${unitConversions.length}`);
+
   console.log(`  Time:            ${elapsed}s`);
   console.log("════════════════════════════════════════");
 }

@@ -52,6 +52,10 @@ export const restockIngredientSchema = z.object({
     .trim()
     .max(150, "Supplier name must not exceed 150 characters")
     .optional(),
+  expires_at: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD")
+    .optional(),
   notes: z
     .string()
     .trim()

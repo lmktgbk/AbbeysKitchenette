@@ -15,6 +15,7 @@ import WasteSummaryCard from "../components/WasteSummaryCard";
 import MostRestockedTable from "../components/MostRestockedTable";
 import TableUtilizationChart from "../components/TableUtilizationChart";
 import StaffPerformanceChart from "../components/StaffPerformanceChart";
+import PaymentMethodChart from "../components/PaymentMethodChart";
 import DashboardAnomalyBanner from "@/features/anomalyDetection/components/DashboardAnomalyBanner";
 
 function SectionDivider({ title }) {
@@ -65,7 +66,7 @@ export default function DashboardPage() {
 
       <DashboardAnomalyBanner />
 
-      <DashboardKpis kpis={d?.kpis} isLoading={isLoading} />
+      <DashboardKpis kpis={d?.kpis} isLoading={isLoading} discountSummary={d?.discountSummary} vatSummary={d?.vatSummary} />
 
       {/* ─── Financial Overview ─── */}
       <SectionDivider title="Financial Overview" />
@@ -88,6 +89,10 @@ export default function DashboardPage() {
       </div>
 
       <CategorySalesChart data={d?.salesByCategory} isLoading={isLoading} />
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <PaymentMethodChart data={d?.paymentMethodBreakdown} isLoading={isLoading} />
+      </div>
 
       {/* ─── Operations ─── */}
       <SectionDivider title="Operations" />

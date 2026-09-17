@@ -44,6 +44,7 @@ export function getNextStatus(current) {
 // ── Order Number Formatting ─────────────────────────────
 
 export function formatOrderNumber(num) {
+  if (typeof num === "string") return `#${num}`;
   return `#${String(num).padStart(4, "0")}`;
 }
 
@@ -60,6 +61,10 @@ export function formatOrderResponse(row, extra = {}) {
     total_amount: Number(row.total_amount ?? row.totalAmount ?? 0),
     amount_paid: row.amount_paid != null ? Number(row.amount_paid) : row.amountPaid != null ? Number(row.amountPaid) : null,
     change: row.change != null ? Number(row.change) : null,
+    payment_method: row.payment_method ?? row.paymentMethod ?? "cash",
+    payment_ref: row.payment_ref ?? row.paymentRef ?? null,
+    discount_amount: Number(row.discount_amount ?? row.discountAmount ?? 0),
+    shift_id: row.shift_id ?? row.shiftId ?? null,
     guest_token: row.guest_token ?? row.guestToken ?? null,
     accepted_at: row.accepted_at ?? row.acceptedAt ?? null,
     accepted_by: row.accepted_by ?? row.acceptedBy ?? null,
@@ -85,6 +90,7 @@ export function formatOrderItemResponse(row) {
     quantity: row.quantity,
     unit_price: Number(row.unit_price ?? row.unitPrice),
     subtotal: row.subtotal != null ? Number(row.subtotal) : null,
+    discount_amount: Number(row.discount_amount ?? row.discountAmount ?? 0),
     is_prepared: row.is_prepared ?? row.isPrepared ?? false,
     prepared_by: row.prepared_by ?? row.preparedBy ?? null,
     prepared_by_name: row.prepared_by_name ?? row.preparedByUser?.name ?? null,

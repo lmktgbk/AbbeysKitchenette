@@ -115,7 +115,7 @@ export const dashboardRepository = {
       _count: { _all: true },
     });
 
-    const counts = { pending: 0, accepted: 0, next_in_line: 0, processing: 0, completed: 0, cancelled: 0 };
+    const counts = { pending: 0, accepted: 0, preparing: 0, completed: 0, cancelled: 0 };
     for (const row of result) {
       counts[row.status] = row._count._all;
     }
@@ -853,5 +853,92 @@ export const dashboardRepository = {
       WHERE rb.quantity_left > 0
     `);
     return result[0] || { totalValue: 0, ingredientCount: 0 };
+  },
+
+  /**
+   * Payment method breakdown for a date range.
+   * @returns {Array<{method, amount, transactions}>}
+   */
+  async getPaymentMethodBreakdown(dateFrom, dateTo) {
+    const values = [];
+    let idx = 1;
+    const dateClauses = [];
+    if (dateFrom) dateClauses.push(`o.order_date >= $${idx++}::date`);
+    if (dateTo) dateClauses.push(`o.order_date <= $${idx++}::date`);
+    if (dateFrom) values.push(dateFrom);
+    if (dateTo) values.push(dateTo);
+    const dateWhere = dateClauses.length ? `WHERE ${dateClauses.join(" AND ")} AND o.status = 'completed'` : "WHERE o.status = 'completed'";
+
+    const sql = `
+      SELECT
+        COALESCE(o.payment_method, 'cash') AS method,
+        COALESCE(SUM(o.total_amount), 0)::float AS amount,
+        COUNT(*)::int AS transactions
+      FROM orders o
+      ${dateWhere}
+      GROUP BY o.payment_method
+      ORDER BY amount DESC
+    `;
+    return prisma.$queryRawUnsafe(sql, ...values);
+  },
+
+  /**
+   * Discount totals for a date range.
+   * @returns {object} - { totalDiscounts, discountCount, byType }
+   */
+  async getDiscountSummary(dateFrom, dateTo) {
+    const values = [];
+    let idx = 1;
+    const dateClauses = [];
+    if (dateFrom) dateClauses.push(`d.created_at >= $${idx++}::date`);
+    if (dateTo) dateClauses.push(`d.created_at <= $${idx++}::date`);
+    if (dateFrom) values.push(dateFrom);
+    if (dateTo) values.push(dateTo);
+    const dateWhere = dateClauses.length ? `WHERE ${dateClauses.join(" AND ")}` : "";
+
+    const sql = `
+      SELECT
+        COALESCE(SUM(d.amount), 0)::float AS "totalDiscounts",
+        COUNT(*)::int AS "discountCount",
+        COALESCE(SUM(CASE WHEN d.discount_type = 'senior' THEN d.amount END), 0)::float AS senior,
+        COALESCE(SUM(CASE WHEN d.discount_type = 'pwd' THEN d.amount END), 0)::float AS pwd,
+        COALESCE(SUM(CASE WHEN d.discount_type = 'promotional' THEN d.amount END), 0)::float AS promotional,
+        COALESCE(SUM(CASE WHEN d.discount_type = 'employee' THEN d.amount END), 0)::float AS employee
+      FROM discounts d
+      ${dateWhere}
+    `;
+    const result = await prisma.$queryRawUnsafe(sql, ...values);
+    return result[0] || { totalDiscounts: 0, discountCount: 0, senior: 0, pwd: 0, promotional: 0, employee: 0 };
+  },
+
+  /**
+   * VAT summary for a date range.
+   * VAT-exempt orders (senior/PWD) are excluded from 12% VAT calculation.
+   * @returns {object} - { totalVat, vatExemptSales, taxableSales }
+   */
+  async getVatSummary(dateFrom, dateTo) {
+    const values = [];
+    let idx = 1;
+    const dateClauses = [];
+    if (dateFrom) dateClauses.push(`o.order_date >= $${idx++}::date`);
+    if (dateTo) dateClauses.push(`o.order_date <= $${idx++}::date`);
+    if (dateFrom) values.push(dateFrom);
+    if (dateTo) values.push(dateTo);
+    const dateWhere = dateClauses.length ? `WHERE ${dateClauses.join(" AND ")} AND o.status = 'completed'` : "WHERE o.status = 'completed'";
+
+    const sql = `
+      SELECT
+        COALESCE(SUM(o.total_amount), 0)::float AS "taxableSales",
+        COALESCE(SUM(CASE WHEN EXISTS (
+          SELECT 1 FROM discounts d WHERE d.order_id = o.order_id AND d.discount_type IN ('senior', 'pwd')
+        ) THEN o.total_amount ELSE 0 END), 0)::float AS "vatExemptSales"
+      FROM orders o
+      ${dateWhere}
+    `;
+    const result = await prisma.$queryRawUnsafe(sql, ...values);
+    const row = result[0] || { taxableSales: 0, vatExemptSales: 0 };
+    const actualTaxable = row.taxableSales - row.vatExemptSales;
+    const totalVat = Math.round(actualTaxable / 1.12 * 0.12 * 100) / 100;
+    return { totalVat, vatExemptSales: row.vatExemptSales, taxableSales: actualTaxable };
   },
 };

@@ -160,11 +160,37 @@ export const orderService = {
 
   /* ── Walk-In Order Creation ──────────── */
 
-  async createWalkIn({ customerName, tableNumber, items, amountPaid, createdBy, orderDate: orderDateStr }) {
+  async createWalkIn({ customerName, tableNumber, items, amountPaid, createdBy, orderDate: orderDateStr, paymentMethod, paymentRef, discounts, shiftId }) {
     const aggregatedIngredients = await this._aggregateIngredientNeeds(items);
     const totalAmount = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
 
-    if (amountPaid < totalAmount) {
+    // Calculate total discount
+    let totalDiscount = 0;
+    const itemDiscounts = new Map();
+    if (discounts && discounts.length > 0) {
+      for (const disc of discounts) {
+        if (disc.order_item_ids && disc.order_item_ids.length > 0) {
+          // Per-item discounts
+          for (const itemId of disc.order_item_ids) {
+            const item = items.find((_, idx) => idx === itemId);
+            if (item) {
+              const itemDiscount = disc.type === "senior" || disc.type === "pwd"
+                ? item.unit_price * item.quantity * 0.2
+                : disc.amount / disc.order_item_ids.length;
+              itemDiscounts.set(itemId, (itemDiscounts.get(itemId) || 0) + itemDiscount);
+              totalDiscount += itemDiscount;
+            }
+          }
+        } else {
+          // Order-level discount
+          totalDiscount += disc.amount;
+        }
+      }
+    }
+
+    const netAmount = totalAmount - totalDiscount;
+
+    if (amountPaid < netAmount) {
       throw new AppError(400, "Amount paid is less than total", "INSUFFICIENT_PAYMENT");
     }
 
@@ -182,18 +208,38 @@ export const orderService = {
         tableNumber,
         orderSource: "walk_in",
         status: "accepted",
-        totalAmount,
+        totalAmount: netAmount,
         amountPaid,
-        change: amountPaid - totalAmount,
+        change: amountPaid - netAmount,
+        paymentMethod: paymentMethod || "cash",
+        paymentRef: paymentRef || null,
+        discountAmount: totalDiscount,
+        shiftId: shiftId || null,
         createdBy,
         acceptedAt: now,
         acceptedBy: createdBy,
-      }, items.map((item) => ({
+      }, items.map((item, idx) => ({
         productId: item.product_id,
         variantId: item.variant_id,
         quantity: item.quantity,
         unitPrice: item.unit_price,
+        discountAmount: itemDiscounts.get(idx) || 0,
       })), tx);
+
+      // Create discount records
+      if (discounts && discounts.length > 0) {
+        for (const disc of discounts) {
+          await tx.discount.create({
+            data: {
+              orderId: newOrder.orderId,
+              type: disc.type,
+              amount: disc.amount,
+              reason: disc.reason || null,
+              createdBy,
+            },
+          });
+        }
+      }
 
       const { deductions, needs } = await this._deductIngredients(newOrder.orderId, aggregatedIngredients, tx, createdBy);
       return { order: newOrder, deductions, needs };
@@ -1319,5 +1365,58 @@ export const orderService = {
     this._checkStockLevels(transactionNeeds).catch(() => {});
 
     return this.getById(id);
+  },
+
+  /**
+   * Generate receipt data for a completed order.
+   * Returns formatted data suitable for thermal 80mm printer rendering.
+   */
+  async getReceipt(orderId) {
+    const order = await orderRepository.findById(orderId);
+    if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
+
+    const items = (order.orderItems || []).map((item) => ({
+      name: item.product?.productName || "Unknown",
+      size: item.variant?.sizeName || "",
+      quantity: item.quantity,
+      unit_price: Number(item.unitPrice),
+      subtotal: Number(item.quantity) * Number(item.unitPrice),
+      discount: Number(item.discountAmount || 0),
+    }));
+
+    const discounts = (order.discounts || []).map((d) => ({
+      type: d.type,
+      label: d.type === "senior" ? "Senior Citizen" : d.type === "pwd" ? "PWD" : d.type.charAt(0).toUpperCase() + d.type.slice(1),
+      amount: Number(d.amount),
+    }));
+
+    const subtotal = items.reduce((sum, i) => sum + i.subtotal, 0);
+    const totalDiscount = discounts.reduce((sum, d) => sum + d.amount, 0);
+    const vatAmount = discounts.some((d) => ["senior", "pwd"].includes(d.type))
+      ? 0
+      : Math.round(subtotal / 1.12 * 0.12 * 100) / 100;
+    const netAmount = subtotal - totalDiscount;
+
+    return {
+      receipt: {
+        store_name: "Abbey's Kitchenette",
+        store_tagline: "SmartCafe POS",
+        order_number: order.orderNumber,
+        date: order.orderDate?.toISOString()?.split("T")[0] || new Date().toISOString().split("T")[0],
+        time: order.acceptedAt ? new Date(order.acceptedAt).toLocaleTimeString() : new Date().toLocaleTimeString(),
+        cashier: order.createdByUser?.name || "Staff",
+        customer: order.customerName,
+        table: order.tableNumber,
+        items,
+        discounts,
+        subtotal,
+        vat_amount: vatAmount,
+        total_discount: totalDiscount,
+        net_amount: netAmount,
+        amount_paid: Number(order.amountPaid || 0),
+        change: Number(order.change || 0),
+        payment_method: order.paymentMethod || "cash",
+      },
+    };
   },
 };

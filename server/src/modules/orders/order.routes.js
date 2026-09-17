@@ -163,4 +163,13 @@ router.post(
   orderController.cancelOrder,
 );
 
+// GET /api/orders/:id/receipt — receipt data
+router.get(
+  "/:id/receipt",
+  authenticate,
+  authorize("admin", "cashier"),
+  validateParams(orderIdParamSchema),
+  orderController.getReceipt,
+);
+
 export default router;

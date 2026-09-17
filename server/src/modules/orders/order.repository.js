@@ -14,7 +14,7 @@ export const orderRepository = {
   /**
    * Get next order number for today (atomic).
    * Uses INSERT ... ON CONFLICT to safely increment.
-   * @returns {number} - next order number
+   * @returns {string} - formatted order number (YYYYMMDD-NNN)
    */
   async getNextOrderNumber() {
     const today = new Date();
@@ -27,7 +27,9 @@ export const orderRepository = {
       SET counter = order_counters.counter + 1
       RETURNING counter
     `;
-    return Number(result[0].counter);
+    const counter = Number(result[0].counter);
+    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, "");
+    return `${dateStr}-${String(counter).padStart(3, "0")}`;
   },
 
   /* ── CRUD ──────────────────────────────── */
@@ -53,6 +55,10 @@ export const orderRepository = {
         totalAmount: data.totalAmount,
         amountPaid: data.amountPaid ?? null,
         change: data.change ?? null,
+        paymentMethod: data.paymentMethod ?? "cash",
+        paymentRef: data.paymentRef ?? null,
+        discountAmount: data.discountAmount ?? 0,
+        shiftId: data.shiftId ?? null,
         guestToken: data.guestToken ?? null,
         createdBy: data.createdBy,
         acceptedAt: data.acceptedAt ?? null,
@@ -64,6 +70,7 @@ export const orderRepository = {
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             subtotal: item.unitPrice * item.quantity,
+            discountAmount: item.discountAmount ?? 0,
           })),
         },
       },
@@ -151,6 +158,7 @@ export const orderRepository = {
         refund: {
           include: { refundedByUser: { select: { id: true, name: true, role: true } } },
         },
+        discounts: true,
       },
     });
   },

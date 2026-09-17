@@ -29,19 +29,21 @@ model User {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  restockBatches    RestockBatch[]
-  lossRecords       LossRecord[]
-  lossOverriddenRecords LossRecord[] @relation("LossOverriddenBy")
-  stockAdjustments  StockAdjustment[]
-  createdOrders     Order[]          @relation("OrderCreator")
-  acceptedOrders    Order[]          @relation("OrderAcceptedBy")
-  preparingOrders   Order[]          @relation("OrderPreparingBy")
-  completedOrders   Order[]          @relation("OrderCompletedBy")
-   preparedOrderItems OrderItem[]     @relation("OrderItemPreparedBy")
-   removedOrderItems  OrderItem[]     @relation("OrderItemRemovedBy")
-    cancelledCancellations OrderCancellation[] @relation("OrderCancelledBy")
-   refundedOrders    PaymentRefund[]    @relation("OrderRefundedBy")
-  auditLogs        AuditLog[]
+  restockBatches         RestockBatch[]
+  lossRecords            LossRecord[]
+  lossOverriddenRecords  LossRecord[]        @relation("LossOverriddenBy")
+  stockAdjustments       StockAdjustment[]
+  createdOrders          Order[]             @relation("OrderCreator")
+  acceptedOrders         Order[]             @relation("OrderAcceptedBy")
+  preparingOrders        Order[]             @relation("OrderPreparingBy")
+  completedOrders        Order[]             @relation("OrderCompletedBy")
+  preparedOrderItems     OrderItem[]         @relation("OrderItemPreparedBy")
+  removedOrderItems      OrderItem[]         @relation("OrderItemRemovedBy")
+  cancelledCancellations OrderCancellation[] @relation("OrderCancelledBy")
+  refundedOrders         PaymentRefund[]     @relation("OrderRefundedBy")
+  shifts                 Shift[]
+  inventoryCounts        InventoryCount[]
+  auditLogs              AuditLog[]
 }
 
 model SystemSettings {
@@ -71,13 +73,48 @@ enum Role {
   kitchen
 }
 
+enum PaymentMethod {
+  cash
+  gcash
+  maya
+  card
+  other
+
+  @@map("payment_method_enum")
+}
+
+enum DiscountType {
+  senior
+  pwd
+  promotional
+  employee
+  other
+
+  @@map("discount_type_enum")
+}
+
+enum ShiftStatus {
+  active
+  closed
+
+  @@map("shift_status_enum")
+}
+
+enum CountStatus {
+  in_progress
+  completed
+  cancelled
+
+  @@map("count_status_enum")
+}
+
 // ── Categories (root level only) ──────────────────────────────
 model Category {
-  categoryId   Int       @id @default(autoincrement()) @map("category_id")
-  categoryName String    @unique @map("category_name") @db.VarChar(100)
-  description  String?   @db.VarChar(500)
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  categoryId   Int      @id @default(autoincrement()) @map("category_id")
+  categoryName String   @unique @map("category_name") @db.VarChar(100)
+  description  String?  @db.VarChar(500)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   subcategories Subcategory[]
 
@@ -94,7 +131,7 @@ model Subcategory {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  category Category @relation(fields: [categoryId], references: [categoryId])
+  category Category  @relation(fields: [categoryId], references: [categoryId])
   products Product[]
 
   @@unique([categoryId, subcategoryName])
@@ -103,15 +140,15 @@ model Subcategory {
 
 // ── Products ──────────────────────────────────────────────────
 model Product {
-  productId     String      @id @default(uuid()) @map("product_id") @db.Uuid
-  subcategoryId Int         @map("subcategory_id")
-  productName   String      @map("product_name") @db.VarChar(150)
-  description   String?     @db.VarChar(500)
-  imageUrl      String?     @map("image_url")
-  isAvailable   Boolean     @default(true) @map("is_available")
-  isArchived    Boolean     @default(false) @map("is_archived")
-  createdAt     DateTime    @default(now()) @map("created_at")
-  updatedAt     DateTime    @updatedAt @map("updated_at")
+  productId     String   @id @default(uuid()) @map("product_id") @db.Uuid
+  subcategoryId Int      @map("subcategory_id")
+  productName   String   @map("product_name") @db.VarChar(150)
+  description   String?  @db.VarChar(500)
+  imageUrl      String?  @map("image_url")
+  isAvailable   Boolean  @default(true) @map("is_available")
+  isArchived    Boolean  @default(false) @map("is_archived")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   subcategory Subcategory @relation(fields: [subcategoryId], references: [subcategoryId])
 
@@ -126,16 +163,16 @@ model Product {
 
 // ── Product Variants (sizes with different prices) ────────────
 model ProductVariant {
-  variantId   Int      @id @default(autoincrement()) @map("variant_id")
-  productId   String   @map("product_id") @db.Uuid
-  sizeName    String   @map("size_name") @db.VarChar(50)
-  price       Decimal  @db.Decimal(10, 2)
-  isAvailable          Boolean  @default(true) @map("is_available")
+  variantId             Int     @id @default(autoincrement()) @map("variant_id")
+  productId             String  @map("product_id") @db.Uuid
+  sizeName              String  @map("size_name") @db.VarChar(50)
+  price                 Decimal @db.Decimal(10, 2)
+  isAvailable           Boolean @default(true) @map("is_available")
   isManuallyDeactivated Boolean @default(false) @map("is_manually_deactivated")
 
-  product  Product  @relation(fields: [productId], references: [productId], onDelete: Cascade)
-  recipes  Recipe[]
-  orderItems OrderItem[]
+  product            Product             @relation(fields: [productId], references: [productId], onDelete: Cascade)
+  recipes            Recipe[]
+  orderItems         OrderItem[]
   priceOptimizations PriceOptimization[]
 
   @@unique([productId, sizeName])
@@ -163,6 +200,7 @@ model Ingredient {
   orderDeductions    OrderIngredientDeduction[]
   reorderSuggestions ReorderSuggestion[]
   wasteReductions    WasteReduction[]
+  countItems         InventoryCountItem[]
 
   @@map("ingredients")
 }
@@ -184,21 +222,22 @@ model Recipe {
 
 // ── Restock Batches ──────────────────────────────────────────
 model RestockBatch {
-  restockId      Int      @id @default(autoincrement()) @map("restock_id")
-  ingredientId   String   @map("ingredient_id") @db.Uuid
-  restockedById  String   @map("restocked_by") @db.Uuid
-  quantityAdded  Decimal  @map("quantity_added") @db.Decimal(10, 3)
-  quantityLeft   Decimal  @map("quantity_left") @db.Decimal(10, 3)
-  costPerUnit    Decimal  @map("cost_per_unit") @db.Decimal(10, 4)
-  totalCost      Decimal  @map("total_cost") @db.Decimal(10, 2)
-  isPriority     Boolean  @default(false) @map("is_priority")
-  version        Int      @default(0)
-  supplierName   String?  @map("supplier_name") @db.VarChar(150)
-  notes          String?  @db.VarChar(500)
-  restockedAt    DateTime @default(now()) @map("restocked_at")
+  restockId     Int       @id @default(autoincrement()) @map("restock_id")
+  ingredientId  String    @map("ingredient_id") @db.Uuid
+  restockedById String    @map("restocked_by") @db.Uuid
+  quantityAdded Decimal   @map("quantity_added") @db.Decimal(10, 3)
+  quantityLeft  Decimal   @map("quantity_left") @db.Decimal(10, 3)
+  costPerUnit   Decimal   @map("cost_per_unit") @db.Decimal(10, 4)
+  totalCost     Decimal   @map("total_cost") @db.Decimal(10, 2)
+  isPriority    Boolean   @default(false) @map("is_priority")
+  version       Int       @default(0)
+  supplierName  String?   @map("supplier_name") @db.VarChar(150)
+  notes         String?   @db.VarChar(500)
+  expiresAt     DateTime? @map("expires_at")
+  restockedAt   DateTime  @default(now()) @map("restocked_at")
 
-  ingredient   Ingredient @relation(fields: [ingredientId], references: [ingredientId], onDelete: Cascade)
-  restockedBy  User       @relation(fields: [restockedById], references: [id])
+  ingredient      Ingredient                 @relation(fields: [ingredientId], references: [ingredientId], onDelete: Cascade)
+  restockedBy     User                       @relation(fields: [restockedById], references: [id])
   orderDeductions OrderIngredientDeduction[]
 
   @@map("restock_batches")
@@ -206,27 +245,27 @@ model RestockBatch {
 
 // ── Loss Records ─────────────────────────────────────────────
 model LossRecord {
-  lossId              Int                @id @default(autoincrement()) @map("loss_id")
-  ingredientId        String             @map("ingredient_id") @db.Uuid
-  declaredById        String             @map("declared_by") @db.Uuid
-  lossType            LossType           @map("loss_type")
-  quantityLost        Decimal            @map("quantity_lost") @db.Decimal(10, 3)
-  costPerUnit         Decimal            @map("cost_per_unit") @db.Decimal(10, 4)
-  totalCostLost       Decimal            @map("total_cost_lost") @db.Decimal(10, 2)
-  relatedRestockId    Int?               @map("related_restock_id")
-  relatedOrderId      String?            @map("related_order_id") @db.Uuid
-  relatedOrderItemId  Int?               @map("related_order_item_id")
-  notes               String?            @db.VarChar(500)
-  overrideReason      LossOverrideReason? @map("override_reason")
-  overrideNote        String?            @map("override_note") @db.VarChar(500)
-  overriddenById      String?            @map("overridden_by") @db.Uuid
-  overriddenAt        DateTime?          @map("overridden_at") @db.Timestamptz
-  loggedAt            DateTime           @default(now()) @map("logged_at")
+  lossId             Int                 @id @default(autoincrement()) @map("loss_id")
+  ingredientId       String              @map("ingredient_id") @db.Uuid
+  declaredById       String              @map("declared_by") @db.Uuid
+  lossType           LossType            @map("loss_type")
+  quantityLost       Decimal             @map("quantity_lost") @db.Decimal(10, 3)
+  costPerUnit        Decimal             @map("cost_per_unit") @db.Decimal(10, 4)
+  totalCostLost      Decimal             @map("total_cost_lost") @db.Decimal(10, 2)
+  relatedRestockId   Int?                @map("related_restock_id")
+  relatedOrderId     String?             @map("related_order_id") @db.Uuid
+  relatedOrderItemId Int?                @map("related_order_item_id")
+  notes              String?             @db.VarChar(500)
+  overrideReason     LossOverrideReason? @map("override_reason")
+  overrideNote       String?             @map("override_note") @db.VarChar(500)
+  overriddenById     String?             @map("overridden_by") @db.Uuid
+  overriddenAt       DateTime?           @map("overridden_at") @db.Timestamptz
+  loggedAt           DateTime            @default(now()) @map("logged_at")
 
-  ingredient    Ingredient @relation(fields: [ingredientId], references: [ingredientId], onDelete: Cascade)
-  declaredBy    User       @relation(fields: [declaredById], references: [id])
-  relatedOrder  Order?     @relation(fields: [relatedOrderId], references: [orderId])
-  overriddenBy  User?      @relation("LossOverriddenBy", fields: [overriddenById], references: [id])
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [ingredientId], onDelete: Cascade)
+  declaredBy   User       @relation(fields: [declaredById], references: [id])
+  relatedOrder Order?     @relation(fields: [relatedOrderId], references: [orderId])
+  overriddenBy User?      @relation("LossOverriddenBy", fields: [overriddenById], references: [id])
 
   @@map("loss_records")
 }
@@ -330,47 +369,53 @@ model OrderCounter {
 }
 
 model Order {
-  orderId       String      @id @default(uuid()) @map("order_id") @db.Uuid
-  orderNumber   Int         @map("order_number")
-  orderDate     DateTime    @map("order_date") @db.Date
-  customerName  String      @map("customer_name") @db.VarChar(100)
-  tableNumber   String      @map("table_number") @db.VarChar(20)
-  orderSource   OrderSource @map("order_source")
-  status        OrderStatus @default(pending) @map("status")
+  orderId      String      @id @default(uuid()) @map("order_id") @db.Uuid
+  orderNumber  String      @map("order_number") @db.VarChar(20)
+  orderDate    DateTime    @map("order_date") @db.Date
+  customerName String      @map("customer_name") @db.VarChar(100)
+  tableNumber  String      @map("table_number") @db.VarChar(20)
+  orderSource  OrderSource @map("order_source")
+  status       OrderStatus @default(pending) @map("status")
 
   // Status timestamps + actors
-  acceptedAt      DateTime?   @map("accepted_at") @db.Timestamptz
-  acceptedBy      String?     @map("accepted_by") @db.Uuid
-  preparingAt     DateTime?   @map("preparing_at") @db.Timestamptz
-  preparingBy     String?     @map("preparing_by") @db.Uuid
-  completedAt     DateTime?   @map("completed_at") @db.Timestamptz
-  completedBy     String?     @map("completed_by") @db.Uuid
-  fulfillmentMinutes Int?    @map("fulfillment_minutes")
+  acceptedAt         DateTime? @map("accepted_at") @db.Timestamptz
+  acceptedBy         String?   @map("accepted_by") @db.Uuid
+  preparingAt        DateTime? @map("preparing_at") @db.Timestamptz
+  preparingBy        String?   @map("preparing_by") @db.Uuid
+  completedAt        DateTime? @map("completed_at") @db.Timestamptz
+  completedBy        String?   @map("completed_by") @db.Uuid
+  fulfillmentMinutes Int?      @map("fulfillment_minutes")
 
   // Payment
-  totalAmount   Decimal     @default(0) @map("total_amount") @db.Decimal(10, 2)
-  amountPaid    Decimal?    @map("amount_paid") @db.Decimal(10, 2)
-  change        Decimal?    @db.Decimal(10, 2)
+  totalAmount    Decimal       @default(0) @map("total_amount") @db.Decimal(10, 2)
+  amountPaid     Decimal?      @map("amount_paid") @db.Decimal(10, 2)
+  change         Decimal?      @db.Decimal(10, 2)
+  paymentMethod  PaymentMethod @default(cash) @map("payment_method")
+  paymentRef     String?       @map("payment_ref") @db.VarChar(200)
+  discountAmount Decimal       @default(0) @map("discount_amount") @db.Decimal(10, 2)
+  shiftId        Int?          @map("shift_id")
 
   // Guest tracking (online orders)
-  guestToken    String?     @unique @map("guest_token") @db.Uuid
+  guestToken String? @unique @map("guest_token") @db.Uuid
 
-  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt     DateTime    @updatedAt @map("updated_at") @db.Timestamptz
-  createdBy     String?     @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy String?  @map("created_by") @db.Uuid
 
   // Relations
-  creator         User?       @relation("OrderCreator", fields: [createdBy], references: [id])
-  acceptedByUser  User?       @relation("OrderAcceptedBy", fields: [acceptedBy], references: [id])
-  preparingByUser User?       @relation("OrderPreparingBy", fields: [preparingBy], references: [id])
-  completedByUser  User?      @relation("OrderCompletedBy", fields: [completedBy], references: [id])
+  creator         User?  @relation("OrderCreator", fields: [createdBy], references: [id])
+  acceptedByUser  User?  @relation("OrderAcceptedBy", fields: [acceptedBy], references: [id])
+  preparingByUser User?  @relation("OrderPreparingBy", fields: [preparingBy], references: [id])
+  completedByUser User?  @relation("OrderCompletedBy", fields: [completedBy], references: [id])
+  shift           Shift? @relation(fields: [shiftId], references: [shiftId])
 
-  items         OrderItem[]
-  cancellation  OrderCancellation?
-  refund        PaymentRefund?
-  deductions    OrderIngredientDeduction[]
-  losses        LossRecord[]
-  receipt       Receipt?
+  items        OrderItem[]
+  cancellation OrderCancellation?
+  refund       PaymentRefund?
+  deductions   OrderIngredientDeduction[]
+  losses       LossRecord[]
+  receipt      Receipt?
+  discounts    Discount[]
 
   @@index([status])
   @@index([orderDate])
@@ -379,26 +424,27 @@ model Order {
 }
 
 model OrderItem {
-  orderItemId  Int      @id @default(autoincrement()) @map("order_item_id")
-  orderId      String   @map("order_id") @db.Uuid
-  productId    String   @map("product_id") @db.Uuid
-  variantId    Int      @map("variant_id")
-  quantity     Int
-  unitPrice    Decimal  @map("unit_price") @db.Decimal(10, 2)
-  subtotal     Decimal? @db.Decimal(10, 2)
-  isPrepared   Boolean  @default(false) @map("is_prepared")
-  preparedBy   String?  @map("prepared_by") @db.Uuid
-  preparedAt   DateTime? @map("prepared_at") @db.Timestamptz
-  removedAt         DateTime?  @map("removed_at") @db.Timestamptz
-  removedBy         String?    @map("removed_by") @db.Uuid
-  removedReason     String?    @map("removed_reason")
-  removedLossOption String?    @map("removed_loss_option")
+  orderItemId       Int       @id @default(autoincrement()) @map("order_item_id")
+  orderId           String    @map("order_id") @db.Uuid
+  productId         String    @map("product_id") @db.Uuid
+  variantId         Int       @map("variant_id")
+  quantity          Int
+  unitPrice         Decimal   @map("unit_price") @db.Decimal(10, 2)
+  subtotal          Decimal?  @db.Decimal(10, 2)
+  discountAmount    Decimal   @default(0) @map("discount_amount") @db.Decimal(10, 2)
+  isPrepared        Boolean   @default(false) @map("is_prepared")
+  preparedBy        String?   @map("prepared_by") @db.Uuid
+  preparedAt        DateTime? @map("prepared_at") @db.Timestamptz
+  removedAt         DateTime? @map("removed_at") @db.Timestamptz
+  removedBy         String?   @map("removed_by") @db.Uuid
+  removedReason     String?   @map("removed_reason")
+  removedLossOption String?   @map("removed_loss_option")
 
-  order    Order           @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
-  product  Product         @relation(fields: [productId], references: [productId])
-  variant  ProductVariant  @relation(fields: [variantId], references: [variantId])
-  preparedByUser User?    @relation("OrderItemPreparedBy", fields: [preparedBy], references: [id])
-  removedByUser   User?    @relation("OrderItemRemovedBy", fields: [removedBy], references: [id])
+  order          Order          @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  product        Product        @relation(fields: [productId], references: [productId])
+  variant        ProductVariant @relation(fields: [variantId], references: [variantId])
+  preparedByUser User?          @relation("OrderItemPreparedBy", fields: [preparedBy], references: [id])
+  removedByUser  User?          @relation("OrderItemRemovedBy", fields: [removedBy], references: [id])
 
   @@map("order_items")
 }
@@ -410,22 +456,22 @@ model OrderCancellation {
   reason         String?
   cancelledAt    DateTime @default(now()) @map("cancelled_at") @db.Timestamptz
 
-  order          Order @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
-  cancelledByUser User    @relation("OrderCancelledBy", fields: [cancelledBy], references: [id])
+  order           Order @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  cancelledByUser User  @relation("OrderCancelledBy", fields: [cancelledBy], references: [id])
 
   @@map("order_cancellations")
 }
 
 model PaymentRefund {
-  refundId       Int      @id @default(autoincrement()) @map("refund_id")
-  orderId        String   @unique @map("order_id") @db.Uuid
-  amount         Decimal  @map("amount") @db.Decimal(10, 2)
-  reason         String?  @db.VarChar(500)
-  refundedById   String   @map("refunded_by") @db.Uuid
-  refundedAt     DateTime @default(now()) @map("refunded_at") @db.Timestamptz
+  refundId     Int      @id @default(autoincrement()) @map("refund_id")
+  orderId      String   @unique @map("order_id") @db.Uuid
+  amount       Decimal  @map("amount") @db.Decimal(10, 2)
+  reason       String?  @db.VarChar(500)
+  refundedById String   @map("refunded_by") @db.Uuid
+  refundedAt   DateTime @default(now()) @map("refunded_at") @db.Timestamptz
 
-  order          Order    @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
-  refundedByUser User     @relation("OrderRefundedBy", fields: [refundedById], references: [id])
+  order          Order @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  refundedByUser User  @relation("OrderRefundedBy", fields: [refundedById], references: [id])
 
   @@map("payment_refunds")
 }
@@ -456,9 +502,92 @@ model Receipt {
   totalAmount Decimal  @map("total_amount") @db.Decimal(10, 2)
   issuedAt    DateTime @default(now()) @map("issued_at") @db.Timestamptz
 
-  order  Order @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  order Order @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
 
   @@map("receipts")
+}
+
+// ── Discounts ─────────────────────────────────────────────
+model Discount {
+  discountId Int          @id @default(autoincrement()) @map("discount_id")
+  orderId    String       @map("order_id") @db.Uuid
+  type       DiscountType @map("discount_type")
+  amount     Decimal      @map("amount") @db.Decimal(10, 2)
+  reason     String?      @db.VarChar(500)
+  createdBy  String?      @map("created_by") @db.Uuid
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz
+
+  order Order @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("discounts")
+}
+
+// ── Shifts ──────────────────────────────────────────────
+model Shift {
+  shiftId      Int         @id @default(autoincrement()) @map("shift_id")
+  staffId      String      @map("staff_id") @db.Uuid
+  status       ShiftStatus @default(active)
+  openingCash  Decimal     @map("opening_cash") @db.Decimal(10, 2)
+  closingCash  Decimal?    @map("closing_cash") @db.Decimal(10, 2)
+  expectedCash Decimal?    @map("expected_cash") @db.Decimal(10, 2)
+  actualCash   Decimal?    @map("actual_cash") @db.Decimal(10, 2)
+  variance     Decimal?    @db.Decimal(10, 2)
+  startedAt    DateTime    @default(now()) @map("started_at") @db.Timestamptz
+  endedAt      DateTime?   @map("ended_at") @db.Timestamptz
+  notes        String?     @db.VarChar(500)
+
+  staff  User    @relation(fields: [staffId], references: [id])
+  orders Order[]
+
+  @@index([staffId])
+  @@index([status])
+  @@index([startedAt])
+  @@map("shifts")
+}
+
+// ── Unit Conversions ──────────────────────────────────────
+model UnitConversion {
+  id       Int    @id @default(autoincrement())
+  fromUnit String @map("from_unit") @db.VarChar(50)
+  toUnit   String @map("to_unit") @db.VarChar(50)
+  factor   Float
+
+  @@unique([fromUnit, toUnit])
+  @@map("unit_conversions")
+}
+
+// ── Inventory Counts ──────────────────────────────────────
+model InventoryCount {
+  countId     Int         @id @default(autoincrement()) @map("count_id")
+  countedBy   String      @map("counted_by") @db.Uuid
+  status      CountStatus @default(in_progress)
+  notes       String?     @db.VarChar(500)
+  startedAt   DateTime    @default(now()) @map("started_at") @db.Timestamptz
+  completedAt DateTime?   @map("completed_at") @db.Timestamptz
+
+  countedByUser User                 @relation(fields: [countedBy], references: [id])
+  items         InventoryCountItem[]
+
+  @@index([countedBy])
+  @@index([status])
+  @@map("inventory_counts")
+}
+
+model InventoryCountItem {
+  id              Int      @id @default(autoincrement()) @map("id")
+  countId         Int      @map("count_id")
+  ingredientId    String   @map("ingredient_id") @db.Uuid
+  systemQuantity  Decimal  @map("system_quantity") @db.Decimal(10, 3)
+  countedQuantity Decimal? @map("counted_quantity") @db.Decimal(10, 3)
+  variance        Decimal? @db.Decimal(10, 3)
+  notes           String?  @db.VarChar(500)
+
+  count      InventoryCount @relation(fields: [countId], references: [countId], onDelete: Cascade)
+  ingredient Ingredient     @relation(fields: [ingredientId], references: [ingredientId])
+
+  @@unique([countId, ingredientId])
+  @@map("inventory_count_items")
 }
 
 // ── Forecasting ──────────────────────────────────────────────
@@ -480,24 +609,24 @@ model ForecastJob {
 }
 
 model ForecastResult {
-  id          Int     @id @default(autoincrement()) @map("id")
-  jobId       Int     @map("job_id")
-  variantId   Int     @map("variant_id")
-  productName String  @map("product_name") @db.VarChar(150)
-  sizeName    String  @map("size_name") @db.VarChar(50)
-  price       Decimal @db.Decimal(10, 2)
-  categoryId  Int     @map("category_id")
-  dailyData   Json    @map("daily_data")
-  totalUnits  Int     @default(0) @map("total_units")
-  totalRevenue Float  @default(0) @map("total_revenue")
-  trend       String  @default("stable") @db.VarChar(20)
-  daysOfData  Int     @default(0) @map("days_of_data")
-  skipped     Boolean @default(false)
-  skipReason  String? @map("skip_reason") @db.VarChar(200)
-  rmse        Float?  @map("rmse")
-  mae         Float?  @map("mae")
-  mse         Float?  @map("mse")
-  rSquared    Float?  @map("r_squared")
+  id           Int     @id @default(autoincrement()) @map("id")
+  jobId        Int     @map("job_id")
+  variantId    Int     @map("variant_id")
+  productName  String  @map("product_name") @db.VarChar(150)
+  sizeName     String  @map("size_name") @db.VarChar(50)
+  price        Decimal @db.Decimal(10, 2)
+  categoryId   Int     @map("category_id")
+  dailyData    Json    @map("daily_data")
+  totalUnits   Int     @default(0) @map("total_units")
+  totalRevenue Float   @default(0) @map("total_revenue")
+  trend        String  @default("stable") @db.VarChar(20)
+  daysOfData   Int     @default(0) @map("days_of_data")
+  skipped      Boolean @default(false)
+  skipReason   String? @map("skip_reason") @db.VarChar(200)
+  rmse         Float?  @map("rmse")
+  mae          Float?  @map("mae")
+  mse          Float?  @map("mse")
+  rSquared     Float?  @map("r_squared")
 
   job ForecastJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
@@ -530,21 +659,21 @@ model ReorderSuggestion {
 
 // ── Intelligence: Waste Reduction ────────────────────────────
 model WasteReduction {
-  id              String    @id @default(uuid()) @db.Uuid
-  ingredientId    String    @map("ingredient_id") @db.Uuid
-  currentStock    Decimal   @map("current_stock") @db.Decimal(10, 3)
-  forecastedUsage Decimal   @map("forecasted_usage") @db.Decimal(10, 3)
-  unit            String    @db.VarChar(50)
-  overstockAmount Decimal   @map("overstock_amount") @db.Decimal(10, 3)
-  wasteRisk       String    @db.VarChar(20) // high | medium | low
-  reasoning       String    @db.Text
-  suggestion      String    @db.Text
+  id               String   @id @default(uuid()) @db.Uuid
+  ingredientId     String   @map("ingredient_id") @db.Uuid
+  currentStock     Decimal  @map("current_stock") @db.Decimal(10, 3)
+  forecastedUsage  Decimal  @map("forecasted_usage") @db.Decimal(10, 3)
+  unit             String   @db.VarChar(50)
+  overstockAmount  Decimal  @map("overstock_amount") @db.Decimal(10, 3)
+  wasteRisk        String   @db.VarChar(20) // high | medium | low
+  reasoning        String   @db.Text
+  suggestion       String   @db.Text
   potentialSavings Decimal? @map("potential_savings") @db.Decimal(10, 2)
-  confidence      Float
-  status          String    @default("pending") @db.VarChar(20) // pending | accepted | rejected
-  metadata        Json?
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  confidence       Float
+  status           String   @default("pending") @db.VarChar(20) // pending | accepted | rejected
+  metadata         Json?
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   ingredient Ingredient @relation(fields: [ingredientId], references: [ingredientId], onDelete: Cascade)
 
@@ -582,14 +711,14 @@ model PriceOptimization {
 
 // ── Market Basket Analytics ───────────────────────────────────
 model MBAJob {
-  id               Int      @id @default(autoincrement()) @map("id")
-  status           String   @default("running") @db.VarChar(20) // running | completed | failed
-  totalOrders      Int      @default(0) @map("total_orders")
-  productsAnalyzed Int      @default(0) @map("products_analyzed")
-  combosFound      Int      @default(0) @map("combos_found")
-  startedAt        DateTime @default(now()) @map("started_at") @db.Timestamptz
+  id               Int       @id @default(autoincrement()) @map("id")
+  status           String    @default("running") @db.VarChar(20) // running | completed | failed
+  totalOrders      Int       @default(0) @map("total_orders")
+  productsAnalyzed Int       @default(0) @map("products_analyzed")
+  combosFound      Int       @default(0) @map("combos_found")
+  startedAt        DateTime  @default(now()) @map("started_at") @db.Timestamptz
   completedAt      DateTime? @map("completed_at") @db.Timestamptz
-  errorMessage     String?  @map("error_message") @db.VarChar(500)
+  errorMessage     String?   @map("error_message") @db.VarChar(500)
 
   rules MBARule[]
 
@@ -597,23 +726,23 @@ model MBAJob {
 }
 
 model MBARule {
-  id                Int      @id @default(autoincrement()) @map("id")
-  jobId             Int      @map("job_id")
-  productNameA      String   @map("product_name_a") @db.VarChar(150)
-  productNameB      String   @map("product_name_b") @db.VarChar(150)
-  productIdA        String?  @map("product_id_a") @db.Uuid
-  productIdB        String?  @map("product_id_b") @db.Uuid
-  variantIdA        Int?     @map("variant_id_a")
-  variantIdB        Int?     @map("variant_id_b")
-  sizeNameA         String?  @map("size_name_a") @db.VarChar(50)
-  sizeNameB         String?  @map("size_name_b") @db.VarChar(50)
+  id                Int     @id @default(autoincrement()) @map("id")
+  jobId             Int     @map("job_id")
+  productNameA      String  @map("product_name_a") @db.VarChar(150)
+  productNameB      String  @map("product_name_b") @db.VarChar(150)
+  productIdA        String? @map("product_id_a") @db.Uuid
+  productIdB        String? @map("product_id_b") @db.Uuid
+  variantIdA        Int?    @map("variant_id_a")
+  variantIdB        Int?    @map("variant_id_b")
+  sizeNameA         String? @map("size_name_a") @db.VarChar(50)
+  sizeNameB         String? @map("size_name_b") @db.VarChar(50)
   support           Float
   confidence        Float
   lift              Float
-  isCombo           Boolean  @default(false) @map("is_combo")
-  explanation       String?  @db.Text
-  suggestedName     String?  @map("suggested_name") @db.VarChar(200)
-  mergedIngredients Json?    @map("merged_ingredients")
+  isCombo           Boolean @default(false) @map("is_combo")
+  explanation       String? @db.Text
+  suggestedName     String? @map("suggested_name") @db.VarChar(200)
+  mergedIngredients Json?   @map("merged_ingredients")
   pricing           Json?
 
   job MBAJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
@@ -623,11 +752,11 @@ model MBARule {
 }
 
 model ComboCreatedPair {
-  id             Int      @id @default(autoincrement()) @map("id")
-  productNameA   String   @map("product_name_a") @db.VarChar(150)
-  productNameB   String   @map("product_name_b") @db.VarChar(150)
-  productId      String   @map("product_id") @db.Uuid
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+  id           Int      @id @default(autoincrement()) @map("id")
+  productNameA String   @map("product_name_a") @db.VarChar(150)
+  productNameB String   @map("product_name_b") @db.VarChar(150)
+  productId    String   @map("product_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   @@unique([productNameA, productNameB])
   @@map("combo_created_pairs")
@@ -642,7 +771,7 @@ model AuditLog {
   details    Json?
   createdAt  DateTime @default(now())
 
-  user       User?    @relation(fields: [userId], references: [id])
+  user User? @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([action])
@@ -653,14 +782,14 @@ model AuditLog {
 
 // ── Notifications ──────────────────────────────────────────
 model Notification {
-  id           String   @id @default(uuid()) @db.Uuid
-  type         String   @db.VarChar(50)   // order_new, order_completed, order_cancelled, stock_low, stock_out, stock_restocked, system
-  title        String   @db.VarChar(200)
-  message      String   @db.VarChar(500)
-  referenceType String? @map("reference_type") @db.VarChar(50)  // order, ingredient, settings
-  referenceId  String?  @map("reference_id") @db.Uuid
-  isRead       Boolean  @default(false) @map("is_read")
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  id            String   @id @default(uuid()) @db.Uuid
+  type          String   @db.VarChar(50) // order_new, order_completed, order_cancelled, stock_low, stock_out, stock_restocked, system
+  title         String   @db.VarChar(200)
+  message       String   @db.VarChar(500)
+  referenceType String?  @map("reference_type") @db.VarChar(50) // order, ingredient, settings
+  referenceId   String?  @map("reference_id") @db.Uuid
+  isRead        Boolean  @default(false) @map("is_read")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   @@index([isRead])
   @@index([createdAt])
@@ -669,20 +798,20 @@ model Notification {
 
 // ── Anomaly Detection ─────────────────────────────────
 model AnomalyResult {
-  id            String   @id @default(uuid()) @db.Uuid
-  ruleId        String   @map("rule_id") @db.VarChar(50)
-  category      String   @db.VarChar(50)
-  severity      String   @db.VarChar(20)
-  title         String   @db.VarChar(200)
-  description   String   @db.VarChar(500)
-  actualValue   Decimal  @map("actual_value") @db.Decimal(12,2)
-  expectedValue Decimal  @map("expected_value") @db.Decimal(12,2)
-  expectedMin   Decimal  @map("expected_min") @db.Decimal(12,2)
-  expectedMax   Decimal  @map("expected_max") @db.Decimal(12,2)
-  confidence    Decimal  @db.Decimal(5,4)
-  geminiInsight String?  @map("gemini_insight") @db.Text
-  isAcknowledged Boolean @default(false) @map("is_acknowledged")
-  detectedAt    DateTime @default(now()) @map("detected_at") @db.Timestamptz
+  id             String   @id @default(uuid()) @db.Uuid
+  ruleId         String   @map("rule_id") @db.VarChar(50)
+  category       String   @db.VarChar(50)
+  severity       String   @db.VarChar(20)
+  title          String   @db.VarChar(200)
+  description    String   @db.VarChar(500)
+  actualValue    Decimal  @map("actual_value") @db.Decimal(12, 2)
+  expectedValue  Decimal  @map("expected_value") @db.Decimal(12, 2)
+  expectedMin    Decimal  @map("expected_min") @db.Decimal(12, 2)
+  expectedMax    Decimal  @map("expected_max") @db.Decimal(12, 2)
+  confidence     Decimal  @db.Decimal(5, 4)
+  geminiInsight  String?  @map("gemini_insight") @db.Text
+  isAcknowledged Boolean  @default(false) @map("is_acknowledged")
+  detectedAt     DateTime @default(now()) @map("detected_at") @db.Timestamptz
 
   @@index([ruleId])
   @@index([severity])

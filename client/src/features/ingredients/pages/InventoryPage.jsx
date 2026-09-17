@@ -11,6 +11,12 @@ import BatchListModal from "../components/BatchListModal";
 import StockAlerts from "../components/sidebar/StockAlerts";
 import ReorderSuggestions from "../components/sidebar/ReorderSuggestions";
 import WasteInsights from "../components/sidebar/WasteInsights";
+import InventoryCountPanel from "@/features/inventoryCounts/components/InventoryCountPanel";
+
+const TABS = [
+  { value: "ingredients", label: "Ingredients" },
+  { value: "count", label: "Inventory Count" },
+];
 
 /**
  * InventoryPage
@@ -26,6 +32,7 @@ import WasteInsights from "../components/sidebar/WasteInsights";
  */
 export default function InventoryPage() {
   const mutations = useIngredientMutations();
+  const [activeTab, setActiveTab] = useState("ingredients");
 
   // ── Modal state ─────────────────────
   const [showFormModal, setShowFormModal] = useState(false);
@@ -235,27 +242,53 @@ export default function InventoryPage() {
       {/* KPI Summary Cards */}
       <KpiCards />
 
-      {/* Two-column layout: Table + Sidebar */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px] items-start">
-        {/* Left — Table */}
-        <IngredientTable
-          onAdd={handleAdd}
-          onEdit={handleEdit}
-          onRestock={handleRestock}
-          onLoss={handleLoss}
-          onBatches={handleBatches}
-          onArchive={handleArchive}
-          onRestore={handleRestore}
-          onDelete={handleDelete}
-        />
-
-        {/* Right — Sidebar panels */}
-        <div className="flex flex-col gap-4">
-          <StockAlerts onRestock={handleRestock} />
-          <ReorderSuggestions onAccept={handleAcceptSuggestion} />
-          <WasteInsights />
-        </div>
+      {/* Tab Toggle */}
+      <div className="flex gap-1 rounded-lg border border-border bg-muted p-1 w-fit">
+        {TABS.map((tab) => (
+          <button
+            key={tab.value}
+            onClick={() => setActiveTab(tab.value)}
+            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+              activeTab === tab.value
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
+
+      {/* Tab Content */}
+      {activeTab === "ingredients" && (
+        <>
+          {/* Two-column layout: Table + Sidebar */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px] items-start">
+            {/* Left — Table */}
+            <IngredientTable
+              onAdd={handleAdd}
+              onEdit={handleEdit}
+              onRestock={handleRestock}
+              onLoss={handleLoss}
+              onBatches={handleBatches}
+              onArchive={handleArchive}
+              onRestore={handleRestore}
+              onDelete={handleDelete}
+            />
+
+            {/* Right — Sidebar panels */}
+            <div className="flex flex-col gap-4">
+              <StockAlerts onRestock={handleRestock} />
+              <ReorderSuggestions onAccept={handleAcceptSuggestion} />
+              <WasteInsights />
+            </div>
+          </div>
+        </>
+      )}
+
+      {activeTab === "count" && (
+        <InventoryCountPanel />
+      )}
 
       {/* ── Modals ─────────────────────── */}
 

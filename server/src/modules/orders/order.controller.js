@@ -100,7 +100,7 @@ export const orderController = {
    */
   async createOrder(req, res) {
     try {
-      const { customer_name, table_number, items, amount_paid, order_date } = req.body;
+      const { customer_name, table_number, items, amount_paid, order_date, payment_method, payment_ref, discounts, shift_id } = req.body;
       const order = await orderService.createWalkIn({
         customerName: customer_name,
         tableNumber: table_number,
@@ -108,6 +108,10 @@ export const orderController = {
         amountPaid: amount_paid,
         createdBy: req.user.id,
         orderDate: order_date,
+        paymentMethod: payment_method,
+        paymentRef: payment_ref,
+        discounts,
+        shiftId: shift_id,
       });
       return successResponse(res, "Order created", { order }, 201);
     } catch (error) {
@@ -244,6 +248,19 @@ export const orderController = {
       return successResponse(res, "Loss overridden", result);
     } catch (error) {
       return handleError(res, error, "OVERRIDE_LOSS_ERROR");
+    }
+  },
+
+  /**
+   * GET /api/orders/:id/receipt
+   * Generate receipt data for a completed order.
+   */
+  async getReceipt(req, res) {
+    try {
+      const result = await orderService.getReceipt(req.params.id);
+      return successResponse(res, "Receipt generated", result);
+    } catch (error) {
+      return handleError(res, error, "RECEIPT_ERROR");
     }
   },
 };

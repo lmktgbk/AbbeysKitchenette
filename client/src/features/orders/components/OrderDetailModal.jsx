@@ -7,6 +7,9 @@ import OrderTimeline from "./OrderTimeline";
 import Icon from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import { formatDate, formatTime } from "@/lib/date";
+import { getReceiptRequest } from "../api";
+import ReceiptPrinter from "@/features/receipts/components/ReceiptPrinter";
+import { toast } from "sonner";
 
 const STATUS_CONFIG = {
   pending: { label: "Pending", variant: "warning" },
@@ -51,6 +54,9 @@ export default function OrderDetailModal({
   showActions = true,
 }) {
   const [expandedItems, setExpandedItems] = useState(new Set());
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [receiptData, setReceiptData] = useState(null);
+  const [receiptLoading, setReceiptLoading] = useState(false);
 
   const toggleItem = (id) => {
     setExpandedItems((prev) => {
@@ -78,10 +84,26 @@ export default function OrderDetailModal({
   const allPrepared = totalItems > 0 && checkedCount === totalItems;
 
   const source = SOURCE_CONFIG[order?.order_source] || SOURCE_CONFIG.walk_in;
+  const isCompleted = order?.status === "completed";
+
+  async function handlePrintReceipt() {
+    if (!order?.order_id) return;
+    setReceiptLoading(true);
+    try {
+      const res = await getReceiptRequest(order.order_id);
+      setReceiptData(res.data.receipt);
+      setShowReceipt(true);
+    } catch {
+      toast.error("Failed to load receipt");
+    } finally {
+      setReceiptLoading(false);
+    }
+  }
 
   if (!order && !loading) return null;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl p-0 flex flex-col max-h-[85vh]">
         <DialogHeader className="px-5 pt-5 pb-0">
@@ -346,59 +368,76 @@ export default function OrderDetailModal({
             </div>
 
             {/* Actions */}
-            {showActions && (canCancel || canAdvance || (allPrepared && isPreparing)) && (
-              <DialogFooter className="px-5 pb-4 pt-3 mt-2">
-                {allPrepared && isPreparing && (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => onAdvance?.(order)}
-                  >
-                    <Icon name="check" size={14} />
-                    Complete Order
-                  </Button>
-                )}
-                {canCancel && checkedCount > 0 && !allPrepared && (
-                  <p className="text-[10px] text-muted-foreground w-full mb-1">
-                    Cannot cancel order — {checkedCount} item(s) have been served. Uncheck served items first, or remove unserved items to proceed.
-                  </p>
-                )}
-                {canCancel && checkedCount === 0 && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => onCancel?.(order)}
-                  >
-                    <Icon name="trash2" size={14} />
-                    Cancel Order
-                  </Button>
-                )}
-                {isPending && (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => onAdvance?.(order)}
-                  >
-                    <Icon name="check" size={14} />
-                    Accept
-                  </Button>
-                )}
-                {isAccepted && (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => onAdvance?.(order)}
-                  >
-                    <Icon name="play" size={14} />
-                    Start Preparing
-                  </Button>
-                )}
-              </DialogFooter>
-            )}
+            <DialogFooter className="px-5 pb-4 pt-3 mt-2">
+              {isCompleted && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePrintReceipt}
+                  disabled={receiptLoading}
+                >
+                  <Icon name="printer" size={14} />
+                  {receiptLoading ? "Loading..." : "Print Receipt"}
+                </Button>
+              )}
+              {showActions && canCancel && checkedCount > 0 && !allPrepared && (
+                <p className="text-[10px] text-muted-foreground w-full mb-1">
+                  Cannot cancel order — {checkedCount} item(s) have been served. Uncheck served items first, or remove unserved items to proceed.
+                </p>
+              )}
+              {showActions && canCancel && checkedCount === 0 && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => onCancel?.(order)}
+                >
+                  <Icon name="trash2" size={14} />
+                  Cancel Order
+                </Button>
+              )}
+              {showActions && isPending && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => onAdvance?.(order)}
+                >
+                  <Icon name="check" size={14} />
+                  Accept
+                </Button>
+              )}
+              {showActions && isAccepted && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => onAdvance?.(order)}
+                >
+                  <Icon name="play" size={14} />
+                  Start Preparing
+                </Button>
+              )}
+              {showActions && allPrepared && isPreparing && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => onAdvance?.(order)}
+                >
+                  <Icon name="check" size={14} />
+                  Complete Order
+                </Button>
+              )}
+            </DialogFooter>
           </>
         )}
       </DialogContent>
     </Dialog>
+
+    {/* Receipt Dialog */}
+    <Dialog open={showReceipt} onOpenChange={setShowReceipt}>
+      <DialogContent className="max-w-sm">
+        <ReceiptPrinter receipt={receiptData} onClose={() => setShowReceipt(false)} />
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 

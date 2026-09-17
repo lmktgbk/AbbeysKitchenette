@@ -15,6 +15,15 @@ const orderItemSchema = z.object({
   variant_id: z.number().int().positive("Invalid variant ID"),
   quantity: z.number().int().positive("Quantity must be at least 1"),
   unit_price: z.number().positive("Price must be greater than zero"),
+  discount_amount: z.number().min(0).optional().default(0),
+});
+
+// Discount schema
+const discountSchema = z.object({
+  type: z.enum(["senior", "pwd", "promotional", "employee", "other"]),
+  amount: z.number().min(0, "Discount amount must be non-negative"),
+  reason: z.string().max(500).optional(),
+  order_item_ids: z.array(z.number().int().positive()).optional(),
 });
 
 // ── Body Schemas ────────────────────────────────────────
@@ -33,6 +42,10 @@ export const createOrderSchema = z.object({
     .max(20, "Table number must not exceed 20 characters"),
   items: z.array(orderItemSchema).min(1, "At least one item is required"),
   amount_paid: z.number().positive("Amount paid must be greater than zero"),
+  payment_method: z.enum(["cash", "gcash", "maya", "card", "other"]).optional().default("cash"),
+  payment_ref: z.string().max(200).optional(),
+  discounts: z.array(discountSchema).optional(),
+  shift_id: z.number().int().positive().optional(),
   order_date: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD")
@@ -72,6 +85,10 @@ export const fulfillOrderSchema = z.object({
     .optional(),
   items: z.array(orderItemSchema).min(1, "At least one item is required"),
   amount_paid: z.number().positive("Amount paid must be greater than zero"),
+  payment_method: z.enum(["cash", "gcash", "maya", "card", "other"]).optional().default("cash"),
+  payment_ref: z.string().max(200).optional(),
+  discounts: z.array(discountSchema).optional(),
+  shift_id: z.number().int().positive().optional(),
 });
 
 // PUT /api/orders/:id/status — advance order status

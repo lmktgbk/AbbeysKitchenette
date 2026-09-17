@@ -30,6 +30,9 @@ export const dashboardService = {
       totalLosses,
       wasteByType,
       stockValue,
+      paymentMethodBreakdown,
+      discountSummary,
+      vatSummary,
     ] = await Promise.all([
       dashboardRepository.getTodayKpis(),
       dashboardRepository.getOrderKpis(dateFrom, dateTo),
@@ -58,6 +61,9 @@ export const dashboardService = {
       dashboardRepository.getTotalLosses(dateFrom, dateTo),
       dashboardRepository.getWasteByType(dateFrom, dateTo),
       dashboardRepository.getStockValue(),
+      dashboardRepository.getPaymentMethodBreakdown(dateFrom, dateTo),
+      dashboardRepository.getDiscountSummary(dateFrom, dateTo),
+      dashboardRepository.getVatSummary(dateFrom, dateTo),
     ]);
 
     const calcDelta = (current, previous) => {
@@ -111,6 +117,9 @@ export const dashboardService = {
       fulfillmentTime,
       tableUtilization,
       staffPerformance,
+      paymentMethodBreakdown,
+      discountSummary,
+      vatSummary,
     };
   },
 };
