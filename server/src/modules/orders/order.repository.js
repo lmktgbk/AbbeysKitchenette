@@ -50,6 +50,15 @@ export const orderRepository = {
         tableNumber: data.tableNumber,
         orderSource: data.orderSource,
         status: data.status,
+        subtotalAmount: data.subtotalAmount ?? data.totalAmount,
+        discountType: data.discountType ?? "none",
+        discountPercent: data.discountPercent ?? 0,
+        discountLabel: data.discountLabel ?? null,
+        discountIdNo: data.discountIdNo ?? null,
+        discountAmount: data.discountAmount ?? 0,
+        discountBy: data.discountBy ?? null,
+        paymentMethod: data.paymentMethod ?? "cash",
+        referenceNo: data.referenceNo ?? null,
         totalAmount: data.totalAmount,
         amountPaid: data.amountPaid ?? null,
         change: data.change ?? null,
@@ -91,7 +100,8 @@ export const orderRepository = {
     await client.$executeRaw`
       INSERT INTO orders (
         order_id, order_number, order_date, customer_name, table_number,
-        order_source, status, total_amount, guest_token,
+        order_source, status, subtotal_amount, total_amount, guest_token,
+        discount_type, payment_method,
         created_at, updated_at
       )
       VALUES (
@@ -103,7 +113,10 @@ export const orderRepository = {
         'online'::"order_source_enum",
         'pending'::"order_status_enum",
         ${data.totalAmount},
+        ${data.totalAmount},
         ${data.guestToken}::uuid,
+        'none',
+        'cash',
         now(), now()
       )
     `;
@@ -206,7 +219,9 @@ export const orderRepository = {
     const sql = `
       SELECT
         o.order_id, o.order_number, o.customer_name, o.table_number,
-        o.order_source, o.status, o.total_amount, o.amount_paid, o.change,
+        o.order_source, o.status, o.subtotal_amount, o.discount_type, o.discount_percent,
+        o.discount_label, o.discount_id_no, o.discount_amount, o.discount_by,
+        o.payment_method, o.reference_no, o.total_amount, o.amount_paid, o.change,
         o.guest_token,
         o.accepted_at, o.accepted_by,
         o.preparing_at, o.preparing_by,
@@ -260,7 +275,7 @@ export const orderRepository = {
    * Update order status with timestamp and actor.
    * @param {string} id - order UUID
    * @param {string} status - new status
-   * @param {object} [meta] - { userId, amountPaid, change }
+   * @param {object} [meta] - { userId, amountPaid, change, subtotalAmount, discountType, discountPercent, discountLabel, discountIdNo, discountAmount, discountBy, paymentMethod, referenceNo, totalAmount }
    * @param {object} [tx] - transaction client
    * @returns {object} - updated order
    */
@@ -273,6 +288,16 @@ export const orderRepository = {
     if (status === "accepted") {
       data.acceptedAt = new Date();
       data.acceptedBy = meta.userId;
+      if (meta.subtotalAmount !== undefined) data.subtotalAmount = meta.subtotalAmount;
+      if (meta.discountType !== undefined) data.discountType = meta.discountType;
+      if (meta.discountPercent !== undefined) data.discountPercent = meta.discountPercent;
+      if (meta.discountLabel !== undefined) data.discountLabel = meta.discountLabel;
+      if (meta.discountIdNo !== undefined) data.discountIdNo = meta.discountIdNo;
+      if (meta.discountAmount !== undefined) data.discountAmount = meta.discountAmount;
+      if (meta.discountBy !== undefined) data.discountBy = meta.discountBy;
+      if (meta.paymentMethod !== undefined) data.paymentMethod = meta.paymentMethod;
+      if (meta.referenceNo !== undefined) data.referenceNo = meta.referenceNo;
+      if (meta.totalAmount !== undefined) data.totalAmount = meta.totalAmount;
       if (meta.amountPaid !== undefined) data.amountPaid = meta.amountPaid;
       if (meta.change !== undefined) data.change = meta.change;
     } else if (status === "preparing") {
@@ -327,7 +352,8 @@ export const orderRepository = {
   },
 
   /**
-   * Recalculate order total from items.
+   * Recalculate order totals from items (pending orders: no discount yet,
+   * so subtotal and total stay in sync).
    * @param {string} orderId - order UUID
    * @param {object} tx - transaction client
    * @returns {object} - updated order
@@ -338,7 +364,7 @@ export const orderRepository = {
     const total = items.reduce((sum, item) => sum + Number(item.subtotal || 0), 0);
     return client.order.update({
       where: { orderId },
-      data: { totalAmount: total },
+      data: { subtotalAmount: total, totalAmount: total },
     });
   },
 
@@ -662,6 +688,22 @@ export const orderRepository = {
   },
 
   /**
+   * Get current variant prices for server-side re-pricing (BR-01).
+   * @param {number[]} variantIds - array of variant IDs
+   * @returns {Map<number, number>} - variantId -> price
+   */
+  async getVariantPrices(variantIds) {
+    if (variantIds.length === 0) return new Map();
+    const rows = await prisma.productVariant.findMany({
+      where: { variantId: { in: variantIds } },
+      select: { variantId: true, price: true },
+    });
+    const map = new Map();
+    for (const r of rows) map.set(r.variantId, Number(r.price));
+    return map;
+  },
+
+  /**
    * Create cancellation record.
    * @param {object} data - { orderId, cancelledBy, reason }
    * @param {object} tx - transaction client
@@ -729,7 +771,8 @@ export const orderRepository = {
     const sql = `
       SELECT
         o.order_id, o.order_number, o.customer_name, o.table_number,
-        o.order_source, o.status, o.total_amount,
+        o.order_source, o.status, o.subtotal_amount, o.discount_type, o.discount_amount,
+        o.payment_method, o.reference_no, o.total_amount,
         o.accepted_at, o.accepted_by,
         o.preparing_at, o.preparing_by,
         o.completed_at, o.completed_by,

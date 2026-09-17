@@ -1,5 +1,5 @@
 import { orderRepository } from "./order.repository.js";
-import { isValidTransition, formatOrderResponse, formatOrderItemResponse } from "./order.utils.js";
+import { isValidTransition, formatOrderResponse, formatOrderItemResponse, computeDiscountedTotal, roundMoney } from "./order.utils.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { productService } from "../products/product.service.js";
 import prisma from "../../config/prisma.js";
@@ -102,6 +102,7 @@ export const orderService = {
     return {
       ...formatOrderResponse(order),
       creator_name: order.creator?.name ?? null,
+      creator_role: order.creator?.role ?? null,
       accepted_by: order.acceptedByUser ? { name: order.acceptedByUser.name, role: order.acceptedByUser.role } : null,
       preparing_by: order.preparingByUser ? { name: order.preparingByUser.name, role: order.preparingByUser.role } : null,
       completed_by: order.completedByUser ? { name: order.completedByUser.name, role: order.completedByUser.role } : null,
@@ -160,13 +161,16 @@ export const orderService = {
 
   /* ── Walk-In Order Creation ──────────── */
 
-  async createWalkIn({ customerName, tableNumber, items, amountPaid, createdBy, orderDate: orderDateStr }) {
-    const aggregatedIngredients = await this._aggregateIngredientNeeds(items);
-    const totalAmount = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
+  async createWalkIn({ customerName, tableNumber, items, amountPaid, createdBy, orderDate: orderDateStr, discount = {}, payment = {} }) {
+    const { pricedItems, subtotal, discount: discountResult, total } =
+      await this._priceItemsAndTotals(items, discount);
 
-    if (amountPaid < totalAmount) {
-      throw new AppError(400, "Amount paid is less than total", "INSUFFICIENT_PAYMENT");
-    }
+    this._assertPaymentValid({ amountPaid, total, paymentMethod: payment.payment_method });
+
+    const paymentMethod = payment.payment_method ?? "cash";
+    const change = paymentMethod === "cash" ? roundMoney(amountPaid - total) : 0;
+
+    const aggregatedIngredients = await this._aggregateIngredientNeeds(pricedItems);
 
     const order = await prisma.$transaction(async (tx) => {
       const orderNumber = await orderRepository.getNextOrderNumber();
@@ -182,13 +186,22 @@ export const orderService = {
         tableNumber,
         orderSource: "walk_in",
         status: "accepted",
-        totalAmount,
-        amountPaid,
-        change: amountPaid - totalAmount,
+        subtotalAmount: subtotal,
+        discountType: discountResult.discountType,
+        discountPercent: discountResult.discountPercent,
+        discountLabel: discount.discount_label ?? null,
+        discountIdNo: discount.discount_id_no ?? null,
+        discountAmount: discountResult.discountAmount,
+        discountBy: discountResult.discountType === "none" ? null : createdBy,
+        paymentMethod,
+        referenceNo: payment.reference_no ?? null,
+        totalAmount: total,
+        amountPaid: paymentMethod === "cash" ? amountPaid : total,
+        change,
         createdBy,
         acceptedAt: now,
         acceptedBy: createdBy,
-      }, items.map((item) => ({
+      }, pricedItems.map((item) => ({
         productId: item.product_id,
         variantId: item.variant_id,
         quantity: item.quantity,
@@ -208,13 +221,13 @@ export const orderService = {
       action: ACTIONS.ORDER_CREATED,
       targetType: "order",
       targetId: order.order.orderId,
-      details: { total: totalAmount, source: "walk_in" },
+      details: { subtotal, discount: discountResult.discountAmount, total, source: "walk_in", paymentMethod },
     }).catch(() => {});
 
     notificationService.create({
       type: "order_new",
       title: "New Walk-In Order",
-      message: `Order #${order.order.orderNumber} from ${customerName} — ₱${totalAmount.toFixed(2)}`,
+      message: `Order #${order.order.orderNumber} from ${customerName} — ₱${total.toFixed(2)}`,
       referenceType: "order",
       referenceId: order.order.orderId,
     }).catch(() => {});
@@ -225,7 +238,8 @@ export const orderService = {
   /* ── Online Order Creation (Guest) ──── */
 
   async createOnline({ customerName, tableNumber, items, guestToken, orderDate: orderDateStr }) {
-    const totalAmount = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
+    // Server re-price so guests can't tamper with totals (no discount at placement).
+    const { pricedItems, total } = await this._priceItemsAndTotals(items, { discount_type: "none" });
 
     const result = await prisma.$transaction(async (tx) => {
       const orderNumber = await orderRepository.getNextOrderNumber();
@@ -239,9 +253,9 @@ export const orderService = {
         orderDate,
         customerName,
         tableNumber,
-        totalAmount,
+        totalAmount: total,
         guestToken,
-      }, items.map((item) => ({
+      }, pricedItems.map((item) => ({
         productId: item.product_id,
         variantId: item.variant_id,
         quantity: item.quantity,
@@ -254,7 +268,7 @@ export const orderService = {
     notificationService.create({
       type: "order_new",
       title: "New Online Order",
-      message: `Order #${fullOrder.order_number} from ${customerName} — ₱${totalAmount.toFixed(2)}`,
+      message: `Order #${fullOrder.order_number} from ${customerName} — ₱${total.toFixed(2)}`,
       referenceType: "order",
       referenceId: result.orderId,
     }).catch(() => {});
@@ -296,20 +310,23 @@ export const orderService = {
 
   /* ── Fulfill Pending Online Order ──── */
 
-  async fulfillPendingOrder({ id, customerName, tableNumber, items, amountPaid, userId }) {
+  async fulfillPendingOrder({ id, customerName, tableNumber, items, amountPaid, userId, discount = {}, payment = {} }) {
     const existing = await orderRepository.findPendingById(id);
     if (!existing) throw new AppError(404, "Pending order not found", "ORDER_NOT_FOUND");
     if (existing.status !== "pending") {
       throw new AppError(400, "Only pending orders can be fulfilled", "INVALID_STATUS");
     }
 
-    const totalAmount = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
+    const { pricedItems, subtotal, discount: discountResult, total } =
+      await this._priceItemsAndTotals(items, discount);
 
-    if (amountPaid < totalAmount) {
-      throw new AppError(400, "Amount paid is less than total", "INSUFFICIENT_PAYMENT");
-    }
+    this._assertPaymentValid({ amountPaid, total, paymentMethod: payment.payment_method });
 
-    const aggregatedIngredients = await this._aggregateIngredientNeeds(items);
+    const paymentMethod = payment.payment_method ?? "cash";
+    const change = paymentMethod === "cash" ? roundMoney(amountPaid - total) : 0;
+    const paidToStore = paymentMethod === "cash" ? amountPaid : total;
+
+    const aggregatedIngredients = await this._aggregateIngredientNeeds(pricedItems);
 
     let transactionNeeds;
 
@@ -321,21 +338,30 @@ export const orderService = {
         await orderRepository.updateOrder(id, updateData, tx);
       }
 
-      await orderRepository.replaceItems(id, items.map((item) => ({
+      await orderRepository.replaceItems(id, pricedItems.map((item) => ({
         productId: item.product_id,
         variantId: item.variant_id,
         quantity: item.quantity,
         unitPrice: item.unit_price,
       })), tx);
-      await orderRepository.recalculateTotal(id, tx);
 
       const { needs } = await this._deductIngredients(id, aggregatedIngredients, tx, userId);
       transactionNeeds = needs;
 
       await orderRepository.updateStatus(id, "accepted", {
         userId,
-        amountPaid,
-        change: amountPaid - totalAmount,
+        subtotalAmount: subtotal,
+        discountType: discountResult.discountType,
+        discountPercent: discountResult.discountPercent,
+        discountLabel: discount.discount_label ?? null,
+        discountIdNo: discount.discount_id_no ?? null,
+        discountAmount: discountResult.discountAmount,
+        discountBy: discountResult.discountType === "none" ? null : userId,
+        paymentMethod,
+        referenceNo: payment.reference_no ?? null,
+        totalAmount: total,
+        amountPaid: paidToStore,
+        change,
       }, tx);
     }, { timeout: 15000 });
 
@@ -348,7 +374,7 @@ export const orderService = {
       action: ACTIONS.ORDER_ACCEPTED,
       targetType: "order",
       targetId: id,
-      details: { total: totalAmount, source: "online" },
+      details: { subtotal, discount: discountResult.discountAmount, total, source: "online", paymentMethod },
     }).catch(() => {});
 
     return this.getById(id);
@@ -761,6 +787,56 @@ export const orderService = {
     }).catch(() => {});
 
     return { lossId, overrideReason };
+  },
+
+  /* ── BR-01: Pricing Helpers ──────────── */
+
+  /**
+   * Re-price items from live variant prices (server authoritative) and
+   * compute subtotal -> discount -> net total.
+   * @param {Array} items - [{ product_id, variant_id, quantity, unit_price }]
+   * @param {object} discount - { discount_type, promo_mode, promo_value }
+   * @returns {{ pricedItems, subtotal, discount, total }}
+   */
+  async _priceItemsAndTotals(items, discount = {}) {
+    const variantIds = [...new Set(items.map((i) => i.variant_id))];
+    const priceMap = await orderRepository.getVariantPrices(variantIds);
+
+    const pricedItems = items.map((item) => {
+      const livePrice = priceMap.get(item.variant_id);
+      if (livePrice == null) {
+        throw new AppError(400, `Variant ${item.variant_id} not found`, "VARIANT_NOT_FOUND");
+      }
+      if (Math.abs(Number(item.unit_price) - livePrice) > 0.01) {
+        throw new AppError(409, "Menu price changed — please refresh and try again", "PRICE_CHANGED");
+      }
+      return { ...item, unit_price: livePrice };
+    });
+
+    const subtotal = roundMoney(
+      pricedItems.reduce((sum, item) => sum + item.unit_price * item.quantity, 0)
+    );
+    const result = computeDiscountedTotal(subtotal, discount);
+    return { pricedItems, subtotal, discount: result, total: result.total };
+  },
+
+  /**
+   * Validate payment against net total. Cash needs paid >= total.
+   * E-wallets are record-only: paid must equal total, change is 0.
+   */
+  _assertPaymentValid({ amountPaid, total, paymentMethod = "cash" }) {
+    if (amountPaid == null || Number(amountPaid) <= 0) {
+      throw new AppError(400, "Amount paid is required", "PAYMENT_REQUIRED");
+    }
+    if (paymentMethod === "cash") {
+      if (Number(amountPaid) < total) {
+        throw new AppError(400, "Amount paid is less than total", "INSUFFICIENT_PAYMENT");
+      }
+      return;
+    }
+    if (Math.abs(Number(amountPaid) - total) > 0.01) {
+      throw new AppError(400, "E-wallet amount must equal the order total", "INVALID_PAYMENT_AMOUNT");
+    }
   },
 
   /* ── Ingredient Deduction Engine ─────── */
@@ -1293,14 +1369,28 @@ export const orderService = {
       throw new AppError(400, "Amount paid is required for acceptance", "PAYMENT_REQUIRED");
     }
 
-    if (meta.amountPaid < Number(order.totalAmount)) {
-      throw new AppError(400, "Amount paid is less than total", "INSUFFICIENT_PAYMENT");
-    }
+    // Re-price from live variant prices so acceptance can't use stale totals.
+    const orderItems = order.items.map((item) => ({
+      product_id: item.productId,
+      variant_id: item.variantId,
+      quantity: item.quantity,
+      unit_price: Number(item.unitPrice),
+    }));
+    const { subtotal, discount: discountResult, total } =
+      await this._priceItemsAndTotals(orderItems, {
+        discount_type: meta.discount_type,
+        promo_mode: meta.promo_mode,
+        promo_value: meta.promo_value,
+      });
+
+    this._assertPaymentValid({ amountPaid: meta.amountPaid, total, paymentMethod: meta.payment_method });
+
+    const paymentMethod = meta.payment_method ?? order.paymentMethod ?? "cash";
+    const change = paymentMethod === "cash" ? roundMoney(meta.amountPaid - total) : 0;
+    const paidToStore = paymentMethod === "cash" ? meta.amountPaid : total;
 
     // Batch recipe lookup (1 query instead of N per-item queries)
-    const ingredientNeeds = await this._aggregateIngredientNeeds(
-      order.items.map((item) => ({ variant_id: item.variantId, quantity: item.quantity }))
-    );
+    const ingredientNeeds = await this._aggregateIngredientNeeds(orderItems);
 
     let transactionNeeds;
 
@@ -1309,8 +1399,18 @@ export const orderService = {
       transactionNeeds = needs;
       await orderRepository.updateStatus(id, "accepted", {
         userId: meta.userId,
-        amountPaid: meta.amountPaid,
-        change: meta.amountPaid - Number(order.totalAmount),
+        subtotalAmount: subtotal,
+        discountType: discountResult.discountType,
+        discountPercent: discountResult.discountPercent,
+        discountLabel: meta.discount_label ?? null,
+        discountIdNo: meta.discount_id_no ?? null,
+        discountAmount: discountResult.discountAmount,
+        discountBy: discountResult.discountType === "none" ? null : meta.userId,
+        paymentMethod,
+        referenceNo: meta.reference_no ?? null,
+        totalAmount: total,
+        amountPaid: paidToStore,
+        change,
       }, tx);
     }, { timeout: 15000 });
 

@@ -41,6 +41,52 @@ export function getNextStatus(current) {
   return flow[idx + 1];
 }
 
+// ── BR-01: Discount / Payment ─────────────────────────────
+
+export const DISCOUNT_TYPES = ["none", "senior", "pwd", "promo"];
+export const PAYMENT_METHODS = ["cash", "gcash", "maya"];
+
+// Senior/PWD fixed discount under PH law.
+export const SENIOR_PWD_DISCOUNT_PERCENT = 20;
+
+export function roundMoney(n) {
+  return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+}
+
+/**
+ * Compute discount + net total from a subtotal.
+ * Senior/PWD: fixed 20%. Promo: manual percent or peso amount (capped at subtotal).
+ * @param {number} subtotal
+ * @param {object} input - { discount_type, promo_mode, promo_value }
+ * @returns {{ discountType, discountPercent, discountAmount, total }}
+ */
+export function computeDiscountedTotal(subtotal, input = {}) {
+  const base = roundMoney(subtotal);
+  const type = input.discount_type ?? "none";
+
+  if (type === "senior" || type === "pwd") {
+    const amount = roundMoney((base * SENIOR_PWD_DISCOUNT_PERCENT) / 100);
+    return {
+      discountType: type,
+      discountPercent: SENIOR_PWD_DISCOUNT_PERCENT,
+      discountAmount: amount,
+      total: roundMoney(base - amount),
+    };
+  }
+
+  if (type === "promo") {
+    if (input.promo_mode === "percent") {
+      const pct = Math.min(Number(input.promo_value ?? 0), 100);
+      const amount = roundMoney((base * pct) / 100);
+      return { discountType: type, discountPercent: pct, discountAmount: amount, total: roundMoney(base - amount) };
+    }
+    const amount = Math.min(roundMoney(Number(input.promo_value ?? 0)), base);
+    return { discountType: type, discountPercent: 0, discountAmount: amount, total: roundMoney(base - amount) };
+  }
+
+  return { discountType: "none", discountPercent: 0, discountAmount: 0, total: base };
+}
+
 // ── Order Number Formatting ─────────────────────────────
 
 export function formatOrderNumber(num) {
@@ -57,6 +103,15 @@ export function formatOrderResponse(row, extra = {}) {
     table_number: row.table_number ?? row.tableNumber,
     order_source: row.order_source ?? row.orderSource,
     status: row.status,
+    subtotal_amount: Number(row.subtotal_amount ?? row.subtotalAmount ?? row.total_amount ?? row.totalAmount ?? 0),
+    discount_type: row.discount_type ?? row.discountType ?? "none",
+    discount_percent: Number(row.discount_percent ?? row.discountPercent ?? 0),
+    discount_amount: Number(row.discount_amount ?? row.discountAmount ?? 0),
+    discount_label: row.discount_label ?? row.discountLabel ?? null,
+    discount_id_no: row.discount_id_no ?? row.discountIdNo ?? null,
+    discount_by: row.discount_by ?? row.discountBy ?? null,
+    payment_method: row.payment_method ?? row.paymentMethod ?? "cash",
+    reference_no: row.reference_no ?? row.referenceNo ?? null,
     total_amount: Number(row.total_amount ?? row.totalAmount ?? 0),
     amount_paid: row.amount_paid != null ? Number(row.amount_paid) : row.amountPaid != null ? Number(row.amountPaid) : null,
     change: row.change != null ? Number(row.change) : null,

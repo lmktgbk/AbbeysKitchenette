@@ -17,10 +17,41 @@ const orderItemSchema = z.object({
   unit_price: z.number().positive("Price must be greater than zero"),
 });
 
+// ── BR-01: Discount + Payment Schemas ─────────────────────
+
+// Single discount per order. Senior/PWD fixed 20%. Promo manual.
+const discountTypeEnum = z.enum(["none", "senior", "pwd", "promo"], {
+  errorMap: () => ({ message: "discount_type must be none, senior, pwd, or promo" }),
+});
+
+const paymentMethodEnum = z.enum(["cash", "gcash", "maya"], {
+  errorMap: () => ({ message: "payment_method must be cash, gcash, or maya" }),
+});
+
+const discountInputSchema = z.object({
+  discount_type: discountTypeEnum.optional().default("none"),
+  // promo only: "percent" | "amount"
+  promo_mode: z.enum(["percent", "amount"], {
+    errorMap: () => ({ message: "promo_mode must be percent or amount" }),
+  }).optional(),
+  // promo only: percent 0-100 or peso amount
+  promo_value: z.number().min(0, "Promo value must be non-negative").optional(),
+  // senior/pwd only: ID number for audit
+  discount_id_no: z.string().trim().max(50, "ID number must not exceed 50 characters").optional(),
+  // promo only: label/reason
+  discount_label: z.string().trim().max(200, "Promo label must not exceed 200 characters").optional(),
+});
+
+const paymentInputSchema = z.object({
+  payment_method: paymentMethodEnum.optional().default("cash"),
+  // required for gcash/maya (record-only, no gateway)
+  reference_no: z.string().trim().max(100, "Reference number must not exceed 100 characters").optional(),
+});
+
 // ── Body Schemas ────────────────────────────────────────
 
 // POST /api/orders — create walk-in order (auto-accepted)
-export const createOrderSchema = z.object({
+export const createOrderSchema = discountInputSchema.merge(paymentInputSchema).merge(z.object({
   customer_name: z
     .string()
     .trim()
@@ -37,6 +68,20 @@ export const createOrderSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD")
     .optional(),
+})).superRefine((data, ctx) => {
+  if (data.discount_type === "promo") {
+    if (!data.promo_mode) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "promo_mode is required for promo discount", path: ["promo_mode"] });
+    }
+    if (data.promo_value == null) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "promo_value is required for promo discount", path: ["promo_value"] });
+    } else if (data.promo_mode === "percent" && data.promo_value > 100) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Promo percent must not exceed 100", path: ["promo_value"] });
+    }
+  }
+  if (data.payment_method !== "cash" && !data.reference_no) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "reference_no is required for gcash or maya", path: ["reference_no"] });
+  }
 });
 
 // PUT /api/orders/:id — edit pending order
@@ -57,7 +102,7 @@ export const updateOrderSchema = z.object({
 });
 
 // POST /api/orders/:id/fulfill — fulfill pending online order (edit + accept in one shot)
-export const fulfillOrderSchema = z.object({
+export const fulfillOrderSchema = discountInputSchema.merge(paymentInputSchema).merge(z.object({
   customer_name: z
     .string()
     .trim()
@@ -72,6 +117,20 @@ export const fulfillOrderSchema = z.object({
     .optional(),
   items: z.array(orderItemSchema).min(1, "At least one item is required"),
   amount_paid: z.number().positive("Amount paid must be greater than zero"),
+})).superRefine((data, ctx) => {
+  if (data.discount_type === "promo") {
+    if (!data.promo_mode) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "promo_mode is required for promo discount", path: ["promo_mode"] });
+    }
+    if (data.promo_value == null) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "promo_value is required for promo discount", path: ["promo_value"] });
+    } else if (data.promo_mode === "percent" && data.promo_value > 100) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Promo percent must not exceed 100", path: ["promo_value"] });
+    }
+  }
+  if (data.payment_method !== "cash" && !data.reference_no) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "reference_no is required for gcash or maya", path: ["reference_no"] });
+  }
 });
 
 // PUT /api/orders/:id/status — advance order status
@@ -81,6 +140,17 @@ export const updateStatusSchema = z.object({
   }),
   // Payment fields (only for pending → accepted)
   amount_paid: z.number().positive().optional(),
+  discount_type: discountTypeEnum.optional(),
+  promo_mode: z.enum(["percent", "amount"]).optional(),
+  promo_value: z.number().min(0).optional(),
+  discount_id_no: z.string().trim().max(50).optional(),
+  discount_label: z.string().trim().max(200).optional(),
+  payment_method: paymentMethodEnum.optional(),
+  reference_no: z.string().trim().max(100).optional(),
+}).superRefine((data, ctx) => {
+  if (data.status === "accepted" && data.payment_method && data.payment_method !== "cash" && !data.reference_no) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "reference_no is required for gcash or maya", path: ["reference_no"] });
+  }
 });
 
 // ── Shared Constants ──────────────────────────────

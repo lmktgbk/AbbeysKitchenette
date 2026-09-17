@@ -3,10 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
-import OrderTimeline from "./OrderTimeline";
 import Icon from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import { formatDate, formatTime } from "@/lib/date";
+import gcashLogo from "@/assets/gcash-logo.png";
+import mayaLogo from "@/assets/maya_logo.png";
 
 const STATUS_CONFIG = {
   pending: { label: "Pending", variant: "warning" },
@@ -51,6 +52,18 @@ export default function OrderDetailModal({
   showActions = true,
 }) {
   const [expandedItems, setExpandedItems] = useState(new Set());
+  const [copiedId, setCopiedId] = useState(false);
+
+  async function handleCopyId() {
+    if (!order?.order_id) return;
+    try {
+      await navigator.clipboard.writeText(order.order_id);
+    } catch {
+      // clipboard unavailable (permissions/iframe) — still show feedback
+    }
+    setCopiedId(true);
+    setTimeout(() => setCopiedId(false), 1500);
+  }
 
   const toggleItem = (id) => {
     setExpandedItems((prev) => {
@@ -100,8 +113,16 @@ export default function OrderDetailModal({
             )}
           </DialogTitle>
           {!loading && order?.order_id && (
-            <p className="text-[10px] font-mono text-muted-foreground -mt-1">
-              <span className="font-sans font-medium">Order ID:</span> {order.order_id}
+            <p className="-mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+              <span className="font-mono break-all">Order ID: {order.order_id}</span>
+              <button
+                type="button"
+                title={copiedId ? "Copied!" : "Copy order ID"}
+                onClick={handleCopyId}
+                className="shrink-0 cursor-pointer rounded p-0.5 transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <Icon name={copiedId ? "check" : "copy"} size={10} />
+              </button>
             </p>
           )}
         </DialogHeader>
@@ -114,32 +135,77 @@ export default function OrderDetailModal({
           </div>
         ) : (
           <>
-            <div className="flex-1 overflow-y-auto px-5 py-4">
-              <div className="flex gap-4">
-              {/* Left column */}
-              <div className="min-w-0 flex-1 space-y-4">
-                {/* Order info */}
-                <div className="grid grid-cols-3 gap-x-6 gap-y-2 text-sm">
-                  <InfoRow label="Customer" value={order?.customer_name} />
-                  <InfoRow label="Table" value={order?.table_number} />
-                  <InfoRow
-                    label="Payment"
-                    value={order?.amount_paid != null
-                      ? `₱${Number(order.amount_paid).toLocaleString()}`
-                      : "Not collected"
-                    }
-                  />
-                  <InfoRow
-                    label="Change"
-                    value={order?.change != null
-                      ? `₱${Number(order.change).toLocaleString()}`
-                      : "—"
-                    }
-                  />
-                  <InfoRow
-                    label="Refund"
-                    value={`₱${Number(order?.refund?.amount || 0).toLocaleString()}`}
-                  />
+            <div className="flex-1 overflow-y-auto px-5 py-3 modal-scroll">
+              <div className="space-y-3">
+                <StatusStepper order={order} />
+
+                {/* Meta row — customer, table, method in one line */}
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
+                  <span>
+                    <span className="text-muted-foreground">Customer </span>
+                    <span className="font-semibold">{order?.customer_name}</span>
+                  </span>
+                  <span>
+                    <span className="text-muted-foreground">Table </span>
+                    <span className="font-semibold">{order?.table_number}</span>
+                  </span>
+                  <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border bg-muted/60 px-2.5 py-0.5 text-xs font-semibold">
+                    <PaymentMethodMark method={order?.payment_method} />
+                    <span className="shrink-0 capitalize">{order?.payment_method || "cash"}</span>
+                    {order?.reference_no && (
+                      <span className="max-w-[140px] truncate font-mono font-normal text-muted-foreground" title={order.reference_no}>
+                        ({order.reference_no})
+                      </span>
+                    )}
+                  </span>
+                </div>
+
+                {/* Payment stat strip */}
+                <div className="rounded-lg border border-border bg-muted/40">
+                  <div className="grid grid-cols-5 divide-x divide-border py-2 text-center">
+                    <StatCell
+                      label="Subtotal"
+                      value={`₱${Number(order?.subtotal_amount ?? order?.total_amount ?? 0).toLocaleString()}`}
+                    />
+                    <StatCell
+                      label="Discount"
+                      value={order?.discount_type && order.discount_type !== "none"
+                        ? `−₱${Number(order.discount_amount || 0).toLocaleString()}`
+                        : "—"
+                      }
+                      valueClassName={order?.discount_type && order.discount_type !== "none" ? "text-green-600 dark:text-green-400" : ""}
+                      hint={discountTag(order)}
+                    />
+                    <StatCell
+                      label="Total"
+                      value={`₱${Number(order?.total_amount ?? 0).toLocaleString()}`}
+                      valueClassName="text-base font-bold"
+                    />
+                    <StatCell
+                      label="Paid"
+                      value={order?.amount_paid != null
+                        ? `₱${Number(order.amount_paid).toLocaleString()}`
+                        : "—"
+                      }
+                    />
+                    <StatCell
+                      label="Change"
+                      value={order?.change != null
+                        ? `₱${Number(order.change).toLocaleString()}`
+                        : "—"
+                      }
+                    />
+                  </div>
+                  {(Number(order?.refund?.amount || 0) > 0) && (
+                    <p className="border-t border-border px-4 py-1.5 text-right text-xs font-semibold text-destructive">
+                      Refunded ₱{Number(order.refund.amount).toLocaleString()}
+                    </p>
+                  )}
+                  {discountDetail(order) && (
+                    <p className="border-t border-border px-4 py-1.5 text-xs text-muted-foreground">
+                      <span className="font-semibold text-foreground">Discount:</span> {discountDetail(order)}
+                    </p>
+                  )}
                 </div>
 
                 {/* Items */}
@@ -337,12 +403,6 @@ export default function OrderDetailModal({
                   </div>
                 </div>
               </div>
-
-              {/* Right column — Timeline */}
-              <div className="w-48 shrink-0 border-l border-border pl-4">
-                <OrderTimeline order={order} />
-              </div>
-            </div>
             </div>
 
             {/* Actions */}
@@ -402,11 +462,141 @@ export default function OrderDetailModal({
   );
 }
 
-function InfoRow({ label, value }) {
+function StatCell({ label, value, valueClassName, hint }) {
   return (
-    <div>
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className="font-semibold">{value || "—"}</p>
+    <div className="px-2">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className={cn("text-sm font-semibold", valueClassName)}>{value}</p>
+      {hint && (
+        <p className="truncate text-[10px] text-muted-foreground" title={hint}>{hint}</p>
+      )}
     </div>
   );
+}
+
+/**
+ * StatusStepper — horizontal 4-step progress (Created → Accepted →
+ * Preparing → Completed) with timestamp + actor under each step.
+ * Cancelled orders show a red badge with the cancel time.
+ */
+function StatusStepper({ order }) {
+  const formatActor = (by) => {
+    if (!by) return null;
+    if (typeof by === "string") return by;
+    return by.name + (by.role ? ` (${by.role})` : "");
+  };
+  const stepInfo = (at, by) => ({
+    at: at ? `${formatDate(at, "shortDate")} ${formatTime(at)}` : null,
+    by: formatActor(by),
+  });
+  const steps = [
+    { key: "created", label: "Created", done: true, ...stepInfo(order?.created_at, order?.creator_name && { name: order.creator_name, role: order?.creator_role }) },
+    { key: "accepted", label: "Accepted", done: !!(order?.accepted_at || order?.accepted_by), ...stepInfo(order?.accepted_at, order?.accepted_by) },
+    { key: "preparing", label: "Preparing", done: !!(order?.preparing_at || order?.preparing_by), ...stepInfo(order?.preparing_at, order?.preparing_by) },
+    { key: "completed", label: "Completed", done: !!(order?.completed_at || order?.completed_by), ...stepInfo(order?.completed_at, order?.completed_by) },
+  ];
+  const currentIdx = steps.findIndex((s) => !s.done);
+  const isCancelled = order?.status === "cancelled";
+  const cancelledAt = order?.cancelled_at ? `${formatDate(order.cancelled_at, "shortDate")} ${formatTime(order.cancelled_at)}` : null;
+
+  return (
+    <div className="flex items-center" aria-label="Order status">
+      {steps.map((step, i) => {
+        const isCurrent = !isCancelled && i === currentIdx;
+        return (
+          <div key={step.key} className="flex min-w-0 flex-1 items-start last:flex-none">
+            <div className="flex min-w-0 flex-col items-center gap-0.5 text-center">
+              <span className={cn(
+                "flex h-5 w-5 items-center justify-center rounded-full border-2 transition-colors",
+                step.done
+                  ? "border-green-500 bg-green-500 text-white"
+                  : isCurrent
+                    ? "border-primary bg-primary/10"
+                    : "border-border",
+              )}>
+                {step.done && <Icon name="check" size={11} />}
+                {isCurrent && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
+              </span>
+              <span className={cn(
+                "text-[10px] leading-tight",
+                step.done ? "font-semibold text-foreground" : isCurrent ? "font-semibold text-primary" : "text-muted-foreground",
+              )}>
+                {step.label}
+              </span>
+              <span className="w-full truncate text-[10px] leading-tight text-muted-foreground" title={step.at ?? undefined}>
+                {step.at ?? "—"}
+              </span>
+              {step.by && (
+                <span className="w-full truncate text-[10px] leading-tight text-muted-foreground" title={step.by}>
+                  {step.by}
+                </span>
+              )}
+            </div>
+            {i < steps.length - 1 && (
+              <span className={cn(
+                "mx-1.5 mt-2.5 h-px flex-1",
+                steps[i + 1].done ? "bg-green-500" : "bg-border",
+              )} />
+            )}
+          </div>
+        );
+      })}
+      {isCancelled && (
+        <div className="ml-2 flex shrink-0 flex-col items-center gap-0.5 text-center">
+          <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold text-destructive">
+            <Icon name="x" size={10} />
+            Cancelled
+          </span>
+          {cancelledAt && (
+            <span className="text-[10px] leading-tight text-muted-foreground" title={cancelledAt}>
+              {cancelledAt}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Short tag for the discount stat cell (fits the narrow column).
+ * Senior/PWD show the ID number, promo shows mode + label.
+ */
+function discountTag(order) {
+  if (!order?.discount_type || order.discount_type === "none") return null;
+  if (order.discount_type === "senior") return "Senior";
+  if (order.discount_type === "pwd") return "PWD";
+  const mode = Number(order.discount_percent) > 0 ? `${order.discount_percent}%` : "fixed";
+  return `Promo ${mode}`;
+}
+
+/**
+ * Full audit detail for the caption line under the stat strip.
+ * Full modal width — long IDs and labels display in full.
+ */
+function discountDetail(order) {
+  if (!order?.discount_type || order.discount_type === "none") return null;
+  if (order.discount_type === "senior" || order.discount_type === "pwd") {
+    const tag = order.discount_type === "senior" ? "Senior" : "PWD";
+    return order.discount_id_no ? `${tag} · ID ${order.discount_id_no}` : tag;
+  }
+  const mode = Number(order.discount_percent) > 0 ? `${order.discount_percent}%` : "fixed amount";
+  return order.discount_label ? `Promo ${mode} · ${order.discount_label}` : `Promo ${mode}`;
+}
+
+/**
+ * Small brand mark for the payment method badge.
+ * GCash/Maya use the store logos, cash/card use lucide icons.
+ */
+function PaymentMethodMark({ method }) {
+  if (method === "gcash") {
+    return <img src={gcashLogo} alt="GCash" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-3.5 w-auto object-contain" />;
+  }
+  if (method === "maya") {
+    return <img src={mayaLogo} alt="Maya" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-3.5 w-auto object-contain" />;
+  }
+  if (method === "card") {
+    return <Icon name="creditCard" size={13} className="text-muted-foreground" />;
+  }
+  return <Icon name="banknote" size={13} className="text-muted-foreground" />;
 }

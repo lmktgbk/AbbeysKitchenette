@@ -66,6 +66,9 @@ import {
     Play,
     Droplets,
     Wallet,
+    Banknote,
+    CreditCard,
+    Copy,
 } from "lucide-react";
 
 const iconMap = {
@@ -136,6 +139,9 @@ const iconMap = {
     play: Play,
     droplets: Droplets,
     wallet: Wallet,
+    banknote: Banknote,
+    creditCard: CreditCard,
+    copy: Copy,
 };
 
 /**

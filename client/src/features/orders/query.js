@@ -121,7 +121,7 @@ export function useKitchenDisplay() {
     retry: 1,
   });
 
-  const orders = data?.data?.orders ?? [];
+  const orders = useMemo(() => data?.data?.orders ?? [], [data]);
 
   const { preparing, accepted, completedToday } = useMemo(() => {
     const preparingOrders = orders

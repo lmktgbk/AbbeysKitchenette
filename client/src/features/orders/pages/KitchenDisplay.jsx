@@ -42,18 +42,16 @@ export default function KitchenDisplay({ embedded = false }) {
   // Items are NOT filtered out — they're passed to OrderCard which greys out non-checkable ones
   const categoryFilter = user?.role === "cashier" ? "Beverages" : user?.role === "kitchen" ? "Food" : null;
 
-  const filterByRole = (orders) => {
-    if (!categoryFilter) return orders;
-    return orders.map((order) => ({
+  const allOrders = useMemo(() => [...preparing, ...accepted, ...completedToday], [preparing, accepted, completedToday]);
+
+  const roleFiltered = useMemo(() => {
+    if (!categoryFilter) return allOrders;
+    return allOrders.map((order) => ({
       ...order,
       total_items_all_roles: order.items?.length ?? 0,
       total_prepared_all_roles: order.items?.filter((i) => i.is_prepared).length ?? 0,
     }));
-  };
-
-  const allOrders = useMemo(() => [...preparing, ...accepted, ...completedToday], [preparing, accepted, completedToday]);
-
-  const roleFiltered = useMemo(() => filterByRole(allOrders), [allOrders, categoryFilter]);
+  }, [allOrders, categoryFilter]);
 
   const displayOrders = useMemo(() => {
     const active = roleFiltered.filter((o) => o.status === "preparing" || o.status === "accepted");

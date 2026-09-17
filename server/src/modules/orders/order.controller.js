@@ -100,7 +100,9 @@ export const orderController = {
    */
   async createOrder(req, res) {
     try {
-      const { customer_name, table_number, items, amount_paid, order_date } = req.body;
+      const { customer_name, table_number, items, amount_paid, order_date,
+        discount_type, promo_mode, promo_value, discount_id_no, discount_label,
+        payment_method, reference_no } = req.body;
       const order = await orderService.createWalkIn({
         customerName: customer_name,
         tableNumber: table_number,
@@ -108,6 +110,8 @@ export const orderController = {
         amountPaid: amount_paid,
         createdBy: req.user.id,
         orderDate: order_date,
+        discount: { discount_type, promo_mode, promo_value, discount_id_no, discount_label },
+        payment: { payment_method, reference_no },
       });
       return successResponse(res, "Order created", { order }, 201);
     } catch (error) {
@@ -134,10 +138,13 @@ export const orderController = {
    */
   async updateStatus(req, res) {
     try {
-      const { status, amount_paid } = req.body;
+      const { status, amount_paid, discount_type, promo_mode, promo_value,
+        discount_id_no, discount_label, payment_method, reference_no } = req.body;
       const order = await orderService.advanceStatus(req.params.id, status, {
         userId: req.user.id,
         amountPaid: amount_paid,
+        discount_type, promo_mode, promo_value,
+        discount_id_no, discount_label, payment_method, reference_no,
       });
       return successResponse(res, "Order status updated", { order });
     } catch (error) {
@@ -151,7 +158,9 @@ export const orderController = {
    */
   async fulfillOrder(req, res) {
     try {
-      const { customer_name, table_number, items, amount_paid } = req.body;
+      const { customer_name, table_number, items, amount_paid,
+        discount_type, promo_mode, promo_value, discount_id_no, discount_label,
+        payment_method, reference_no } = req.body;
       const order = await orderService.fulfillPendingOrder({
         id: req.params.id,
         customerName: customer_name,
@@ -159,6 +168,8 @@ export const orderController = {
         items,
         amountPaid: amount_paid,
         userId: req.user.id,
+        discount: { discount_type, promo_mode, promo_value, discount_id_no, discount_label },
+        payment: { payment_method, reference_no },
       });
       return successResponse(res, "Order fulfilled", { order });
     } catch (error) {

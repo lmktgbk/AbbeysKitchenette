@@ -121,35 +121,6 @@ export default function OrdersPage({ embedded = false }) {
     if (ok) toast.success("Order updated");
   }
 
-  async function handlePrepare(orderId) {
-    try {
-      await mutations.prepare.mutateAsync(orderId);
-      toast.success("Order is now preparing");
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to start preparing");
-    }
-  }
-
-  async function handleCheckItem(orderId, itemId, isPrepared) {
-    try {
-      await mutations.checkItem.mutateAsync({ orderId, itemId, data: { is_prepared: isPrepared } });
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to update item");
-    }
-  }
-
-  async function handleMarkReady(orderId) {
-    try {
-      await mutations.advanceStatus.mutateAsync({
-        id: orderId,
-        data: { status: "completed" },
-      });
-      toast.success("Order completed");
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to complete order");
-    }
-  }
-
   async function handleCancelClick(order) {
     const isPending = order.status === "pending";
     const isAccepted = order.status === "accepted";

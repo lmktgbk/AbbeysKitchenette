@@ -347,6 +347,19 @@ model Order {
   completedBy     String?     @map("completed_by") @db.Uuid
   fulfillmentMinutes Int?    @map("fulfillment_minutes")
 
+  // Pricing (BR-01: subtotal -> discount -> total)
+  subtotalAmount  Decimal  @default(0) @map("subtotal_amount") @db.Decimal(10, 2)
+  discountType    String   @default("none") @map("discount_type") @db.VarChar(20) // none | senior | pwd | promo
+  discountPercent Float    @default(0) @map("discount_percent")
+  discountLabel   String?  @map("discount_label") @db.VarChar(200)
+  discountIdNo    String?  @map("discount_id_no") @db.VarChar(50)
+  discountAmount  Decimal  @default(0) @map("discount_amount") @db.Decimal(10, 2)
+  discountBy      String?  @map("discount_by") @db.Uuid
+
+  // Payment (BR-01: record-only, no gateway)
+  paymentMethod   String   @default("cash") @map("payment_method") @db.VarChar(20) // cash | gcash | maya
+  referenceNo     String?  @map("reference_no") @db.VarChar(100)
+
   // Payment
   totalAmount   Decimal     @default(0) @map("total_amount") @db.Decimal(10, 2)
   amountPaid    Decimal?    @map("amount_paid") @db.Decimal(10, 2)

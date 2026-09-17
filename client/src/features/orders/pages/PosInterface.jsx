@@ -110,7 +110,7 @@ export default function PosInterface() {
     }
   }
 
-  async function handlePaymentConfirm({ amount_paid }) {
+  async function handlePaymentConfirm({ amount_paid, discount_type, promo_mode, promo_value, discount_id_no, discount_label, payment_method, reference_no }) {
     const payload = {
       customer_name: customerName,
       table_number: tableName,
@@ -121,6 +121,13 @@ export default function PosInterface() {
         unit_price: i.unit_price,
       })),
       amount_paid,
+      discount_type,
+      promo_mode,
+      promo_value,
+      discount_id_no,
+      discount_label,
+      payment_method,
+      reference_no,
     };
 
     try {
@@ -196,6 +203,17 @@ export default function PosInterface() {
         open={showPayment}
         onOpenChange={setShowPayment}
         totalAmount={subtotal}
+        orderSummary={{
+          itemCount: items.reduce((sum, i) => sum + i.quantity, 0),
+          customerName,
+          tableName,
+          items: items.map((i) => ({
+            product_name: i.product_name,
+            size_name: i.size_name,
+            quantity: i.quantity,
+            unit_price: i.unit_price,
+          })),
+        }}
         onConfirm={handlePaymentConfirm}
         isLoading={mutations.create.isPending || mutations.fulfill.isPending}
       />

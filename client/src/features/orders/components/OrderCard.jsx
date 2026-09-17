@@ -39,7 +39,6 @@ export default function OrderCard({
 
   const totalItems = checkableItems.length;
   const preparedCount = checkableItems.filter((i) => i.is_prepared).length;
-  const roleAllChecked = totalItems > 0 && preparedCount === totalItems;
   const progressPct = totalItems ? Math.round((preparedCount / totalItems) * 100) : 0;
 
   // ALL items must be checked before either role can mark ready

@@ -31,7 +31,7 @@ export function Button({
             type={type}
             disabled={disabled}
             className={cn(
-                "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors whitespace-nowrap select-none outline-none",
+                "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors whitespace-nowrap select-none outline-none cursor-pointer",
                 "focus-visible:border-primary",
                 "disabled:pointer-events-none disabled:opacity-50",
                 variants[variant],
