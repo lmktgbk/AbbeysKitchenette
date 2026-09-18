@@ -29,6 +29,20 @@ function handleError(res, error, fallbackCode) {
 
 export const staffController = {
   /**
+   * GET /api/staff/summary — headcounts for the Staff KPI row
+   */
+  async getSummary(req, res) {
+    try {
+      const result = await staffService.getSummary();
+      return successResponse(res, "Staff summary retrieved", {
+        summary: result,
+      });
+    } catch (error) {
+      return handleError(res, error, "STAFF_SUMMARY_ERROR");
+    }
+  },
+
+  /**
    * GET /api/staff — list staff with pagination, search, filter, sort
    */
   async getStaffList(req, res) {
@@ -37,20 +51,6 @@ export const staffController = {
       return successResponse(res, "Staff list retrieved", result);
     } catch (error) {
       return handleError(res, error, "STAFF_LIST_ERROR");
-    }
-  },
-
-  /**
-   * GET /api/staff/performance — performance metrics
-   */
-  async getPerformance(req, res) {
-    try {
-      const result = await staffService.getPerformance(req.validatedQuery);
-      return successResponse(res, "Performance metrics retrieved", {
-        performance: result,
-      });
-    } catch (error) {
-      return handleError(res, error, "PERFORMANCE_ERROR");
     }
   },
 

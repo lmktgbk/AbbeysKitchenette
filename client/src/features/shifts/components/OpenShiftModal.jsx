@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -31,7 +31,8 @@ export default function OpenShiftModal({ open, onOpenChange, onConfirm, isLoadin
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm p-5">
+      <DialogContent className="max-w-sm p-5 pb-4">
+        <DialogClose onClick={() => onOpenChange?.(false)} aria-label="Close" />
         <DialogHeader className="mb-1">
           <DialogTitle>Open shift</DialogTitle>
           <p className="mt-0.5 text-xs text-muted-foreground">

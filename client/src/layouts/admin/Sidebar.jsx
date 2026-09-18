@@ -1,5 +1,4 @@
 import { useState } from "react";
-import Icon from "@/components/ui/icon";
 import useAuthStore from "@/features/auth/authStore";
 import useLayoutStore from "@/stores/layoutStore";
 import NavItem from "./NavItem";

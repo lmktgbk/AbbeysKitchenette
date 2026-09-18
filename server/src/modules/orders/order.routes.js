@@ -84,6 +84,15 @@ router.get(
   orderController.getOrder,
 );
 
+// GET /api/orders/:id/receipt — printable receipt payload
+router.get(
+  "/:id/receipt",
+  authenticate,
+  authorize("admin", "cashier"),
+  validateParams(orderIdParamSchema),
+  orderController.getReceipt,
+);
+
 // PUT /api/orders/:id — edit pending order
 router.put(
   "/:id",

@@ -78,10 +78,3 @@ export const getStaffQuerySchema = z.object({
     .default("name"),
   sortDir: z.enum(["asc", "desc"]).optional().default("asc"),
 });
-
-// Used by GET /api/staff/performance — query params
-export const getPerformanceQuerySchema = z.object({
-  role: z.enum(["all", "admin", "cashier", "kitchen"]).optional().default("all"),
-  date_from: z.string().optional(),
-  date_to: z.string().optional(),
-});

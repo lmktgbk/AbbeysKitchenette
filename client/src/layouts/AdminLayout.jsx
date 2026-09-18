@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import Sidebar from "./admin/Sidebar";
 import Header from "./admin/Header";
 import Icon from "@/components/ui/icon";
+import ReceiptPrintHost from "@/features/receipts/ReceiptPrintHost";
 import useLayoutStore from "@/stores/layoutStore";
 
 export default function AdminLayout() {
@@ -58,6 +59,7 @@ export default function AdminLayout() {
                     <Outlet />
                 </main>
             </div>
+            <ReceiptPrintHost />
         </div>
     );
 }

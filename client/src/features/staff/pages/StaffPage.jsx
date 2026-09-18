@@ -4,7 +4,9 @@ import { useStaffMutations } from "../query";
 import { confirm } from "@/components/alerts/ConfirmDialog";
 import StaffTable from "../components/StaffTable";
 import StaffFormModal from "../components/StaffFormModal";
-import StaffPerformance from "../components/StaffPerformance";
+import StaffKpis from "../components/StaffKpis";
+import ShiftsView from "@/features/shifts/components/ShiftsView";
+import ShiftKpis from "@/features/shifts/components/ShiftKpis";
 import ResetPinModal from "../components/ResetPinModal";
 import { FilterPill } from "@/components/filters/FilterPill";
 
@@ -12,7 +14,7 @@ import { FilterPill } from "@/components/filters/FilterPill";
  * StaffPage
  *
  * Main orchestrator for staff management.
- * Two views: Staff List (default) and Staff Performance.
+ * Two views: Staff List (default) and Shifts (drawer sessions).
  */
 export default function StaffPage() {
   const [view, setView] = useState("list");
@@ -22,6 +24,14 @@ export default function StaffPage() {
   const [showResetPinModal, setShowResetPinModal] = useState(false);
   const [createdPin, setCreatedPin] = useState(null);
   const [createdStaffName, setCreatedStaffName] = useState(null);
+
+  // Date range shared by the Shifts KPIs + history (empty = today).
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const shiftRangeParams = {
+    ...(dateFrom ? { date_from: dateFrom } : {}),
+    ...(dateTo ? { date_to: dateTo } : {}),
+  };
 
   const mutations = useStaffMutations();
 
@@ -126,11 +136,16 @@ export default function StaffPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* View-aware KPIs — crossfade with the pill below */}
+      <div key={view} className="kds-fade-in">
+        {view === "list" ? <StaffKpis /> : <ShiftKpis params={shiftRangeParams} />}
+      </div>
+
       {/* View Toggle */}
       <FilterPill
         options={[
           { value: "list", label: "Staff List" },
-          { value: "performance", label: "Staff Performance" },
+          { value: "shifts", label: "Shifts" },
         ]}
         value={view}
         onChange={setView}
@@ -147,7 +162,11 @@ export default function StaffPage() {
           onDelete={handleDelete}
         />
       ) : (
-        <StaffPerformance />
+        <ShiftsView
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onDateChange={(from, to) => { setDateFrom(from || ""); setDateTo(to || ""); }}
+        />
       )}
 
       {/* Modals */}

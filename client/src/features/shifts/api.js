@@ -20,6 +20,18 @@ export async function getMyShiftsRequest() {
   return res.data;
 }
 
+// GET /api/shifts/mine/history — own closed shifts
+export async function getMyHistoryRequest() {
+  const res = await api.get("/shifts/mine/history");
+  return res.data;
+}
+
+// GET /api/shifts/stats — period aggregates for the KPI row
+export async function getShiftStatsRequest(params = {}) {
+  const res = await api.get("/shifts/stats", { params });
+  return res.data;
+}
+
 // GET /api/shifts — admin list with filters
 export async function getShiftsRequest(params = {}) {
   const res = await api.get("/shifts", { params });
@@ -35,6 +47,12 @@ export async function getShiftRequest(id) {
 // GET /api/shifts/:id/summary — reconciliation breakdown
 export async function getShiftSummaryRequest(id) {
   const res = await api.get(`/shifts/${id}/summary`);
+  return res.data;
+}
+
+// GET /api/shifts/:id/orders — windowed orders of one shift
+export async function getShiftOrdersRequest(id, params = {}) {
+  const res = await api.get(`/shifts/${id}/orders`, { params });
   return res.data;
 }
 

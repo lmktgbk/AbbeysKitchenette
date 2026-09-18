@@ -716,6 +716,29 @@ export const orderRepository = {
     return client.orderCancellation.create({ data });
   },
 
+  /**
+   * Issue (or refresh) the receipt record for a paid order.
+   * Reprint-safe: one row per order, updated in place.
+   * @param {object} data - { orderId, issuedBy, totalAmount }
+   * @param {object} [tx] - transaction client
+   */
+  async upsertReceipt(data, tx) {
+    const client = tx || prisma;
+    return client.receipt.upsert({
+      where: { orderId: data.orderId },
+      create: data,
+      update: { totalAmount: data.totalAmount, issuedBy: data.issuedBy },
+    });
+  },
+
+  /**
+   * Find the issuance record for an order (BR-03, may be null for
+   * orders paid before receipts existed).
+   */
+  async findReceiptByOrder(orderId) {
+    return prisma.receipt.findUnique({ where: { orderId } });
+  },
+
   async createRefund(data, tx) {
     const client = tx || prisma;
     return client.paymentRefund.upsert({

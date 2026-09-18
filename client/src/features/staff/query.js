@@ -5,7 +5,6 @@ const staffKeys = {
   all: ["staff"],
   list: (params) => [...staffKeys.all, "list", params],
   detail: (id) => [...staffKeys.all, "detail", id],
-  performance: (params) => [...staffKeys.all, "performance", params],
 };
 
 export function useStaffList(params) {
@@ -24,10 +23,10 @@ export function useStaffDetail(id) {
   });
 }
 
-export function useStaffPerformance(params) {
+export function useStaffSummary() {
   return useQuery({
-    queryKey: staffKeys.performance(params),
-    queryFn: () => api.getStaffPerformanceRequest(params),
+    queryKey: [...staffKeys.all, "summary"],
+    queryFn: api.getStaffSummaryRequest,
   });
 }
 

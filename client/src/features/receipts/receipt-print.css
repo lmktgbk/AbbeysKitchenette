@@ -1,0 +1,69 @@
+/**
+ * Thermal receipt print styles (BR-03).
+ *
+ * Screen: the print root stays hidden.
+ * Print: the app hides, the 80mm receipt shows. Works with any
+ * thermal printer through its OS driver (or Save-as-PDF for review).
+ */
+
+#print-root-thermal {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: 80mm auto;
+    margin: 2mm;
+  }
+
+  html, body {
+    background: #fff !important;
+  }
+
+  body > *:not(#print-root-thermal) {
+    display: none !important;
+  }
+
+  #print-root-thermal {
+    display: block !important;
+    width: 72mm;
+    margin: 0 auto;
+    color: #000 !important;
+    background: #fff !important;
+    font-family: "Courier New", ui-monospace, monospace;
+    font-size: 11px;
+    line-height: 1.45;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  #print-root-thermal * {
+    color: #000 !important;
+    background: transparent !important;
+    border-color: #000 !important;
+  }
+
+  #print-root-thermal img {
+    filter: grayscale(1) contrast(1.2);
+  }
+}
+
+/* ── Receipt layout (screen preview inherits app styles;
+      print uses the rules above; structure shared) ── */
+
+.rc-receipt {
+  font-family: "Courier New", ui-monospace, monospace;
+}
+
+.rc-center { text-align: center; }
+.rc-logo { max-width: 40mm; max-height: 22mm; margin: 0 auto; display: block; }
+.rc-store { font-size: 14px; font-weight: 700; }
+.rc-small { font-size: 11px; }
+.rc-disclaimer { font-size: 11px; font-weight: 700; }
+.rc-divider { border-top: 1px dashed #000; margin: 6px 0; }
+.rc-row { display: flex; justify-content: space-between; gap: 8px; }
+.rc-row .rc-right { white-space: nowrap; }
+.rc-item { margin: 1px 0; }
+.rc-item-sub { padding-left: 12px; }
+.rc-total { font-size: 14px; font-weight: 700; }
+.rc-footer { margin-top: 6px; }

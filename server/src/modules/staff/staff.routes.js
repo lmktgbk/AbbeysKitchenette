@@ -14,7 +14,6 @@ import {
   resetPasswordSchema,
   idParamSchema,
   getStaffQuerySchema,
-  getPerformanceQuerySchema,
 } from "./staff.validation.js";
 
 const router = Router();
@@ -23,12 +22,8 @@ const router = Router();
 router.use(authenticate);
 router.use(authorize("admin"));
 
-// GET /api/staff/performance — must be before /:id
-router.get(
-  "/performance",
-  validateQuery(getPerformanceQuerySchema),
-  staffController.getPerformance,
-);
+// GET /api/staff/summary — must be before /:id
+router.get("/summary", staffController.getSummary);
 
 // GET /api/staff — list all staff
 router.get(

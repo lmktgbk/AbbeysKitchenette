@@ -9,6 +9,8 @@ import {
   closeShiftSchema,
   forceCloseShiftSchema,
   shiftIdParamSchema,
+  getShiftStatsQuerySchema,
+  getShiftOrdersQuerySchema,
   getShiftsQuerySchema,
 } from "./shift.validation.js";
 
@@ -19,7 +21,10 @@ const router = Router();
  *
  * POST   /api/shifts/open             — Open drawer session (cashier/admin)
  * GET    /api/shifts/mine             — Own open shifts (cashier/admin)
+ * GET    /api/shifts/mine/history     — Own closed shifts (cashier/admin)
+ * GET    /api/shifts/stats            — KPI aggregates (admin)
  * GET    /api/shifts                  — List all shifts (admin)
+ * GET    /api/shifts/:id/orders       — Orders of one shift (owner/admin)
  * GET    /api/shifts/:id              — Single shift + summary (owner/admin)
  * GET    /api/shifts/:id/summary      — Reconciliation breakdown (owner/admin)
  * POST   /api/shifts/:id/close        — End own shift (cashier/admin)
@@ -39,6 +44,22 @@ router.get(
   authenticate,
   authorize("admin", "cashier"),
   shiftController.getMine,
+);
+
+router.get(
+  "/mine/history",
+  authenticate,
+  authorize("admin", "cashier"),
+  shiftController.getMyHistory,
+);
+
+// GET /api/shifts/stats — KPI aggregates (must be before /:id)
+router.get(
+  "/stats",
+  authenticate,
+  authorize("admin"),
+  validateQuery(getShiftStatsQuerySchema),
+  shiftController.getStats,
 );
 
 router.get(
@@ -63,6 +84,15 @@ router.get(
   authorize("admin", "cashier"),
   validateParams(shiftIdParamSchema),
   shiftController.getSummary,
+);
+
+router.get(
+  "/:id/orders",
+  authenticate,
+  authorize("admin", "cashier"),
+  validateParams(shiftIdParamSchema),
+  validateQuery(getShiftOrdersQuerySchema),
+  shiftController.getShiftOrders,
 );
 
 router.post(

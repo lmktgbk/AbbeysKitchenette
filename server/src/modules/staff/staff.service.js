@@ -11,7 +11,7 @@ const SALT_ROUNDS = 10;
 /**
  * Staff Service
  *
- * Business logic for staff CRUD, PIN/password management, and performance.
+ * Business logic for staff CRUD, PIN/password management, and headcounts.
  */
 
 function mapToStaffResponse(user) {
@@ -29,6 +29,16 @@ function mapToStaffResponse(user) {
 }
 
 export const staffService = {
+  /**
+   * Headcounts for the Staff KPI row (matches the table: admins excluded).
+   */
+  async getSummary() {
+    return staffRepository.getSummary();
+  },
+
+  /**
+   * Get paginated staff list.
+   */
   /**
    * Get paginated staff list.
    */
@@ -239,16 +249,5 @@ export const staffService = {
     auditLogService.logAction({ userId, action: ACTIONS.STAFF_DELETED, targetType: "staff", targetId: id, details: { name: user.name } });
 
     return staffRepository.deleteUser(id);
-  },
-
-  /**
-   * Get performance metrics.
-   */
-  async getPerformance({ role, date_from, date_to }) {
-    return staffRepository.getPerformance({
-      role,
-      dateFrom: date_from,
-      dateTo: date_to,
-    });
   },
 };

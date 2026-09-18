@@ -38,6 +38,6 @@ export function deleteStaffRequest(id) {
   return api.delete(`/staff/${id}`).then((res) => res.data);
 }
 
-export function getStaffPerformanceRequest(params = {}) {
-  return api.get("/staff/performance", { params }).then((res) => res.data);
+export function getStaffSummaryRequest() {
+  return api.get("/staff/summary").then((res) => res.data);
 }

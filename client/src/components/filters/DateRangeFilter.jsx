@@ -17,7 +17,15 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
   const [viewMonth, setViewMonth] = useState(() => new Date().getMonth());
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
   const [hoverDate, setHoverDate] = useState(null);
+  // Panel alignment: grows away from the nearest viewport/sidebar edge.
+  // "right" = panel's right edge pinned to trigger (grows left, for
+  // right-side triggers like the Orders toolbar). "left" = grows right
+  // (for left-side triggers like Staff Shifts).
+  const [align, setAlign] = useState("right");
   const ref = useRef(null);
+
+  const PANEL_WIDTH = 288; // w-72
+  const EDGE_MARGIN = 16;
 
   const isActive = dateFrom && dateTo;
 
@@ -247,10 +255,28 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
     }
   }
 
-  // ── Click outside + Escape ───────────
+  // ── Click outside + Escape + smart placement ──
+
+  const updateAlign = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const spaceLeft = rect.left;
+    const spaceRight = window.innerWidth - rect.right;
+    // Prefer growing left (current behavior) unless the panel would
+    // run under the sidebar / off the left edge.
+    if (spaceLeft < PANEL_WIDTH + EDGE_MARGIN && spaceRight >= PANEL_WIDTH + EDGE_MARGIN) {
+      setAlign("left");
+    } else if (spaceRight < PANEL_WIDTH + EDGE_MARGIN && spaceLeft >= PANEL_WIDTH + EDGE_MARGIN) {
+      setAlign("right");
+    } else {
+      setAlign(spaceLeft >= spaceRight ? "right" : "left");
+    }
+  }, []);
 
   useEffect(() => {
     if (!open) return;
+    updateAlign();
     function handleClick(e) {
       if (ref.current && !ref.current.contains(e.target)) {
         setOpen(false);
@@ -259,20 +285,25 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
     function handleKey(e) {
       if (e.key === "Escape") setOpen(false);
     }
+    window.addEventListener("resize", updateAlign);
     document.addEventListener("mousedown", handleClick);
     document.addEventListener("keydown", handleKey);
     return () => {
+      window.removeEventListener("resize", updateAlign);
       document.removeEventListener("mousedown", handleClick);
       document.removeEventListener("keydown", handleKey);
     };
-  }, [open]);
+  }, [open, updateAlign]);
 
   // ── Sync local state when props change ──
-
-  useEffect(() => {
+  // Render-adjust pattern (no set-state-in-effect): keeps the draft
+  // selection following the applied range (e.g. after Clear elsewhere).
+  const [prevRange, setPrevRange] = useState([dateFrom, dateTo]);
+  if (prevRange[0] !== dateFrom || prevRange[1] !== dateTo) {
+    setPrevRange([dateFrom, dateTo]);
     setStartDate(dateFrom);
     setEndDate(dateTo);
-  }, [dateFrom, dateTo]);
+  }
 
   // ── Trigger label ────────────────────
 
@@ -303,9 +334,12 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
         />
       </button>
 
-      {/* Panel */}
+      {/* Panel — flips to fit the available side */}
       {open && (
-        <div className="absolute z-50 mt-1 right-0 w-72 rounded-lg border border-border bg-card shadow-lg p-3">
+        <div className={cn(
+          "absolute z-50 mt-1 w-72 rounded-lg border border-border bg-card shadow-lg p-3",
+          align === "left" ? "left-0" : "right-0",
+        )}>
           {/* Presets */}
           <div className="grid grid-cols-3 gap-1 mb-3">
             <PresetButton label="Today" onClick={goToday} />

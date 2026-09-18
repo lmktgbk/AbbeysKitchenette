@@ -43,7 +43,27 @@ export const shiftIdParamSchema = z.object({
   id: z.string().uuid("Invalid shift ID"),
 });
 
+// GET /api/shifts/:id/orders — windowed list with status filter
+export const getShiftOrdersQuerySchema = z.object({
+  page: z.string().optional().default("1"),
+  limit: z
+    .string()
+    .regex(/^\d+$/, "Limit must be a positive integer")
+    .optional()
+    .default("15"),
+  status: z
+    .enum(["all", "accepted", "preparing", "completed", "cancelled"])
+    .optional()
+    .default("all"),
+});
+
 // ── Query Schemas ───────────────────────────────────────
+
+// GET /api/shifts/stats — optional YYYY-MM-DD range (default: today)
+export const getShiftStatsQuerySchema = z.object({
+  date_from: z.string().optional(), // YYYY-MM-DD
+  date_to: z.string().optional(), // YYYY-MM-DD
+});
 
 // GET /api/shifts — admin list with filters
 export const getShiftsQuerySchema = z.object({

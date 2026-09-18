@@ -12,10 +12,14 @@ import * as api from "./api";
 const shiftKeys = {
   all: ["shifts"],
   mine: ["shifts", "mine"],
+  history: ["shifts", "history"],
   list: (params) => ["shifts", "list", params],
   detail: (id) => ["shifts", "detail", id],
   summary: (id) => ["shifts", "summary", id],
+  orders: (id, params) => ["shifts", "orders", id, params],
 };
+
+export { shiftKeys };
 
 /* ── Query Hooks ───────────────────────────────── */
 
@@ -38,6 +42,7 @@ export function useShiftsList(params, options = {}) {
   return useQuery({
     queryKey: shiftKeys.list(params),
     queryFn: () => api.getShiftsRequest(params),
+    refetchInterval: 30000,
     ...options,
   });
 }
@@ -51,6 +56,44 @@ export function useShiftSummary(id, options = {}) {
     queryKey: shiftKeys.summary(id),
     queryFn: () => api.getShiftSummaryRequest(id),
     enabled: !!id,
+    // Live while the close modal is open — sales behind it keep moving.
+    refetchInterval: 15000,
+    ...options,
+  });
+}
+
+/**
+ * useMyHistory — own closed shifts (personal history).
+ */
+export function useMyHistory(options = {}) {
+  return useQuery({
+    queryKey: shiftKeys.history,
+    queryFn: api.getMyHistoryRequest,
+    ...options,
+  });
+}
+
+/**
+ * useShiftStats — period aggregates for the Shifts KPI row.
+ */
+export function useShiftStats(params = {}, options = {}) {
+  return useQuery({
+    queryKey: ["shifts", "stats", params],
+    queryFn: () => api.getShiftStatsRequest(params),
+    refetchInterval: 30000,
+    ...options,
+  });
+}
+
+/**
+ * useShiftOrders — windowed orders of one shift (for the detail drawer).
+ */
+export function useShiftOrders(id, params = {}, options = {}) {
+  return useQuery({
+    queryKey: shiftKeys.orders(id, params),
+    queryFn: () => api.getShiftOrdersRequest(id, params),
+    enabled: !!id,
+    keepPreviousData: true,
     ...options,
   });
 }

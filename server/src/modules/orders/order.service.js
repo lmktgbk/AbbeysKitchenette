@@ -214,6 +214,12 @@ export const orderService = {
       })), tx);
 
       const { deductions, needs } = await this._deductIngredients(newOrder.orderId, aggregatedIngredients, tx, createdBy);
+      // BR-03: issuance record for the receipt/ledger (reprint-safe).
+      await orderRepository.upsertReceipt({
+        orderId: newOrder.orderId,
+        issuedBy: createdBy,
+        totalAmount: total,
+      }, tx);
       return { order: newOrder, deductions, needs };
     }, { timeout: 15000 });
 
@@ -279,6 +285,41 @@ export const orderService = {
     }).catch(() => {});
 
     return fullOrder;
+  },
+
+  /* ── Receipt Payload (BR-03) ─────────── */
+
+  /**
+   * Everything a printed receipt needs: the order with items and
+   * payment, its issuance record, and the store header.
+   */
+  async getReceiptPayload(id) {
+    const order = await this.getById(id);
+    if (order.status === "pending") {
+      throw new AppError(400, "Unpaid orders have no receipt", "RECEIPT_UNPAID");
+    }
+    const [receipt, store] = await Promise.all([
+      orderRepository.findReceiptByOrder(id),
+      prisma.systemSettings.findUnique({ where: { id: 1 } }),
+    ]);
+    return {
+      receipt: receipt
+        ? {
+            receipt_id: receipt.receiptId,
+            issued_at: receipt.issuedAt,
+            issued_by: receipt.issuedBy,
+          }
+        : null,
+      order,
+      store: store
+        ? {
+            name: store.storeName,
+            address: store.storeAddress,
+            phone: store.storePhone,
+            email: store.storeEmail,
+          }
+        : null,
+    };
   },
 
   /* ── Edit Pending Order ──────────────── */
@@ -355,6 +396,12 @@ export const orderService = {
 
       const { needs } = await this._deductIngredients(id, aggregatedIngredients, tx, userId);
       transactionNeeds = needs;
+
+      await orderRepository.upsertReceipt({
+        orderId: id,
+        issuedBy: userId,
+        totalAmount: total,
+      }, tx);
 
       await orderRepository.updateStatus(id, "accepted", {
         userId,
@@ -1409,6 +1456,11 @@ export const orderService = {
     await prisma.$transaction(async (tx) => {
       const { needs } = await this._deductIngredients(id, ingredientNeeds, tx, meta.userId);
       transactionNeeds = needs;
+      await orderRepository.upsertReceipt({
+        orderId: id,
+        issuedBy: meta.userId,
+        totalAmount: total,
+      }, tx);
       await orderRepository.updateStatus(id, "accepted", {
         userId: meta.userId,
         subtotalAmount: subtotal,

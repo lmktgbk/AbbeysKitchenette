@@ -120,6 +120,19 @@ export const orderController = {
   },
 
   /**
+   * GET /api/orders/:id/receipt
+   * Receipt payload: order + issuance record + store header.
+   */
+  async getReceipt(req, res) {
+    try {
+      const payload = await orderService.getReceiptPayload(req.params.id);
+      return successResponse(res, "Receipt retrieved", payload);
+    } catch (error) {
+      return handleError(res, error, "GET_RECEIPT_ERROR");
+    }
+  },
+
+  /**
    * PUT /api/orders/:id
    * Edit pending order (items + name + table).
    */

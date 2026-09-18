@@ -7,7 +7,9 @@ import OpenShiftModal from "@/features/shifts/components/OpenShiftModal";
 import CloseShiftModal from "@/features/shifts/components/CloseShiftModal";
 import Icon from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
+import { formatVariance } from "@/lib/money";
 import { getOrderDetailRequest } from "../api";
+import { printReceipt, shouldAutoPrint } from "@/features/receipts/api";
 import PosMenuGrid from "../components/PosMenuGrid";
 import PosOrderSummary from "../components/PosOrderSummary";
 import PosPaymentModal from "../components/PosPaymentModal";
@@ -144,13 +146,18 @@ export default function PosInterface() {
     };
 
     try {
+      let paidOrderId = fulfillingOrderId;
       if (fulfillingOrderId) {
-        await mutations.fulfill.mutateAsync({ id: fulfillingOrderId, data: payload });
+        const res = await mutations.fulfill.mutateAsync({ id: fulfillingOrderId, data: payload });
+        paidOrderId = res?.data?.order?.order_id ?? fulfillingOrderId;
         toast.success("Order fulfilled");
       } else {
-        await mutations.create.mutateAsync({ ...payload, order_date: toLocalDate() });
+        const res = await mutations.create.mutateAsync({ ...payload, order_date: toLocalDate() });
+        paidOrderId = res?.data?.order?.order_id ?? null;
         toast.success("Order placed successfully");
       }
+
+      if (paidOrderId && shouldAutoPrint()) printReceipt(paidOrderId);
 
       setItems([]);
       setCustomerName("");
@@ -199,8 +206,8 @@ export default function PosInterface() {
       const variance = Number(res?.data?.shift?.variance ?? 0);
       toast.success(
         variance === 0
-          ? "Shift closed — balanced"
-          : `Shift closed — variance ${variance > 0 ? "+" : ""}₱${variance.toLocaleString()}`,
+          ? "Shift closed — exact"
+          : `Shift closed — ${variance > 0 ? "over" : "short"} ${formatVariance(variance)}`,
       );
       setClosingShift(null);
     } catch (err) {

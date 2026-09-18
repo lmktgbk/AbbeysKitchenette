@@ -158,138 +158,25 @@ export const staffRepository = {
   },
 
   /**
-   * Get performance metrics for staff.
-   * Cashier: orders created, revenue, avg order value.
-   * Kitchen: items prepared (from order_items), avg prep time per item.
-   * Admin is excluded.
+   * Headcounts for the Staff KPI row (admins excluded, like the table).
    */
-  async getPerformance({ role, dateFrom, dateTo }) {
-    const roleFilter = role && role !== "all" ? { role } : { role: { in: ["cashier", "kitchen"] } };
-
-    const users = await prisma.user.findMany({
-      where: roleFilter,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-      },
-      orderBy: { name: "asc" },
-    });
-
-    const userIds = users.map((u) => u.id);
-    if (userIds.length === 0) return [];
-
-    const cashierIds = users.filter((u) => u.role === "cashier").map((u) => u.id);
-    const kitchenIds = users.filter((u) => u.role === "kitchen").map((u) => u.id);
-
-    const results = [];
-
-    // ── Cashier metrics ──────────────────────────
-    if (cashierIds.length > 0) {
-      const createdWhere = {
-        createdBy: { in: cashierIds },
-        status: { not: "cancelled" },
-      };
-      if (dateFrom || dateTo) {
-        createdWhere.createdAt = {};
-        if (dateFrom) createdWhere.createdAt.gte = new Date(dateFrom);
-        if (dateTo) {
-          const end = new Date(dateTo);
-          end.setHours(23, 59, 59, 999);
-          createdWhere.createdAt.lte = end;
-        }
-      }
-
-      const cashierOrders = await prisma.order.findMany({
-        where: createdWhere,
-        select: {
-          createdBy: true,
-          totalAmount: true,
-        },
-      });
-
-      const cashierAgg = {};
-      for (const o of cashierOrders) {
-        if (!cashierAgg[o.createdBy]) cashierAgg[o.createdBy] = { count: 0, revenue: 0 };
-        cashierAgg[o.createdBy].count += 1;
-        cashierAgg[o.createdBy].revenue += Number(o.totalAmount);
-      }
-
-      for (const user of users.filter((u) => u.role === "cashier")) {
-        const agg = cashierAgg[user.id] || { count: 0, revenue: 0 };
-        results.push({
-          user_id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          orders_created: agg.count,
-          total_revenue: agg.revenue,
-          avg_order_value: agg.count > 0 ? Math.round(agg.revenue / agg.count) : 0,
-        });
-      }
-    }
-
-    // ── Kitchen metrics ──────────────────────────
-    // Track at item level: who prepared what, not just who clicked "complete"
-    if (kitchenIds.length > 0) {
-      const kitchenPlaceholders = kitchenIds.map((_, i) => `$${i + 1}`).join(", ");
-      let idx = kitchenIds.length + 1;
-
-      const dateConditions = [];
-      const values = [...kitchenIds];
-
-      if (dateFrom) {
-        dateConditions.push(`o.order_date >= $${idx++}::date`);
-        values.push(dateFrom);
-      }
-      if (dateTo) {
-        dateConditions.push(`o.order_date <= $${idx++}::date`);
-        values.push(dateTo);
-      }
-
-      const dateClause = dateConditions.length > 0 ? `AND ${dateConditions.join(" AND ")}` : "";
-
-      const kitchenRows = await prisma.$queryRawUnsafe(`
-        SELECT
-          oi.prepared_by AS "userId",
-          COUNT(*)::int AS "itemsPrepared",
-          COUNT(DISTINCT oi.order_id)::int AS "ordersInvolved",
-          ROUND(AVG(EXTRACT(EPOCH FROM (oi.prepared_at - o.preparing_at)) / 60)::numeric, 0)::int AS "avgPrepMinutes"
-        FROM order_items oi
-        JOIN orders o ON o.order_id = oi.order_id
-        WHERE oi.prepared_by IN (${kitchenPlaceholders})
-          AND oi.is_prepared = true
-          AND oi.removed_at IS NULL
-          AND o.preparing_at IS NOT NULL
-          AND o.status != 'cancelled'
-          ${dateClause}
-        GROUP BY oi.prepared_by
-      `, ...values);
-
-      const kitchenAgg = {};
-      for (const row of kitchenRows) {
-        kitchenAgg[row.userId] = {
-          itemsPrepared: row.itemsPrepared,
-          ordersInvolved: row.ordersInvolved,
-          avgPrepMinutes: row.avgPrepMinutes,
-        };
-      }
-
-      for (const user of users.filter((u) => u.role === "kitchen")) {
-        const agg = kitchenAgg[user.id] || { itemsPrepared: 0, ordersInvolved: 0, avgPrepMinutes: null };
-        results.push({
-          user_id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          orders_completed: agg.itemsPrepared,
-          avg_prep_time: agg.avgPrepMinutes,
-        });
-      }
-    }
-
-    return results;
+  async getSummary() {
+    const [byRole, active] = await Promise.all([
+      prisma.user.groupBy({
+        by: ["role"],
+        where: { role: { not: "admin" } },
+        _count: { _all: true },
+      }),
+      prisma.user.count({ where: { role: { not: "admin" }, isActive: true } }),
+    ]);
+    const count = (role) => byRole.find((r) => r.role === role)?._count._all ?? 0;
+    const total = byRole.reduce((sum, r) => sum + r._count._all, 0);
+    return {
+      total,
+      active,
+      cashiers: count("cashier"),
+      kitchen: count("kitchen"),
+    };
   },
 
   /* ── Private Helpers ──────────────── */

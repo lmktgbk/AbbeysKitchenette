@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import useAuthStore from "@/features/auth/authStore";
 import { logoutRequest } from "@/features/auth/api";
@@ -5,6 +6,8 @@ import { confirm } from "@/components/alerts/ConfirmDialog";
 import { FilterPill } from "@/components/filters/FilterPill";
 import ModeToggle from "@/components/ModeToggle";
 import Icon from "@/components/ui/icon";
+import ReceiptPrintHost from "@/features/receipts/ReceiptPrintHost";
+import { shouldAutoPrint, setAutoPrint } from "@/features/receipts/api";
 
 const VIEW_OPTIONS = [
   { value: "pos", label: "POS" },
@@ -31,6 +34,13 @@ export default function PosTerminal() {
   const location = useLocation();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const [autoPrint, setAutoPrintState] = useState(() => shouldAutoPrint());
+
+  function toggleAutoPrint() {
+    const next = !autoPrint;
+    setAutoPrint(next);
+    setAutoPrintState(next);
+  }
 
   const activeView = location.pathname.startsWith("/pos/orders")
     ? "orders"
@@ -95,6 +105,14 @@ export default function PosTerminal() {
 
         {/* Right — theme, profile, sign out */}
         <div className="flex items-center gap-2">
+          <button
+            onClick={toggleAutoPrint}
+            title={autoPrint ? "Auto-print receipts: on" : "Auto-print receipts: off"}
+            aria-label="Toggle auto-print receipts"
+            className={`rounded-md p-2 transition-colors hover:bg-muted ${autoPrint ? "text-foreground" : "text-muted-foreground/40"}`}
+          >
+            <Icon name="receipt" size={18} />
+          </button>
           <ModeToggle />
 
           {/* Profile */}
@@ -123,6 +141,7 @@ export default function PosTerminal() {
       <main className="flex flex-1 flex-col overflow-hidden">
         <Outlet />
       </main>
+      <ReceiptPrintHost />
     </div>
   );
 }

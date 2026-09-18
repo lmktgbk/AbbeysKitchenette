@@ -1,11 +1,9 @@
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { useOrderList, useOrderDetail, useOrderMutations } from "../query";
-import { useMyShifts, useShiftsList, useShiftMutations } from "@/features/shifts/query";
-import ShiftBanner from "@/features/shifts/components/ShiftBanner";
+import { useShiftMutations } from "@/features/shifts/query";
 import OpenShiftModal from "@/features/shifts/components/OpenShiftModal";
-import CloseShiftModal from "@/features/shifts/components/CloseShiftModal";
-import useAuthStore from "@/features/auth/authStore";
+import { printReceipt, shouldAutoPrint } from "@/features/receipts/api";
 import { confirm, confirmWithReason } from "@/components/alerts/ConfirmDialog";
 import OrderStats from "../components/OrderStats";
 import OrderTable from "../components/OrderTable";
@@ -16,6 +14,9 @@ import RemoveItemDialog from "@/components/orders/RemoveItemDialog";
 import { Pagination } from "@/components/filters/Pagination";
 import { SearchBar } from "@/components/filters/SearchBar";
 import DateRangeFilter from "@/components/filters/DateRangeFilter";
+import { FilterPill } from "@/components/filters/FilterPill";
+import TransactionsView from "@/features/transactions/components/TransactionsView";
+import useAuthStore from "@/features/auth/authStore";
 import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
 
@@ -31,26 +32,20 @@ const CANCEL_REASONS = [
  * OrdersPage
  *
  * Main orchestrator for order management.
- * Shows KPI stats, queue board, order table with search/filter/sort, and detail modal.
+ * Live queue only — shifts live in the Staff module (POS handles open/close).
  */
 export default function OrdersPage({ embedded = false }) {
   const mutations = useOrderMutations();
   const shiftMutations = useShiftMutations();
   const user = useAuthStore((s) => s.user);
-  const canHandleCash = user?.role === "admin" || user?.role === "cashier";
 
-  // ── Shifts (BR-02) ───────────────────
-  const { data: shiftsData, isLoading: shiftsLoading } = useMyShifts();
-  const myShifts = shiftsData?.data?.shifts ?? [];
+  // Ledger lives inside Orders for admins (BR-03); cashiers stay on the queue.
+  const [view, setView] = useState("orders");
+  const showViews = user?.role === "admin" && !embedded;
+
+  // ── Open-shift guard path (BR-02): accepting payment without a shift
+  // prompts the cashier to open one. Shift UI itself lives in POS/Staff.
   const [showOpenShift, setShowOpenShift] = useState(false);
-  const [closingShift, setClosingShift] = useState(null);
-
-  // Admin: all shifts history (latest first).
-  const { data: allShiftsData } = useShiftsList(
-    { status: "all", limit: "10" },
-    { enabled: user?.role === "admin" && !embedded },
-  );
-  const allShifts = allShiftsData?.data?.shifts ?? [];
 
   // ── Filters ────────────────────────
   const [page, setPage] = useState(1);
@@ -149,24 +144,6 @@ export default function OrdersPage({ embedded = false }) {
       setShowOpenShift(false);
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to open shift");
-    }
-  }
-
-  async function handleCloseShiftConfirm(data) {
-    if (!closingShift) return;
-    const forced = user?.role === "admin" && closingShift.opened_by !== user?.id;
-    try {
-      const fn = forced ? shiftMutations.forceClose : shiftMutations.close;
-      const res = await fn.mutateAsync({ id: closingShift.shift_id, data });
-      const variance = Number(res?.data?.shift?.variance ?? 0);
-      toast.success(
-        variance === 0
-          ? "Shift closed — balanced"
-          : `Shift closed — variance ${variance > 0 ? "+" : ""}₱${variance.toLocaleString()}`,
-      );
-      setClosingShift(null);
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to close shift");
     }
   }
 
@@ -298,6 +275,7 @@ export default function OrdersPage({ embedded = false }) {
         },
       });
       toast.success(`Order #${acceptingOrder.order_number} accepted`);
+      if (shouldAutoPrint()) printReceipt(acceptingOrder.order_id);
       setAcceptingOrder(null);
     } catch (err) {
       if (err.response?.data?.error === "SHIFT_REQUIRED") {
@@ -310,28 +288,60 @@ export default function OrdersPage({ embedded = false }) {
     }
   }
 
+  // Shared switcher — last element of each table toolbar.
+  const viewSwitcher = showViews ? (
+    <FilterPill
+      options={[
+        { value: "orders", label: "Orders" },
+        { value: "transactions", label: "Transactions" },
+      ]}
+      value={view}
+      onChange={setView}
+    />
+  ) : null;
+
+  // Pairing buttons — rendered beside the view pill inside each
+  // table toolbar (no separate row).
+  const pairButtons = !embedded ? (
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => window.open("/kitchen", "_blank")}
+      >
+        <Icon name="chefHat" size={16} />
+        Open Kitchen
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => window.open("/pos", "_blank")}
+      >
+        <Icon name="cart" size={16} />
+        Open POS
+      </Button>
+    </>
+  ) : null;
+
   return (
     <div className={`flex flex-col gap-4 ${embedded ? "p-6 h-full overflow-y-auto" : ""}`}>
-      {/* Shift banner (BR-02) — drawer session + reconciliation entry */}
-      {canHandleCash && (
-        <ShiftBanner
-          shifts={myShifts}
-          isLoading={shiftsLoading}
-          onOpenShift={() => setShowOpenShift(true)}
-          onCloseShift={setClosingShift}
-        />
-      )}
+      <div key={view} className="flex flex-col gap-4 kds-fade-in">
+        {(!showViews || view === "orders") && (
+          <>
+            {/* KPI Stats */}
+            <OrderStats activeStatus={statusFilter} onStatusClick={setStatusFilter} />
+          </>
+        )}
 
-      {/* KPI Stats */}
-      <OrderStats activeStatus={statusFilter} onStatusClick={setStatusFilter} />
-
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex-1">
+        {(!showViews || view === "orders") && (
+          <div className="overflow-hidden rounded-xl border border-border bg-card">
+      {/* Toolbar — search takes all free space; spacer was eating half of it */}
+      <div className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3">
+        <div className="min-w-48 max-w-md flex-1">
           <SearchBar
             value={search}
             onChange={(val) => { setSearch(val); setPage(1); }}
-            placeholder="Search by customer or order number..."
+            placeholder="Search customer, order #…"
           />
         </div>
         <DateRangeFilter
@@ -343,49 +353,35 @@ export default function OrdersPage({ embedded = false }) {
             setPage(1);
           }}
         />
-        {!embedded && (
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.open("/kitchen", "_blank")}
-            >
-              <Icon name="chefHat" size={16} />
-              Open Kitchen
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => window.open("/pos", "_blank")}
-            >
-              <Icon name="cart" size={16} />
-              Open POS Registry
-            </Button>
-          </>
-        )}
+        <div className="ml-auto flex flex-wrap items-center gap-3">
+          {pairButtons}
+          {viewSwitcher}
+        </div>
       </div>
 
-      {/* Order Table + Pagination */}
-      <div className="rounded-xl border border-border bg-card">
-        <OrderTable
-          orders={orders}
-          isLoading={isLoading}
-          onView={handleView}
-          onAdvance={handleAdvance}
-        />
+            <OrderTable
+              orders={orders}
+              isLoading={isLoading}
+              onView={handleView}
+              onAdvance={handleAdvance}
+            />
 
-        {/* Pagination */}
-        <Pagination
-          currentPage={page}
-          totalItems={totalItems}
-          pageSize={pageSize}
-          onPageChange={setPage}
-          onPageSizeChange={(size) => {
-            setPageSize(size);
-            setPage(1);
-          }}
-          itemLabel="orders"
-        />
+            {/* Pagination */}
+            <Pagination
+              currentPage={page}
+              totalItems={totalItems}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setPage(1);
+              }}
+              itemLabel="orders"
+            />
+          </div>
+        )}
+
+        {showViews && view === "transactions" && <TransactionsView switcher={viewSwitcher} actions={pairButtons} />}
       </div>
 
       {/* Detail Modal */}
@@ -408,49 +404,6 @@ export default function OrdersPage({ embedded = false }) {
         onRemoveItem={handleRemoveItemClick}
       />
 
-      {/* Shift history (BR-02, admin) — system vs actual per drawer session */}
-      {user?.role === "admin" && !embedded && allShifts.length > 0 && (
-        <div className="rounded-xl border border-border bg-card px-4 py-3">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Recent shifts
-          </p>
-          <div className="space-y-1.5">
-            {allShifts.map((s) => {
-              const variance = s.variance != null ? Number(s.variance) : null;
-              return (
-                <div key={s.shift_id} className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                  <span className="font-medium">{s.opener_name ?? "—"}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {s.opened_at ? new Date(s.opened_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true }) : "—"}
-                  </span>
-                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${s.status === "open" ? "bg-green-500/10 text-green-600 dark:text-green-400" : "bg-muted text-muted-foreground"}`}>
-                    {s.status === "open" ? "Open" : "Closed"}
-                  </span>
-                  <span className="ml-auto tabular-nums">
-                    {s.status === "open" ? (
-                      <span className="text-muted-foreground">drawer open</span>
-                    ) : (
-                      <>
-                        <span className="text-muted-foreground">sys ₱{Number(s.expected_cash ?? 0).toLocaleString()} · </span>
-                        <span>act ₱{Number(s.actual_cash ?? 0).toLocaleString()} · </span>
-                        <span className={variance === 0 ? "font-semibold text-green-600 dark:text-green-400" : "font-semibold text-destructive"}>
-                          {variance > 0 ? "+" : ""}₱{(variance ?? 0).toLocaleString()}
-                        </span>
-                      </>
-                    )}
-                  </span>
-                  {s.status === "open" && (
-                    <Button variant="outline" size="sm" onClick={() => setClosingShift(s)}>
-                      {s.opened_by === user?.id ? "Close" : "Force-close"}
-                    </Button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {/* Accept Payment Modal */}
       <PosPaymentModal
         open={!!acceptingOrder}
@@ -460,20 +413,13 @@ export default function OrdersPage({ embedded = false }) {
         isLoading={mutations.advanceStatus.isPending}
       />
 
-      {/* Shift modals (BR-02) */}
+      {/* Open-shift guard (BR-02) — accepting payment without a shift
+          prompts the cashier here; shift management lives in POS/Staff. */}
       <OpenShiftModal
         open={showOpenShift}
         onOpenChange={setShowOpenShift}
         onConfirm={handleOpenShiftConfirm}
         isLoading={shiftMutations.open.isPending}
-      />
-      <CloseShiftModal
-        open={!!closingShift}
-        onOpenChange={(open) => { if (!open) setClosingShift(null); }}
-        shift={closingShift}
-        forced={user?.role === "admin" && !!closingShift && closingShift.opened_by !== user?.id}
-        onConfirm={handleCloseShiftConfirm}
-        isLoading={shiftMutations.close.isPending || shiftMutations.forceClose.isPending}
       />
 
       {/* Cancel Order Dialog */}

@@ -6,6 +6,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import Icon from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import { formatDate, formatTime } from "@/lib/date";
+import { printReceipt } from "@/features/receipts/api";
 import gcashLogo from "@/assets/gcash-logo.png";
 import mayaLogo from "@/assets/maya_logo.png";
 
@@ -82,6 +83,7 @@ export default function OrderDetailModal({
   const canCancel = isPending || isAccepted || isPreparing;
   const canAdvance = isPending || isAccepted;
   const canRemoveItem = isAccepted || isPreparing;
+  const isPaid = !!order?.status && order.status !== "pending";
 
   const total = order?.items?.filter((i) => !i.is_removed).reduce((sum, item) => sum + Number(item.subtotal || 0), 0) || 0;
   const removedTotal = order?.items?.filter((i) => i.is_removed).reduce((sum, item) => sum + Number(item.subtotal || 0), 0) || 0;
@@ -406,8 +408,18 @@ export default function OrderDetailModal({
             </div>
 
             {/* Actions */}
-            {showActions && (canCancel || canAdvance || (allPrepared && isPreparing)) && (
+            {showActions && (canCancel || canAdvance || (allPrepared && isPreparing) || isPaid) && (
               <DialogFooter className="px-5 pb-4 pt-3 mt-2">
+                {isPaid && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => printReceipt(order?.order_id)}
+                  >
+                    <Icon name="receipt" size={14} />
+                    Print receipt
+                  </Button>
+                )}
                 {allPrepared && isPreparing && (
                   <Button
                     variant="primary"

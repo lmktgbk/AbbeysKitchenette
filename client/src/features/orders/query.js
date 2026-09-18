@@ -12,6 +12,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { shiftKeys } from "@/features/shifts/query";
 import * as api from "./api";
 
 /* ── Key Factories (internal) ──────────────────── */
@@ -197,6 +198,9 @@ export function useOrderMutations() {
 
   function invalidateAll() {
     queryClient.invalidateQueries({ queryKey: orderKeys.all });
+    // Drawer math moves with every sale/void/refund — keep shift
+    // banners and summaries fresh without a manual refresh.
+    queryClient.invalidateQueries({ queryKey: shiftKeys.all });
   }
 
   return {
@@ -212,6 +216,7 @@ export function useOrderMutations() {
       onSuccess: (_data, vars) => {
         queryClient.invalidateQueries({ queryKey: orderKeys.detail(vars.id) });
         queryClient.invalidateQueries({ queryKey: orderKeys.all });
+        queryClient.invalidateQueries({ queryKey: shiftKeys.all });
       },
     }),
 
@@ -239,6 +244,7 @@ export function useOrderMutations() {
       onSuccess: (_data, vars) => {
         queryClient.invalidateQueries({ queryKey: orderKeys.detail(vars.orderId) });
         queryClient.invalidateQueries({ queryKey: orderKeys.all });
+        queryClient.invalidateQueries({ queryKey: shiftKeys.all });
       },
     }),
 

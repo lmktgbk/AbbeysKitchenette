@@ -48,6 +48,53 @@ export const shiftController = {
   },
 
   /**
+   * GET /api/shifts/mine/history
+   * Cashier's own closed shifts (personal history).
+   */
+  async getMyHistory(req, res) {
+    try {
+      const result = await shiftService.getMyHistory(req.user.id);
+      return successResponse(res, "Shift history retrieved", result);
+    } catch (error) {
+      return handleError(res, error, "GET_MY_SHIFT_HISTORY_ERROR");
+    }
+  },
+
+  /**
+   * GET /api/shifts/:id/orders
+   * Orders attributed to one shift (owner/admin).
+   */
+  async getShiftOrders(req, res) {
+    try {
+      const { page, limit, status } = req.validatedQuery;
+      const result = await shiftService.getShiftOrders(req.params.id, {
+        userId: req.user.id,
+        role: req.user.role,
+        page: Number(page),
+        limit: Number(limit),
+        status,
+      });
+      return successResponse(res, "Shift orders retrieved", result);
+    } catch (error) {
+      return handleError(res, error, "GET_SHIFT_ORDERS_ERROR");
+    }
+  },
+
+  /**
+   * GET /api/shifts/stats
+   * Admin: period aggregates for the Shifts KPI row.
+   */
+  async getStats(req, res) {
+    try {
+      const { date_from, date_to } = req.validatedQuery;
+      const stats = await shiftService.getStats({ dateFrom: date_from, dateTo: date_to });
+      return successResponse(res, "Shift stats retrieved", { stats });
+    } catch (error) {
+      return handleError(res, error, "GET_SHIFT_STATS_ERROR");
+    }
+  },
+
+  /**
    * GET /api/shifts
    * Admin: paginated shift list with filters.
    */

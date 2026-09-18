@@ -67,6 +67,59 @@ export const shiftService = {
     return { shifts: withSummary };
   },
 
+  /**
+   * Cashier's own closed shifts (personal history, latest first).
+   */
+  async getMyHistory(userId, limit = 20) {
+    const rows = await shiftRepository.findClosedByUser(userId, limit);
+    const withSummary = await Promise.all(
+      rows.map(async (s) => ({ ...formatShift(s), ...(await this.buildSummary(s)) })),
+    );
+    return { shifts: withSummary };
+  },
+
+  /**
+   * Orders attributed to one shift (owner or admin only), windowed.
+   */
+  async getShiftOrders(id, { userId, role, page = 1, limit = 15, status = "all" }) {
+    const shift = await shiftRepository.findById(id);
+    if (!shift) throw new AppError(404, "Shift not found", "SHIFT_NOT_FOUND");
+    if (role !== "admin" && shift.openedBy !== userId) {
+      throw new AppError(403, "You can only view your own shifts", "FORBIDDEN");
+    }
+    const take = Math.min(Math.max(Number(limit) || 15, 1), 50);
+    const pageNum = Math.max(Number(page) || 1, 1);
+    const skip = (pageNum - 1) * take;
+    const [orders, totalOrders] = await Promise.all([
+      shiftRepository.findOrdersByShift(id, { skip, take, status }),
+      shiftRepository.countOrdersByShift(id, status),
+    ]);
+    return {
+      shift: formatShift(shift),
+      totalOrders,
+      page: pageNum,
+      limit: take,
+      orders: orders.map((o) => ({
+        order_id: o.orderId,
+        order_number: o.orderNumber,
+        customer_name: o.customerName,
+        table_number: o.tableNumber,
+        order_source: o.orderSource,
+        status: o.status,
+        payment_method: o.paymentMethod,
+        total_amount: Number(o.totalAmount),
+        amount_paid: o.amountPaid != null ? Number(o.amountPaid) : null,
+        accepted_at: o.acceptedAt,
+        items: o.items.map((i) => ({
+          product_name: i.product?.productName ?? null,
+          size_name: i.variant?.sizeName ?? null,
+          quantity: i.quantity,
+          subtotal: i.subtotal != null ? Number(i.subtotal) : null,
+        })),
+      })),
+    };
+  },
+
   async getById(id, { userId, role }) {
     const shift = await shiftRepository.findById(id);
     if (!shift) throw new AppError(404, "Shift not found", "SHIFT_NOT_FOUND");
@@ -82,8 +135,16 @@ export const shiftService = {
       shiftRepository.findManyPaginated({ skip, take: limit, status, staffId, dateFrom, dateTo }),
       shiftRepository.countFiltered({ status, staffId, dateFrom, dateTo }),
     ]);
-    // Strip the window-function count before formatting.
-    const shifts = rows.map(({ total_count, ...row }) => formatShift(row));
+    // Strip the window-function count; open rows get live summaries
+    // so admin cards show current expected cash, not NULL.
+    const shifts = await Promise.all(
+      rows.map(async ({ total_count, ...row }) => {
+        const base = formatShift(row);
+        if (base.status !== "open") return base;
+        const full = await shiftRepository.findById(base.shift_id);
+        return { ...base, ...(await this.buildSummary(full ?? row)) };
+      }),
+    );
     return { shifts, totalItems };
   },
 
@@ -103,9 +164,10 @@ export const shiftService = {
     const shiftId = shift.shiftId ?? shift.shift_id;
     const closed = (shift.status ?? "open") === "closed";
 
-    const [sales, refunds] = await Promise.all([
+    const [sales, refunds, openOrders] = await Promise.all([
       shiftRepository.getShiftSales(shiftId, openedAt, closedAt),
       shiftRepository.getShiftCashRefunds(shiftId),
+      shiftRepository.getShiftOpenOrders(shiftId, openedAt, closedAt),
     ]);
     const computed = roundMoney(openingCash + sales.cashSales - refunds.cashRefunds);
     const stored = (v) => (v != null ? Number(v) : null);
@@ -118,6 +180,8 @@ export const shiftService = {
       gcash_sales: roundMoney(sales.gcashSales),
       maya_sales: roundMoney(sales.mayaSales),
       total_orders: sales.totalOrders,
+      open_orders: openOrders.openCount,
+      open_orders_total: roundMoney(openOrders.openTotal),
       expected_cash: closed
         ? (stored(shift.expectedCash) ?? stored(shift.expected_cash) ?? computed)
         : computed,
@@ -184,6 +248,20 @@ export const shiftService = {
       ...formatShift(closed),
       summary: await this.buildSummary(closed),
     };
+  },
+
+  /**
+   * Period stats for the Shifts KPI row (default: today, local).
+   * Same drawer math as the cards — KPIs can never disagree with them.
+   */
+  async getStats({ dateFrom, dateTo }) {
+    const today = new Date().toISOString().split("T")[0];
+    const fromStr = dateFrom || today;
+    const toStr = dateTo || fromStr;
+    const from = new Date(`${fromStr}T00:00:00`);
+    const to = new Date(`${toStr}T23:59:59.999`);
+    const stats = await shiftRepository.getStats(from, to);
+    return { ...stats, date_from: fromStr, date_to: toStr };
   },
 
   /* ── Guard for order payment flows ─────── */

@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useShiftSummary } from "../query";
 import { cn } from "@/lib/utils";
+import { formatVariance } from "@/lib/money";
 
 function SummaryRow({ label, value, bold, tone }) {
   return (
@@ -42,7 +43,8 @@ export default function CloseShiftModal({ open, onOpenChange, shift, forced, onC
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto modal-scroll">
+      <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto modal-scroll pb-4">
+        <DialogClose onClick={() => onOpenChange?.(false)} aria-label="Close" />
         <DialogHeader>
           <DialogTitle>
             {forced ? "Force-close shift" : "Close shift"}
@@ -79,8 +81,15 @@ export default function CloseShiftModal({ open, onOpenChange, shift, forced, onC
               </div>
             </div>
 
+            {(summary.open_orders ?? 0) > 0 && (
+              <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                {summary.open_orders} order{summary.open_orders === 1 ? "" : "s"} still in the kitchen
+                (₱{Number(summary.open_orders_total ?? 0).toLocaleString()} already counted as drawer cash).
+              </p>
+            )}
+
             {/* Phase 2 — declare */}
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 pb-1">
               <label className="text-sm font-medium">Actual cash count (₱)</label>
               <Input
                 type="number"
@@ -88,33 +97,36 @@ export default function CloseShiftModal({ open, onOpenChange, shift, forced, onC
                 value={actualCash}
                 onChange={(e) => setActualCash(e.target.value)}
                 placeholder="Count the drawer, enter amount"
-                className="h-11 text-lg font-semibold"
+                className="h-10 text-base font-semibold"
                 autoFocus
               />
               <div className="flex items-center justify-between rounded-lg bg-muted px-4 py-2.5">
-                <span className="text-sm font-medium text-muted-foreground">Variance</span>
+                <span className="text-sm font-medium text-muted-foreground">Difference</span>
                 <span className={cn(
                   "text-lg font-bold tabular-nums",
                   variance == null && "text-muted-foreground",
                   variance === 0 && "text-green-600 dark:text-green-400",
                   variance != null && variance !== 0 && "text-destructive",
                 )}>
-                  {variance == null ? "—" : `${variance > 0 ? "+" : ""}₱${variance.toLocaleString()}`}
+                  {variance == null ? "—" : formatVariance(variance)}
                 </span>
               </div>
               {needsNote && (
-                <Input
-                  value={closeNote}
-                  onChange={(e) => setCloseNote(e.target.value)}
-                  placeholder="Explain the difference (required)"
-                  className="h-9 text-sm"
-                />
+                <div className="space-y-1 pt-1">
+                  <label className="text-sm font-medium">Difference note</label>
+                  <Input
+                    value={closeNote}
+                    onChange={(e) => setCloseNote(e.target.value)}
+                    placeholder="e.g. Short ₱100 — wrong change given (required)"
+                    className="h-9 text-sm"
+                  />
+                </div>
               )}
             </div>
           </div>
         )}
 
-        <DialogFooter className="sticky bottom-0 -mx-6 -mb-6 mt-4 border-t border-border bg-card px-6 py-3">
+        <div className="mt-3 border-t border-border pt-2.5">
           <div className="flex w-full gap-2">
             <Button variant="outline" size="sm" className="flex-1 font-semibold" onClick={() => onOpenChange?.(false)}>
               Cancel
@@ -123,7 +135,7 @@ export default function CloseShiftModal({ open, onOpenChange, shift, forced, onC
               {isLoading ? "Closing..." : "End shift"}
             </Button>
           </div>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );

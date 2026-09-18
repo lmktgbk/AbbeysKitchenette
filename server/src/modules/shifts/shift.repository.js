@@ -115,6 +115,107 @@ export const shiftRepository = {
     };
   },
 
+  /**
+   * Paid orders still in the kitchen (accepted/preparing, not
+   * completed/cancelled). Their cash is already in the drawer —
+   * surfaced as a close-time warning, never a blocker.
+   */
+  async getShiftOpenOrders(shiftId, openedAt, closedAt) {
+    const end = closedAt ?? new Date();
+    const rows = await prisma.$queryRaw`
+      SELECT COUNT(*)::int AS count,
+             COALESCE(SUM(total_amount), 0)::float AS total
+      FROM orders
+      WHERE shift_id = ${shiftId}::uuid
+        AND status IN ('accepted', 'preparing')
+        AND accepted_at >= ${openedAt}
+        AND accepted_at <= ${end}
+    `;
+    return {
+      openCount: Number(rows[0]?.count || 0),
+      openTotal: Number(rows[0]?.total || 0),
+    };
+  },
+
+  /**
+   * Closed shifts for one cashier (own history, latest first).
+   */
+  async findClosedByUser(userId, limit = 20) {
+    return prisma.shift.findMany({
+      where: { openedBy: userId, status: "closed" },
+      orderBy: { openedAt: "desc" },
+      take: limit,
+    });
+  },
+
+  /**
+   * Period stats for the Shifts KPI row.
+   * Sessions opened in [from, to]; open_now counts all live drawers.
+   */
+  async getStats(from, to) {
+    const openNow = await prisma.shift.count({ where: { status: "open" } });
+    const sessions = await prisma.shift.findMany({
+      where: { openedAt: { gte: from, lte: to } },
+      select: { shiftId: true, openedAt: true, closedAt: true, openingCash: true, status: true, expectedCash: true, actualCash: true, variance: true },
+    });
+
+    let cashSales = 0, cashRefunds = 0, gcashSales = 0, mayaSales = 0, varianceTotal = 0, offCount = 0;
+    for (const s of sessions) {
+      const [sales, refunds] = await Promise.all([
+        this.getShiftSales(s.shiftId, s.openedAt, s.closedAt),
+        this.getShiftCashRefunds(s.shiftId),
+      ]);
+      cashSales += sales.cashSales;
+      cashRefunds += refunds.cashRefunds;
+      gcashSales += sales.gcashSales;
+      mayaSales += sales.mayaSales;
+      if (s.status === "closed") {
+        const v = s.variance != null ? Number(s.variance) : 0;
+        varianceTotal += v;
+        if (v !== 0) offCount += 1;
+      }
+    }
+    const round = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+    return {
+      openNow,
+      sessions: sessions.length,
+      cashSales: round(cashSales),
+      cashRefunds: round(cashRefunds),
+      gcashSales: round(gcashSales),
+      mayaSales: round(mayaSales),
+      varianceTotal: round(varianceTotal),
+      offCount,
+    };
+  },
+
+  /**
+   * Orders attributed to one shift (windowed, latest first).
+   */
+  async findOrdersByShift(shiftId, { skip = 0, take = 15, status = "all" } = {}) {
+    const where = { shiftId };
+    if (status && status !== "all") where.status = status;
+    return prisma.order.findMany({
+      where,
+      include: {
+        items: {
+          include: {
+            product: { select: { productName: true } },
+            variant: { select: { sizeName: true } },
+          },
+        },
+      },
+      orderBy: { acceptedAt: "desc" },
+      skip,
+      take,
+    });
+  },
+
+  async countOrdersByShift(shiftId, status = "all") {
+    const where = { shiftId };
+    if (status && status !== "all") where.status = status;
+    return prisma.order.count({ where });
+  },
+
   /* ── Admin list ──────────────────────────── */
 
   async findManyPaginated({ skip, take, status, staffId, dateFrom, dateTo }) {
