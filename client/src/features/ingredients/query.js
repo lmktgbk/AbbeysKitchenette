@@ -228,6 +228,12 @@ export function useIngredientMutations() {
       onSuccess: () => invalidateAll(),
     }),
 
+    /** Record physical count — invalidates all ingredient queries */
+    count: useMutation({
+      mutationFn: ({ id, data }) => api.recordCountRequest(id, data),
+      onSuccess: () => invalidateAll(),
+    }),
+
     /** Archive ingredient — invalidates all ingredient queries */
     archive: useMutation({
       mutationFn: api.archiveIngredientRequest,

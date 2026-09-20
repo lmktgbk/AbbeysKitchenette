@@ -67,6 +67,12 @@ export async function declareLossRequest(id, data) {
   return res.data;
 }
 
+// POST /api/ingredients/:id/count — record a physical stocktake count (BR-07)
+export async function recordCountRequest(id, data) {
+  const res = await api.post(`/ingredients/${id}/count`, data);
+  return res.data;
+}
+
 // ── Batches ─────────────────────────
 
 // GET /api/ingredients/:id/batches — restock batches for an ingredient

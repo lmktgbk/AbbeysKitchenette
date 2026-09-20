@@ -11,6 +11,7 @@ import {
   batchIdParamSchema,
   restockIngredientSchema,
   declareLossSchema,
+  recordCountSchema,
   togglePrioritySchema,
   updateBatchExpirySchema,
   getIngredientsQuerySchema,
@@ -30,6 +31,8 @@ const router = Router();
  * GET    /api/ingredients/alerts       — Active stock alerts for sidebar
  * POST   /api/ingredients              — Create ingredient
  * POST   /api/ingredients/:id/restock  — Restock ingredient
+ * POST   /api/ingredients/:id/loss     — Declare a loss
+ * POST   /api/ingredients/:id/count    — Record a physical count (BR-07)
  * GET    /api/ingredients/:id/batches  — Get restock batches
  * GET    /api/ingredients/:id/history  — Stock adjustment logs
  * PATCH  /api/ingredients/:id/batches/follow-fifo — Clear all priority flags
@@ -120,6 +123,16 @@ router.post(
   validateParams(idParamSchema),
   validate(declareLossSchema),
   ingredientController.declareLoss,
+);
+
+// POST /api/ingredients/:id/count — record a physical stocktake count (BR-07)
+router.post(
+  "/:id/count",
+  authenticate,
+  authorize("admin"),
+  validateParams(idParamSchema),
+  validate(recordCountSchema),
+  ingredientController.recordCount,
 );
 
 // GET /api/ingredients/:id/batches — restock batches for an ingredient

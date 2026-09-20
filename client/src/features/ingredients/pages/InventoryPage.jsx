@@ -7,6 +7,7 @@ import IngredientTable from "../components/IngredientTable";
 import IngredientFormModal from "../components/IngredientFormModal";
 import RestockModal from "../components/RestockModal";
 import LossModal from "../components/LossModal";
+import CountModal from "../components/CountModal";
 import BatchListModal from "../components/BatchListModal";
 import StockAlerts from "../components/sidebar/StockAlerts";
 import ReorderSuggestions from "../components/sidebar/ReorderSuggestions";
@@ -31,6 +32,7 @@ export default function InventoryPage() {
   const [showFormModal, setShowFormModal] = useState(false);
   const [showRestockModal, setShowRestockModal] = useState(false);
   const [showLossModal, setShowLossModal] = useState(false);
+  const [showCountModal, setShowCountModal] = useState(false);
   const [showBatchModal, setShowBatchModal] = useState(false);
   const [batchModalIngredient, setBatchModalIngredient] = useState(null);
   const [selectedIngredient, setSelectedIngredient] = useState(null);
@@ -96,6 +98,30 @@ export default function InventoryPage() {
         onError: (err) => toast.error(err.response?.data?.message || "Failed to declare loss"),
       }),
     isPending: mutations.loss.isPending,
+  };
+
+  const countMutation = {
+    mutate: ({ id, data }) =>
+      mutations.count.mutate({ id, data }, {
+        // res.data is the recordCount result ({ outcome, variance, ... })
+        onSuccess: (res) => {
+          const outcome = res?.data?.outcome;
+          const variance = Math.abs(Number(res?.data?.variance ?? 0));
+          if (outcome === "balanced") {
+            toast.success("Count matches system stock");
+          } else if (outcome === "short") {
+            toast.success(`Short ${variance.toLocaleString()} recorded as loss`);
+          } else if (outcome === "over") {
+            toast.success(`Over ${variance.toLocaleString()} recorded`);
+          } else {
+            toast.success("Count recorded");
+          }
+          setShowCountModal(false);
+          setSelectedIngredient(null);
+        },
+        onError: (err) => toast.error(err.response?.data?.message || "Failed to record count"),
+      }),
+    isPending: mutations.count.isPending,
   };
 
   const archiveMutation = {
@@ -174,6 +200,11 @@ export default function InventoryPage() {
   function handleLoss(ingredient) {
     setSelectedIngredient(ingredient);
     setShowLossModal(true);
+  }
+
+  function handleCount(ingredient) {
+    setSelectedIngredient(ingredient);
+    setShowCountModal(true);
   }
 
   function handleBatches(ingredient) {
@@ -258,6 +289,7 @@ export default function InventoryPage() {
           onEdit={handleEdit}
           onRestock={handleRestock}
           onLoss={handleLoss}
+          onCount={handleCount}
           onBatches={handleBatches}
           onArchive={handleArchive}
           onRestore={handleRestore}
@@ -311,6 +343,20 @@ export default function InventoryPage() {
           })
         }
         isLoading={lossMutation.isPending}
+      />
+
+      {/* Record Count Modal (BR-07) */}
+      <CountModal
+        open={showCountModal}
+        onOpenChange={setShowCountModal}
+        ingredient={selectedIngredient}
+        onSubmit={(data) =>
+          countMutation.mutate({
+            id: selectedIngredient?.ingredient_id,
+            data,
+          })
+        }
+        isLoading={countMutation.isPending}
       />
 
       {/* Batches & History Modal */}

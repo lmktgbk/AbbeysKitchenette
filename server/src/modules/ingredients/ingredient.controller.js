@@ -138,6 +138,29 @@ export const ingredientController = {
   },
 
   /**
+   * POST /api/ingredients/:id/count
+   * Record a physical stocktake count (BR-07) — corrects stock to the
+   * counted quantity, auto-creating a loss record on shortages.
+   */
+  async recordCount(req, res) {
+    try {
+      const result = await ingredientService.recordCount(
+        req.params.id,
+        req.body,
+        req.user.id,
+      );
+      const messages = {
+        balanced: "Count matches system stock",
+        short: `Short ${Math.abs(result.variance).toLocaleString()} recorded`,
+        over: `Over ${Math.abs(result.variance).toLocaleString()} recorded`,
+      };
+      return successResponse(res, messages[result.outcome] ?? "Count recorded", result);
+    } catch (error) {
+      return handleError(res, error, "RECORD_COUNT_ERROR");
+    }
+  },
+
+  /**
    * GET /api/ingredients/archived
    * Return archived ingredients with pagination, search, sort.
    */

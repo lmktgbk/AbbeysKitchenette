@@ -63,6 +63,7 @@ const INGREDIENT_COLUMNS = [
 export default function IngredientTable({
   onRestock,
   onLoss,
+  onCount,
   onBatches,
   onEdit,
   onArchive,
@@ -213,6 +214,7 @@ export default function IngredientTable({
                   onToggleExpand={toggleExpand}
                   onRestock={onRestock}
                   onLoss={onLoss}
+                  onCount={onCount}
                   onBatches={onBatches}
                   onEdit={onEdit}
                   onArchive={onArchive}
@@ -269,6 +271,7 @@ function IngredientRow({
   onToggleExpand,
   onRestock,
   onLoss,
+  onCount,
   onBatches,
   onEdit,
   onArchive,
@@ -360,6 +363,7 @@ function IngredientRow({
           ingredient={ingredient}
           onRestock={onRestock}
           onLoss={onLoss}
+          onCount={onCount}
           onBatches={onBatches}
           onEdit={onEdit}
           onArchive={onArchive}
@@ -374,7 +378,7 @@ function IngredientRow({
 
 /* ── Expanded Row ──────────────────── */
 
-function ExpandedRow({ ingredient, onRestock, onLoss, onBatches, onEdit, onArchive, onRestore, onDelete, showArchived }) {
+function ExpandedRow({ ingredient, onRestock, onLoss, onCount, onBatches, onEdit, onArchive, onRestore, onDelete, showArchived }) {
   const { data: batchesData, isLoading } = useIngredientBatches(ingredient.ingredient_id);
 
   const batches = batchesData?.data?.batches ?? [];
@@ -474,6 +478,10 @@ function ExpandedRow({ ingredient, onRestock, onLoss, onBatches, onEdit, onArchi
                   <Button size="sm" variant="outline" onClick={() => onLoss(ingredient)}>
                     <Icon name="x" size={14} />
                     Loss
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => onCount(ingredient)}>
+                    <Icon name="fileText" size={14} />
+                    Count
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => onBatches(ingredient)}>
                     <Icon name="warehouse" size={14} />

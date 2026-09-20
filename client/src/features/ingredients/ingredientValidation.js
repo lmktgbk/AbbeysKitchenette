@@ -56,6 +56,15 @@ export const restockSchema = z.object({
   ),
 });
 
+// Record count form (BR-07)
+export const countSchema = z.object({
+  physical_quantity: coerceNumber(z.number().min(0, "Count cannot be negative")),
+  reason: z.enum(["spillage", "spoilage", "found_stock", "other"], {
+    required_error: "Reason is required",
+  }),
+  notes: z.string().max(500, "Must not exceed 500 characters").optional(),
+});
+
 // Declare loss form
 export const lossSchema = z.object({
   loss_type: z.enum(["spoilage", "spillage", "expiry", "other"], {

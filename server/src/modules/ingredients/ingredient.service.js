@@ -601,6 +601,151 @@ export const ingredientService = {
   },
 
   /**
+   * Record a physical stocktake count (BR-07).
+   * Compares the counted quantity against system stock and corrects it:
+   *   - Balanced (variance 0): no writes, returns the match.
+   *   - Short: shrinks oldest batches first (FIFO cascade), auto-creates
+   *     a loss record so the money trail stays intact.
+   *   - Over: grows the oldest batch. No loss record — found stock
+   *     is not a loss.
+   * Reason direction is enforced: shorts can't be "found stock",
+   * overs can't be spoilage/spillage.
+   * @param {string} id - ingredient UUID
+   * @param {object} data - { physical_quantity, reason, notes? }
+   * @param {string} userId - admin performing the count
+   */
+  async recordCount(id, data, userId) {
+    const existing = await ingredientRepository.findById(id);
+    if (!existing || existing.isArchived) {
+      throw new AppError(404, "Ingredient not found", "INGREDIENT_NOT_FOUND");
+    }
+
+    const physical = Number(data.physical_quantity);
+    const reason = data.reason;
+    const systemStock = await ingredientRepository.getStockFromBatches(id);
+    const variance = Math.round((physical - systemStock) * 1000) / 1000;
+
+    if (variance === 0) {
+      return {
+        ingredient_id: id,
+        system_stock: systemStock,
+        physical_stock: physical,
+        variance: 0,
+        outcome: "balanced",
+      };
+    }
+
+    const isShort = variance < 0;
+    if (isShort && reason === "found_stock") {
+      throw new AppError(400, "A shortage cannot be recorded as found stock", "INVALID_COUNT_REASON");
+    }
+    if (!isShort && (reason === "spoilage" || reason === "spillage")) {
+      throw new AppError(400, "An overage cannot be recorded as spoilage or spillage", "INVALID_COUNT_REASON");
+    }
+
+    const absQty = Math.abs(variance);
+    let lossRecord = null;
+
+    await prisma.$transaction(async (tx) => {
+      if (isShort) {
+        // Shrink oldest batches first (FIFO cascade), tracking cost as we go.
+        const batches = await ingredientRepository.findActiveBatchesFifo(id, tx);
+        let remaining = absQty;
+        let totalCost = 0;
+        for (const batch of batches) {
+          if (remaining <= 0) break;
+          const take = Math.min(remaining, Number(batch.quantityLeft));
+          if (take <= 0) continue;
+          await ingredientRepository.decrementBatchQuantity(batch.restockId, take, batch.version, tx);
+          totalCost += take * Number(batch.costPerUnit ?? 0);
+          remaining = Math.round((remaining - take) * 1000) / 1000;
+        }
+        if (remaining > 0) {
+          throw new AppError(400, "Count exceeds available stock to reconcile", "INSUFFICIENT_STOCK");
+        }
+
+        const lossType = reason === "found_stock" || reason === "other" ? "other" : reason;
+        lossRecord = await ingredientRepository.createLossLog(
+          {
+            ingredientId: id,
+            declaredById: userId,
+            lossType,
+            quantityLost: absQty,
+            costPerUnit: absQty > 0 ? totalCost / absQty : 0,
+            totalCostLost: totalCost,
+            notes: `Stocktake count ${physical} vs system ${systemStock} (${reason})${data.notes ? ` — ${data.notes}` : ""}`,
+          },
+          tx,
+        );
+      } else {
+        // Grow the oldest active batch; fall back to the oldest batch
+        // outright when every batch is depleted.
+        const batches = await ingredientRepository.findActiveBatchesFifo(id, tx);
+        const target = batches[0] ?? await ingredientRepository.findOldestBatch(id, tx);
+        if (!target) {
+          throw new AppError(400, "No batch exists to receive the overage", "NO_BATCH_FOR_OVERAGE");
+        }
+        await ingredientRepository.incrementBatchQuantity(target.restockId, absQty, target.version, tx);
+      }
+
+      await ingredientRepository.createAdjustment(
+        {
+          ingredientId: id,
+          adjustedById: userId,
+          adjustmentType: "manual",
+          quantityBefore: systemStock,
+          quantityChanged: variance,
+          quantityAfter: physical,
+          relatedLossId: lossRecord ? lossRecord.lossId : null,
+          notes: `Count ${physical} (${reason})${data.notes ? ` — ${data.notes}` : ""}`,
+        },
+        tx,
+      );
+    });
+
+    const stockQuantity = await ingredientRepository.getStockFromBatches(id);
+    await productService.recomputeVariantAvailability([id]);
+
+    // Threshold notifications on the corrected stock (same language as deductions).
+    const threshold = Number(existing.minimumThreshold);
+    if (stockQuantity <= 0) {
+      notificationService.create({
+        type: "stock_out",
+        title: "Out of Stock",
+        message: `${existing.ingredientName} counted out — 0 ${existing.unit} remaining`,
+        referenceType: "ingredient",
+        referenceId: id,
+      }).catch(() => {});
+    } else if (stockQuantity <= threshold) {
+      notificationService.create({
+        type: "stock_low",
+        title: "Low Stock Alert",
+        message: `${existing.ingredientName} counted low — ${stockQuantity} ${existing.unit} remaining`,
+        referenceType: "ingredient",
+        referenceId: id,
+      }).catch(() => {});
+    }
+
+    auditLogService.logAction({
+      userId,
+      action: ACTIONS.STOCK_COUNT_RECORDED,
+      targetType: "ingredient",
+      targetId: id,
+      details: { system: systemStock, physical, variance, reason },
+    }).catch(() => {});
+
+    return {
+      ingredient_id: id,
+      system_stock: systemStock,
+      physical_stock: physical,
+      variance,
+      outcome: isShort ? "short" : "over",
+      reason,
+      loss_id: lossRecord ? lossRecord.lossId : null,
+    };
+  },
+
+  /**
    * FIFO deduction helper — deducts stock across multiple batches in priority/FIFO order.
    * Iterates active batches, taking min(remaining, batchLeft) from each until quantity is consumed.
    * @param {string} ingredientId - ingredient UUID

@@ -102,6 +102,21 @@ export const declareLossSchema = z.object({
   notes: z.string().trim().max(500, "Notes must not exceed 500 characters").optional(),
 });
 
+// Used by POST /api/ingredients/:id/count — record a physical stocktake count
+export const recordCountSchema = z.object({
+  physical_quantity: z
+    .number()
+    .min(0, "Count cannot be negative"),
+  reason: z.enum(["spillage", "spoilage", "found_stock", "other"], {
+    message: "Reason is required",
+  }),
+  notes: z
+    .string()
+    .trim()
+    .max(500, "Notes must not exceed 500 characters")
+    .optional(),
+});
+
 // Used by GET /api/ingredients — query params for pagination, search, filter, sort
 export const getIngredientsQuerySchema = z.object({
   page: z.string().optional().default("1"),
