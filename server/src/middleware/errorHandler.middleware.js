@@ -36,6 +36,18 @@ const errorHandler = (err, req, res, next) => {
     });
   }
 
+  // Unique-constraint race (e.g. concurrent creates with the same name).
+  // Services map the known cases to friendlier errors; this is the net
+  // so a race never surfaces as a 500 anywhere.
+  if (err?.code === "P2002") {
+    return res.status(409).json({
+      success: false,
+      message: "A record with these details already exists",
+      error: "DUPLICATE_ENTRY",
+      data: null,
+    });
+  }
+
   // Unexpected error — hide internals, log for debugging
   const ref = crypto.randomBytes(4).toString("hex");
   console.error(`[${ref}] ${err.message}`);

@@ -18,6 +18,7 @@ import FilterModal from "@/components/filters/FilterModal";
 import { Pagination } from "@/components/filters/Pagination";
 import { formatDate } from "@/lib/date";
 import { toast } from "sonner";
+import ExpiryBadge from "./ExpiryBadge";
 
 /**
  * BatchListModal
@@ -46,6 +47,8 @@ const BATCH_SORT_OPTIONS = [
   { value: "cost_per_unit_desc", label: "Cost/Unit: High → Low" },
   { value: "total_cost_asc", label: "Total Cost: Low → High" },
   { value: "total_cost_desc", label: "Total Cost: High → Low" },
+  { value: "expiry_date_asc", label: "Expiry: Soonest first" },
+  { value: "expiry_date_desc", label: "Expiry: Latest first" },
 ];
 
 const HISTORY_SORT_OPTIONS = [
@@ -342,6 +345,7 @@ function BatchesTab({ batches, isLoading, ingredient, fifoLeaderBatchId, onToggl
           <TableHead className="w-24 text-center">Date</TableHead>
           <TableHead className="w-24 text-center">Added</TableHead>
           <TableHead className="w-28 text-center">Remaining</TableHead>
+          <TableHead className="w-28 text-center">Expires</TableHead>
           <TableHead className="w-28 text-center">Cost/Unit</TableHead>
           <TableHead className="w-28 text-center">Total</TableHead>
           <TableHead>Supplier</TableHead>
@@ -419,6 +423,15 @@ function BatchRow({ batch, ingredient, onTogglePriority, isPriorityLoading }) {
         {remaining.toLocaleString()} {unit}
       </TableCell>
 
+      {/* Expires — date + badge, pencil to correct */}
+      <TableCell className="w-28 text-center whitespace-nowrap">
+        <BatchExpiryCell
+          batch={batch}
+          ingredientId={ingredient.ingredient_id}
+          unit={unit}
+        />
+      </TableCell>
+
       {/* Cost per Unit */}
       <TableCell className="w-28 text-center font-mono text-muted-foreground whitespace-nowrap">
         ₱{batch.cost_per_unit.toFixed(2)}/{unit}
@@ -450,6 +463,86 @@ function BatchRow({ batch, ingredient, onTogglePriority, isPriorityLoading }) {
         ) : null}
       </TableCell>
     </TableRow>
+  );
+}
+
+/* ── Batch Expiry Cell (BR-05) ───────── */
+
+function BatchExpiryCell({ batch, ingredientId, unit }) {
+  const mutations = useIngredientMutations();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(batch.expiry_date ?? "");
+
+  // Reset the draft whenever a different batch renders in this cell.
+  const [prevBatchId, setPrevBatchId] = useState(batch.batch_id);
+  if (batch.batch_id !== prevBatchId) {
+    setPrevBatchId(batch.batch_id);
+    setEditing(false);
+    setDraft(batch.expiry_date ?? "");
+  }
+
+  async function handleSave() {
+    try {
+      await mutations.updateExpiry.mutateAsync({
+        id: ingredientId,
+        batchId: batch.batch_id,
+        data: { expiry_date: draft === "" ? null : draft },
+      });
+      toast.success(draft === "" ? "Expiry tracking cleared" : `Expiry set to ${draft}`);
+      setEditing(false);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to update expiry date");
+    }
+  }
+
+  if (editing) {
+    return (
+      <span className="flex items-center justify-center gap-1">
+        <input
+          type="date"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          className="h-7 w-32 rounded-md border border-border bg-card px-1 text-xs outline-none focus:border-primary"
+          autoFocus
+        />
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={mutations.updateExpiry.isPending}
+          title="Save expiry date"
+          className="cursor-pointer rounded p-1 text-green-600 hover:bg-muted disabled:opacity-50"
+        >
+          <Icon name="check" size={13} />
+        </button>
+        <button
+          type="button"
+          onClick={() => { setEditing(false); setDraft(batch.expiry_date ?? ""); }}
+          title="Cancel"
+          className="cursor-pointer rounded p-1 text-muted-foreground hover:bg-muted"
+        >
+          <Icon name="x" size={13} />
+        </button>
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center justify-center gap-1.5">
+      <span className="flex flex-col items-center gap-0.5">
+        <span className="font-mono text-xs text-muted-foreground">
+          {batch.expiry_date ?? "—"}
+        </span>
+        <ExpiryBadge expiryDate={batch.expiry_date} days={batch.days_until_expiry} />
+      </span>
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        title={batch.expiry_date ? "Correct expiry date" : "Set expiry date"}
+        className="cursor-pointer rounded p-1 text-muted-foreground/60 hover:bg-muted hover:text-foreground"
+      >
+        <Icon name="pencil" size={12} />
+      </button>
+    </span>
   );
 }
 

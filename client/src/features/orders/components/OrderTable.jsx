@@ -33,7 +33,7 @@ export default function OrderTable({ orders, isLoading, onView, onAdvance }) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>#</TableHead>
+              <TableHead>Order #</TableHead>
               <TableHead>Customer</TableHead>
               <TableHead>Table</TableHead>
               <TableHead>Source</TableHead>
@@ -73,7 +73,7 @@ export default function OrderTable({ orders, isLoading, onView, onAdvance }) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>#</TableHead>
+            <TableHead>Order #</TableHead>
             <TableHead>Customer</TableHead>
             <TableHead>Table</TableHead>
             <TableHead>Source</TableHead>

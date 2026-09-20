@@ -264,7 +264,7 @@ export default function PosInterface() {
 
       <div className="relative flex flex-1 overflow-hidden">
         {/* Center: Product menu */}
-        <div className="flex-[7] overflow-y-auto p-4">
+        <div className="min-w-0 flex-[7] overflow-y-auto p-4">
           <PosMenuGrid
             onAddItem={handleAddItem}
             sidebarOpen={sidebarOpen}
@@ -273,7 +273,7 @@ export default function PosInterface() {
         </div>
 
         {/* Right: Order summary (30%) */}
-        <div className="flex-[3] border-l border-border">
+        <div className="min-w-0 flex-[3] border-l border-border">
           <PosOrderSummary
             items={items}
             customerName={customerName}

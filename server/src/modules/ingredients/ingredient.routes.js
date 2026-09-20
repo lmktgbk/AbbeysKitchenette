@@ -12,6 +12,7 @@ import {
   restockIngredientSchema,
   declareLossSchema,
   togglePrioritySchema,
+  updateBatchExpirySchema,
   getIngredientsQuerySchema,
   getArchivedQuerySchema,
   getBatchesQuerySchema,
@@ -33,6 +34,8 @@ const router = Router();
  * GET    /api/ingredients/:id/history  — Stock adjustment logs
  * PATCH  /api/ingredients/:id/batches/follow-fifo — Clear all priority flags
  * PATCH  /api/ingredients/:id/batches/:batchId/priority — Toggle batch priority
+ * PATCH  /api/ingredients/:id/batches/:batchId/expiry — Set/correct batch expiry (BR-05)
+ * POST   /api/ingredients/:id/batches/:batchId/declare-expired-loss — Write off expired batch (BR-05)
  * PATCH  /api/ingredients/:id/archive  — Archive ingredient
  * PATCH  /api/ingredients/:id/restore  — Restore ingredient
  * DELETE /api/ingredients/:id          — Delete ingredient
@@ -146,6 +149,25 @@ router.patch(
   validateParams(batchIdParamSchema),
   validate(togglePrioritySchema),
   ingredientController.toggleBatchPriority,
+);
+
+// PATCH /api/ingredients/:id/batches/:batchId/expiry — set/correct expiry date
+router.patch(
+  "/:id/batches/:batchId/expiry",
+  authenticate,
+  authorize("admin"),
+  validateParams(batchIdParamSchema),
+  validate(updateBatchExpirySchema),
+  ingredientController.updateBatchExpiry,
+);
+
+// POST /api/ingredients/:id/batches/:batchId/declare-expired-loss — one-click write-off
+router.post(
+  "/:id/batches/:batchId/declare-expired-loss",
+  authenticate,
+  authorize("admin"),
+  validateParams(batchIdParamSchema),
+  ingredientController.declareExpiredLoss,
 );
 
 // GET /api/ingredients/:id/history — stock adjustment logs

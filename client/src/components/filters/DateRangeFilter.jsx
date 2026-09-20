@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import Icon from "@/components/ui/icon";
+import usePopoverAlign from "./usePopoverAlign";
 
 /**
  * DateRangeFilter — floating date range picker with calendar grid and preset buttons.
@@ -17,15 +18,9 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
   const [viewMonth, setViewMonth] = useState(() => new Date().getMonth());
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
   const [hoverDate, setHoverDate] = useState(null);
-  // Panel alignment: grows away from the nearest viewport/sidebar edge.
-  // "right" = panel's right edge pinned to trigger (grows left, for
-  // right-side triggers like the Orders toolbar). "left" = grows right
-  // (for left-side triggers like Staff Shifts).
-  const [align, setAlign] = useState("right");
+  // Panel alignment via shared hook: grows away from the nearest edge.
   const ref = useRef(null);
-
-  const PANEL_WIDTH = 288; // w-72
-  const EDGE_MARGIN = 16;
+  const align = usePopoverAlign(ref, open);
 
   const isActive = dateFrom && dateTo;
 
@@ -255,28 +250,10 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
     }
   }
 
-  // ── Click outside + Escape + smart placement ──
-
-  const updateAlign = useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const spaceLeft = rect.left;
-    const spaceRight = window.innerWidth - rect.right;
-    // Prefer growing left (current behavior) unless the panel would
-    // run under the sidebar / off the left edge.
-    if (spaceLeft < PANEL_WIDTH + EDGE_MARGIN && spaceRight >= PANEL_WIDTH + EDGE_MARGIN) {
-      setAlign("left");
-    } else if (spaceRight < PANEL_WIDTH + EDGE_MARGIN && spaceLeft >= PANEL_WIDTH + EDGE_MARGIN) {
-      setAlign("right");
-    } else {
-      setAlign(spaceLeft >= spaceRight ? "right" : "left");
-    }
-  }, []);
+  // ── Click outside + Escape ───────────
 
   useEffect(() => {
     if (!open) return;
-    updateAlign();
     function handleClick(e) {
       if (ref.current && !ref.current.contains(e.target)) {
         setOpen(false);
@@ -285,15 +262,13 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
     function handleKey(e) {
       if (e.key === "Escape") setOpen(false);
     }
-    window.addEventListener("resize", updateAlign);
     document.addEventListener("mousedown", handleClick);
     document.addEventListener("keydown", handleKey);
     return () => {
-      window.removeEventListener("resize", updateAlign);
       document.removeEventListener("mousedown", handleClick);
       document.removeEventListener("keydown", handleKey);
     };
-  }, [open, updateAlign]);
+  }, [open ]);
 
   // ── Sync local state when props change ──
   // Render-adjust pattern (no set-state-in-effect): keeps the draft

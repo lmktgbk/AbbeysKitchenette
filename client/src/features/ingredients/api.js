@@ -92,6 +92,18 @@ export async function followFifoRequest(id) {
   return res.data;
 }
 
+// PATCH /api/ingredients/:id/batches/:batchId/expiry — set/correct expiry date (BR-05)
+export async function updateBatchExpiryRequest(id, batchId, data) {
+  const res = await api.patch(`/ingredients/${id}/batches/${batchId}/expiry`, data);
+  return res.data;
+}
+
+// POST /api/ingredients/:id/batches/:batchId/declare-expired-loss — one-click write-off (BR-05)
+export async function declareExpiredLossRequest(id, batchId) {
+  const res = await api.post(`/ingredients/${id}/batches/${batchId}/declare-expired-loss`);
+  return res.data;
+}
+
 // ── History ─────────────────────────
 
 // GET /api/ingredients/:id/history — adjustment history with pagination, search, type filter

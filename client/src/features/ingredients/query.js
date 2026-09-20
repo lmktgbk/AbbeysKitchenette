@@ -183,7 +183,7 @@ export function useWasteReductions() {
  *     onError: (err) => { toast.error(err.message); },
  *   });
  *
- * @returns {object} - { create, update, restock, loss, archive, restore, remove, togglePriority, followFifo, generateReorder, acceptReorder, rejectReorder, generateWaste, acceptWaste, rejectWaste }
+ * @returns {object} - { create, update, restock, loss, archive, restore, remove, togglePriority, followFifo, updateExpiry, expiredLoss, generateReorder, acceptReorder, rejectReorder, generateWaste, acceptWaste, rejectWaste }
  */
 export function useIngredientMutations() {
   const queryClient = useQueryClient();
@@ -265,6 +265,18 @@ export function useIngredientMutations() {
           queryKey: ingredientKeys.batches(ingredientId),
         });
       },
+    }),
+
+    /** Update batch expiry date — invalidates all ingredient queries */
+    updateExpiry: useMutation({
+      mutationFn: ({ id, batchId, data }) => api.updateBatchExpiryRequest(id, batchId, data),
+      onSuccess: () => invalidateAll(),
+    }),
+
+    /** One-click expired-stock write-off — invalidates all ingredient queries */
+    expiredLoss: useMutation({
+      mutationFn: ({ id, batchId }) => api.declareExpiredLossRequest(id, batchId),
+      onSuccess: () => invalidateAll(),
     }),
 
     // ── Reorder Suggestions ───────────────────────

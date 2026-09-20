@@ -38,8 +38,8 @@ export default function ShiftBanner({ shifts = [], isLoading, onOpenShift, onClo
         <div
           key={s.shift_id}
           className={cn(
-            "flex items-center gap-3 rounded-lg border border-border bg-card",
-            compact ? "px-3 py-1.5" : "px-4 py-2.5",
+            "flex items-center gap-3",
+            compact ? "w-full px-1 py-1" : "rounded-lg border border-border bg-card px-4 py-2.5",
           )}
         >
           <Icon name="wallet" size={compact ? 15 : 18} className="shrink-0 text-primary" />

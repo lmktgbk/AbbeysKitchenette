@@ -28,6 +28,34 @@ function mapToIngredientResponse(ingredient, stockQuantity) {
 }
 
 /**
+ * Days until a batch expires (date-only, UTC).
+ * Negative = already expired. Null = no expiry tracking.
+ */
+function daysUntilExpiry(expiryDate) {
+  if (!expiryDate) return null;
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const expiry = new Date(expiryDate);
+  expiry.setUTCHours(0, 0, 0, 0);
+  return Math.round((expiry - today) / 86400000);
+}
+
+function toISODateOnly(value) {
+  if (value == null) return null;
+  const d = value instanceof Date ? value : new Date(value);
+  return d.toISOString().split("T")[0];
+}
+
+/**
+ * Normalize an ingredient name for duplicate comparison and storage.
+ * Trim + collapse inner whitespace so "Bacon", "bacon" and "  BACON  "
+ * are the same ingredient. Comparison itself is case-insensitive.
+ */
+function normalizeName(name) {
+  return String(name).trim().replace(/\s+/g, " ");
+}
+
+/**
  * Map Prisma RestockBatch to snake_case API response format.
  * Centralizes the response shape used by getBatches and toggleBatchPriority.
  * @param {object} batch - Prisma RestockBatch record (camelCase)
@@ -44,6 +72,8 @@ function mapToBatchResponse(batch) {
     notes: batch.notes,
     restocked_at: batch.restockedAt,
     is_priority: batch.isPriority,
+    expiry_date: toISODateOnly(batch.expiryDate),
+    days_until_expiry: daysUntilExpiry(batch.expiryDate),
   };
 }
 
@@ -53,6 +83,11 @@ function mapToBatchResponse(batch) {
  * Business logic for ingredient operations.
  * Validates rules, orchestrates repository calls, handles errors.
  */
+
+// BR-05: batches expiring within this many days raise "expiring soon" warnings.
+// Deduction stays FIFO — expiry only warns, never reorders consumption.
+const EXPIRY_WARNING_DAYS = 7;
+
 export const ingredientService = {
   /* ── Queries ─────────────────────────── */
 
@@ -109,19 +144,35 @@ export const ingredientService = {
 
   /**
    * Get all active (unresolved) stock alerts — computed live from restock batches.
+   * Includes low/out-of-stock rows plus per-batch expiry warnings.
    * @returns {Array<object>} - alerts with ingredient details
    */
   async getActiveAlerts() {
-    const rows = await ingredientRepository.getActiveAlerts();
-    return rows.map((r) => ({
-      alert_id: r.ingredient_id,
-      ingredient_id: r.ingredient_id,
-      alert_type: r.alert_type,
-      stock_at_trigger: Number(r.stock_at_trigger),
-      triggered_at: null,
-      ingredient_name: r.ingredient_name,
-      unit: r.unit,
-    }));
+    const rows = await ingredientRepository.getActiveAlerts(EXPIRY_WARNING_DAYS);
+    return rows.map((r) => {
+      const base = {
+        alert_id: r.ingredient_id,
+        ingredient_id: r.ingredient_id,
+        alert_type: r.alert_type,
+        stock_at_trigger: Number(r.stock_at_trigger),
+        triggered_at: null,
+        ingredient_name: r.ingredient_name,
+        unit: r.unit,
+      };
+      // BR-05: expiry rows carry their batch context for one-click loss action.
+      if (r.restock_id != null) {
+        return {
+          ...base,
+          alert_id: `expiry-${r.restock_id}`,
+          restock_id: Number(r.restock_id),
+          expiry_date: r.expiry_date ? toISODateOnly(r.expiry_date) : null,
+          days_until_expiry: r.days_left != null ? Number(r.days_left) : null,
+          batch_quantity_left: Number(r.batch_quantity_left ?? 0),
+          batch_cost_per_unit: Number(r.batch_cost_per_unit ?? 0),
+        };
+      }
+      return base;
+    });
   },
 
   /* ── Mutations ───────────────────────── */
@@ -135,24 +186,36 @@ export const ingredientService = {
    * @throws {AppError} 409 if ingredient name already exists
    */
   async create(data, userId) {
-    // Check for duplicate name
-    const existing = await ingredientRepository.findByName(
-      data.ingredient_name.trim(),
-    );
+    // Check for duplicate name (case-insensitive: Bacon ≡ bacon ≡ BACON)
+    const name = normalizeName(data.ingredient_name);
+    const existing = await ingredientRepository.findByName(name);
 
     if (existing) {
       throw new AppError(
         409,
-        "An ingredient with that name already exists",
+        `An ingredient named "${existing.ingredientName}" already exists`,
         "INGREDIENT_EXISTS",
       );
     }
 
-    const ingredient = await ingredientRepository.create({
-      ingredientName: data.ingredient_name.trim(),
-      unit: data.unit.trim(),
-      minimumThreshold: data.minimum_threshold ?? 0,
-    });
+    let ingredient;
+    try {
+      ingredient = await ingredientRepository.create({
+        ingredientName: name,
+        unit: data.unit.trim(),
+        minimumThreshold: data.minimum_threshold ?? 0,
+      });
+    } catch (err) {
+      // Lost a creation race — the LOWER() unique index caught it.
+      if (err?.code === "P2002") {
+        throw new AppError(
+          409,
+          "An ingredient with a similar name already exists",
+          "INGREDIENT_EXISTS",
+        );
+      }
+      throw err;
+    }
 
     const response = mapToIngredientResponse(ingredient, 0);
     auditLogService.logAction({
@@ -184,18 +247,22 @@ export const ingredientService = {
 
     const updateData = {};
 
-    // Step 2: If name is changing, check for duplicates
+    // Step 2: If name is changing, check for duplicates (case-insensitive,
+    // excluding the ingredient itself so Bacon → bacon on one row passes)
     if (data.ingredient_name !== undefined) {
-      const trimmedName = data.ingredient_name.trim();
-      if (trimmedName !== existing.ingredientName) {
+      const trimmedName = normalizeName(data.ingredient_name);
+      if (trimmedName.toLowerCase() !== existing.ingredientName.toLowerCase()) {
         const duplicate = await ingredientRepository.findByName(trimmedName);
-        if (duplicate) {
+        if (duplicate && duplicate.ingredientId !== id) {
           throw new AppError(
             409,
-            "An ingredient with that name already exists",
+            `An ingredient named "${duplicate.ingredientName}" already exists`,
             "INGREDIENT_EXISTS",
           );
         }
+        updateData.ingredientName = trimmedName;
+      } else if (trimmedName !== existing.ingredientName) {
+        // Same name, different casing/whitespace — normalize the stored value.
         updateData.ingredientName = trimmedName;
       }
     }
@@ -210,7 +277,20 @@ export const ingredientService = {
       throw new AppError(400, "No valid fields to update", "NO_CHANGES");
     }
 
-    const updated = await ingredientRepository.update(id, updateData);
+    let updated;
+    try {
+      updated = await ingredientRepository.update(id, updateData);
+    } catch (err) {
+      // Lost a rename race — the LOWER() unique index caught it.
+      if (err?.code === "P2002") {
+        throw new AppError(
+          409,
+          "An ingredient with a similar name already exists",
+          "INGREDIENT_EXISTS",
+        );
+      }
+      throw err;
+    }
     const stockQuantity = await ingredientRepository.getStockFromBatches(id);
     const response = mapToIngredientResponse(updated, stockQuantity);
     auditLogService.logAction({
@@ -249,10 +329,12 @@ export const ingredientService = {
       throw new AppError(404, "Ingredient not found", "INGREDIENT_NOT_FOUND");
     }
 
-    const { quantity_added, cost_per_unit, supplier_name, notes } = data;
+    const { quantity_added, cost_per_unit, supplier_name, notes, expiry_date } = data;
     const qty = Number(quantity_added);
     const cost = Number(cost_per_unit);
     const total = qty * cost;
+    // BR-05: optional expiry date (YYYY-MM-DD string → Date). Omitted = no tracking.
+    const expiryDate = expiry_date ? new Date(`${expiry_date}T00:00:00Z`) : null;
 
     // Compute current stock from batches
     const qtyBefore = await ingredientRepository.getStockFromBatches(id);
@@ -271,6 +353,7 @@ export const ingredientService = {
           totalCost: total,
           supplierName: supplier_name || null,
           notes: notes || null,
+          expiryDate,
         },
         tx,
       );
@@ -456,6 +539,65 @@ export const ingredientService = {
     }).catch(() => {});
 
     return response;
+  },
+
+  /**
+   * One-click expired-stock loss (BR-05).
+   * Writes off a whole expired batch as an expiry loss — thin wrapper
+   * over declareLoss at batch scope, so depletion rotation, adjustments,
+   * and availability recompute all behave identically.
+   * @param {string} id - ingredient UUID
+   * @param {number} batchId - restock batch ID (must be expired with stock left)
+   * @param {string} userId - admin declaring the loss
+   */
+  async declareExpiredLoss(id, batchId, userId) {
+    const batch = await ingredientRepository.findBatchByIdAndIngredient(batchId, id);
+    if (!batch) {
+      throw new AppError(404, "Batch not found for this ingredient", "BATCH_NOT_FOUND");
+    }
+    if (Number(batch.quantityLeft) <= 0) {
+      throw new AppError(400, "Batch has no remaining stock", "BATCH_DEPLETED");
+    }
+    if (daysUntilExpiry(batch.expiryDate) === null || daysUntilExpiry(batch.expiryDate) > 0) {
+      throw new AppError(400, "Only expired batches can use one-click expiry loss", "BATCH_NOT_EXPIRED");
+    }
+
+    return this.declareLoss(
+      id,
+      {
+        loss_type: "expiry",
+        quantity_lost: Number(batch.quantityLeft),
+        batch_id: batchId,
+        notes: `Expired on ${toISODateOnly(batch.expiryDate)} (one-click write-off)`,
+      },
+      userId,
+    );
+  },
+
+  /**
+   * Set or correct a batch expiry date (BR-05, e.g. mistyped at restock).
+   * Null clears expiry tracking for the batch.
+   */
+  async updateBatchExpiry(id, batchId, expiryDate, userId) {
+    const batch = await ingredientRepository.findBatchByIdAndIngredient(batchId, id);
+    if (!batch) {
+      throw new AppError(404, "Batch not found for this ingredient", "BATCH_NOT_FOUND");
+    }
+
+    const updated = await ingredientRepository.updateBatchExpiry(
+      batchId,
+      expiryDate ? new Date(`${expiryDate}T00:00:00Z`) : null,
+    );
+
+    auditLogService.logAction({
+      userId,
+      action: ACTIONS.INGREDIENT_UPDATED,
+      targetType: "restock_batch",
+      targetId: String(batchId),
+      details: { expiry_date: expiryDate ?? null },
+    }).catch(() => {});
+
+    return mapToBatchResponse(updated);
   },
 
   /**

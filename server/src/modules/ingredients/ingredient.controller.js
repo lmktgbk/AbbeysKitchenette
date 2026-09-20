@@ -163,15 +163,52 @@ export const ingredientController = {
    */
   async getBatches(req, res) {
     try {
-      const { page, limit, search } = req.validatedQuery;
+      const { page, limit, search, sortBy, sortDir } = req.validatedQuery;
       const result = await ingredientService.getBatches(req.params.id, {
         page: Number(page),
         limit: Number(limit),
         search,
+        sortBy,
+        sortDir,
       });
       return successResponse(res, "Batches retrieved", result);
     } catch (error) {
       return handleError(res, error, "GET_BATCHES_ERROR");
+    }
+  },
+
+  /**
+   * PATCH /api/ingredients/:id/batches/:batchId/expiry
+   * Set or correct a batch expiry date (BR-05).
+   */
+  async updateBatchExpiry(req, res) {
+    try {
+      const batch = await ingredientService.updateBatchExpiry(
+        req.params.id,
+        Number(req.params.batchId),
+        req.body.expiry_date ?? null,
+        req.user.id,
+      );
+      return successResponse(res, "Batch expiry updated", { batch });
+    } catch (error) {
+      return handleError(res, error, "UPDATE_BATCH_EXPIRY_ERROR");
+    }
+  },
+
+  /**
+   * POST /api/ingredients/:id/batches/:batchId/declare-expired-loss
+   * One-click write-off of a whole expired batch (BR-05).
+   */
+  async declareExpiredLoss(req, res) {
+    try {
+      const ingredient = await ingredientService.declareExpiredLoss(
+        req.params.id,
+        Number(req.params.batchId),
+        req.user.id,
+      );
+      return successResponse(res, "Expired stock written off", { ingredient });
+    } catch (error) {
+      return handleError(res, error, "DECLARE_EXPIRED_LOSS_ERROR");
     }
   },
 

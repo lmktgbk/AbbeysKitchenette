@@ -55,14 +55,14 @@ export default function PosMenuGrid({ onAddItem, sidebarOpen, onToggleSidebar })
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search menu..."
-          className="h-10 flex-1 rounded-lg border border-border bg-card px-4 text-sm outline-none focus:border-primary"
+          className="h-10 flex-1 rounded-lg border border-transparent bg-muted px-4 text-sm outline-none focus:border-primary focus:bg-card"
         />
         <button
           onClick={onToggleSidebar}
           className={`relative h-10 w-10 shrink-0 rounded-lg border transition-colors overflow-visible ${
             sidebarOpen
               ? "border-primary bg-primary/10 text-primary"
-              : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+              : "border-transparent bg-muted text-muted-foreground hover:bg-muted/70 hover:text-foreground"
           }`}
           title="Online Orders"
         >
@@ -166,10 +166,10 @@ function ProductCard({ product, onAddItem }) {
 
   return (
     <>
-      <div className={`relative overflow-hidden rounded-xl border border-border bg-card transition-colors ${
+      <div className={`relative overflow-hidden rounded-xl border border-[rgba(139,69,19,0.16)] bg-card shadow-[0_1px_2px_rgba(30,15,5,0.06)] transition-all ${
         isFullyUnavailable
           ? "opacity-50"
-          : "hover:border-primary/50"
+          : "hover:-translate-y-px hover:border-primary/50 hover:shadow-md"
       }`}>
         <button
           type="button"

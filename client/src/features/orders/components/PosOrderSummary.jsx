@@ -1,3 +1,4 @@
+import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,46 +60,12 @@ export default function PosOrderSummary({
         ) : (
           <div className="space-y-2">
             {items.map((item, idx) => (
-              <div
+              <OrderRow
                 key={`${item.variant_id}-${idx}`}
-                className="flex items-center gap-3 rounded-lg border border-border px-3 py-2"
-              >
-                {/* Item info */}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{item.product_name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {item.size_name} — ₱{Number(item.unit_price).toLocaleString()} each
-                  </p>
-                </div>
-
-                {/* Quantity controls */}
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => {
-                      if (item.quantity <= 1) {
-                        onRemoveItem?.(idx);
-                      } else {
-                        onUpdateQuantity?.(idx, item.quantity - 1);
-                      }
-                    }}
-                    className="flex h-6 w-6 items-center justify-center rounded border border-border text-muted-foreground transition-colors hover:bg-muted"
-                  >
-                    <Icon name="minus" size={12} />
-                  </button>
-                  <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
-                  <button
-                    onClick={() => onUpdateQuantity?.(idx, item.quantity + 1)}
-                    className="flex h-6 w-6 items-center justify-center rounded border border-border text-muted-foreground transition-colors hover:bg-muted"
-                  >
-                    <Icon name="plus" size={12} />
-                  </button>
-                </div>
-
-                {/* Subtotal */}
-                <p className="w-16 text-right text-sm font-medium">
-                  ₱{(item.unit_price * item.quantity).toLocaleString()}
-                </p>
-              </div>
+                item={item}
+                onUpdateQuantity={(qty) => onUpdateQuantity?.(idx, qty)}
+                onRemoveItem={() => onRemoveItem?.(idx)}
+              />
             ))}
           </div>
         )}
@@ -119,6 +86,63 @@ export default function PosOrderSummary({
           Place Order
         </Button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * OrderRow — single cart line with tap-to-expand product name.
+ *
+ * Names clamp to 2 lines by default (short names render unchanged);
+ * tapping the name reveals the full text for repeat-order checks.
+ */
+function OrderRow({ item, onUpdateQuantity, onRemoveItem }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-transparent bg-muted/50 px-3 py-2">
+      {/* Item info */}
+      <div className="min-w-0 flex-1">
+        <button
+          type="button"
+          title={item.product_name}
+          onClick={() => setExpanded((prev) => !prev)}
+          className={`block w-full text-left text-sm font-medium leading-snug ${expanded ? "" : "line-clamp-2"}`}
+        >
+          {item.product_name}
+        </button>
+        <p className="truncate text-xs text-muted-foreground">
+          {item.size_name} — ₱{Number(item.unit_price).toLocaleString()} each
+        </p>
+      </div>
+
+      {/* Quantity controls */}
+      <div className="flex shrink-0 items-center gap-1">
+        <button
+          onClick={() => {
+            if (item.quantity <= 1) {
+              onRemoveItem?.();
+            } else {
+              onUpdateQuantity?.(item.quantity - 1);
+            }
+          }}
+          className="flex h-6 w-6 items-center justify-center rounded bg-background text-muted-foreground shadow-sm transition-colors hover:bg-muted"
+        >
+          <Icon name="minus" size={12} />
+        </button>
+        <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
+        <button
+          onClick={() => onUpdateQuantity?.(item.quantity + 1)}
+          className="flex h-6 w-6 items-center justify-center rounded bg-background text-muted-foreground shadow-sm transition-colors hover:bg-muted"
+        >
+          <Icon name="plus" size={12} />
+        </button>
+      </div>
+
+      {/* Subtotal */}
+      <p className="w-16 shrink-0 text-right text-sm font-medium tabular-nums">
+        ₱{(item.unit_price * item.quantity).toLocaleString()}
+      </p>
     </div>
   );
 }

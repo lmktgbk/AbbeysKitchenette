@@ -2,17 +2,19 @@ import { useIngredientAlerts } from "../../query";
 import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
+import ExpiryBadge from "../ExpiryBadge";
 
 /**
  * StockAlerts
  *
- * Sidebar panel showing active low-stock and out-of-stock alerts.
- * Each alert has a "Restock Now" button that triggers onRestock.
+ * Sidebar panel showing active low-stock, out-of-stock, and expiry alerts.
+ * Low/out rows offer "Restock Now"; expired rows offer one-click "Declare loss".
  *
  * Props:
  * - onRestock: (ingredient) => void
+ * - onDeclareExpiredLoss: ({ ingredient_id, ingredient_name, unit, batch_id, quantity, cost }) => void
  */
-export default function StockAlerts({ onRestock }) {
+export default function StockAlerts({ onRestock, onDeclareExpiredLoss }) {
   const { data: alertsData, isLoading } = useIngredientAlerts();
 
   const alerts = alertsData?.data?.alerts ?? [];
@@ -61,6 +63,7 @@ export default function StockAlerts({ onRestock }) {
                 key={alert.alert_id}
                 alert={alert}
                 onRestock={onRestock}
+                onDeclareExpiredLoss={onDeclareExpiredLoss}
               />
             ))}
           </div>
@@ -70,8 +73,62 @@ export default function StockAlerts({ onRestock }) {
   );
 }
 
-function AlertRow({ alert, onRestock }) {
+function AlertRow({ alert, onRestock, onDeclareExpiredLoss }) {
   const isOut = alert.alert_type === "out_of_stock";
+  const isExpiry = alert.alert_type === "expiring_soon" || alert.alert_type === "expired";
+  const isExpired = alert.alert_type === "expired";
+
+  // BR-05: expiry rows show labeled lines + one-click write-off when expired.
+  if (isExpiry) {
+    return (
+      <div className="flex items-center gap-3 px-4 py-3">
+        <div
+          className={`h-2 w-2 shrink-0 rounded-full ${
+            isExpired ? "bg-red-500" : "bg-amber-500"
+          }`}
+        />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-foreground truncate">
+            {alert.ingredient_name}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {isExpired ? "Expired: " : "Expires in: "}
+            <span className="font-semibold text-foreground">
+              {isExpired
+                ? alert.expiry_date
+                : `${alert.days_until_expiry} day${alert.days_until_expiry === 1 ? "" : "s"} (${alert.expiry_date})`}
+            </span>
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Total left:{" "}
+            <span className="font-semibold text-foreground">
+              {Number(alert.batch_quantity_left).toLocaleString()} {alert.unit}
+            </span>
+          </p>
+        </div>
+        {isExpired ? (
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() =>
+              onDeclareExpiredLoss?.({
+                ingredient_id: alert.ingredient_id,
+                ingredient_name: alert.ingredient_name,
+                unit: alert.unit,
+                batch_id: alert.restock_id,
+                quantity: Number(alert.batch_quantity_left),
+                cost_per_unit: Number(alert.batch_cost_per_unit ?? 0),
+              })
+            }
+          >
+            Declare loss
+          </Button>
+        ) : (
+          <ExpiryBadge expiryDate={alert.expiry_date} days={alert.days_until_expiry} />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center gap-3 px-4 py-3">

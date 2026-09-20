@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Dialog,
@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import DatePicker from "@/components/filters/DatePicker";
 import { restockSchema } from "../ingredientValidation";
 
 /**
@@ -42,6 +43,7 @@ export default function RestockModal({
     handleSubmit,
     reset,
     watch,
+    control,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(restockSchema),
@@ -55,8 +57,22 @@ export default function RestockModal({
 
   const quantityAdded = watch("quantity_added") || 0;
   const totalCost = watch("total_cost") || 0;
+  const expiryDate = watch("expiry_date") || "";
   const costPerUnit =
     quantityAdded > 0 ? (totalCost / quantityAdded).toFixed(4) : "0.0000";
+
+  // BR-05: live expiry hint (date-only compare, same math as the server)
+  const expiryHint = (() => {
+    if (!expiryDate) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const expiry = new Date(`${expiryDate}T00:00:00`);
+    if (isNaN(expiry.getTime())) return null;
+    const days = Math.round((expiry - today) / 86400000);
+    if (days < 0) return { tone: "red", text: "Already expired — will flag immediately" };
+    if (days <= 7) return { tone: "amber", text: `Expires in ${days} day${days === 1 ? "" : "s"} — you'll be warned` };
+    return null;
+  })();
 
   useEffect(() => {
     if (open) {
@@ -64,6 +80,7 @@ export default function RestockModal({
       quantity_added: initialQuantity || "",
       total_cost: "",
         supplier_name: "",
+        expiry_date: "",
         notes: initialQuantity ? `Restock per AI suggestion` : "",
       });
     }
@@ -150,6 +167,31 @@ export default function RestockModal({
               error={errors.supplier_name?.message}
               {...register("supplier_name")}
             />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-foreground">
+              Expiry Date <span className="font-normal text-muted-foreground">(optional)</span>
+            </label>
+            <Controller
+              name="expiry_date"
+              control={control}
+              render={({ field }) => (
+                <DatePicker
+                  value={field.value ?? null}
+                  onChange={(v) => field.onChange(v ?? "")}
+                  placeholder="No expiry date"
+                />
+              )}
+            />
+            {errors.expiry_date && (
+              <p className="mt-1 text-xs text-destructive">{errors.expiry_date.message}</p>
+            )}
+            {expiryHint && (
+              <p className={`mt-1 text-xs ${expiryHint.tone === "red" ? "text-destructive" : "text-amber-600 dark:text-amber-400"}`}>
+                {expiryHint.text}
+              </p>
+            )}
           </div>
 
           <div>

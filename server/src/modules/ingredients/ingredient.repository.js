@@ -10,14 +10,15 @@ export const ingredientRepository = {
   /* ── Lookups ─────────────────────────── */
 
   /**
-   * Find an ingredient by name.
+   * Find an ingredient by name (case-insensitive, trimmed).
    * Used to check for duplicate names before creating.
+   * The LOWER() unique index backs this against races.
    * @param {string} name - ingredient name
    * @returns {object|null} - ingredient or null if not found
    */
   async findByName(name) {
     return prisma.ingredient.findFirst({
-      where: { ingredientName: name },
+      where: { ingredientName: { equals: name, mode: "insensitive" } },
     });
   },
 
@@ -455,10 +456,13 @@ export const ingredientRepository = {
   /* ── Stock Alerts (GET) ────────────────── */
 
   /**
-   * Compute live low-stock and out-of-stock alerts from current batch quantities.
-   * @returns {Array<object>} - list of ingredients below threshold with current stock
+   * Compute live low-stock and out-of-stock alerts from current batch quantities,
+   * plus per-batch expiry warnings (BR-05: expiring soon / expired).
+   * Expiry rows carry batch context for the one-click loss action.
+   * @param {number} [warningDays=7] - expiring-soon window in days
+   * @returns {Array<object>} - list of ingredient + batch alerts
    */
-  async getActiveAlerts() {
+  async getActiveAlerts(warningDays = 7) {
     const stockExpr = "(SELECT COALESCE(SUM(rb.quantity_left), 0) FROM restock_batches rb WHERE rb.ingredient_id = i.ingredient_id AND rb.quantity_left > 0)";
     return prisma.$queryRawUnsafe(`
       SELECT
@@ -469,12 +473,38 @@ export const ingredientRepository = {
         CASE
           WHEN ${stockExpr} <= 0 THEN 'out_of_stock'
           ELSE 'low_stock'
-        END AS "alert_type"
+        END AS "alert_type",
+        NULL::int AS "restock_id",
+        NULL::date AS "expiry_date",
+        NULL::int AS "days_left",
+        NULL::numeric AS "batch_quantity_left",
+        NULL::numeric AS "batch_cost_per_unit"
       FROM ingredients i
       WHERE i.is_archived = false
         AND ${stockExpr} <= i.minimum_threshold
-      ORDER BY ${stockExpr} ASC
-    `);
+      UNION ALL
+      SELECT
+        i.ingredient_id AS "ingredient_id",
+        i.ingredient_name AS "ingredient_name",
+        i.unit AS unit,
+        ROUND(rb.quantity_left::numeric, 2)::float AS "stock_at_trigger",
+        CASE
+          WHEN rb.expiry_date < CURRENT_DATE THEN 'expired'
+          ELSE 'expiring_soon'
+        END AS "alert_type",
+        rb.restock_id AS "restock_id",
+        rb.expiry_date AS "expiry_date",
+        (rb.expiry_date - CURRENT_DATE)::int AS "days_left",
+        rb.quantity_left AS "batch_quantity_left",
+        rb.cost_per_unit AS "batch_cost_per_unit"
+      FROM restock_batches rb
+      JOIN ingredients i ON i.ingredient_id = rb.ingredient_id
+      WHERE i.is_archived = false
+        AND rb.quantity_left > 0
+        AND rb.expiry_date IS NOT NULL
+        AND rb.expiry_date - CURRENT_DATE <= $1
+      ORDER BY "stock_at_trigger" ASC
+    `, warningDays);
   },
 
   /* ── Batches ─────────────────────────── */
@@ -503,6 +533,19 @@ export const ingredientRepository = {
   async findBatchByIdAndIngredient(batchId, ingredientId) {
     return prisma.restockBatch.findFirst({
       where: { restockId: batchId, ingredientId },
+    });
+  },
+
+  /**
+   * Set or clear a batch expiry date (BR-05, e.g. mistyped at restock).
+   * @param {number} batchId - restock batch ID
+   * @param {Date|null} expiryDate - new date or null to clear tracking
+   * @returns {object} - updated RestockBatch
+   */
+  async updateBatchExpiry(batchId, expiryDate) {
+    return prisma.restockBatch.update({
+      where: { restockId: batchId },
+      data: { expiryDate },
     });
   },
 
@@ -581,6 +624,7 @@ export const ingredientRepository = {
       quantity_left: "quantityLeft",
       cost_per_unit: "costPerUnit",
       total_cost: null,
+      expiry_date: "expiryDate",
     };
 
     const orderBy = [{ isPriority: "desc" }];

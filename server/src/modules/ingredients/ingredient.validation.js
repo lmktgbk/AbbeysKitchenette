@@ -57,6 +57,20 @@ export const restockIngredientSchema = z.object({
     .trim()
     .max(500, "Notes must not exceed 500 characters")
     .optional(),
+  // BR-05: optional expiry date (YYYY-MM-DD). Omitted = no expiry tracking.
+  expiry_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD")
+    .optional(),
+});
+
+// Used by PATCH /api/ingredients/:id/batches/:batchId/expiry — set/correct a batch expiry date
+export const updateBatchExpirySchema = z.object({
+  expiry_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD")
+    .nullable()
+    .optional(),
 });
 
 // Used by PATCH /api/ingredients/:id/archive, /:id/restore, DELETE /api/ingredients/:id
@@ -120,7 +134,7 @@ export const getBatchesQuerySchema = z.object({
   page: z.string().optional().default("1"),
   limit: z.string().regex(/^\d+$/, "Limit must be a positive integer").optional().default("50"),
   search: z.string().optional(),
-  sortBy: z.enum(["restocked_at", "quantity_left", "cost_per_unit", "total_cost"]).optional().default("restocked_at"),
+  sortBy: z.enum(["restocked_at", "quantity_left", "cost_per_unit", "total_cost", "expiry_date"]).optional().default("restocked_at"),
   sortDir: z.enum(["asc", "desc"]).optional().default("asc"),
 });
 

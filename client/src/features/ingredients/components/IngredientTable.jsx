@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useIngredientTable, useIngredientBatches } from "../query";
+import { useIngredientTable, useIngredientBatches, useIngredientAlerts } from "../query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/filters/SearchBar";
@@ -291,6 +291,26 @@ function IngredientRow({
     statusLabel = "Low Stock";
     statusVariant = "warning";
     rowBg = "bg-yellow-500/5 dark:bg-yellow-500/5";
+  }
+
+  // BR-05: worst expiry signal for this ingredient, from the shared
+  // alerts query (cached with the sidebar — zero extra requests).
+  // Fills in only when no stock tint applies; the alerts card owns visibility.
+  const { data: alertsData } = useIngredientAlerts();
+  if (!rowBg) {
+    let worst = null;
+    for (const a of alertsData?.data?.alerts ?? []) {
+      if (a.ingredient_id !== ingredient.ingredient_id) continue;
+      if (a.alert_type !== "expiring_soon" && a.alert_type !== "expired") continue;
+      const d = Number(a.days_until_expiry);
+      if (!Number.isFinite(d)) continue;
+      if (worst == null || d < worst) worst = d;
+    }
+    if (worst != null) {
+      rowBg = worst < 0
+        ? "bg-red-500/5 dark:bg-red-500/5"
+        : "bg-yellow-500/5 dark:bg-yellow-500/5";
+    }
   }
 
   if (isExpanded) {

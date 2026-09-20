@@ -181,6 +181,21 @@ export default function InventoryPage() {
     setShowBatchModal(true);
   }
 
+  // BR-05: one-click expired-stock write-off from the alerts panel.
+  async function handleDeclareExpiredLoss({ ingredient_id, ingredient_name, unit, batch_id, quantity, cost_per_unit }) {
+    const estCost = quantity * (cost_per_unit || 0);
+    const ok = await confirm({
+      title: "Write off expired stock?",
+      message: `Write off ${quantity.toLocaleString()} ${unit} of ${ingredient_name} — batch B-${batch_id} — as expired loss?`,
+      note: `Estimated loss: ₱${estCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. The batch will be zeroed and the alert cleared. This cannot be undone.`,
+      confirmLabel: "Declare Loss",
+      loadingText: "Writing off...",
+      variant: "danger",
+      onConfirm: () => mutations.expiredLoss.mutateAsync({ id: ingredient_id, batchId: batch_id }),
+    });
+    if (ok) toast.success("Expired stock written off");
+  }
+
   async function handleArchive(ingredient) {
     const ok = await confirm({
       title: "Archive Ingredient?",
@@ -251,7 +266,7 @@ export default function InventoryPage() {
 
         {/* Right — Sidebar panels */}
         <div className="flex flex-col gap-4">
-          <StockAlerts onRestock={handleRestock} />
+          <StockAlerts onRestock={handleRestock} onDeclareExpiredLoss={handleDeclareExpiredLoss} />
           <ReorderSuggestions onAccept={handleAcceptSuggestion} />
           <WasteInsights />
         </div>

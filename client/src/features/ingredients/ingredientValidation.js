@@ -49,6 +49,11 @@ export const restockSchema = z.object({
     .max(150, "Must not exceed 150 characters")
     .optional(),
   notes: z.string().max(500, "Must not exceed 500 characters").optional(),
+  // BR-05: optional expiry date — blank means no expiry tracking
+  expiry_date: z.preprocess(
+    (v) => (v === "" || v === undefined || v === null ? undefined : v),
+    z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD").optional(),
+  ),
 });
 
 // Declare loss form
