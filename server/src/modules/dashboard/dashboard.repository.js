@@ -95,9 +95,18 @@ export const dashboardRepository = {
     const sql = `
       SELECT
         date_trunc('${trunc}', o.order_date)::date AS date,
+        ROUND(SUM(o.subtotal_amount)::numeric, 2)::float AS gross,
         ROUND(SUM(o.total_amount)::numeric, 2)::float AS revenue,
+        ROUND(COALESCE(SUM(c.cogs),0)::numeric,2)::float AS cogs,
+        ROUND((SUM(o.total_amount) - COALESCE(SUM(c.cogs),0))::numeric,2)::float AS profit,
         COUNT(*)::int AS orders
       FROM orders o
+      LEFT JOIN (
+        SELECT d.order_id, SUM(d.quantity_deducted * d.cost_per_unit)::float AS cogs
+        FROM order_ingredient_deductions d
+        WHERE d.reversed_at IS NULL
+        GROUP BY d.order_id
+      ) c ON c.order_id = o.order_id
       ${where}
       GROUP BY date_trunc('${trunc}', o.order_date)::date
       ORDER BY date_trunc('${trunc}', o.order_date)::date ASC

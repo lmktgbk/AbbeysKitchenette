@@ -9,7 +9,7 @@ function getGreeting() {
   return "Good evening";
 }
 
-function DashboardHeader({ dateFrom, dateTo, onDateChange }) {
+function DashboardHeader({ dateFrom, dateTo, onDateChange, onExport }) {
   const user = useAuthStore((s) => s.user);
   const firstName = user?.name?.split(" ")[0] || "Admin";
 
@@ -23,7 +23,18 @@ function DashboardHeader({ dateFrom, dateTo, onDateChange }) {
           Here's an overview of your business performance.
         </p>
       </div>
-      <DateRangeFilter dateFrom={dateFrom} dateTo={dateTo} onDateChange={onDateChange} />
+      <div className="flex items-center gap-2">
+        {onExport && (
+          <button
+            type="button"
+            onClick={onExport}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-muted"
+          >
+            Export Excel
+          </button>
+        )}
+        <DateRangeFilter dateFrom={dateFrom} dateTo={dateTo} onDateChange={onDateChange} />
+      </div>
     </div>
   );
 }

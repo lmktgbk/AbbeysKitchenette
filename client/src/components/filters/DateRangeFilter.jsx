@@ -317,6 +317,7 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
         )}>
           {/* Presets */}
           <div className="grid grid-cols-3 gap-1 mb-3">
+            <PresetButton label="All Time" onClick={handleClear} active={!isActive} />
             <PresetButton label="Today" onClick={goToday} />
             <PresetButton label="This Week" onClick={goThisWeek} />
             <PresetButton label="Last Week" onClick={goLastWeek} />
@@ -426,12 +427,12 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
 }
 
 /** PresetButton — small pill button for date presets. */
-function PresetButton({ label, onClick }) {
+function PresetButton({ label, onClick, active }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="px-2 py-0.5 text-[11px] font-medium rounded-md border border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors whitespace-nowrap"
+      className={`px-2 py-0.5 text-[11px] font-medium rounded-md border transition-colors whitespace-nowrap ${active ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"}`}
     >
       {label}
     </button>
