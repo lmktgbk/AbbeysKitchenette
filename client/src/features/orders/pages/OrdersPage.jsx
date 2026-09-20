@@ -14,6 +14,7 @@ import RemoveItemDialog from "@/components/orders/RemoveItemDialog";
 import { Pagination } from "@/components/filters/Pagination";
 import { SearchBar } from "@/components/filters/SearchBar";
 import DateRangeFilter from "@/components/filters/DateRangeFilter";
+import { orderNumberLabel } from "@/lib/orderNumber";
 import { FilterPill } from "@/components/filters/FilterPill";
 import TransactionsView from "@/features/transactions/components/TransactionsView";
 import useAuthStore from "@/features/auth/authStore";
@@ -124,7 +125,7 @@ export default function OrdersPage({ embedded = false }) {
 
     const ok = await confirm({
       title: `${displayTarget} Order?`,
-      message: `This will move order #${currentOrder?.order_number || ""} to "${displayTarget}" status.`,
+      message: `This will move order ${orderNumberLabel(currentOrder?.order_number) || ""} to "${displayTarget}" status.`,
       confirmLabel: "Confirm",
       loadingText: "Updating...",
       variant: "info",
@@ -155,7 +156,7 @@ export default function OrdersPage({ embedded = false }) {
     if (isPending) {
       await confirmWithReason({
         title: "Delete Order?",
-        message: `Delete order #${order.order_number}? This will permanently remove the order.`,
+        message: `Delete order ${orderNumberLabel(order.order_number)}? This will permanently remove the order.`,
         confirmLabel: "Delete",
         reasons: CANCEL_REASONS,
         loadingText: "Deleting...",
@@ -174,7 +175,7 @@ export default function OrdersPage({ embedded = false }) {
     if (isAccepted) {
       const total = Number(order.total_amount).toLocaleString();
       await confirmWithReason({
-        title: `Cancel Order #${order.order_number}?`,
+        title: `Cancel Order ${orderNumberLabel(order.order_number)}?`,
         message: `Cancelling will restore all ingredients and issue a full refund of ₱${total}.`,
         confirmLabel: "Yes, Cancel Order",
         reasons: CANCEL_REASONS,
@@ -274,7 +275,7 @@ export default function OrdersPage({ embedded = false }) {
           reference_no,
         },
       });
-      toast.success(`Order #${acceptingOrder.order_number} accepted`);
+      toast.success(`Order ${orderNumberLabel(acceptingOrder.order_number)} accepted`);
       if (shouldAutoPrint()) printReceipt(acceptingOrder.order_id);
       setAcceptingOrder(null);
     } catch (err) {

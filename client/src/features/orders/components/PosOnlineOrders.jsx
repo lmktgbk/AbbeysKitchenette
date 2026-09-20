@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { usePendingOnlineOrders } from "../query";
 import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
-import DateRangeFilter from "@/components/filters/DateRangeFilter";
+import { orderNumberLabel } from "@/lib/orderNumber";
 
 /**
  * PosOnlineOrders
@@ -12,11 +12,9 @@ import DateRangeFilter from "@/components/filters/DateRangeFilter";
  * Auto-refreshes every 15 seconds.
  * Cashier can accept (view + process) or reject (cancel) online orders.
  */
-export default function PosOnlineOrders({ open, onClose, onAcceptOrder, onRejectOrder }) {
+export default function PosOnlineOrders({ open, onClose, onAcceptOrder, onRejectOrder, loadingOrderId }) {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [dateFrom, setDateFrom] = useState(null);
-  const [dateTo, setDateTo] = useState(null);
   const debounceRef = useRef(null);
 
   useEffect(() => {
@@ -26,8 +24,6 @@ export default function PosOnlineOrders({ open, onClose, onAcceptOrder, onReject
 
   const { data: ordersData, isLoading } = usePendingOnlineOrders({
     search: debouncedSearch || undefined,
-    dateFrom: dateFrom || undefined,
-    dateTo: dateTo || undefined,
   });
   const orders = ordersData?.data?.orders ?? [];
 
@@ -64,7 +60,7 @@ export default function PosOnlineOrders({ open, onClose, onAcceptOrder, onReject
           </button>
         </div>
 
-        {/* Filters */}
+        {/* Filters — search only; pending is always "now" */}
         <div className="flex items-center gap-2 px-3 py-2 border-b border-border/60">
           <div className="relative flex-1">
             <Icon name="search" size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -76,11 +72,6 @@ export default function PosOnlineOrders({ open, onClose, onAcceptOrder, onReject
               className="h-8 w-full rounded-md border border-border bg-card pl-8 pr-2 text-xs outline-none focus:border-primary"
             />
           </div>
-          <DateRangeFilter
-            dateFrom={dateFrom}
-            dateTo={dateTo}
-            onDateChange={(from, to) => { setDateFrom(from); setDateTo(to); }}
-          />
         </div>
 
         {/* Order list */}
@@ -101,7 +92,7 @@ export default function PosOnlineOrders({ open, onClose, onAcceptOrder, onReject
                 className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2"
               >
                 <div className="flex items-center justify-between">
-                  <p className="font-mono text-sm font-bold">#{order.order_number}</p>
+                  <p className="font-mono text-sm font-bold">{orderNumberLabel(order.order_number)}</p>
                   <span className="text-xs font-semibold text-primary">
                     ₱{Number(order.total_amount).toLocaleString()}
                   </span>
@@ -120,9 +111,17 @@ export default function PosOnlineOrders({ open, onClose, onAcceptOrder, onReject
                   <Button
                     size="sm"
                     className="flex-1 h-7 text-xs"
+                    disabled={loadingOrderId === order.order_id}
                     onClick={() => onAcceptOrder?.(order)}
                   >
-                    Accept
+                    {loadingOrderId === order.order_id ? (
+                      <span className="flex items-center gap-1.5">
+                        <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        Loading...
+                      </span>
+                    ) : (
+                      "Accept"
+                    )}
                   </Button>
                   <Button
                     size="sm"

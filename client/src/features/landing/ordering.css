@@ -1297,6 +1297,299 @@
   border: 1px solid #fde68a;
 }
 
+.ord-status-tag.completed {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.ord-status-tag.cancelled {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+/* ── Tracking link row (BR-04) ── */
+
+.ord-track-link-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  margin-bottom: 1.25rem;
+  border-radius: 10px;
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  font-size: 0.8125rem;
+}
+
+.ord-track-link {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #1D4ED8;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.ord-track-link:hover {
+  text-decoration: underline;
+}
+
+.ord-track-copy {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  padding: 0.25rem 0.625rem;
+  border-radius: 8px;
+  border: 1px solid #BFDBFE;
+  background: #ffffff;
+  color: #1D4ED8;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ord-track-copy:hover {
+  background: #DBEAFE;
+}
+
+/* ── Per-item tracking state (BR-04) ── */
+
+.ord-item-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid #D6C7B4;
+  color: transparent;
+  flex-shrink: 0;
+}
+
+.ord-item-check.done {
+  background: #059669;
+  border-color: #059669;
+  color: #ffffff;
+}
+
+.ord-item-check.cooking {
+  border-color: #d97706;
+}
+
+.ord-item-check .ord-item-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.ord-item-check.cooking .ord-item-dot {
+  background: #d97706;
+  animation: ord-pulse 1.8s infinite;
+}
+
+.ord-receipt-item-line.item-done .ord-item-name {
+  color: #059669;
+}
+
+/* ── Success-screen tracking ref + stacked actions (BR-04) ── */
+
+/* ── Tracking header meta block (BR-04) ── */
+.ord-track-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  margin-top: 0.375rem;
+}
+
+/* ── Who block under the stepper (BR-04) ── */
+.ord-track-who {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+
+.ord-track-who-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+  background: #FDFBF7;
+  border: 1px solid rgba(139, 69, 19, 0.1);
+  border-radius: 12px;
+  padding: 0.7rem 1rem;
+}
+
+.ord-track-who-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #F3E8D8;
+  color: #8B4513;
+}
+
+.ord-track-who-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  min-width: 0;
+}
+
+.ord-track-who-label {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #7A634E;
+}
+
+.ord-track-who-value {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #1F160E;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 420px) {
+  .ord-track-who {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.ord-track-meta-row {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #7A634E;
+}
+
+.ord-track-meta-label {
+  font-weight: 400;
+}
+
+.ord-track-meta-value {
+  font-weight: 600;
+  color: #1F160E;
+}
+
+.ord-track-ref-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  margin-bottom: 0.5rem;
+}
+
+.ord-track-ref-sub {
+  font-size: 0.8125rem;
+  color: #7A634E;
+}
+
+.ord-action-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.ord-action-stack .ord-full {
+  width: 100%;
+  justify-content: center;
+}
+
+.ord-quiet-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  width: 100%;
+  padding: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #7A634E;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.ord-quiet-btn:hover {
+  color: #1F160E;
+  background: #F5EFE6;
+}
+
+.step-current .ord-step-circle {
+  background: #b45309;
+  color: #ffffff;
+  box-shadow: 0 0 0 4px rgba(217, 119, 6, 0.18);
+}
+
+.ord-live-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.ord-live-pill .ord-status-pulse {
+  background: #059669;
+}
+
+.ord-live-pill .ord-status-pulse.paused {
+  animation: none;
+  opacity: 0.5;
+}
+
+.ord-loading-box,
+.ord-empty-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2.5rem 1rem;
+  text-align: center;
+  color: #7A634E;
+}
+
+.ord-cancelled-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.5rem 1rem;
+  margin-bottom: 1.5rem;
+  border-radius: 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  text-align: center;
+}
+
+.ord-cancelled-box .ord-success-main-title {
+  color: #991b1b;
+}
+
+.ord-cancelled-box .ord-success-sub-text {
+  color: #7A634E;
+}
+
 .ord-status-pulse {
   width: 6px;
   height: 6px;

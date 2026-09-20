@@ -27,6 +27,7 @@ const orderKeys = {
 
 const guestKeys = {
   menu: (params) => ["guest", "menu", params],
+  order: (token) => ["guest", "order", token],
 };
 
 /* ── Query Hooks ───────────────────────────────── */
@@ -76,6 +77,21 @@ export function useGuestMenu(params = {}) {
   return useQuery({
     queryKey: guestKeys.menu(params),
     queryFn: () => api.getGuestMenuRequest(params),
+  });
+}
+
+/**
+ * useGuestOrder — live tracking for one guest order by token.
+ * Polls every 15s, same cadence as the POS pending feed.
+ */
+export function useGuestOrder(token, options = {}) {
+  return useQuery({
+    queryKey: guestKeys.order(token),
+    queryFn: () => api.getGuestOrderRequest(token),
+    enabled: !!token,
+    refetchInterval: 15000,
+    retry: 1,
+    ...options,
   });
 }
 

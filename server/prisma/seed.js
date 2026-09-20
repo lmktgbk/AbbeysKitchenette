@@ -479,7 +479,13 @@ async function main() {
 
       orderRecords.push({
         orderId,
-        orderNumber: dailyCounter,
+        // BR-04: padded YYMMDDNNN (displayed YYMMDD-NNN)
+        orderNumber: Number(
+          `${String(orderDate.getFullYear() % 100).padStart(2, "0")}` +
+          `${String(orderDate.getMonth() + 1).padStart(2, "0")}` +
+          `${String(orderDate.getDate()).padStart(2, "0")}` +
+          `${String(dailyCounter).padStart(3, "0")}`
+        ),
         orderDate,
         customerName: pick(CUSTOMER_NAMES),
         tableNumber: pick(TABLES),

@@ -1,5 +1,7 @@
 import { guestRepository } from "./guest.repository.js";
 import { orderService } from "../orders/order.service.js";
+import { orderRepository } from "../orders/order.repository.js";
+import { AppError } from "../../middleware/errorHandler.middleware.js";
 import crypto from "crypto";
 
 /**
@@ -53,5 +55,37 @@ export const guestService = {
     });
 
     return order;
+  },
+
+  /**
+   * Track an order by its guest token (public, read-only).
+   * Returns a trimmed tracking view — no cost, deduction, or actor internals.
+   */
+  async getByToken(token) {
+    const order = await orderRepository.findByGuestToken(token);
+    if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
+
+    return {
+      order_id: order.orderId,
+      order_number: order.orderNumber,
+      customer_name: order.customerName,
+      table_number: order.tableNumber,
+      order_source: order.orderSource,
+      status: order.status,
+      total_amount: Number(order.totalAmount),
+      order_date: order.orderDate,
+      created_at: order.createdAt,
+      accepted_at: order.acceptedAt ?? null,
+      preparing_at: order.preparingAt ?? null,
+      completed_at: order.completedAt ?? null,
+      items: (order.items ?? []).map((item) => ({
+        product_name: item.product?.productName ?? null,
+        size_name: item.variant?.sizeName ?? null,
+        quantity: item.quantity,
+        unit_price: Number(item.unitPrice),
+        subtotal: item.subtotal != null ? Number(item.subtotal) : null,
+        is_prepared: !!item.isPrepared,
+      })),
+    };
   },
 };

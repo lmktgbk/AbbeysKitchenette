@@ -394,6 +394,7 @@ model Order {
   @@index([status])
   @@index([orderDate])
   @@index([createdBy])
+  @@unique([orderDate, orderNumber])
   @@map("orders")
 }
 

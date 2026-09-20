@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
+import { orderNumberLabel } from "@/lib/orderNumber";
 
 export default function ConfirmReadyModal({ order, open, onConfirm, onCancel, loading }) {
   if (!open || !order) return null;
@@ -25,7 +26,7 @@ export default function ConfirmReadyModal({ order, open, onConfirm, onCancel, lo
         <div className="bg-muted border border-border rounded-xl px-4 py-3 mb-5 text-center">
           <div className="text-[10px] mb-0.5 text-muted-foreground">Order</div>
           <div className="font-serif text-xl font-bold text-primary">
-            #{order.order_number}
+            {orderNumberLabel(order.order_number)}
           </div>
         </div>
         <div className="flex gap-2">

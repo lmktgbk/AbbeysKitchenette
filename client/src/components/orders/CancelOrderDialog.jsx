@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import Icon from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import { DropDown } from "@/components/filters/DropDown";
+import { orderNumberLabel } from "@/lib/orderNumber";
 
 const LOSS_OPTIONS = [
   {
@@ -282,7 +283,7 @@ export default function CancelOrderDialog({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            Cancel Order #{order.order_number}?
+            Cancel Order {orderNumberLabel(order.order_number)}?
           </DialogTitle>
         </DialogHeader>
 

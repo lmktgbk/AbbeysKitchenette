@@ -96,3 +96,9 @@ export async function placeGuestOrderRequest(data) {
   const res = await api.post("/guest/orders", data);
   return res.data;
 }
+
+// GET /api/guest/orders/:token — track own order (public, read-only)
+export async function getGuestOrderRequest(token) {
+  const res = await api.get(`/guest/orders/${token}`);
+  return res.data;
+}

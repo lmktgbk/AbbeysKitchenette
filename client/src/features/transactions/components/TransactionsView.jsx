@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import Icon from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import { formatPeso } from "@/lib/money";
+import { orderNumberLabel } from "@/lib/orderNumber";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 
 const TYPE_OPTIONS = [
@@ -212,7 +213,7 @@ export default function TransactionsView({ switcher, actions }) {
                     </TableCell>
                     <TableCell className="text-xs capitalize">{t.method}</TableCell>
                     <TableCell className="font-mono text-xs font-bold">
-                      {t.order_number != null ? `#${t.order_number}` : "—"}
+                      {t.order_number != null ? orderNumberLabel(t.order_number) : "—"}
                     </TableCell>
                     <TableCell className="text-xs">{t.staff_name ?? "—"}</TableCell>
                     <TableCell className={cn(

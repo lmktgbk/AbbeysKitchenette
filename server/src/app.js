@@ -9,6 +9,7 @@ import { fileURLToPath } from "url";
 // Imports
 import { env } from "./config/env.js";
 import errorHandler from "./middleware/errorHandler.middleware.js";
+import { generalLimiter } from "./middleware/rateLimitin.middleware.js";
 
 // Routes
 import authRoutes from "./modules/auth/auth.routes.js";
@@ -67,7 +68,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // Protects against DDoS and accidental high-volume requests.
-// app.use(generalLimiter);
+// 500 req / 15 min per IP globally; tighter limiters guard auth,
+// checkout, and other sensitive endpoints individually.
+app.use(generalLimiter);
 
 // Serve uploaded files statically
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));

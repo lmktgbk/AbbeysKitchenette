@@ -37,3 +37,8 @@ export const getMenuQuerySchema = z.object({
     .regex(/^\d+$/, "Category must be a positive integer")
     .optional(),
 });
+
+// GET /api/guest/orders/:token — track own order (public, token-gated)
+export const guestTokenParamSchema = z.object({
+  token: z.string().uuid("Invalid order token"),
+});

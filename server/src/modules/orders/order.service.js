@@ -1,5 +1,5 @@
 import { orderRepository } from "./order.repository.js";
-import { isValidTransition, formatOrderResponse, formatOrderItemResponse, computeDiscountedTotal, roundMoney } from "./order.utils.js";
+import { isValidTransition, formatOrderResponse, formatOrderItemResponse, computeDiscountedTotal, roundMoney, composeOrderNumber, formatOrderNumber } from "./order.utils.js";
 import { shiftService } from "../shifts/shift.service.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { productService } from "../products/product.service.js";
@@ -177,11 +177,11 @@ export const orderService = {
     const aggregatedIngredients = await this._aggregateIngredientNeeds(pricedItems);
 
     const order = await prisma.$transaction(async (tx) => {
-      const orderNumber = await orderRepository.getNextOrderNumber();
       const now = new Date();
       const orderDate = orderDateStr
         ? new Date(orderDateStr + "T00:00:00Z")
         : new Date(now.toISOString().split("T")[0]);
+      const orderNumber = composeOrderNumber(orderDate, await orderRepository.getNextOrderNumber(orderDate, tx));
 
       const newOrder = await orderRepository.createOrder({
         orderNumber,
@@ -238,7 +238,7 @@ export const orderService = {
     notificationService.create({
       type: "order_new",
       title: "New Walk-In Order",
-      message: `Order #${order.order.orderNumber} from ${customerName} — ₱${total.toFixed(2)}`,
+      message: `Order ${formatOrderNumber(order.order.orderNumber)} from ${customerName} — ₱${total.toFixed(2)}`,
       referenceType: "order",
       referenceId: order.order.orderId,
     }).catch(() => {});
@@ -253,11 +253,11 @@ export const orderService = {
     const { pricedItems, total } = await this._priceItemsAndTotals(items, { discount_type: "none" });
 
     const result = await prisma.$transaction(async (tx) => {
-      const orderNumber = await orderRepository.getNextOrderNumber();
       const now = new Date();
       const orderDate = orderDateStr
         ? new Date(orderDateStr + "T00:00:00Z")
         : new Date(now.toISOString().split("T")[0]);
+      const orderNumber = composeOrderNumber(orderDate, await orderRepository.getNextOrderNumber(orderDate, tx));
 
       return orderRepository.createOnlineOrder({
         orderNumber,
@@ -279,7 +279,7 @@ export const orderService = {
     notificationService.create({
       type: "order_new",
       title: "New Online Order",
-      message: `Order #${fullOrder.order_number} from ${customerName} — ₱${total.toFixed(2)}`,
+      message: `Order ${formatOrderNumber(fullOrder.order_number)} from ${customerName} — ₱${total.toFixed(2)}`,
       referenceType: "order",
       referenceId: result.orderId,
     }).catch(() => {});
@@ -467,7 +467,7 @@ export const orderService = {
       notificationService.create({
         type: "order_completed",
         title: "Order Completed",
-        message: `Order #${order.orderNumber} completed in ${fulfillmentMinutes} min — ₱${Number(order.totalAmount).toFixed(2)}`,
+        message: `Order ${formatOrderNumber(order.orderNumber)} completed in ${fulfillmentMinutes} min — ₱${Number(order.totalAmount).toFixed(2)}`,
         referenceType: "order",
         referenceId: id,
       }).catch(() => {});
@@ -488,7 +488,7 @@ export const orderService = {
       notificationService.create({
         type: "order_completed",
         title: "Order Accepted",
-        message: `Order #${order.orderNumber} has been accepted`,
+        message: `Order ${formatOrderNumber(order.orderNumber)} has been accepted`,
         referenceType: "order",
         referenceId: id,
       }).catch(() => {});
@@ -676,7 +676,7 @@ export const orderService = {
     notificationService.create({
       type: "order_cancelled",
       title: "Order Cancelled",
-      message: `Order #${order.orderNumber} has been cancelled${reason ? ` (${reason})` : ""}`,
+      message: `Order ${formatOrderNumber(order.orderNumber)} has been cancelled${reason ? ` (${reason})` : ""}`,
       referenceType: "order",
       referenceId: id,
     }).catch(() => {});

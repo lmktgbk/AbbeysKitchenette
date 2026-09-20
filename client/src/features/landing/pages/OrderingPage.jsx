@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import "../ordering.css";
 import { useGuestMenu, useGuestOrderMutations } from "@/features/orders/query";
+import OrderStatusStepper from "../components/OrderStatusStepper";
+import { orderNumberLabel } from "@/lib/orderNumber";
 import { useStoreSettings } from "@/features/landing/query";
 import Icon from "@/components/ui/icon";
 
@@ -129,7 +131,6 @@ function OrderingUI({ onOrderSuccess }) {
         setCart((prev) => prev.filter((i) => i.variant_id !== variantId));
     }, []);
 
-    const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
     const subtotal = cart.reduce((s, i) => s + i.unit_price * i.quantity, 0);
 
     // ── Variant modal ─────────────────────────────
@@ -538,61 +539,6 @@ function VariantModal({ product, onSelect, onClose }) {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   MOBILE CART DRAWER
-───────────────────────────────────────────────────────────── */
-function MobileDrawer({ cart, subtotal, onUpdateQty, onRemove, onClose, onCheckout }) {
-    return (
-        <>
-            <div className="ord-drawer-overlay" onClick={onClose} />
-            <div className="ord-drawer">
-                <div className="ord-drawer-handle" />
-                <div className="ord-drawer-header">
-                    <span className="ord-drawer-title">Your Order</span>
-                    <button className="ord-drawer-close" onClick={onClose} aria-label="Close">
-                        <Icon name="x" size={18} />
-                    </button>
-                </div>
-                <div className="ord-drawer-body">
-                    {cart.length === 0 ? (
-                        <div className="ord-cart-empty">
-                            <div className="ord-cart-empty-icon">🛒</div>
-                            <p style={{ margin: 0, fontWeight: 600, color: "#5c3d1e" }}>
-                                Your cart is empty
-                            </p>
-                        </div>
-                    ) : (
-                        cart.map((item) => (
-                            <CartItemRow
-                                key={item.variant_id}
-                                item={item}
-                                onUpdateQty={onUpdateQty}
-                                onRemove={onRemove}
-                            />
-                        ))
-                    )}
-                </div>
-                <div className="ord-drawer-footer">
-                    <div className="ord-totals">
-                        <div className="ord-total-row grand">
-                            <span>Total</span>
-                            <span>₱{subtotal.toLocaleString()}</span>
-                        </div>
-                    </div>
-                    <button
-                        className="ord-checkout-btn"
-                        onClick={onCheckout}
-                        disabled={cart.length === 0}
-                    >
-                        <Icon name="receipt" size={18} />
-                        Place Order
-                    </button>
-                </div>
-            </div>
-        </>
-    );
-}
-
-/* ─────────────────────────────────────────────────────────────
    CHECKOUT MODAL
 ───────────────────────────────────────────────────────────── */
 function CheckoutModal({ cart, subtotal, onClose, onSuccess }) {
@@ -629,6 +575,7 @@ function CheckoutModal({ cart, subtotal, onClose, onSuccess }) {
             onSuccess({
                 orderId: createdOrder.order_id || null,
                 orderNumber: createdOrder.order_number || null,
+                guestToken: createdOrder.guest_token || null,
                 customerName: customerName.trim(),
                 tableNumber: tableNumber.trim(),
                 totalAmount: createdOrder.total_amount ? Number(createdOrder.total_amount) : subtotal,
@@ -769,6 +716,7 @@ function CheckoutModal({ cart, subtotal, onClose, onSuccess }) {
    SUCCESS SCREEN (Redesigned Order Confirmation Page)
 ───────────────────────────────────────────────────────────── */
 function SuccessScreen({ orderSuccess, onReset }) {
+    const [linkCopied, setLinkCopied] = useState(false);
     const formattedDate = useMemo(() => {
         try {
             const date = orderSuccess?.createdAt ? new Date(orderSuccess.createdAt) : new Date();
@@ -787,13 +735,40 @@ function SuccessScreen({ orderSuccess, onReset }) {
 
     const orderRef = useMemo(() => {
         if (orderSuccess?.orderNumber) {
-            return `#${String(orderSuccess.orderNumber).padStart(4, "0")}`;
+            return orderNumberLabel(orderSuccess.orderNumber);
         }
         if (orderSuccess?.orderId) {
             return `#${orderSuccess.orderId.slice(-8).toUpperCase()}`;
         }
         return "#PENDING";
     }, [orderSuccess?.orderNumber, orderSuccess?.orderId]);
+
+    // Short tracking ref from the guest token (first 8 chars).
+    const trackRef = useMemo(() => {
+        if (!orderSuccess?.guestToken) return null;
+        return orderSuccess.guestToken.slice(0, 8).toUpperCase();
+    }, [orderSuccess?.guestToken]);
+
+    // Full tracking link (works on any device) + copy helper.
+    const trackUrl = useMemo(() => {
+        if (!orderSuccess?.guestToken) return null;
+        try {
+            return `${window.location.origin}/track/${orderSuccess.guestToken}`;
+        } catch {
+            return `/track/${orderSuccess.guestToken}`;
+        }
+    }, [orderSuccess?.guestToken]);
+
+    async function handleCopyLink() {
+        if (!trackUrl) return;
+        try {
+            await navigator.clipboard.writeText(trackUrl);
+        } catch {
+            // clipboard unavailable — selection fallback below still works
+        }
+        setLinkCopied(true);
+        setTimeout(() => setLinkCopied(false), 1500);
+    }
 
     return (
         <div className="ord-root ord-success-page">
@@ -824,38 +799,12 @@ function SuccessScreen({ orderSuccess, onReset }) {
                         </div>
                         <h1 className="ord-success-main-title">Order Placed Successfully</h1>
                         <p className="ord-success-sub-text">
-                            Thank you, <strong>{orderSuccess?.customerName || "Valued Customer"}</strong>! Your order has been submitted and is currently <strong>Pending</strong> approval.
+                            Thank you, <strong>{orderSuccess?.customerName || "Valued Customer"}</strong>! Your order has been submitted and is currently <strong>Pending</strong> approval. Please proceed to the counter for payment.
                         </p>
                     </div>
 
-                    {/* Order Status Stepper */}
-                    <div className="ord-status-stepper">
-                        <div className="ord-step-item step-completed">
-                            <div className="ord-step-circle">
-                                <Icon name="check" size={14} />
-                            </div>
-                            <div className="ord-step-text">
-                                <span className="ord-step-title">Order Placed</span>
-                                <span className="ord-step-desc">Pending</span>
-                            </div>
-                        </div>
-                        <div className="ord-step-line" />
-                        <div className="ord-step-item step-upcoming">
-                            <div className="ord-step-circle">2</div>
-                            <div className="ord-step-text">
-                                <span className="ord-step-title">Kitchen Prep</span>
-                                <span className="ord-step-desc">In Queue</span>
-                            </div>
-                        </div>
-                        <div className="ord-step-line" />
-                        <div className="ord-step-item step-upcoming">
-                            <div className="ord-step-circle">3</div>
-                            <div className="ord-step-text">
-                                <span className="ord-step-title">Ready / Served</span>
-                                <span className="ord-step-desc">Counter</span>
-                            </div>
-                        </div>
-                    </div>
+                    {/* Order Status Stepper — shared with tracking (always pending here) */}
+                    <OrderStatusStepper status="pending" />
 
                     {/* Receipt Details Box */}
                     <div className="ord-receipt-box">
@@ -877,7 +826,7 @@ function SuccessScreen({ orderSuccess, onReset }) {
                                 <span className="ord-cell-value">{orderSuccess?.customerName || "—"}</span>
                             </div>
                             <div className="ord-grid-cell">
-                                <span className="ord-cell-label">Table / Ref</span>
+                                <span className="ord-cell-label">Table</span>
                                 <span className="ord-cell-value">{orderSuccess?.tableNumber || "—"}</span>
                             </div>
                             <div className="ord-grid-cell">
@@ -920,21 +869,44 @@ function SuccessScreen({ orderSuccess, onReset }) {
                         </div>
                     </div>
 
-                    {/* Notice Tip */}
-                    <div className="ord-info-callout">
-                        <Icon name="info" size={16} className="ord-callout-icon" />
-                        <span>
-                            Please present your <strong>Table / Ref ({orderSuccess?.tableNumber})</strong> at the counter when completing payment.
-                        </span>
-                    </div>
+                    {/* Tracking ID — save this link */}
+                    {trackUrl && (
+                        <>
+                            <div className="ord-track-ref-head">
+                                <span className="ord-items-section-title">Tracking ID is {trackRef}</span>
+                                <span className="ord-track-ref-sub">Please SAVE this tracking link — you&apos;ll need it to follow your order.</span>
+                            </div>
+                            <div className="ord-track-link-row">
+                                <Icon name="send" size={14} className="ord-callout-icon" />
+                                <a href={trackUrl} target="_blank" rel="noreferrer" className="ord-track-link">
+                                    {trackUrl}
+                                </a>
+                                <button type="button" onClick={handleCopyLink} className="ord-track-copy" title="Copy tracking link">
+                                    <Icon name={linkCopied ? "check" : "copy"} size={14} />
+                                    {linkCopied ? "Copied" : "Copy"}
+                                </button>
+                            </div>
+                        </>
+                    )}
 
-                    {/* Primary & Secondary Actions */}
-                    <div className="ord-action-row">
-                        <button className="ord-primary-btn" onClick={onReset}>
+                    {/* Primary & Secondary Actions — full-width stack */}
+                    <div className="ord-action-stack">
+                        {orderSuccess?.guestToken ? (
+                            <Link to={`/track/${orderSuccess.guestToken}`} className="ord-primary-btn ord-full">
+                                <Icon name="search" size={16} />
+                                Track Order
+                            </Link>
+                        ) : (
+                            <button className="ord-primary-btn ord-full" onClick={onReset}>
+                                <Icon name="plus" size={16} />
+                                Order Again
+                            </button>
+                        )}
+                        <button className="ord-secondary-btn ord-full" onClick={onReset}>
                             <Icon name="plus" size={16} />
-                            Order Again
+                            New Order
                         </button>
-                        <Link to="/" className="ord-secondary-btn">
+                        <Link to="/" className="ord-quiet-btn">
                             <Icon name="chevronLeft" size={16} />
                             Back to Home
                         </Link>

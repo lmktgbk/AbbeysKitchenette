@@ -8,6 +8,7 @@ import CloseShiftModal from "@/features/shifts/components/CloseShiftModal";
 import Icon from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import { formatVariance } from "@/lib/money";
+import { orderNumberLabel } from "@/lib/orderNumber";
 import { getOrderDetailRequest } from "../api";
 import { printReceipt, shouldAutoPrint } from "@/features/receipts/api";
 import PosMenuGrid from "../components/PosMenuGrid";
@@ -53,6 +54,7 @@ export default function PosInterface() {
 
   // ── Online order fulfillment ────────
   const [fulfillingOrderId, setFulfillingOrderId] = useState(null);
+  const [acceptingOrderId, setAcceptingOrderId] = useState(null);
 
   // ── Online orders sidebar ──────────
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -96,11 +98,12 @@ export default function PosInterface() {
   async function handleAcceptOnlineOrder(order) {
     if (items.length > 0) {
       const yes = await confirm(
-        `Load order #${order.order_number}? This will replace the current order.`
+        `Load order ${orderNumberLabel(order.order_number)}? This will replace the current order.`
       );
       if (!yes) return;
     }
 
+    setAcceptingOrderId(order.order_id);
     try {
       const res = await getOrderDetailRequest(order.order_id);
       const orderData = res.data.order;
@@ -119,9 +122,11 @@ export default function PosInterface() {
       setTableName(orderData.table_number || "");
       setFulfillingOrderId(order.order_id);
 
-      toast.success(`Loaded order #${order.order_number}`);
+      toast.success(`Loaded order ${orderNumberLabel(order.order_number)}`);
     } catch {
       toast.error("Failed to load order details");
+    } finally {
+      setAcceptingOrderId(null);
     }
   }
 
@@ -178,7 +183,7 @@ export default function PosInterface() {
   async function handleRejectOnlineOrder(order) {
     await confirmWithReason({
       title: "Delete Order?",
-      message: `Delete order #${order.order_number}? This will permanently remove the order.`,
+      message: `Delete order ${orderNumberLabel(order.order_number)}? This will permanently remove the order.`,
       confirmLabel: "Delete",
       reasons: CANCEL_REASONS,
       loadingText: "Deleting...",
@@ -287,6 +292,7 @@ export default function PosInterface() {
           onClose={() => setSidebarOpen(false)}
           onAcceptOrder={handleAcceptOnlineOrder}
           onRejectOrder={handleRejectOnlineOrder}
+          loadingOrderId={acceptingOrderId}
         />
       </div>
 

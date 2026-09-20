@@ -12,17 +12,23 @@ export const orderRepository = {
   /* ── Order Counter ─────────────────────── */
 
   /**
-   * Get next order number for today (atomic).
-   * Uses INSERT ... ON CONFLICT to safely increment.
-   * @returns {number} - next order number
+   * Get next daily counter for an order date (atomic).
+   * Runs on the caller's transaction client when provided so the
+   * counter increment commits atomically with the order itself.
+   * The padded order number is composed by the service via
+   * composeOrderNumber() — this returns the raw per-day counter.
+   * @param {Date} [forDate] - order date (defaults to today)
+   * @param {object} [tx] - transaction client
+   * @returns {number} - next counter for that date
    */
-  async getNextOrderNumber() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  async getNextOrderNumber(forDate = new Date(), tx = null) {
+    const client = tx || prisma;
+    const d = new Date(forDate);
+    const day = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 
-    const result = await prisma.$queryRaw`
+    const result = await client.$queryRaw`
       INSERT INTO order_counters (date, counter)
-      VALUES (${today}::date, 1)
+      VALUES (${day}::date, 1)
       ON CONFLICT (date) DO UPDATE
       SET counter = order_counters.counter + 1
       RETURNING counter

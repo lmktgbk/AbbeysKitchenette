@@ -8,6 +8,7 @@ import { Pagination } from "@/components/filters/Pagination";
 import { useShiftSummary, useShiftOrders } from "../query";
 import { cn } from "@/lib/utils";
 import { formatPeso } from "@/lib/money";
+import { orderNumberLabel } from "@/lib/orderNumber";
 import VariancePill from "./VariancePill";
 import { initials, humanDay, timeHM, formatDuration } from "../shiftUtils";
 
@@ -198,7 +199,7 @@ export default function ShiftDetailDrawer({ open, onOpenChange, shiftId, onClose
                       <div className="flex items-baseline justify-between gap-2">
                         <span className="flex min-w-0 items-center gap-1.5 font-semibold">
                           <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", STATUS_DOTS[o.status] ?? "bg-muted-foreground/40")} />
-                          <span className="truncate">#{o.order_number} · {o.customer_name}</span>
+                          <span className="truncate">{orderNumberLabel(o.order_number)} · {o.customer_name}</span>
                         </span>
                         <span className="shrink-0 font-semibold tabular-nums">
                           {formatPeso(o.total_amount)}

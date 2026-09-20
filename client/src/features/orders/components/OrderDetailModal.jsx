@@ -6,6 +6,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import Icon from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import { formatDate, formatTime } from "@/lib/date";
+import { orderNumberLabel } from "@/lib/orderNumber";
 import { printReceipt } from "@/features/receipts/api";
 import gcashLogo from "@/assets/gcash-logo.png";
 import mayaLogo from "@/assets/maya_logo.png";
@@ -105,7 +106,7 @@ export default function OrderDetailModal({
               <div className="h-5 w-32 animate-pulse rounded bg-muted" />
             ) : (
               <>
-                Order #{order?.order_number}
+                Order {orderNumberLabel(order?.order_number)}
                 <Badge variant={status.variant}>{status.label}</Badge>
                 <Badge variant="outline" className="gap-1">
                   <Icon name={source.icon} size={10} />
@@ -141,25 +142,28 @@ export default function OrderDetailModal({
               <div className="space-y-3">
                 <StatusStepper order={order} />
 
-                {/* Meta row — customer, table, method in one line */}
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
-                  <span>
-                    <span className="text-muted-foreground">Customer </span>
-                    <span className="font-semibold">{order?.customer_name}</span>
-                  </span>
-                  <span>
-                    <span className="text-muted-foreground">Table </span>
-                    <span className="font-semibold">{order?.table_number}</span>
-                  </span>
-                  <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border bg-muted/60 px-2.5 py-0.5 text-xs font-semibold">
-                    <PaymentMethodMark method={order?.payment_method} />
-                    <span className="shrink-0 capitalize">{order?.payment_method || "cash"}</span>
-                    {order?.reference_no && (
-                      <span className="max-w-[140px] truncate font-mono font-normal text-muted-foreground" title={order.reference_no}>
-                        ({order.reference_no})
-                      </span>
-                    )}
-                  </span>
+                {/* Meta grid — customer, table, payment as stacked cells */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-lg border border-border bg-muted/40 px-3 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Customer Name</p>
+                    <p className="truncate text-sm font-semibold" title={order?.customer_name}>{order?.customer_name || "—"}</p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-muted/40 px-3 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Table</p>
+                    <p className="truncate text-sm font-semibold" title={order?.table_number}>{order?.table_number || "—"}</p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-muted/40 px-3 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Payment</p>
+                    <p className="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
+                      <PaymentMethodMark method={order?.payment_method} />
+                      <span className="truncate capitalize">{order?.payment_method || "cash"}</span>
+                      {order?.reference_no && (
+                        <span className="max-w-[100px] truncate font-mono font-normal text-muted-foreground" title={order.reference_no}>
+                          ({order.reference_no})
+                        </span>
+                      )}
+                    </p>
+                  </div>
                 </div>
 
                 {/* Payment stat strip */}

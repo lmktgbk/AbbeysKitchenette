@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { orderNumberLabel } from "@/lib/orderNumber";
 
 /**
  * ReceiptPrint (BR-03)
@@ -59,7 +60,7 @@ export default function ReceiptPrint({ payload }) {
       <div className="rc-divider" />
 
       {/* Meta */}
-      <div className="rc-row"><span>Order #{order.order_number}</span><span className="rc-right">{order.order_source === "online" ? "Online" : "Walk-in"}</span></div>
+      <div className="rc-row"><span>Order {orderNumberLabel(order.order_number)}</span><span className="rc-right">{order.order_source === "online" ? "Online" : "Walk-in"}</span></div>
       <div className="rc-row"><span>{dateStr}</span><span className="rc-right">Table {order.table_number}</span></div>
       <div className="rc-row"><span>Cashier: {cashier}</span></div>
       <div className="rc-row"><span>Customer: {order.customer_name}</span></div>

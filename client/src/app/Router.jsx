@@ -29,6 +29,7 @@ import AdminLayout from "@/layouts/AdminLayout";
 import BlankLayout from "@/layouts/BlankLayout";
 import LandingPage from "@/features/landing/pages/LandingPage";
 import OrderingPage from "@/features/landing/pages/OrderingPage";
+import TrackingPage from "@/features/landing/pages/TrackingPage";
 import PrivacyPolicy from "@/features/landing/pages/PrivacyPolicy";
 import TermsOfService from "@/features/landing/pages/TermsOfService";
 import LoginPage from "@/features/auth/pages/LoginPage";
@@ -63,6 +64,12 @@ const router = createBrowserRouter([
     {
         path: "/order",
         element: <OrderingPage />,
+    },
+
+    // Guest order tracking (public, full token only)
+    {
+        path: "/track/:token",
+        element: <TrackingPage />,
     },
 
     // Privacy Policy & Terms of Service (public)

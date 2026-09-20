@@ -9,6 +9,8 @@ import rateLimit, { ipKeyGenerator } from "express-rate-limit";
  * authLimiter       → login endpoints (brute force prevention)
  * accountLimiter    → per-user login attempts (distributed attack prevention)
  * liberalLimiter    → dashboard polling (higher limit for real-time data)
+ * guestOrderLimiter → public checkout (order spam prevention)
+ * guestTrackLimiter → public order tracking (poll-friendly)
  *
  * Standard headers enabled (RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset)
  * so clients know their remaining quota.
@@ -86,6 +88,43 @@ export const accountLimiter = rateLimit({
 export const liberalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 3000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Too many requests, please try again later",
+    error: "RATE_LIMIT_EXCEEDED",
+    data: null,
+  },
+});
+
+/**
+ * Guest order limiter: 10 orders per 15 min per IP.
+ * Public checkout is the easiest spam target — mirrors authLimiter.
+ */
+export const guestOrderLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? "unknown"),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Too many orders, please try again in 15 minutes",
+    error: "GUEST_ORDER_RATE_LIMIT_EXCEEDED",
+    data: null,
+  },
+});
+
+/**
+ * Guest tracking limiter: 120 views per 15 min per IP.
+ * Generous on purpose — one tracking page polling every 15s uses ~60
+ * per window, with headroom for families sharing store WiFi.
+ */
+export const guestTrackLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? "unknown"),
   standardHeaders: true,
   legacyHeaders: false,
   message: {

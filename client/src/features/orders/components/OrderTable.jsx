@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import Icon from "@/components/ui/icon";
 import { formatDate } from "@/lib/date";
+import { orderNumberLabel } from "@/lib/orderNumber";
 
 /**
  * STATUS_CONFIG — display info for each order status.
@@ -94,7 +95,7 @@ export default function OrderTable({ orders, isLoading, onView, onAdvance }) {
                 className="cursor-pointer hover:bg-muted/50"
               >
                 <TableCell className="font-mono font-medium">
-                  #{order.order_number}
+                  {orderNumberLabel(order.order_number)}
                 </TableCell>
                 <TableCell>{order.customer_name}</TableCell>
                 <TableCell>{order.table_number}</TableCell>

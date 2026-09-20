@@ -87,10 +87,22 @@ export function computeDiscountedTotal(subtotal, input = {}) {
   return { discountType: "none", discountPercent: 0, discountAmount: 0, total: base };
 }
 
-// ── Order Number Formatting ─────────────────────────────
+// ── Order Number (BR-04: padded YYMMDDNNN) ────────────────
+// Stored as Int (always < 2^31), displayed with a dash: 260918-001.
+// Legacy short counters (pre-migration) fall back to #0001 style.
+
+export function composeOrderNumber(orderDate, counter) {
+  const d = new Date(orderDate);
+  const yy = String(d.getUTCFullYear() % 100).padStart(2, "0");
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  return Number(`${yy}${mm}${dd}${String(counter).padStart(3, "0")}`);
+}
 
 export function formatOrderNumber(num) {
-  return `#${String(num).padStart(4, "0")}`;
+  const s = String(num ?? "");
+  if (/^\d{9}$/.test(s)) return `#${s.slice(0, 6)}-${s.slice(6)}`;
+  return `#${s.padStart(4, "0")}`;
 }
 
 // ── Response Formatters ─────────────────────────────────

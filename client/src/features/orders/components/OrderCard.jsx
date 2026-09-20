@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
+import { orderNumberLabel } from "@/lib/orderNumber";
 
 export default function OrderCard({
   order,
@@ -88,7 +89,7 @@ export default function OrderCard({
         <div className="flex items-end justify-between">
           <div className="min-w-0">
             <div className="font-serif text-sm font-bold text-foreground leading-tight">
-              #{order.order_number}
+              {orderNumberLabel(order.order_number)}
             </div>
             <div className="text-[11px] font-semibold text-foreground/80 truncate">
               {order.customer_name}

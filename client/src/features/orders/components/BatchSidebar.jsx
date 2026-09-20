@@ -1,4 +1,5 @@
 import Icon from "@/components/ui/icon";
+import { orderNumberLabel } from "@/lib/orderNumber";
 
 /**
  * BatchSidebar — shows items grouped by product+variant across all preparing orders.
@@ -70,7 +71,7 @@ export default function BatchSidebar({ batches, onClose }) {
                     className="flex items-center justify-between text-[11px]"
                   >
                     <span className="text-muted-foreground">
-                      #{o.order_number}
+                      {orderNumberLabel(o.order_number)}
                     </span>
                     <span className="font-medium text-foreground">
                       ×{o.quantity}

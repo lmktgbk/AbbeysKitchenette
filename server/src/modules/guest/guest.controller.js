@@ -81,4 +81,18 @@ export const guestController = {
       return handleError(res, error, "PLACE_ORDER_ERROR");
     }
   },
+
+  /**
+   * GET /api/guest/orders/:token
+   * Track own order by token (public). Guests can only read —
+   * edits and cancels happen at the counter.
+   */
+  async trackOrder(req, res) {
+    try {
+      const order = await guestService.getByToken(req.params.token);
+      return successResponse(res, "Order retrieved", { order });
+    } catch (error) {
+      return handleError(res, error, "TRACK_ORDER_ERROR");
+    }
+  },
 };
