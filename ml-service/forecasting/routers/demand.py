@@ -235,7 +235,9 @@ async def demand_ingredients(job_id: int = Query(...)):
         avg_daily = total_needed / len(date_list) if date_list else 0
         days_covered = round(current_stock / avg_daily, 1) if avg_daily > 0 else None
 
-        if days_covered is not None and days_covered >= 7:
+        if total_needed <= 0.01:
+            status = "ok"
+        elif days_covered is not None and days_covered >= 7:
             status = "ok"
         elif days_covered is not None and days_covered >= 3:
             status = "warning"

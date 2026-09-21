@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { SearchBar } from "@/components/filters/SearchBar";
 import { Pagination } from "@/components/filters/Pagination";
+import { FilterPill } from "@/components/filters/FilterPill";
 
 const STATUS_STYLE = {
   ok: "bg-green-100 text-green-700 border-green-200",
@@ -9,7 +10,7 @@ const STATUS_STYLE = {
 };
 const STATUS_LABEL = { ok: "OK", warning: "Low", critical: "Order now" };
 
-export default function IngredientOrderTab({ ingredients }) {
+export default function IngredientOrderTab({ ingredients, activeTab, onTabChange }) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 10;
@@ -25,7 +26,6 @@ export default function IngredientOrderTab({ ingredients }) {
     return [...filtered].sort((a, b) => (order[a.status] ?? 2) - (order[b.status] ?? 2));
   }, [filtered]);
 
-  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
   const paged = useMemo(() => sorted.slice((page - 1) * pageSize, page * pageSize), [sorted, page]);
 
   React.useEffect(() => { setPage(1); }, [search]);
@@ -36,12 +36,24 @@ export default function IngredientOrderTab({ ingredients }) {
 
   return (
     <div className="rounded-xl border border-border bg-card">
-      <div className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="border-b border-border px-4 py-3 space-y-3">
         <div>
-          <h3 className="text-sm font-semibold text-foreground">By Ingredient — What to Order</h3>
+          <h3 className="text-sm font-semibold text-foreground">Ingredient Forecast</h3>
           <p className="text-xs text-muted-foreground">{sorted.filter((i) => i.status !== "ok").length} need attention · sorted: Order now first</p>
         </div>
-        <SearchBar value={search} onChange={setSearch} placeholder="Search ingredients..." className="max-w-[220px]" />
+        <div className="flex items-center justify-between gap-3">
+          <SearchBar value={search} onChange={setSearch} placeholder="Search ingredients..." className="max-w-[280px] flex-1" />
+          {activeTab && onTabChange && (
+            <FilterPill
+              options={[
+                { value: "products", label: "Product Forecast" },
+                { value: "ingredients", label: "Ingredient Forecast" },
+              ]}
+              value={activeTab}
+              onChange={onTabChange}
+            />
+          )}
+        </div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
