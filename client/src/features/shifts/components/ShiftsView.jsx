@@ -9,7 +9,6 @@ import DateRangeFilter from "@/components/filters/DateRangeFilter";
 import { Pagination } from "@/components/filters/Pagination";
 import { formatVariance } from "@/lib/money";
 
-const HISTORY_PAGE_SIZE = 10;
 
 /**
  * ShiftsView (BR-02)
@@ -24,6 +23,7 @@ export default function ShiftsView({ dateFrom, dateTo, onDateChange }) {
   const [closingShift, setClosingShift] = useState(null);
   const [detailShiftId, setDetailShiftId] = useState(null);
   const [historyPage, setHistoryPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const { data, isLoading } = useShiftsList({
     status: "all",
@@ -69,9 +69,9 @@ export default function ShiftsView({ dateFrom, dateTo, onDateChange }) {
   }
 
   // History pages over the closed list; open cards always pin on top.
-  const closedPages = Math.max(Math.ceil(closedCards.length / HISTORY_PAGE_SIZE), 1);
+  const closedPages = Math.max(Math.ceil(closedCards.length / pageSize), 1);
   const safePage = Math.min(historyPage, closedPages);
-  const pagedClosed = closedCards.slice((safePage - 1) * HISTORY_PAGE_SIZE, safePage * HISTORY_PAGE_SIZE);
+  const pagedClosed = closedCards.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   return (
     <div className="flex flex-col gap-3">
@@ -133,13 +133,14 @@ export default function ShiftsView({ dateFrom, dateTo, onDateChange }) {
             ))}
           </div>
         )}
-        {closedCards.length > HISTORY_PAGE_SIZE && (
+        {closedCards.length > pageSize && (
           <div className="mt-2 overflow-hidden rounded-xl border border-border bg-card">
             <Pagination
               currentPage={safePage}
               totalItems={closedCards.length}
-              pageSize={HISTORY_PAGE_SIZE}
+              pageSize={pageSize}
               onPageChange={setHistoryPage}
+              onPageSizeChange={(size) => { setPageSize(size); setHistoryPage(1); }}
               itemLabel="shifts"
             />
           </div>

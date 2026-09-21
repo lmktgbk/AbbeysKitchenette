@@ -171,7 +171,7 @@ export default function TransactionsView({ switcher, actions }) {
           currentFilters={currentFilters}
         />
 
-        <Table noOverflow>
+        <Table>
           <TableHeader>
             <TableRow className="hover:bg-muted/50">
               <TableHead>When</TableHead>

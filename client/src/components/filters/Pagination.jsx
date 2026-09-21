@@ -32,8 +32,13 @@ export function Pagination({
   const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const endItem = Math.min(currentPage * pageSize, totalItems);
 
+  // 3-digit page block window: Shows max 3 page numbers at a time (e.g. 1 2 3, then 4 5 6, etc.)
+  const blockIndex = Math.floor((currentPage - 1) / 3);
+  const startPage = blockIndex * 3 + 1;
+  const endPage = Math.min(startPage + 2, totalPages);
+
   const pageNumbers = [];
-  for (let i = 1; i <= totalPages; i++) {
+  for (let i = startPage; i <= endPage; i++) {
     pageNumbers.push(i);
   }
 
@@ -45,34 +50,34 @@ export function Pagination({
   return (
     <div
       className={cn(
-        "flex items-center justify-between border-t border-border px-4 py-2",
+        "flex flex-wrap sm:flex-nowrap items-center justify-between gap-y-2 gap-x-3 border-t border-border px-3 py-2 text-xs select-none",
         className
       )}
     >
       {/* Left — item count */}
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
         {totalItems === 0
           ? `No ${itemLabel}`
           : `Showing ${startItem}\u2013${endItem} of ${totalItems} ${itemLabel}`}
       </p>
 
       {/* Right — page size + navigation */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-auto">
         {/* Page size selector */}
         {onPageSizeChange && (
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-muted-foreground">Show</span>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground hidden xs:inline">Show</span>
             <DropDown
               options={pageSizeDropDownOptions}
               value={String(pageSize)}
               onChange={(val) => onPageSizeChange(Number(val))}
               size="sm"
-              className="w-16"
+              className="w-14 sm:w-16 h-7 text-xs"
             />
           </div>
         )}
 
-        {/* Page navigation */}
+        {/* Page navigation (Max 3 numbers shown at a time) */}
         {totalPages > 1 && (
           <div className="flex items-center gap-1">
             <Button
@@ -80,6 +85,8 @@ export function Pagination({
               size="sm"
               onClick={() => onPageChange(currentPage - 1)}
               disabled={currentPage <= 1}
+              className="h-7 w-7 p-0 shrink-0"
+              aria-label="Previous page"
             >
               <Icon name="chevronLeft" size={14} />
             </Button>
@@ -91,7 +98,7 @@ export function Pagination({
                 size="sm"
                 onClick={() => onPageChange(page)}
                 className={cn(
-                  "min-w-[32px]",
+                  "h-7 min-w-[28px] px-2 text-xs font-semibold shrink-0",
                   page === currentPage && "pointer-events-none"
                 )}
               >
@@ -104,6 +111,8 @@ export function Pagination({
               size="sm"
               onClick={() => onPageChange(currentPage + 1)}
               disabled={currentPage >= totalPages}
+              className="h-7 w-7 p-0 shrink-0"
+              aria-label="Next page"
             >
               <Icon name="chevronRight" size={14} />
             </Button>

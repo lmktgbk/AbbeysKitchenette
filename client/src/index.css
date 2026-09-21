@@ -297,31 +297,73 @@
 }
 
 @keyframes kdsPulseRing {
-    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 25%, transparent); }
-    50% { box-shadow: 0 0 0 8px transparent; }
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 25%, transparent);
+    }
+
+    50% {
+        box-shadow: 0 0 0 8px transparent;
+    }
 }
 
 @keyframes kdsPulseGlow {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.4;
+    }
 }
 
 @keyframes kdsTimerPulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.3;
+    }
 }
 
 @keyframes kdsPopIn {
-    from { transform: scale(0.95); opacity: 0; }
-    to { transform: scale(1); opacity: 1; }
+    from {
+        transform: scale(0.95);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
 }
 
 @keyframes kdsFadeIn {
-    from { opacity: 0; transform: translateY(4px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 @keyframes kdsOrderComplete {
-    0% { opacity: 1; transform: scale(1); }
-    100% { opacity: 0; transform: scale(0.95); }
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    100% {
+        opacity: 0;
+        transform: scale(0.95);
+    }
 }

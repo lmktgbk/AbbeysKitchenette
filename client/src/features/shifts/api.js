@@ -56,6 +56,12 @@ export async function getShiftOrdersRequest(id, params = {}) {
   return res.data;
 }
 
+// GET /api/shifts/:id/ingredient-usage — Ingredient usage for one shift
+export async function getShiftIngredientUsageRequest(id) {
+  const res = await api.get(`/shifts/${id}/ingredient-usage`);
+  return res.data;
+}
+
 // POST /api/shifts/:id/close — end own shift
 export async function closeShiftRequest(id, data) {
   const res = await api.post(`/shifts/${id}/close`, data);

@@ -115,7 +115,7 @@ export default function IngredientTable({
   const filterActive = activeFilters.status !== "all" || activeSort !== "status_asc";
 
   return (
-    <div className="relative border border-border rounded-xl">
+    <div className="relative border border-border rounded-xl overflow-hidden">
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
@@ -172,7 +172,7 @@ export default function IngredientTable({
           </div>
         )}
 
-        <Table noOverflow>
+        <Table>
           <TableHeader>
             <TableRow className="bg-muted/30">
               {INGREDIENT_COLUMNS.map((col) => (

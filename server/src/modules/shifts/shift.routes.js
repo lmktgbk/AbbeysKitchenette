@@ -87,6 +87,14 @@ router.get(
 );
 
 router.get(
+  "/:id/ingredient-usage",
+  authenticate,
+  authorize("admin", "cashier"),
+  validateParams(shiftIdParamSchema),
+  shiftController.getIngredientUsage,
+);
+
+router.get(
   "/:id/orders",
   authenticate,
   authorize("admin", "cashier"),

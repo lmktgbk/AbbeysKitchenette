@@ -17,6 +17,7 @@ const shiftKeys = {
   detail: (id) => ["shifts", "detail", id],
   summary: (id) => ["shifts", "summary", id],
   orders: (id, params) => ["shifts", "orders", id, params],
+  ingredientUsage: (id) => ["shifts", "ingredientUsage", id],
 };
 
 export { shiftKeys };
@@ -94,6 +95,18 @@ export function useShiftOrders(id, params = {}, options = {}) {
     queryFn: () => api.getShiftOrdersRequest(id, params),
     enabled: !!id,
     keepPreviousData: true,
+    ...options,
+  });
+}
+
+/**
+ * useShiftIngredientUsage — ingredient usage totals separated by area
+ */
+export function useShiftIngredientUsage(id, options = {}) {
+  return useQuery({
+    queryKey: shiftKeys.ingredientUsage(id),
+    queryFn: () => api.getShiftIngredientUsageRequest(id),
+    enabled: !!id,
     ...options,
   });
 }
