@@ -67,7 +67,7 @@ export default function StaffTable({
   const totalItems = data?.data?.totalItems ?? 0;
 
   return (
-    <div className="relative border border-border rounded-xl">
+    <div className="relative border border-border rounded-xl overflow-hidden">
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">

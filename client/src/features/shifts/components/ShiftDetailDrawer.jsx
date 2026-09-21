@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import Icon from "@/components/ui/icon";
 import { FilterPill } from "@/components/filters/FilterPill";
 import { Pagination } from "@/components/filters/Pagination";
-import { useShiftSummary, useShiftOrders } from "../query";
+import { useShiftSummary, useShiftOrders, useShiftIngredientUsage } from "../query";
 import { cn } from "@/lib/utils";
 import { formatPeso } from "@/lib/money";
 import { orderNumberLabel } from "@/lib/orderNumber";
@@ -63,11 +63,16 @@ export default function ShiftDetailDrawer({ open, onOpenChange, shiftId, onClose
     { page: String(ordersPage), limit: String(ORDERS_PAGE_SIZE), status: ordersStatus },
   );
 
+  const { data: usageData, isLoading: loadingUsage } = useShiftIngredientUsage(open ? shiftId : null);
+
   const shift = summaryData?.data?.shift ?? null;
   const summary = summaryData?.data?.summary ?? null;
   const orders = ordersData?.data?.orders ?? [];
   const totalOrders = ordersData?.data?.totalOrders ?? 0;
-  const loading = loadingSummary || loadingOrders;
+  
+  const cashierIngredients = usageData?.data?.cashierIngredients ?? [];
+  const kitchenIngredients = usageData?.data?.kitchenIngredients ?? [];
+  const loading = loadingSummary || loadingOrders || loadingUsage;
 
   const isOpen = shift?.status === "open";
   const variance = summary?.variance != null ? Number(summary.variance) : null;
@@ -225,6 +230,47 @@ export default function ShiftDetailDrawer({ open, onOpenChange, shiftId, onClose
                   )}
                 </div>
               )}
+            </div>
+
+            {/* Ingredients Used */}
+            <div className="space-y-2 mt-4 pt-4 border-t border-border">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Ingredients Used
+              </p>
+              
+              <div className="space-y-3">
+                <div className="rounded-lg border border-border bg-muted/40 px-4 py-2.5">
+                  <p className="text-xs font-semibold text-foreground mb-2">Cashier Ingredients</p>
+                  {cashierIngredients.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No beverage ingredients recorded.</p>
+                  ) : (
+                    <div className="space-y-1">
+                      {cashierIngredients.map((ing) => (
+                        <div key={ing.name} className="flex justify-between text-xs">
+                          <span className="text-muted-foreground">{ing.name}</span>
+                          <span className="font-medium">{ing.total} {ing.unit}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-lg border border-border bg-muted/40 px-4 py-2.5">
+                  <p className="text-xs font-semibold text-foreground mb-2">Kitchen Ingredients</p>
+                  {kitchenIngredients.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No food ingredients recorded.</p>
+                  ) : (
+                    <div className="space-y-1">
+                      {kitchenIngredients.map((ing) => (
+                        <div key={ing.name} className="flex justify-between text-xs">
+                          <span className="text-muted-foreground">{ing.name}</span>
+                          <span className="font-medium">{ing.total} {ing.unit}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {isOpen && onCloseShift && (

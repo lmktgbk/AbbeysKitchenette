@@ -199,6 +199,81 @@ export const shiftService = {
     return { shift: formatShift(shift), summary: await this.buildSummary(shift) };
   },
 
+  async getIngredientUsage(id, { userId, role }) {
+    const shift = await shiftRepository.findById(id);
+    if (!shift) throw new AppError(404, "Shift not found", "SHIFT_NOT_FOUND");
+    if (role !== "admin" && shift.openedBy !== userId) {
+      throw new AppError(403, "You can only view your own shifts", "FORBIDDEN");
+    }
+
+    const orders = await prisma.order.findMany({
+      where: {
+        shiftId: id,
+        status: { in: ["accepted", "preparing", "completed"] },
+      },
+      include: {
+        items: {
+          include: {
+            product: {
+              include: {
+                subcategory: {
+                  include: {
+                    category: true,
+                  },
+                },
+              },
+            },
+            variant: {
+              include: {
+                recipes: {
+                  include: {
+                    ingredient: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const cashierMap = new Map();
+    const kitchenMap = new Map();
+
+    for (const order of orders) {
+      for (const item of order.items) {
+        if (!item.product || !item.variant) continue;
+        
+        const categoryName = item.product.subcategory?.category?.categoryName;
+        const isBeverage = categoryName === "Beverages";
+        
+        const targetMap = isBeverage ? cashierMap : kitchenMap;
+
+        for (const recipe of item.variant.recipes) {
+          if (!recipe.ingredient) continue;
+          
+          const ingredientName = recipe.ingredient.ingredientName;
+          const unit = recipe.ingredient.unit;
+          const qtyUsed = Number(recipe.quantityNeeded) * item.quantity;
+          
+          if (!targetMap.has(ingredientName)) {
+            targetMap.set(ingredientName, { name: ingredientName, unit, total: 0 });
+          }
+          targetMap.get(ingredientName).total += qtyUsed;
+        }
+      }
+    }
+
+    const formatMap = (map) => Array.from(map.values())
+      .map(i => ({ ...i, total: roundMoney(i.total) }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    return {
+      cashierIngredients: formatMap(cashierMap),
+      kitchenIngredients: formatMap(kitchenMap),
+    };
+  },
+
   /* ── Close ─────────────────────────────── */
 
   async closeShift({ id, actualCash, closeNote, userId, forced = false }) {

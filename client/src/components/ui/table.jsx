@@ -9,9 +9,9 @@ import { cn } from "@/lib/utils";
 
 function Table({ className, noOverflow = false, ...props }) {
   return (
-    <div className={cn("relative w-full", !noOverflow && "overflow-auto")}>
+    <div className={cn("relative w-full", !noOverflow && "overflow-x-auto")}>
       <table
-        className={cn("w-full caption-bottom text-sm", className)}
+        className={cn("w-full caption-bottom text-sm min-w-[500px]", className)}
         {...props}
       />
     </div>

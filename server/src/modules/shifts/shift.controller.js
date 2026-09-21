@@ -148,6 +148,22 @@ export const shiftController = {
   },
 
   /**
+   * GET /api/shifts/:id/ingredient-usage
+   * Ingredient usage for the shift, separated by area.
+   */
+  async getIngredientUsage(req, res) {
+    try {
+      const result = await shiftService.getIngredientUsage(req.params.id, {
+        userId: req.user.id,
+        role: req.user.role,
+      });
+      return successResponse(res, "Ingredient usage retrieved", result);
+    } catch (error) {
+      return handleError(res, error, "GET_SHIFT_INGREDIENT_USAGE_ERROR");
+    }
+  },
+
+  /**
    * POST /api/shifts/:id/close
    * End own shift with declared actual cash.
    */

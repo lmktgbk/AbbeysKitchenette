@@ -29,7 +29,7 @@ const SOURCE_CONFIG = {
 export default function OrderTable({ orders, isLoading, onView, onAdvance }) {
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-border bg-card">
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -69,7 +69,7 @@ export default function OrderTable({ orders, isLoading, onView, onAdvance }) {
   }
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-card">
       <Table>
         <TableHeader>
           <TableRow>
