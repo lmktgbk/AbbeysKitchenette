@@ -23,7 +23,7 @@ router = APIRouter(prefix="/forecast", tags=["forecast"])
 
 _active_jobs: dict[int, asyncio.Task] = {}
 
-DEFAULT_PERIOD = 14
+DEFAULT_PERIOD = 7
 
 
 async def _run_in_background(job_id: int):
@@ -47,7 +47,7 @@ async def start_demand_forecast(background_tasks: BackgroundTasks):
     task = asyncio.create_task(_run_in_background(job_id))
     _active_jobs[job_id] = task
 
-    return RunStartedResponse(job_id=job_id, message="Forecast started for 14 days")
+    return RunStartedResponse(job_id=job_id, message="Forecast started for 7 days")
 
 
 async def _create_pending_job() -> int:

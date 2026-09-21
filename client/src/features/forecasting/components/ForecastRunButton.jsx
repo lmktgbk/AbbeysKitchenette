@@ -106,10 +106,10 @@ function ForecastRunButton({ onJobComplete }) {
         {showSpinner ? (
           <>
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-            Running...
+            Updating...
           </>
         ) : (
-          "Run Forecast"
+          "Update Forecast"
         )}
       </button>
 
@@ -122,20 +122,20 @@ function ForecastRunButton({ onJobComplete }) {
             />
           </div>
           <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
-            {status.completed + status.failed}/{status.total_variants}
+            Preparing {status.completed + status.failed} of {status.total_variants}
           </span>
         </div>
       )}
 
       {isComplete && status && (
         <span className="text-xs font-medium text-green-600">
-          Complete: {status.completed} forecasted, {status.failed} skipped
+          Ready: {status.completed} products, {status.failed ? `${status.failed} need more sales` : "all ready"}
         </span>
       )}
 
       {isFailed && (
         <span className="text-xs font-medium text-red-600">
-          Failed: {status?.error_message || "Unknown error"}
+          Needs attention: {status?.error_message || "Something went wrong"}
         </span>
       )}
     </div>

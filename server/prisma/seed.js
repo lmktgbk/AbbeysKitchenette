@@ -202,7 +202,43 @@ const TABLES = ["1", "2", "3", "4", "5", "6", "7", "8", "Takeout"];
 
 async function main() {
   const startTime = Date.now();
-  console.log("Seeding 2-year dataset...\n");
+  console.log("Seeding 60-day dense dataset (forecast-ready)...\n");
+
+  // ── Full reseed cleanup: remove transactional data (keep users/categories/products/variants/recipes) ──
+  console.log("Cleaning previous transactional data...");
+  try {
+    await prisma.$executeRawUnsafe(`TRUNCATE TABLE "order_ingredient_deductions", "stock_adjustments", "stock_alerts", "loss_records", "payment_refunds", "receipts", "order_cancellations", "order_items", "order_counters", "forecast_results", "forecast_jobs", "reorder_suggestions", "waste_reductions", "price_optimizations", "market_basket_jobs", "market_basket_results", "orders", "restock_batches", "notifications", "audit_logs" CASCADE`);
+  } catch (e) {
+    console.log("  TRUNCATE failed, falling back to deleteMany:", e.message);
+    await prisma.orderIngredientDeduction.deleteMany().catch(()=>{});
+    await prisma.stockAdjustment.deleteMany().catch(()=>{});
+    await prisma.lossRecord.deleteMany().catch(()=>{});
+    await prisma.orderCancellation.deleteMany().catch(()=>{});
+    await prisma.orderItem.deleteMany().catch(()=>{});
+    await prisma.order.deleteMany().catch(()=>{});
+    await prisma.restockBatch.deleteMany().catch(()=>{});
+  }
+  console.log("  ✓ Cleaned\n");
+
+  // ── Ensure seeded users exist (FK for batches/orders) ──
+  const dummyHash = "$2b$10$aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  await prisma.user.upsert({
+    where: { id: ADMIN_ID },
+    update: {},
+    create: { id: ADMIN_ID, name: "Admin", email: "admin@abbeys.test", role: "admin", passwordHash: dummyHash },
+  }).catch(()=>{});
+  for (const cid of CASHIER_IDS) {
+    await prisma.user.upsert({
+      where: { id: cid },
+      update: {},
+      create: { id: cid, name: `Cashier ${cid.slice(0,4)}`, email: `cashier-${cid.slice(0,4)}@abbeys.test`, role: "cashier", passwordHash: dummyHash },
+    }).catch(()=>{});
+  }
+  await prisma.user.upsert({
+    where: { id: KITCHEN_ID },
+    update: {},
+    create: { id: KITCHEN_ID, name: "Kitchen", email: "kitchen@abbeys.test", role: "kitchen", passwordHash: dummyHash },
+  }).catch(()=>{});
 
   // ── Phase 1: Categories & Subcategories ──
   console.log("Phase 1: Categories & Subcategories");
@@ -236,8 +272,10 @@ async function main() {
 
   const ingMap = {}; // ingredientName -> { id, initialStock, costPerUnit }
   for (const ing of INGREDIENTS) {
-    const created = await prisma.ingredient.create({
-      data: {
+    const created = await prisma.ingredient.upsert({
+      where: { ingredientName: ing.ingredientName },
+      update: { unit: ing.unit, minimumThreshold: ing.minimumThreshold },
+      create: {
         ingredientName: ing.ingredientName,
         unit: ing.unit,
         minimumThreshold: ing.minimumThreshold,
@@ -260,13 +298,19 @@ async function main() {
       continue;
     }
 
-    const product = await prisma.product.create({
-      data: {
-        productName: prod.productName,
-        subcategoryId,
-        description: prod.description,
-      },
+    // Reuse existing product if already seeded (full reseed keeps products)
+    let product = await prisma.product.findFirst({
+      where: { productName: prod.productName, subcategoryId },
     });
+    if (!product) {
+      product = await prisma.product.create({
+        data: {
+          productName: prod.productName,
+          subcategoryId,
+          description: prod.description,
+        },
+      });
+    }
 
     for (const v of prod.variants) {
       const recipeData = v.recipes.map((r) => ({
@@ -274,35 +318,46 @@ async function main() {
         quantityNeeded: r.qty,
       }));
 
-      const variant = await prisma.productVariant.create({
-        data: {
-          productId: product.productId,
-          sizeName: v.sizeName,
-          price: v.price,
-          recipes: { create: recipeData },
-        },
+      let variant = await prisma.productVariant.findFirst({
+        where: { productId: product.productId, sizeName: v.sizeName },
       });
+      if (!variant) {
+        variant = await prisma.productVariant.create({
+          data: {
+            productId: product.productId,
+            sizeName: v.sizeName,
+            price: v.price,
+            recipes: { create: recipeData },
+          },
+        });
+      } else {
+        // Ensure recipes exist for existing variant
+        const existingRecipes = await prisma.recipe.count({ where: { variantId: variant.variantId } });
+        if (existingRecipes === 0 && recipeData.length) {
+          await prisma.recipe.createMany({ data: recipeData.map((r) => ({ variantId: variant.variantId, ingredientId: r.ingredientId, quantityNeeded: r.quantityNeeded })) });
+        }
+      }
 
       variantMap.push({
         variantId: variant.variantId,
         productId: product.productId,
         sizeName: v.sizeName,
-        price: v.price,
+        price: Number(variant.price),
         productName: prod.productName,
         subcategoryKey: prod.subcategoryKey,
       });
       totalRecipes += recipeData.length;
     }
   }
-  console.log(`  ✓ ${PRODUCTS.length} products, ${variantMap.length} variants, ${totalRecipes} recipes`);
+  console.log(`  ✓ ${variantMap.length} variants, ${totalRecipes} recipes (reused existing products if present)`);
 
   // ── Phase 4: Initial Restock Batches ──
   console.log("\nPhase 4: Initial Restock Batches");
 
   const now = new Date();
-  const SEED_START = new Date("2024-09-16T00:00:00Z");
+  const SEED_START = startOfDay(addDays(now, -59)); // 60 days inclusive up to today
   const DAY_MS = 86400_000;
-  const TOTAL_DAYS = 730;
+  const TOTAL_DAYS = 60;
 
   // Create all restock batches upfront (we'll track them in memory for FIFO)
   const allBatchRecords = []; // { batchId, ingredientId, quantityLeft, costPerUnit, restockedAt }
@@ -346,8 +401,8 @@ async function main() {
   }
   console.log(`  ✓ ${initialBatches.length} initial restock batches`);
 
-  // ── Phase 5: Generate Orders (730 days) ──
-  console.log("\nPhase 5: Generating orders (730 days)...");
+  // ── Phase 5: Generate Orders (60 days, dense for forecasting) ──
+  console.log(`\nPhase 5: Generating orders (${TOTAL_DAYS} days from ${dateStr(SEED_START)} to ${dateStr(addDays(SEED_START, TOTAL_DAYS - 1))})...`);
 
   // Build category maps for time-of-day weighting
   const coffeeVariants = variantMap.filter(v => v.subcategoryKey === "Coffee");
@@ -753,8 +808,9 @@ async function main() {
   const lossInsertData = [];
   const lossTypes = ["spoilage", "spillage", "expiry", "other"];
 
-  // Generate ~3-5 loss records per month over 2 years = ~70-120 records
-  for (let monthOffset = 0; monthOffset < 24; monthOffset++) {
+  // Generate ~3-5 loss records per month over seed window
+  const lossMonths = Math.ceil(TOTAL_DAYS / 30);
+  for (let monthOffset = 0; monthOffset < lossMonths; monthOffset++) {
     const lossesThisMonth = randInt(3, 5);
     for (let j = 0; j < lossesThisMonth; j++) {
       const ing = pick(INGREDIENTS);

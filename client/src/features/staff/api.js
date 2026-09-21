@@ -26,10 +26,6 @@ export function toggleActiveStaffRequest(id) {
   return api.patch(`/staff/${id}/toggle-active`).then((res) => res.data);
 }
 
-export function resetPinStaffRequest(id, data) {
-  return api.post(`/staff/${id}/reset-pin`, data).then((res) => res.data);
-}
-
 export function resetPasswordStaffRequest(id, data) {
   return api.post(`/staff/${id}/reset-password`, data).then((res) => res.data);
 }

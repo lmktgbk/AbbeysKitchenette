@@ -5,7 +5,7 @@ import PrimarySpinner from "@/components/ui/spinner";
 /**
  * ProtectedRoute
  * Redirects to /login if not authenticated.
- * Redirects to /change-pin if mustChangePwd is true.
+ * Redirects to /reset-password if mustChangePwd is true.
  */
 export function ProtectedRoute({ children }) {
     const user = useAuthStore((s) => s.user);
@@ -20,15 +20,15 @@ export function ProtectedRoute({ children }) {
 
     if (!user) return <Navigate to="/login" replace />;
 
-    if (user.mustChangePwd && location.pathname !== "/change-pin") {
-        return <Navigate to="/change-pin" replace />;
+    if (user.mustChangePwd && location.pathname !== "/reset-password" && location.pathname !== "/change-password") {
+        return <Navigate to="/reset-password" replace />;
     }
 
     // Role-based route enforcement
-    if (user.role === "kitchen" && location.pathname !== "/kitchen" && location.pathname !== "/change-pin") {
+    if (user.role === "kitchen" && location.pathname !== "/kitchen" && location.pathname !== "/reset-password" && location.pathname !== "/change-password") {
         return <Navigate to="/kitchen" replace />;
     }
-    if (user.role === "cashier" && !location.pathname.startsWith("/pos") && location.pathname !== "/change-pin") {
+    if (user.role === "cashier" && !location.pathname.startsWith("/pos") && location.pathname !== "/reset-password" && location.pathname !== "/change-password") {
         return <Navigate to="/pos" replace />;
     }
 

@@ -10,7 +10,6 @@ import {
 import {
   createStaffSchema,
   updateStaffSchema,
-  resetPinSchema,
   resetPasswordSchema,
   idParamSchema,
   getStaffQuerySchema,
@@ -51,14 +50,6 @@ router.patch(
   "/:id/toggle-active",
   validateParams(idParamSchema),
   staffController.toggleActive,
-);
-
-// POST /api/staff/:id/reset-pin — reset PIN
-router.post(
-  "/:id/reset-pin",
-  validateParams(idParamSchema),
-  validate(resetPinSchema),
-  staffController.resetPin,
 );
 
 // POST /api/staff/:id/reset-password — reset password

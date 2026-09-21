@@ -66,7 +66,7 @@ export default function StaffFormModal({
           <DialogDescription>
             {isEditMode
               ? "Update staff member details."
-              : "Create a new staff account. PIN is auto-generated."}
+              : "Create a new staff account with email and password."}
           </DialogDescription>
         </DialogHeader>
 
@@ -111,6 +111,21 @@ export default function StaffFormModal({
               <p className="mt-1.5 text-xs text-destructive">{errors.role.message}</p>
             )}
           </div>
+
+          {/* Password — create only */}
+          {!isEditMode && (
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-foreground">
+                Password <span className="font-normal text-muted-foreground">(leave blank to auto-generate)</span>
+              </label>
+              <Input
+                type="password"
+                placeholder="Min 8 characters"
+                error={errors.password?.message}
+                {...register("password")}
+              />
+            </div>
+          )}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleClose}>

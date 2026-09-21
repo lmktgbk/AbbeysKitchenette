@@ -8,18 +8,6 @@ export async function loginRequest(email, password) {
   return res.data;
 }
 
-/** PIN login — returns { user, token } */
-export async function loginPinRequest(userId, pin) {
-  const res = await api.post("/auth/login-pin", { userId, pin });
-  return res.data;
-}
-
-/** Fetch staff list for PIN login selection grid — store IP only */
-export async function getStaffListRequest() {
-  const res = await api.get("/auth/staff-list");
-  return res.data;
-}
-
 /* ── OTP (Admin 2FA)  */
 
 /** Verify OTP code — returns { user, token } */
@@ -45,14 +33,6 @@ export async function forgotPasswordRequest(email) {
 /** Reset password from email link */
 export async function resetPasswordRequest(token, newPassword) {
   const res = await api.post("/auth/reset-password", { token, newPassword });
-  return res.data;
-}
-
-/* ── Change PIN  */
-
-/** Change own PIN after mustChangePwd */
-export async function changePinRequest(newPin) {
-  const res = await api.post("/auth/change-pin", { newPin });
   return res.data;
 }
 

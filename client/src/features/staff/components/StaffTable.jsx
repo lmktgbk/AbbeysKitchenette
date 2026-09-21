@@ -37,7 +37,7 @@ export default function StaffTable({
   onAdd,
   onEdit,
   onToggleActive,
-  onResetPin,
+  onResetPassword,
   onDelete,
 }) {
   const [search, setSearch] = useState("");
@@ -171,8 +171,8 @@ export default function StaffTable({
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => onResetPin(s)}
-                        title="Reset PIN"
+                        onClick={() => onResetPassword(s)}
+                        title="Reset Password"
                       >
                         <Icon name="key" size={14} />
                       </Button>

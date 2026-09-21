@@ -2,51 +2,36 @@
 import { useDemandHistory, useDemandResults, useDemandIngredients, forecastKeys } from "../query";
 import { useQueryClient } from "@tanstack/react-query";
 import ForecastRunButton from "../components/ForecastRunButton";
-import ForecastHistory from "../components/ForecastHistory";
-import ForecastChart from "../components/ForecastChart";
-import ForecastSidebar from "../components/ForecastSidebar";
-import DemandTable from "../components/DemandTable";
-import IngredientNeeds from "../components/IngredientNeeds";
+import SimpleForecastChart from "../components/SimpleForecastChart";
+import ProductDemandTab from "../components/ProductDemandTab";
+import IngredientOrderTab from "../components/IngredientOrderTab";
 import { Skeleton } from "@/components/ui/skeleton";
 import Icon from "@/components/ui/icon";
+import { FilterPill } from "@/components/filters/FilterPill";
 
 /**
- * ForecastingPage - demand forecast dashboard.
- *
- * Layout (top to bottom):
- *  1. KPI Cards (always aggregate)
- *  2. History tabs + Run Forecast button
- *  3. Daily Forecast chart (full width, with variant selector)
- *  4. Two-column: Demand Table + Sidebar
- *  5. Ingredient Needs (full width, always aggregate)
- *
- * States:
- *  A. Empty — no history at all
- *  B. Loading — fetching results
- *  C. Dashboard — full layout
+ * ForecastingPage — friendly redesign.
+ * Answers only 3 questions: Demand (To Prepare), Revenue (Expected Sales), Inventory (What to Order)
+ * Plain language, 3 KPI cards + combined chart + tabbed details. Tech behind Details flap.
  */
 export default function ForecastingPage() {
   const queryClient = useQueryClient();
   const [selectedJobId, setSelectedJobId] = useState(null);
-  const [latestJobId, setLatestJobId] = useState(null);
-  const [viewPeriod, setViewPeriod] = useState("7");
-  const [selectedVariant, setSelectedVariant] = useState("all");
+  const [activeTab, setActiveTab] = useState("products");
+  const [showDetails, setShowDetails] = useState(false);
 
   const { data: historyData, isLoading: historyLoading } = useDemandHistory();
   const { data: resultsData, isLoading: resultsLoading } = useDemandResults(selectedJobId);
   const { data: ingredientsData, isLoading: ingredientsLoading } = useDemandIngredients(selectedJobId);
 
   const jobs = historyData?.data?.jobs || [];
-  const activeJobId = selectedJobId || latestJobId || jobs[0]?.id || null;
+  const activeJobId = selectedJobId || jobs[0]?.id || null;
 
   useEffect(() => {
-    if (jobs.length && !selectedJobId && !latestJobId) {
-      setSelectedJobId(jobs[0].id);
-    }
-  }, [jobs, selectedJobId, latestJobId]);
+    if (jobs.length && !selectedJobId) setSelectedJobId(jobs[0].id);
+  }, [jobs, selectedJobId]);
 
   const handleJobComplete = useCallback((jobId) => {
-    setLatestJobId(jobId);
     setSelectedJobId(jobId);
     queryClient.invalidateQueries({ queryKey: forecastKeys.demandResults(jobId) });
     queryClient.invalidateQueries({ queryKey: forecastKeys.demandIngredients(jobId) });
@@ -58,284 +43,205 @@ export default function ForecastingPage() {
   const job = resultsData?.data?.job;
   const skipped = resultsData?.data?.skipped || [];
 
-  const isJobCompleted = job?.status === "completed";
-  const isJobFailed = job?.status === "failed";
-  const showLoading = resultsLoading && !isJobCompleted && !isJobFailed;
-
-  // Reset variant filter when job changes
-  useEffect(() => {
-    setSelectedVariant("all");
-  }, [activeJobId]);
-
-  // ── KPI computations (always aggregate, filtered by viewPeriod) ──
   const periodTotals = useMemo(() => {
     if (!forecasted.length) return { units: 0, revenue: 0 };
-    return forecasted.reduce(
-      (acc, v) => {
-        const sliced = v.daily_data.slice(0, Number(viewPeriod));
-        return {
-          units: acc.units + sliced.reduce((s, d) => s + d.units, 0),
-          revenue: acc.revenue + sliced.reduce((s, d) => s + d.revenue, 0),
-        };
-      },
-      { units: 0, revenue: 0 }
-    );
-  }, [forecasted, viewPeriod]);
+    return forecasted.reduce((acc, v) => ({
+      units: acc.units + v.daily_data.slice(0, 7).reduce((s, d) => s + d.units, 0),
+      revenue: acc.revenue + v.daily_data.slice(0, 7).reduce((s, d) => s + d.revenue, 0),
+    }), { units: 0, revenue: 0 });
+  }, [forecasted]);
 
-  const topSeller = useMemo(() => {
-    if (!forecasted.length) return null;
-    let best = null;
-    let bestUnits = 0;
-    for (const v of forecasted) {
-      const units = v.daily_data.slice(0, Number(viewPeriod)).reduce((s, d) => s + d.units, 0);
-      if (units > bestUnits) {
-        bestUnits = units;
-        best = v;
-      }
-    }
-    return best;
-  }, [forecasted, viewPeriod]);
+  const lowIngredients = useMemo(() => ingredients.filter((i) => i.status !== "ok"), [ingredients]);
+  const topNeed = useMemo(() => [...lowIngredients].sort((a,b)=> a.status.localeCompare(b.status)).slice(0,2), [lowIngredients]);
 
-  // Variant name for the drill-down banner
-  const selectedVariantName = useMemo(() => {
-    if (!selectedVariant || selectedVariant === "all") return null;
-    const v = forecasted.find((f) => String(f.variant_id) === String(selectedVariant));
-    return v ? `${v.product_name} (${v.size_name})` : null;
-  }, [selectedVariant, forecasted]);
+  const lastUpdated = job?.completed_at ? new Date(job.completed_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : null;
 
-  const comparisonJobId = useMemo(() => {
-    if (!jobs.length || jobs.length < 2) return null;
-    const activeIdx = jobs.findIndex((j) => j.id === activeJobId);
-    const comparisonIdx = activeIdx === 0 ? 1 : 0;
-    return jobs[comparisonIdx]?.id ?? null;
-  }, [jobs, activeJobId]);
-
-  const { data: comparisonData } = useDemandResults(comparisonJobId);
-  const previousResults = comparisonData?.data?.forecasted || [];
-
-  const formatJobLabel = useCallback((jobId) => {
-    const j = jobs.find((job) => job.id === jobId);
-    if (!j) return "";
-    const label = j === jobs[0] ? "Current" : "Previous";
-    const date = j.completed_at
-      ? new Date(j.completed_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-      : "";
-    return `${label} (${date})`;
-  }, [jobs]);
-
-  const activeJobLabel = formatJobLabel(activeJobId);
-  const comparisonJobLabel = comparisonJobId ? formatJobLabel(comparisonJobId) : null;
-
-  const hasForecastData = forecasted.length > 0;
+  const hasData = forecasted.length > 0;
   const isFailed = job?.status === "failed";
-  const isCompletedWithNoData = job?.status === "completed" && !hasForecastData;
+  const showLoading = resultsLoading && !job;
 
-  // ── State 0: Initial loading (history still fetching) ─
-  if (historyLoading) {
+  const evalMetrics = useMemo(() => {
+    if (!forecasted.length) return null;
+    const withM = forecasted.filter((f) => f.r_squared != null);
+    if (!withM.length) return null;
+    const avg = (key) => {
+      const vals = withM.map((f) => f[key]).filter((v) => v != null && v !== 0);
+      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+    };
+    const r2 = avg("r_squared");
+    const label = r2 >= 0.8 ? "Strong" : r2 >= 0.5 ? "Moderate" : "Weak";
+    return {
+      r2, mae: avg("mae"), rmse: avg("rmse"),
+      count: withM.length, label,
+    };
+  }, [forecasted]);
+
+  // ── Loading skeletons ──
+  if (historyLoading || showLoading) {
     return (
       <div className="flex flex-col gap-4">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-border bg-card px-4 py-3">
-              <Skeleton className="h-3 w-16 mb-2" />
-              <Skeleton className="h-5 w-20" />
-            </div>
-          ))}
+        <Skeleton className="h-20 w-full rounded-xl" />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
         </div>
-        <div className="flex items-center gap-3">
-          <Skeleton className="h-8 w-32 rounded-lg" />
-          <Skeleton className="h-8 w-24 rounded-lg" />
-        </div>
-        <Skeleton className="h-80 w-full rounded-xl" />
+        <Skeleton className="h-[360px] w-full rounded-xl" />
         <Skeleton className="h-64 w-full rounded-xl" />
-        <Skeleton className="h-48 w-full rounded-xl" />
       </div>
     );
   }
 
-  // ── State A: Empty ──────────────────────────────────
+  // ── Empty ──
   if (!jobs.length) {
     return (
       <div className="flex flex-col gap-4">
         <div className="rounded-xl border border-border bg-card py-16 text-center">
-          <Icon name="barChart2" size={48} className="mx-auto text-muted-foreground/30" />
-          <h2 className="mt-4 text-base font-semibold text-foreground">Demand Forecasting</h2>
+          <Icon name="trendingUp" size={48} className="mx-auto text-muted-foreground/30" />
+          <h2 className="mt-4 text-base font-semibold text-foreground">Sales Forecast — Next 7 Days</h2>
           <p className="mt-1 text-sm text-muted-foreground max-w-md mx-auto">
-            Predict unit demand per product variant for the next 7 days using historical sales data.
+            See how many to prepare, how much you’ll sell, and what to order — based on your past sales.
           </p>
-          <div className="mt-4 flex items-center justify-center gap-6 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1.5">
-              <Icon name="trendingUp" size={14} className="text-muted-foreground/50" />
-              <span>Daily unit demand</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Icon name="dollarSign" size={14} className="text-muted-foreground/50" />
-              <span>Revenue projections</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Icon name="package" size={14} className="text-muted-foreground/50" />
-              <span>Ingredient requirements</span>
-            </div>
+          <div className="mt-6 flex justify-center">
+            <ForecastRunButton onJobComplete={handleJobComplete} />
           </div>
-          <div className="mt-6 flex items-center justify-center gap-3">
+          <p className="mt-3 text-xs text-muted-foreground">Takes ~30 seconds. Needs at least 7 days of sales to predict.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Header + plain summary */}
+      <div className="rounded-xl border border-border bg-card px-4 py-4 sm:px-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-base font-semibold text-foreground">Sales Forecast — Next 7 Days</h1>
+            {hasData ? (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Prepare <span className="font-semibold text-foreground">~{periodTotals.units.toLocaleString()} servings</span>
+                {" · "}Expect <span className="font-semibold text-foreground">~₱{periodTotals.revenue.toLocaleString()} sales</span>
+                {lowIngredients.length > 0 ? (
+                  <>{" · "}Order <span className="font-semibold text-amber-700">{lowIngredients.length} items</span>{topNeed.length ? ` (${topNeed.map((i)=> `${i.name} ${i.total_needed}${i.unit}`).join(", ")})` : ""}</>
+                ) : (
+                  <>{" · "}Stock looks good</>
+                )}
+              </p>
+            ) : (
+              <p className="mt-1 text-sm text-muted-foreground">No predictions yet — tap Update Forecast to generate.</p>
+            )}
+            {lastUpdated && <p className="mt-1 text-xs text-muted-foreground">Last updated: {lastUpdated}</p>}
+          </div>
+          <div className="shrink-0">
             <ForecastRunButton onJobComplete={handleJobComplete} />
           </div>
         </div>
+        {isFailed && (
+          <div className="mt-3 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2">
+            <Icon name="alertCircle" size={14} className="mt-0.5 text-destructive" />
+            <p className="text-xs text-destructive">Something went wrong: {job.error_message || "Try again."}</p>
+          </div>
+        )}
+        {!hasData && !isFailed && skipped.length > 0 && (
+          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-900/50 dark:bg-amber-950/20">
+            <p className="text-xs text-amber-800 dark:text-amber-300">Need more sales — sell at least 7 days before we can predict. {skipped.length} products waiting.</p>
+          </div>
+        )}
       </div>
-    );
-  }
 
-  // ── State B: Loading ────────────────────────────────
-  if (showLoading) {
-    return (
-      <div className="flex flex-col gap-4">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-border bg-card px-4 py-3">
-              <Skeleton className="h-3 w-16 mb-2" />
-              <Skeleton className="h-5 w-20" />
-            </div>
-          ))}
-        </div>
-        <div className="flex items-center gap-3">
-          <Skeleton className="h-9 w-24 rounded-lg" />
-          <Skeleton className="h-9 w-24 rounded-lg" />
-        </div>
-        <Skeleton className="h-80 w-full rounded-xl" />
-        <Skeleton className="h-64 w-full rounded-xl" />
-        <Skeleton className="h-48 w-full rounded-xl" />
-      </div>
-    );
-  }
-
-  // ── State C: Dashboard ──────────────────────────────
-  return (
-    <div className="flex flex-col gap-4">
-      {/* ① KPI Cards — always aggregate, filtered by viewPeriod */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        <div className="rounded-xl border border-border bg-card px-4 py-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Units</p>
-          <p className="text-lg font-bold text-foreground mt-1">{periodTotals.units.toLocaleString()}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card px-4 py-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Projected Revenue</p>
-          <p className="text-lg font-bold text-foreground mt-1">₱{periodTotals.revenue.toLocaleString()}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card px-4 py-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Forecasted</p>
-          <p className="text-lg font-bold text-foreground mt-1">
-            {forecasted.length}/{job?.total_variants ?? "—"}
-          </p>
-        </div>
-        <div className="rounded-xl border border-border bg-card px-4 py-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Skipped</p>
-          <p className="text-lg font-bold text-foreground mt-1">
-            {skipped.length}
-            {skipped.length > 0 && (
-              <span className="ml-1 text-xs text-muted-foreground">(data)</span>
+      {/* 3 KPI Cards */}
+      {hasData && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-border bg-card px-5 py-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">To Prepare</p>
+            <p className="mt-1 text-2xl font-bold text-foreground">{periodTotals.units.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground">servings next 7 days · ~{Math.round(periodTotals.units/7)}/day</p>
+          </div>
+          <div className="rounded-xl border border-border bg-card px-5 py-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Expected Sales</p>
+            <p className="mt-1 text-2xl font-bold text-foreground">₱{periodTotals.revenue.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground">next 7 days · ~₱{Math.round(periodTotals.revenue/7).toLocaleString()}/day</p>
+          </div>
+          <div className={`rounded-xl border px-5 py-4 ${lowIngredients.length ? "border-amber-200 bg-amber-50/50 dark:border-amber-900/40 dark:bg-amber-950/10" : "border-border bg-card"}`}>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">What to Order</p>
+            {lowIngredients.length ? (
+              <>
+                <p className="mt-1 text-2xl font-bold text-amber-700">{lowIngredients.length} low</p>
+                <p className="text-xs text-muted-foreground truncate">{topNeed.map((i)=> i.name).join(", ")}{lowIngredients.length > 2 ? ` +${lowIngredients.length-2} more` : ""}</p>
+              </>
+            ) : (
+              <>
+                <p className="mt-1 text-2xl font-bold text-green-700">All good</p>
+                <p className="text-xs text-muted-foreground">No urgent orders</p>
+              </>
             )}
-          </p>
+          </div>
         </div>
-        <div className="rounded-xl border border-border bg-card px-4 py-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Top Seller</p>
-          <p className="text-lg font-bold text-foreground mt-1 truncate">
-            {topSeller ? topSeller.product_name : "—"}
-          </p>
-          {topSeller && (
-            <p className="text-xs text-muted-foreground truncate">
-              {topSeller.size_name}
-            </p>
+      )}
+
+      {/* Combined 7-Day Plan Chart */}
+      {hasData && <SimpleForecastChart results={forecasted} isLoading={ingredientsLoading} />}
+
+      {/* Tabs: By Product / By Ingredient */}
+      {hasData && (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <FilterPill
+              options={[
+                { value: "products", label: "By Product" },
+                { value: "ingredients", label: "By Ingredient" },
+              ]}
+              value={activeTab}
+              onChange={setActiveTab}
+            />
+            <span className="ml-2 text-xs text-muted-foreground hidden sm:inline">Tap to see details</span>
+          </div>
+          {activeTab === "products" ? (
+            <ProductDemandTab results={forecasted} />
+          ) : (
+            <IngredientOrderTab ingredients={ingredients} />
           )}
         </div>
-      </div>
-
-      {/* ② Job status banners */}
-      {isFailed && (
-        <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
-          <Icon name="alertCircle" size={16} className="mt-0.5 shrink-0 text-destructive" />
-          <div>
-            <p className="text-sm font-medium text-destructive">Forecast failed</p>
-            <p className="text-sm text-muted-foreground">
-              {job.error_message || "An error occurred during forecasting."}
-              {" "}Click "Run Forecast" to try again.
-            </p>
-          </div>
-        </div>
       )}
 
-      {isCompletedWithNoData && skipped.length > 0 && (
-        <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-900/50 dark:bg-blue-950/30">
-          <Icon name="info" size={16} className="mt-0.5 shrink-0 text-blue-600 dark:text-blue-400" />
-          <div>
-            <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
-              No forecastable variants
-            </p>
-            <p className="text-sm text-blue-700 dark:text-blue-400">
-              All {skipped.length} variant{skipped.length !== 1 ? "s were" : " was"} skipped — they need at least
-              7 days of completed order history to generate predictions. Complete more orders to enable
-              forecasting.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* ③ Controls row: History tabs (left) + Run Forecast (right) */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <ForecastHistory
-          history={historyData}
-          currentJobId={activeJobId}
-          onSelect={setSelectedJobId}
-        />
-        <ForecastRunButton onJobComplete={handleJobComplete} />
-      </div>
-
-      {/* ④ Variant drill-down banner */}
-      {selectedVariantName && (
-        <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
-          <Icon name="filter" size={14} className="text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">
-            Viewing: <span className="font-medium text-foreground">{selectedVariantName}</span>
-          </span>
-          <button
-            onClick={() => setSelectedVariant("all")}
-            className="ml-1 text-xs font-medium text-primary hover:underline"
-          >
-            Clear
+      {/* Evaluation — clean card, matches KPI/Chart style */}
+      {hasData && evalMetrics && (
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <button onClick={() => setShowDetails(!showDetails)} className="flex w-full items-center justify-between gap-3 px-4 py-3 hover:bg-muted/50 transition-colors">
+            <div className="text-left">
+              <h3 className="text-sm font-semibold text-foreground">Model Evaluation</h3>
+              <p className="text-xs text-muted-foreground">How accurate is this forecast?</p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <span className={`hidden sm:inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${evalMetrics.label==="Strong" ? "bg-green-100 text-green-700 border-green-200" : evalMetrics.label==="Moderate" ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-red-100 text-red-700 border-red-200"}`}>
+                R² {(evalMetrics.r2*100).toFixed(1)}% · {evalMetrics.label}
+              </span>
+              <span className="inline-flex rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                off by ~{evalMetrics.mae.toFixed(1)}/day
+              </span>
+              <Icon name={showDetails ? "chevronUp" : "chevronDown"} size={14} className="text-muted-foreground" />
+            </div>
           </button>
+          {showDetails && (
+            <div className="border-t border-border px-4 py-3 space-y-3">
+              <div className="flex flex-wrap gap-4 text-xs">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-muted-foreground">Accuracy</span>
+                  <span className="font-semibold text-foreground">{(evalMetrics.r2*100).toFixed(1)}%</span>
+                  <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${evalMetrics.label==="Strong" ? "bg-green-100 text-green-700 border-green-200" : evalMetrics.label==="Moderate" ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-red-100 text-red-700 border-red-200"}`}>{evalMetrics.label}</span>
+                </span>
+                <span><span className="text-muted-foreground">Avg Error</span> <span className="font-medium text-foreground">±{evalMetrics.mae.toFixed(1)} units/day</span></span>
+                <span><span className="text-muted-foreground">Worst-case</span> <span className="font-medium text-foreground">±{evalMetrics.rmse.toFixed(1)} units/day</span></span>
+                <span className="text-muted-foreground">Average across {evalMetrics.count} products</span>
+              </div>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Prophet additive (weekly+yearly, changepoint 0.1) · trained on 30d calendar (zeros = no sale) · Lower error = more reliable · Based on last 30 days sales · Refresh weekly.
+              </p>
+              <p className="border-t border-border pt-2 text-xs text-muted-foreground">
+                Forecast ID: {job?.id} · {forecasted.length} predicted{skipped.length ? ` · ${skipped.length} need more sales (≥7 days)` : ""}
+              </p>
+            </div>
+          )}
         </div>
-      )}
-
-      {/* ⑤ Daily Forecast chart — full width, with variant selector + period filter */}
-      <ForecastChart
-        results={forecasted}
-        previousResults={previousResults}
-        viewPeriod={Number(viewPeriod)}
-        onViewPeriodChange={setViewPeriod}
-        selectedVariant={selectedVariant}
-        onVariantChange={setSelectedVariant}
-        activeJobLabel={activeJobLabel}
-        comparisonJobLabel={comparisonJobLabel}
-      />
-
-      {/* ⑥ Two-column: Demand Table + Sidebar */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px] items-start">
-        <DemandTable
-          results={forecasted}
-          skipped={skipped}
-          previousResults={previousResults}
-          viewPeriod={Number(viewPeriod)}
-          selectedVariant={selectedVariant}
-        />
-        <ForecastSidebar
-          forecasted={forecasted}
-          skipped={skipped}
-          viewPeriod={Number(viewPeriod)}
-        />
-      </div>
-
-      {/* ⑦ Ingredient Needs — full width, always aggregate */}
-      {!ingredientsLoading && ingredients.length > 0 && (
-        <IngredientNeeds ingredients={ingredients} />
       )}
     </div>
   );

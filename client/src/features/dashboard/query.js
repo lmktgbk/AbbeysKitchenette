@@ -26,6 +26,7 @@ export function useDashboardData(params) {
   return useQuery({
     queryKey: dashboardKeys.data(params),
     queryFn: () => api.getDashboardRequest(params),
+    staleTime: 30000,
   });
 }
 
@@ -38,5 +39,6 @@ export function useRevenueTrend(params) {
   return useQuery({
     queryKey: dashboardKeys.revenueTrend(params),
     queryFn: () => api.getRevenueTrendRequest(params),
+    staleTime: 30000,
   });
 }

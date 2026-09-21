@@ -14,38 +14,20 @@ import { env } from "../../config/env.js";
 import { deleteImage } from "../../utils/cloudinary.js";
 
 // Constants
-const PIN_MAX_ATTEMPTS = 5;
-const PIN_LOCKOUT_MINUTES = 15;
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_LOCKOUT_MINUTES = 15;
 const OTP_EXPIRY_MINUTES = 10;
 
-// Actual Business Logic
 export const authService = {
-  /**
-   * Email + password login.
-   * Admin → returns requiresOtp (sends OTP email, no JWT yet).
-   * Staff → returns JWT directly (no OTP, IP restriction checked).
-   * @param {string} email
-   * @param {string} password
-   * @param {string} clientIP - from req.ip
-   * @returns {{ token?, user, requiresOtp? }}
-   */
   async login(email, password, clientIP) {
     const user = await authRepository.findByEmailWithCredentials(email);
 
     if (!user) {
-      throw new AppError(
-        401,
-        "Invalid email or password",
-        "INVALID_CREDENTIALS",
-      );
+      throw new AppError(401, "Invalid email or password", "INVALID_CREDENTIALS");
     }
 
     if (!user.isActive) {
-      throw new AppError(
-        403,
-        "Account is disabled. Contact administrator.",
-        "ACCOUNT_DISABLED",
-      );
+      throw new AppError(403, "Account is disabled. Contact administrator.", "ACCOUNT_DISABLED");
     }
 
     // IP restriction for staff roles
@@ -53,23 +35,32 @@ export const authService = {
     if (restrictedRoles.includes(user.role)) {
       const allowed = await isStoreIP(clientIP);
       if (!allowed) {
-        throw new AppError(
-          403,
-          "Staff must login from store location",
-          "STORE_IP_REQUIRED",
-        );
+        throw new AppError(403, "Staff must login from store location", "STORE_IP_REQUIRED");
       }
+    }
+
+    // Lockout check
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      const minutesLeft = Math.ceil((user.lockedUntil - new Date()) / 60000);
+      throw new AppError(423, `Account locked. Try again in ${minutesLeft} minute${minutesLeft !== 1 ? "s" : ""}.`, "ACCOUNT_LOCKED");
+    }
+    if (user.lockedUntil && user.lockedUntil <= new Date()) {
+      await authRepository.resetFailedLoginAttempts(user.id);
+      user.failedLoginAttempts = 0;
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!isPasswordValid) {
-      throw new AppError(
-        401,
-        "Invalid email or password",
-        "INVALID_CREDENTIALS",
-      );
+      const updated = await authRepository.incrementFailedLoginAttempts(user.id, user.failedLoginAttempts || 0, LOGIN_LOCKOUT_MINUTES);
+      const remaining = LOGIN_MAX_ATTEMPTS - updated.failedLoginAttempts;
+      if (remaining <= 0) {
+        throw new AppError(423, "Account locked due to too many failed attempts.", "ACCOUNT_LOCKED");
+      }
+      throw new AppError(401, "Invalid email or password", "INVALID_CREDENTIALS");
     }
+
+    await authRepository.resetFailedLoginAttempts(user.id);
 
     // Admin → send OTP, don't issue JWT yet
     if (user.role === "admin") {
@@ -79,158 +70,37 @@ export const authService = {
         subject: "Your Verification Code — Abbey's Kitchenette",
         html: generateOtpEmail(otpCode),
       });
-
-      const { passwordHash, pinHash, ...safeUser } = user;
+      const { passwordHash, ...safeUser } = user;
       return { requiresOtp: true, user: safeUser };
     }
 
     // Staff → JWT directly
     await authRepository.updateLastLogin(user.id);
     const token = signToken({ sub: user.id, role: user.role });
-    const { passwordHash, pinHash, ...safeUser } = user;
-
+    const { passwordHash, ...safeUser } = user;
     return { token, user: safeUser };
   },
 
-  /**
-   * PIN login (store IP required — validated by middleware).
-   * @param {string} userId - from staff grid selection
-   * @param {string} pin - 4-6 digit PIN
-   * @returns {{ token: string, user: object, mustChangePin?: boolean }}
-   */
-  async loginPin(userId, pin) {
-    const user = await authRepository.findByIdWithPin(userId);
-
-    if (!user) {
-      throw new AppError(401, "Invalid PIN", "INVALID_PIN");
-    }
-
-    if (!user.isActive) {
-      throw new AppError(
-        403,
-        "Account is disabled. Contact administrator.",
-        "ACCOUNT_DISABLED",
-      );
-    }
-
-    if (user.lockedUntil && user.lockedUntil > new Date()) {
-      const minutesLeft = Math.ceil((user.lockedUntil - new Date()) / 60000);
-      throw new AppError(
-        423,
-        `Account locked. Try again in ${minutesLeft} minute${minutesLeft !== 1 ? "s" : ""}.`,
-        "ACCOUNT_LOCKED",
-      );
-    }
-
-    // Lockout expired — reset attempts
-    if (user.lockedUntil && user.lockedUntil <= new Date()) {
-      await authRepository.resetFailedPinAttempts(user.id);
-      user.failedPinAttempts = 0;
-    }
-    // Cooldown expired (15 min since last failed attempt) — reset attempts
-    else if (user.lastFailedPinAt) {
-      const cooldownMs = PIN_LOCKOUT_MINUTES * 60 * 1000;
-      const cooldownExpired = (Date.now() - new Date(user.lastFailedPinAt).getTime()) > cooldownMs;
-      if (cooldownExpired) {
-        await authRepository.resetFailedPinAttempts(user.id);
-        user.failedPinAttempts = 0;
-      }
-    }
-
-    if (!user.pinHash) {
-      throw new AppError(
-        400,
-        "No PIN set. Please login with email and password.",
-        "NO_PIN_SET",
-      );
-    }
-
-    const isPinValid = await bcrypt.compare(pin, user.pinHash);
-
-    if (!isPinValid) {
-      const updated = await authRepository.incrementFailedPinAttempts(
-        user.id,
-        user.failedPinAttempts,
-        PIN_LOCKOUT_MINUTES,
-      );
-
-      const remaining = PIN_MAX_ATTEMPTS - updated.failedPinAttempts;
-
-      if (remaining <= 0) {
-        throw new AppError(
-          423,
-          "Account locked due to too many failed attempts.",
-          "ACCOUNT_LOCKED",
-        );
-      }
-
-      throw new AppError(
-        401,
-        `Invalid PIN. ${remaining} attempt${remaining !== 1 ? "s" : ""} remaining.`,
-        "INVALID_PIN",
-      );
-    }
-
-    await authRepository.resetFailedPinAttempts(user.id);
-    await authRepository.updateLastLogin(user.id);
-
-    const token = signToken({ sub: user.id, role: user.role });
-    const { passwordHash, pinHash, ...safeUser } = user;
-
-    return {
-      token,
-      user: safeUser,
-      ...(user.mustChangePwd && { mustChangePin: true }),
-    };
-  },
-
-  /**
-   * Get all active staff for PIN login selection grid.
-   * @returns {Array<{ id: string, name: string, role: string }>}
-   */
-  async getStaffList() {
-    return authRepository.findActiveStaff();
-  },
-
-  /**
-   * Verify OTP code for admin login.
-   * Returns JWT on success.
-   * @param {string} userId - user's UUID
-   * @param {string} code - 6-digit OTP
-   * @returns {{ token: string, user: object }}
-   */
   async verifyOtp(userId, code) {
     const isValid = verifyOtpCode(userId, code);
-
     if (!isValid) {
       throw new AppError(401, "Invalid or expired OTP code", "INVALID_OTP");
     }
-
     const user = await authRepository.findById(userId);
-
     if (!user) {
       throw new AppError(401, "User not found", "USER_NOT_FOUND");
     }
-
     await authRepository.updateLastLogin(user.id);
     const token = signToken({ sub: user.id, role: user.role });
-
     return { token, user };
   },
 
-  /**
-   * Resend OTP to admin email.
-   * @param {string} userId - user's UUID
-   */
   async resendOtp(userId) {
     const user = await authRepository.findById(userId);
-
     if (!user) {
       throw new AppError(401, "User not found", "USER_NOT_FOUND");
     }
-
     const otpCode = generateOtp(user.id);
-
     await sendEmail({
       to: user.email,
       subject: "Your New Verification Code — Abbey's Kitchenette",
@@ -238,26 +108,13 @@ export const authService = {
     });
   },
 
-  /**
-   * Send password reset link to admin email.
-   * Generates JWT token (15min expiry) embedded in reset URL.
-   * @param {string} email - admin's email
-   */
   async forgotPassword(email) {
     const user = await authRepository.findByEmail(email);
-
     if (!user) {
-      // Don't reveal whether email exists
       return;
     }
-
-    const resetToken = signToken(
-      { sub: user.id, purpose: "password-reset" },
-      "15m",
-    );
-
+    const resetToken = signToken({ sub: user.id, purpose: "password-reset" }, "15m");
     const resetUrl = `${env.CLIENT_URL}/reset-password?token=${resetToken}`;
-
     await sendEmail({
       to: user.email,
       subject: "Reset Your Password — Abbey's Kitchenette",
@@ -265,124 +122,54 @@ export const authService = {
     });
   },
 
-  /**
-   * Reset password from email link.
-   * Verifies JWT token, updates password.
-   * @param {string} token - JWT token from email link
-   * @param {string} newPassword - new password (min 8 chars)
-   */
   async resetPassword(token, newPassword) {
     const { verifyToken } = await import("../../config/jwt.js");
     let decoded;
-
     try {
       decoded = verifyToken(token);
     } catch {
-      throw new AppError(
-        401,
-        "Invalid or expired reset token",
-        "INVALID_TOKEN",
-      );
+      throw new AppError(401, "Invalid or expired reset token", "INVALID_TOKEN");
     }
-
     if (decoded.purpose !== "password-reset") {
       throw new AppError(401, "Invalid token purpose", "INVALID_TOKEN");
     }
-
     const user = await authRepository.findById(decoded.sub);
-
     if (!user) {
       throw new AppError(401, "User not found", "USER_NOT_FOUND");
     }
-
     const passwordHash = await bcrypt.hash(newPassword, 10);
     await authRepository.updatePassword(user.id, passwordHash);
   },
 
-  /**
-   * Change own PIN after mustChangePwd.
-   * @param {string} userId - user's UUID
-   * @param {string} newPin - 4-6 digit PIN
-   */
-  async changePin(userId, newPin) {
-    const user = await authRepository.findByIdWithPin(userId);
-
-    if (!user) {
-      throw new AppError(401, "User not found", "USER_NOT_FOUND");
-    }
-
-    const pinHash = await bcrypt.hash(newPin, 10);
-    await authRepository.updatePin(userId, pinHash);
-    await authRepository.setMustChangePwd(userId, false);
-  },
-
-  /**
-   * Update own profile (name and email).
-   * Checks email uniqueness before updating.
-   * @param {string} userId - user's UUID
-   * @param {string} name - new name
-   * @param {string} email - new email
-   * @returns {object} - updated user
-   */
   async updateProfile(userId, name, email) {
     const isTaken = await authRepository.isEmailTaken(email, userId);
     if (isTaken) {
-      throw new AppError(
-        409,
-        "Email is already taken by another account",
-        "EMAIL_TAKEN",
-      );
+      throw new AppError(409, "Email is already taken by another account", "EMAIL_TAKEN");
     }
-
     return authRepository.updateProfile(userId, { name, email });
   },
 
-  /**
-   * Change own password.
-   * Verifies current password before updating.
-   * @param {string} userId - user's UUID
-   * @param {string} currentPassword - current plain password
-   * @param {string} newPassword - new plain password
-   */
   async changePassword(userId, currentPassword, newPassword) {
     const passwordHash = await authRepository.getPasswordHash(userId);
-
     if (!passwordHash) {
       throw new AppError(401, "User not found", "USER_NOT_FOUND");
     }
-
     const isCurrentValid = await bcrypt.compare(currentPassword, passwordHash);
     if (!isCurrentValid) {
-      throw new AppError(
-        401,
-        "Current password is incorrect",
-        "INVALID_PASSWORD",
-      );
+      throw new AppError(401, "Current password is incorrect", "INVALID_PASSWORD");
     }
-
     const newHash = await bcrypt.hash(newPassword, 10);
     await authRepository.updatePassword(userId, newHash);
   },
 
-  /**
-   * Upload or replace profile image.
-   * Deletes old image from Cloudinary before saving new URL.
-   * @param {string} userId - user's UUID
-   * @param {string} imageUrl - new Cloudinary URL from upload
-   * @returns {object} - updated user
-   */
   async uploadProfileImage(userId, imageUrl) {
     const user = await authRepository.findById(userId);
-
     if (!user) {
       throw new AppError(401, "User not found", "USER_NOT_FOUND");
     }
-
-    // Delete old image from Cloudinary if replacing
     if (user.imageUrl && user.imageUrl !== imageUrl) {
       await deleteImage(user.imageUrl);
     }
-
     return authRepository.updateImageUrl(userId, imageUrl);
   },
 };

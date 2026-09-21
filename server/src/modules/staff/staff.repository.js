@@ -67,14 +67,13 @@ export const staffRepository = {
   /**
    * Create a new staff member.
    */
-  async create({ name, email, role, passwordHash, pinHash, mustChangePwd }) {
+  async create({ name, email, role, passwordHash, mustChangePwd }) {
     return prisma.user.create({
       data: {
         name,
         email,
         role,
         passwordHash: passwordHash || "",
-        pinHash: pinHash || null,
         mustChangePwd: mustChangePwd || false,
         isActive: true,
       },
@@ -101,17 +100,6 @@ export const staffRepository = {
       where: { id },
       data: { isActive },
       select: { id: true, isActive: true },
-    });
-  },
-
-  /**
-   * Reset PIN hash and set mustChangePwd flag.
-   */
-  async resetPin(id, pinHash) {
-    return prisma.user.update({
-      where: { id },
-      data: { pinHash, mustChangePwd: true },
-      select: { id: true, mustChangePwd: true },
     });
   },
 

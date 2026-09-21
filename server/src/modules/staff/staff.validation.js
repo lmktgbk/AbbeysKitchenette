@@ -22,6 +22,11 @@ export const createStaffSchema = z.object({
   role: z.enum(["cashier", "kitchen"], {
     message: "Role is required",
   }),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(128, "Password must not exceed 128 characters")
+    .optional(),
 });
 
 // Used by PATCH /api/staff/:id — update staff
@@ -39,13 +44,6 @@ export const updateStaffSchema = z.object({
     .max(255, "Email must not exceed 255 characters")
     .optional(),
   role: z.enum(["cashier", "kitchen"]).optional(),
-});
-
-// Used by POST /api/staff/:id/reset-pin
-export const resetPinSchema = z.object({
-  new_pin: z
-    .string()
-    .regex(/^\d{4,6}$/, "PIN must be 4-6 digits"),
 });
 
 // Used by POST /api/staff/:id/reset-password

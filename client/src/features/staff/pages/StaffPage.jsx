@@ -7,7 +7,7 @@ import StaffFormModal from "../components/StaffFormModal";
 import StaffKpis from "../components/StaffKpis";
 import ShiftsView from "@/features/shifts/components/ShiftsView";
 import ShiftKpis from "@/features/shifts/components/ShiftKpis";
-import ResetPinModal from "../components/ResetPinModal";
+import ResetPasswordModal from "../components/ResetPasswordModal";
 import { FilterPill } from "@/components/filters/FilterPill";
 
 /**
@@ -21,8 +21,8 @@ export default function StaffPage() {
   const [showFormModal, setShowFormModal] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [showResetPinModal, setShowResetPinModal] = useState(false);
-  const [createdPin, setCreatedPin] = useState(null);
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const [createdPassword, setCreatedPassword] = useState(null);
   const [createdStaffName, setCreatedStaffName] = useState(null);
 
   // Date range shared by the Shifts KPIs + history (empty = today).
@@ -60,8 +60,8 @@ export default function StaffPage() {
         onSuccess: (res) => {
           toast.success("Staff created");
           setShowFormModal(false);
-          if (res.data?.raw_pin) {
-            setCreatedPin(res.data.raw_pin);
+          if (res.data?.temp_password) {
+            setCreatedPassword(res.data.temp_password);
             setCreatedStaffName(res.data.staff?.name || data.name);
           }
         },
@@ -96,26 +96,22 @@ export default function StaffPage() {
     if (ok) toast.success(`Staff ${action}d`);
   }
 
-  // ── Reset PIN ────────────────
-  function handleResetPin(staff) {
+  // ── Reset Password ────────────────
+  function handleResetPassword(staff) {
     setSelectedStaff(staff);
-    setShowResetPinModal(true);
+    setShowResetPasswordModal(true);
   }
 
-  function handleResetPinSubmit(data) {
-    mutations.resetPin.mutate(
+  function handleResetPasswordSubmit(data) {
+    mutations.resetPassword.mutate(
       { id: selectedStaff.staff_id, data },
       {
-        onSuccess: (res) => {
-          toast.success("PIN reset successfully");
-          setShowResetPinModal(false);
-          if (res.data?.raw_pin) {
-            setCreatedPin(res.data.raw_pin);
-            setCreatedStaffName(selectedStaff.name);
-          }
+        onSuccess: () => {
+          toast.success("Password reset successfully");
+          setShowResetPasswordModal(false);
         },
         onError: (err) =>
-          toast.error(err.response?.data?.message || "PIN reset failed"),
+          toast.error(err.response?.data?.message || "Password reset failed"),
       }
     );
   }
@@ -158,7 +154,7 @@ export default function StaffPage() {
           onAdd={handleAdd}
           onEdit={handleEdit}
           onToggleActive={handleToggleActive}
-          onResetPin={handleResetPin}
+          onResetPassword={handleResetPassword}
           onDelete={handleDelete}
         />
       ) : (
@@ -179,43 +175,42 @@ export default function StaffPage() {
         isLoading={mutations.create.isPending || mutations.update.isPending}
       />
 
-      <ResetPinModal
-        open={showResetPinModal}
-        onOpenChange={setShowResetPinModal}
+      <ResetPasswordModal
+        open={showResetPasswordModal}
+        onOpenChange={setShowResetPasswordModal}
         staff={selectedStaff}
-        onSubmit={handleResetPinSubmit}
-        isLoading={mutations.resetPin.isPending}
+        onSubmit={handleResetPasswordSubmit}
+        isLoading={mutations.resetPassword.isPending}
       />
 
-      {/* PIN Display Modal */}
-      {createdPin && (
+      {/* Password Display Modal */}
+      {createdPassword && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="mx-4 w-full max-w-md rounded-xl border border-border bg-card p-6">
             <h3 className="text-lg font-semibold text-foreground">
               Credentials Created
             </h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              Share this PIN with <strong>{createdStaffName}</strong> in person.
-              This PIN will not be shown again.
+              Share this password with <strong>{createdStaffName}</strong> in person.
+              This password will not be shown again.
             </p>
             <div className="mt-4 rounded-lg border border-border bg-muted/30 p-4 text-center">
-              <p className="text-xs font-medium text-muted-foreground">PIN</p>
-              <p className="mt-1 font-mono text-3xl font-bold tracking-widest text-foreground">
-                {createdPin}
+              <p className="text-xs font-medium text-muted-foreground">Temporary Password</p>
+              <p className="mt-1 font-mono text-lg font-bold text-foreground">
+                {createdPassword}
               </p>
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
-              The staff member will also receive this PIN via email. They will be
-              asked to change it on first login.
+              The staff member will be asked to change it on first login.
             </p>
             <button
               onClick={() => {
-                setCreatedPin(null);
+                setCreatedPassword(null);
                 setCreatedStaffName(null);
               }}
               className="mt-4 w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
-              I have saved this PIN
+              I have saved this password
             </button>
           </div>
         </div>

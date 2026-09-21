@@ -5,5 +5,6 @@ export function useAnalyticsKpis(params) {
   return useQuery({
     queryKey: ["analytics", "kpis", params],
     queryFn: () => getAnalyticsKpisRequest(params),
+    staleTime: 30000,
   });
 }

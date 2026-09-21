@@ -16,10 +16,10 @@ const GRANULARITY_OPTIONS = [
 
 function RevenueChart({ data, isLoading, granularity = "daily", onGranularityChange }) {
   const totals = useMemo(() => {
-    if (!data?.length) return { revenue: 0, gross: 0, orders: 0 };
+    if (!data?.length) return { revenue: 0, gross: 0, profit: 0, orders: 0 };
     return data.reduce(
-      (acc, d) => ({ revenue: acc.revenue + Number(d.revenue || 0), gross: acc.gross + Number(d.gross || 0), orders: acc.orders + d.orders }),
-      { revenue: 0, gross: 0, orders: 0 }
+      (acc, d) => ({ revenue: acc.revenue + Number(d.revenue || 0), gross: acc.gross + Number(d.gross || 0), profit: acc.profit + Number(d.profit || 0), orders: acc.orders + d.orders }),
+      { revenue: 0, gross: 0, profit: 0, orders: 0 }
     );
   }, [data]);
 
@@ -77,7 +77,14 @@ function RevenueChart({ data, isLoading, granularity = "daily", onGranularityCha
   return (
     <div className="rounded-lg border border-border bg-card">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-        <h3 className="text-sm font-semibold text-foreground">Revenue Trend</h3>
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Revenue Trend</h3>
+          {totals.gross > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Net {formatPeso(totals.revenue)} · Gross {formatPeso(totals.gross)} · <span className="text-amber-600 font-medium">Profit {formatPeso(totals.profit)}</span>
+            </p>
+          )}
+        </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center rounded-md border border-border bg-muted p-0.5">
             {GRANULARITY_OPTIONS.map((opt) => (

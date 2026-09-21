@@ -16,12 +16,6 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-// Used by POST /auth/login-pin — PIN login for cashier/kitchen (store IP only)
-export const loginPinSchema = z.object({
-  userId: z.string().uuid("Invalid user ID"),
-  pin: z.string().regex(/^\d{4,6}$/, "PIN must be 4-6 digits"),
-});
-
 // Used by POST /auth/verify-otp — admin 2FA verification
 export const verifyOtpSchema = z.object({
   userId: z.string().uuid("Invalid user ID"),
@@ -45,11 +39,6 @@ export const resetPasswordSchema = z.object({
     .string()
     .min(8, "Password must be at least 8 characters")
     .max(128, "Password must not exceed 128 characters"),
-});
-
-// Used by POST /auth/change-pin — staff changes own PIN after mustChangePwd
-export const changePinSchema = z.object({
-  newPin: z.string().regex(/^\d{4,6}$/, "PIN must be 4-6 digits"),
 });
 
 // Used by PATCH /auth/me — update own profile

@@ -284,7 +284,7 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
 
   const triggerLabel = isActive
     ? `${formatDateDisplay(dateFrom)} – ${formatDateDisplay(dateTo)}`
-    : "Date Range";
+    : "All Time";
 
   return (
     <div ref={ref} className="relative">

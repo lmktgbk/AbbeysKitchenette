@@ -22,17 +22,6 @@ export const resetPasswordSchema = z
     path: ["confirmPassword"],
   });
 
-// Used by ChangePinPage — new PIN + confirm
-export const changePinSchema = z
-  .object({
-    newPin: z.string().regex(/^\d{4,6}$/, "PIN must be 4-6 digits"),
-    confirmPin: z.string(),
-  })
-  .refine((data) => data.newPin === data.confirmPin, {
-    message: "PINs don't match",
-    path: ["confirmPin"],
-  });
-
 // Used by OtpForm — 6-digit OTP
 export const otpSchema = z.object({
   code: z.string().regex(/^\d{6}$/, "OTP must be 6 digits"),

@@ -50,10 +50,6 @@ export function useStaffMutations() {
       mutationFn: api.toggleActiveStaffRequest,
       onSuccess: invalidateAll,
     }),
-    resetPin: useMutation({
-      mutationFn: ({ id, data }) => api.resetPinStaffRequest(id, data),
-      onSuccess: invalidateAll,
-    }),
     resetPassword: useMutation({
       mutationFn: ({ id, data }) => api.resetPasswordStaffRequest(id, data),
       onSuccess: invalidateAll,

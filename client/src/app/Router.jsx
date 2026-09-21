@@ -3,11 +3,9 @@
  *
  * Route structure:
  *   /                → Landing page (public)
- *   /login           → Staff login — role selection + PIN (public, redirect if logged in)
- *   /admin-login     → Admin login — email + password + OTP (public, hidden)
+ *   /login           → Email + password login for all roles (public, redirect if logged in)
  *   /forgot-password → Forgot password (public)
  *   /reset-password  → Reset password from link (public)
- *   /change-pin      → Change PIN after mustChangePwd (protected)
  *   /dashboard       → Dashboard (protected, admin layout)
  *   /products        → Products (protected, admin layout)
  *   /inventory       → Inventory (protected, admin layout)
@@ -33,10 +31,8 @@ import TrackingPage from "@/features/landing/pages/TrackingPage";
 import PrivacyPolicy from "@/features/landing/pages/PrivacyPolicy";
 import TermsOfService from "@/features/landing/pages/TermsOfService";
 import LoginPage from "@/features/auth/pages/LoginPage";
-import AdminLoginPage from "@/features/auth/pages/AdminLoginPage";
 import ForgotPasswordPage from "@/features/auth/pages/ForgotPasswordPage";
 import ResetPasswordPage from "@/features/auth/pages/ResetPasswordPage";
-import ChangePinPage from "@/features/auth/pages/ChangePinPage";
 import IngredientsPage from "@/features/ingredients/pages/InventoryPage";
 import ProductsPage from "@/features/products/pages/ProductsPage";
 import OrdersPage from "@/features/orders/pages/OrdersPage";
@@ -94,24 +90,8 @@ const router = createBrowserRouter([
                     </PublicRoute>
                 ),
             },
-            {
-                path: "/admin-login",
-                element: (
-                    <PublicRoute>
-                        <AdminLoginPage />
-                    </PublicRoute>
-                ),
-            },
             { path: "/forgot-password", element: <ForgotPasswordPage /> },
             { path: "/reset-password", element: <ResetPasswordPage /> },
-            {
-                path: "/change-pin",
-                element: (
-                    <ProtectedRoute>
-                        <ChangePinPage />
-                    </ProtectedRoute>
-                ),
-            },
         ],
     },
 

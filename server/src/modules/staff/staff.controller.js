@@ -103,22 +103,6 @@ export const staffController = {
   },
 
   /**
-   * POST /api/staff/:id/reset-pin — reset PIN
-   */
-  async resetPin(req, res) {
-    try {
-      const result = await staffService.resetPin(
-        req.params.id,
-        req.body.new_pin,
-        req.user.id,
-      );
-      return successResponse(res, "PIN reset successfully", result);
-    } catch (error) {
-      return handleError(res, error, "STAFF_RESET_PIN_ERROR");
-    }
-  },
-
-  /**
    * POST /api/staff/:id/reset-password — reset password
    */
   async resetPassword(req, res) {
