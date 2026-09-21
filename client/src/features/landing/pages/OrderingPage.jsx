@@ -103,16 +103,17 @@ function OrderingUI({ onOrderSuccess }) {
     const [cart, setCart] = useState([]); // [{ product_id, variant_id, product_name, size_name, quantity, unit_price }]
 
     const addToCart = useCallback((item) => {
+        const qtyToAdd = item.quantity ?? 1;
         setCart((prev) => {
             const idx = prev.findIndex((i) => i.variant_id === item.variant_id);
             if (idx >= 0) {
                 const updated = [...prev];
-                updated[idx] = { ...updated[idx], quantity: updated[idx].quantity + 1 };
+                updated[idx] = { ...updated[idx], quantity: updated[idx].quantity + qtyToAdd };
                 return updated;
             }
-            return [...prev, item];
+            return [...prev, { ...item, quantity: qtyToAdd }];
         });
-        toast.success(`${item.product_name} added to cart`, { duration: 1800 });
+        toast.success(`${qtyToAdd > 1 ? `${qtyToAdd}x ` : ""}${item.product_name} added to cart`, { duration: 1800 });
     }, []);
 
     const updateQty = useCallback((variantId, delta) => {
@@ -133,11 +134,16 @@ function OrderingUI({ onOrderSuccess }) {
 
     const subtotal = cart.reduce((s, i) => s + i.unit_price * i.quantity, 0);
 
-    // ── Variant modal ─────────────────────────────
-    const [variantProduct, setVariantProduct] = useState(null);
+    // ── Product detail modal ──────────────────────
+    const [selectedProduct, setSelectedProduct] = useState(null);
+
+    // ── Cart drawer modal ─────────────────────────
+    const [showCartDrawer, setShowCartDrawer] = useState(false);
 
     // ── Checkout modal ────────────────────────────
     const [showCheckout, setShowCheckout] = useState(false);
+
+    const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
 
     return (
         <div className="ord-root">
@@ -151,6 +157,25 @@ function OrderingUI({ onOrderSuccess }) {
                             <div className="ord-header-tagline">Online Ordering</div>
                         </div>
                     </Link>
+                </div>
+
+                <div className="ord-header-right">
+                    <button
+                        className="ord-header-cart-btn"
+                        onClick={() => setShowCartDrawer(true)}
+                        aria-label="View shopping cart"
+                    >
+                        <div className="ord-header-cart-icon-wrap">
+                            <Icon name="cart" size={19} />
+                            {cartCount > 0 && (
+                                <span className="ord-header-cart-badge">{cartCount}</span>
+                            )}
+                        </div>
+                        <span className="ord-header-cart-label">Cart</span>
+                        {subtotal > 0 && (
+                            <span className="ord-header-cart-subtotal">₱{subtotal.toLocaleString()}</span>
+                        )}
+                    </button>
                 </div>
             </header>
 
@@ -184,7 +209,7 @@ function OrderingUI({ onOrderSuccess }) {
 
             {/* Main layout */}
             <div className="ord-layout">
-                {/* Left: Menu panel */}
+                {/* Menu panel */}
                 <div className="ord-menu-panel">
                     {/* Search */}
                     <div className="ord-search-bar">
@@ -239,37 +264,54 @@ function OrderingUI({ onOrderSuccess }) {
                                 <ProductCard
                                     key={product.product_id}
                                     product={product}
-                                    cart={cart}
-                                    onAddToCart={addToCart}
-                                    onOpenVariantModal={setVariantProduct}
+                                    onOpenProductModal={setSelectedProduct}
                                 />
                             ))}
                         </div>
                     )}
                 </div>
-
-                {/* Right: Cart sidebar (desktop and mobile responsive) */}
-                <aside className="ord-sidebar-desktop">
-                    <CartPanel
-                        cart={cart}
-                        subtotal={subtotal}
-                        onUpdateQty={updateQty}
-                        onRemove={removeItem}
-                        onCheckout={() => setShowCheckout(true)}
-                        storeIsOpen={storeIsOpen}
-                    />
-                </aside>
             </div>
 
-            {/* Variant Selector Modal */}
-            {variantProduct && (
-                <VariantModal
-                    product={variantProduct}
-                    onSelect={(item) => {
-                        addToCart(item);
-                        setVariantProduct(null);
-                    }}
-                    onClose={() => setVariantProduct(null)}
+            {/* Cart Drawer Modal */}
+            {showCartDrawer && (
+                <div className="ord-cart-drawer-overlay" onClick={() => setShowCartDrawer(false)}>
+                    <div className="ord-cart-drawer-box" onClick={(e) => e.stopPropagation()}>
+                        <div className="ord-modal-header" style={{ padding: "1.25rem 1.5rem" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+                                <Icon name="cart" size={20} style={{ color: "var(--ord-amber-dark)" }} />
+                                <span className="ord-modal-title">Your Order ({cartCount})</span>
+                            </div>
+                            <button
+                                className="ord-modal-close"
+                                onClick={() => setShowCartDrawer(false)}
+                                aria-label="Close cart"
+                            >
+                                <Icon name="x" size={18} />
+                            </button>
+                        </div>
+                        <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
+                            <CartPanel
+                                cart={cart}
+                                subtotal={subtotal}
+                                onUpdateQty={updateQty}
+                                onRemove={removeItem}
+                                onCheckout={() => {
+                                    setShowCartDrawer(false);
+                                    setShowCheckout(true);
+                                }}
+                                storeIsOpen={storeIsOpen}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Product Detail Modal */}
+            {selectedProduct && (
+                <CustomerProductDetailModal
+                    product={selectedProduct}
+                    onAddToCart={addToCart}
+                    onClose={() => setSelectedProduct(null)}
                 />
             )}
 
@@ -289,29 +331,18 @@ function OrderingUI({ onOrderSuccess }) {
 /* ─────────────────────────────────────────────────────────────
    PRODUCT CARD
 ───────────────────────────────────────────────────────────── */
-function ProductCard({ product, cart, onAddToCart, onOpenVariantModal }) {
+function ProductCard({ product, onOpenProductModal }) {
     const variants = product.variants ?? [];
     const availableVariants = variants.filter((v) => v.is_available !== false);
     const singleVariant = variants.length === 1 ? variants[0] : null;
     const isFullyUnavailable = variants.length > 0 && availableVariants.length === 0;
 
-    const handleAdd = () => {
-        if (variants.length === 1 && singleVariant) {
-            onAddToCart({
-                product_id: product.product_id,
-                variant_id: singleVariant.variant_id,
-                product_name: product.product_name,
-                size_name: singleVariant.size_name !== "Default" ? singleVariant.size_name : null,
-                quantity: 1,
-                unit_price: Number(singleVariant.price),
-            });
-        } else if (variants.length > 1) {
-            onOpenVariantModal(product);
-        }
-    };
-
     return (
-        <div className={`ord-product-card${isFullyUnavailable ? " unavailable" : ""}`}>
+        <div
+            className={`ord-product-card${isFullyUnavailable ? " unavailable" : ""}`}
+            onClick={() => onOpenProductModal(product)}
+            style={{ cursor: "pointer" }}
+        >
             {/* Category badge */}
             {product.category_name && (
                 <div className="ord-product-category-badge">{product.category_name}</div>
@@ -354,7 +385,10 @@ function ProductCard({ product, cart, onAddToCart, onOpenVariantModal }) {
 
                 <button
                     className="ord-product-add-btn"
-                    onClick={handleAdd}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenProductModal(product);
+                    }}
                     disabled={isFullyUnavailable}
                 >
                     <Icon name="plus" size={14} />
@@ -373,17 +407,8 @@ function ProductCard({ product, cart, onAddToCart, onOpenVariantModal }) {
    CART PANEL (shared by sidebar + drawer)
 ───────────────────────────────────────────────────────────── */
 function CartPanel({ cart, subtotal, onUpdateQty, onRemove, onCheckout, storeIsOpen = true }) {
-    const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
-
     return (
         <>
-            <div className="ord-sidebar-header">
-                <span className="ord-sidebar-title">Your Order</span>
-                <span className="ord-sidebar-count">
-                    {cartCount} item{cartCount !== 1 ? "s" : ""}
-                </span>
-            </div>
-
             <div className="ord-sidebar-body">
                 {cart.length === 0 ? (
                     <div className="ord-cart-empty">
@@ -477,61 +502,184 @@ function CartItemRow({ item, onUpdateQty, onRemove }) {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   VARIANT SELECTOR MODAL
+   CUSTOMER PRODUCT DETAIL MODAL (Picture 1 style)
 ───────────────────────────────────────────────────────────── */
-function VariantModal({ product, onSelect, onClose }) {
+function CustomerProductDetailModal({ product, onAddToCart, onClose }) {
     const variants = product.variants ?? [];
+    const availableVariants = variants.filter((v) => v.is_available !== false);
+
+    const [selectedVariantId, setSelectedVariantId] = useState(() => {
+        return availableVariants.length > 0
+            ? availableVariants[0].variant_id
+            : variants[0]?.variant_id ?? null;
+    });
+
+    const [quantity, setQuantity] = useState(1);
+
+    const selectedVariant = variants.find((v) => v.variant_id === selectedVariantId) || variants[0];
+    const isAvailable = selectedVariant?.is_available !== false;
+    const isFullyUnavailable = variants.length > 0 && availableVariants.length === 0;
+
+    const prices = variants.map((v) => Number(v.price)).filter((p) => !isNaN(p));
+    const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+    const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+
+    const priceLabel =
+        prices.length === 0
+            ? "No price"
+            : minPrice === maxPrice
+            ? `₱${minPrice.toLocaleString()}`
+            : `₱${minPrice.toLocaleString()} – ₱${maxPrice.toLocaleString()}`;
+
+    const handleAddToCart = () => {
+        if (!selectedVariant || isFullyUnavailable || !isAvailable) return;
+        onAddToCart({
+            product_id: product.product_id,
+            variant_id: selectedVariant.variant_id,
+            product_name: product.product_name,
+            size_name: selectedVariant.size_name !== "Default" ? selectedVariant.size_name : null,
+            quantity: quantity,
+            unit_price: Number(selectedVariant.price),
+        });
+        onClose();
+    };
 
     return (
-        <div className="ord-modal-overlay" onClick={onClose}>
-            <div
-                className="ord-modal"
-                onClick={(e) => e.stopPropagation()}
-                style={{ maxWidth: 400 }}
-            >
-                <div className="ord-modal-header">
-                    <span className="ord-modal-title">{product.product_name}</span>
-                    <button className="ord-modal-close" onClick={onClose} aria-label="Close">
+        <div className="ord-detail-modal-overlay" onClick={onClose}>
+            <div className="ord-detail-modal" onClick={(e) => e.stopPropagation()}>
+                {/* Header */}
+                <div className="ord-detail-header">
+                    <h3 className="ord-detail-title">{product.product_name}</h3>
+                    <button className="ord-detail-close" onClick={onClose} aria-label="Close">
                         <Icon name="x" size={18} />
                     </button>
                 </div>
-                <div className="ord-modal-body" style={{ paddingTop: "0.75rem" }}>
-                    <p style={{ fontSize: "0.8125rem", color: "#7c5c3e", margin: 0 }}>
-                        Choose your size:
-                    </p>
-                    <div className="ord-variant-list">
-                        {variants.map((v) => {
-                            const available = v.is_available !== false;
-                            return (
-                                <button
-                                    key={v.variant_id}
-                                    className="ord-variant-btn"
-                                    disabled={!available}
-                                    onClick={() =>
-                                        available &&
-                                        onSelect({
-                                            product_id: product.product_id,
-                                            variant_id: v.variant_id,
-                                            product_name: product.product_name,
-                                            size_name: v.size_name,
-                                            quantity: 1,
-                                            unit_price: Number(v.price),
-                                        })
-                                    }
-                                >
-                                    <div style={{ textAlign: "left" }}>
-                                        <div className="ord-variant-name">{v.size_name}</div>
-                                        {!available && (
-                                            <div className="ord-variant-oos">Out of stock</div>
-                                        )}
-                                    </div>
-                                    <div className="ord-variant-price">
-                                        ₱{Number(v.price).toLocaleString()}
-                                    </div>
-                                </button>
-                            );
-                        })}
+
+                {/* Body */}
+                <div className="ord-detail-body">
+                    {/* Top layout: Image + Info */}
+                    <div className="ord-detail-top">
+                        <div className="ord-detail-img-wrap">
+                            {product.image_url ? (
+                                <img
+                                    src={product.image_url}
+                                    alt={product.product_name}
+                                    className="ord-detail-img"
+                                />
+                            ) : (
+                                <div className="ord-detail-no-img">
+                                    <Icon name="image" size={22} />
+                                    <span>No Image</span>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="ord-detail-info">
+                            {product.category_name && (
+                                <div className="ord-detail-badges">
+                                    <span className="ord-detail-cat-badge">{product.category_name}</span>
+                                </div>
+                            )}
+
+                            <div className="ord-detail-price">{priceLabel}</div>
+
+                            <div className="ord-detail-variants-count">
+                                {variants.length > 1
+                                    ? `${variants.length} variants`
+                                    : variants.length === 1
+                                    ? "1 size available"
+                                    : "No variants"}
+                            </div>
+                        </div>
                     </div>
+
+                    {/* Description Section */}
+                    {product.description && (
+                        <div className="ord-detail-desc-box">
+                            <div className="ord-detail-desc-title">Description</div>
+                            <p className="ord-detail-desc-text">{product.description}</p>
+                        </div>
+                    )}
+
+                    {/* Variants Section */}
+                    {variants.length > 0 && (
+                        <div className="ord-detail-variants-section">
+                            <div className="ord-detail-section-title">
+                                <span>Variants</span>
+                                {variants.length > 1 && (
+                                    <span style={{ fontSize: "0.75rem", color: "#7c5c3e", fontWeight: 500 }}>
+                                        Select size:
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="ord-detail-variant-list">
+                                {variants.map((v) => {
+                                    const vAvailable = v.is_available !== false;
+                                    const isSelected = v.variant_id === selectedVariantId;
+                                    return (
+                                        <div
+                                            key={v.variant_id}
+                                            className={`ord-detail-variant-row ${isSelected ? "selected" : ""} ${!vAvailable ? "disabled" : ""}`}
+                                            onClick={() => vAvailable && setSelectedVariantId(v.variant_id)}
+                                        >
+                                            <div className="ord-detail-v-left">
+                                                <div className="ord-detail-v-radio">
+                                                    {isSelected && <div className="ord-detail-v-radio-inner" />}
+                                                </div>
+                                                <div>
+                                                    <div className="ord-detail-v-name">
+                                                        {v.size_name === "Default" ? "Regular" : v.size_name}
+                                                    </div>
+                                                    {!vAvailable && (
+                                                        <div style={{ fontSize: "0.75rem", color: "#ef4444" }}>
+                                                            Out of stock
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="ord-detail-v-price">
+                                                ₱{Number(v.price).toLocaleString()}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer: Quantity & Add to Cart */}
+                <div className="ord-detail-footer">
+                    <div className="ord-detail-qty-ctrl">
+                        <button
+                            className="ord-detail-qty-btn"
+                            onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                            disabled={quantity <= 1 || isFullyUnavailable || !isAvailable}
+                        >
+                            −
+                        </button>
+                        <span className="ord-detail-qty-val">{quantity}</span>
+                        <button
+                            className="ord-detail-qty-btn"
+                            onClick={() => setQuantity((q) => q + 1)}
+                            disabled={isFullyUnavailable || !isAvailable}
+                        >
+                            +
+                        </button>
+                    </div>
+
+                    <button
+                        className="ord-detail-add-btn"
+                        onClick={handleAddToCart}
+                        disabled={isFullyUnavailable || !isAvailable}
+                    >
+                        <Icon name="plus" size={16} />
+                        {isFullyUnavailable || !isAvailable
+                            ? "Unavailable"
+                            : `Add to Cart — ₱${((Number(selectedVariant?.price) || 0) * quantity).toLocaleString()}`}
+                    </button>
                 </div>
             </div>
         </div>
