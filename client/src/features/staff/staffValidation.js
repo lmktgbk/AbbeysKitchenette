@@ -42,9 +42,15 @@ export const editStaffSchema = z.object({
 });
 
 export const resetPasswordSchema = z.object({
+  // Blank = auto-generate temp password + email it to staff.
   new_password: z
     .string()
-    .min(8, "Password must be at least 8 characters"),
+    .max(128, "Password must not exceed 128 characters")
+    .optional()
+    .default(""),
+}).refine((data) => !data.new_password || data.new_password.length >= 8, {
+  message: "Password must be at least 8 characters",
+  path: ["new_password"],
 });
 
 export const ROLE_OPTIONS = [

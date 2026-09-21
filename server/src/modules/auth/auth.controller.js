@@ -22,10 +22,28 @@ function handleError(res, error, fallbackCode) {
 }
 
 export const authController = {
+  // POST /api/auth/login — staff portal (cashier + kitchen). Blocks admins.
   async login(req, res) {
     try {
       const { email, password } = req.body;
       const result = await authService.login(email, password, req.ip);
+      res.cookie("token", result.token, COOKIE_OPTIONS);
+      auditLogService.logAction({ userId: result.user.id, action: ACTIONS.LOGIN_SUCCESS, details: { email, role: result.user.role } }).catch(() => {});
+      return successResponse(res, "Login successful", { user: result.user, token: result.token });
+    } catch (error) {
+      if (error instanceof AppError && ["INVALID_CREDENTIALS", "ACCOUNT_LOCKED", "ACCOUNT_DISABLED", "STORE_IP_REQUIRED", "USE_ADMIN_PORTAL", "USE_STAFF_PORTAL"].includes(error.code)) {
+        const { email } = req.body || {};
+        auditLogService.logAction({ action: ACTIONS.LOGIN_FAILED, details: { email, reason: error.code } }).catch(() => {});
+      }
+      return handleError(res, error, "LOGIN_ERROR");
+    }
+  },
+
+  // POST /api/auth/admin-login — hidden admin portal (admin only, OTP 2FA).
+  async adminLogin(req, res) {
+    try {
+      const { email, password } = req.body;
+      const result = await authService.adminLogin(email, password, req.ip);
       if (result.requiresOtp) {
         return successResponse(res, "OTP sent to email", { requiresOtp: true, user: result.user });
       }
@@ -33,7 +51,7 @@ export const authController = {
       auditLogService.logAction({ userId: result.user.id, action: ACTIONS.LOGIN_SUCCESS, details: { email, role: result.user.role } }).catch(() => {});
       return successResponse(res, "Login successful", { user: result.user, token: result.token });
     } catch (error) {
-      if (error instanceof AppError && ["INVALID_CREDENTIALS", "ACCOUNT_LOCKED", "ACCOUNT_DISABLED", "STORE_IP_REQUIRED"].includes(error.code)) {
+      if (error instanceof AppError && ["INVALID_CREDENTIALS", "ACCOUNT_LOCKED", "ACCOUNT_DISABLED", "STORE_IP_REQUIRED", "USE_ADMIN_PORTAL", "USE_STAFF_PORTAL"].includes(error.code)) {
         const { email } = req.body || {};
         auditLogService.logAction({ action: ACTIONS.LOGIN_FAILED, details: { email, reason: error.code } }).catch(() => {});
       }

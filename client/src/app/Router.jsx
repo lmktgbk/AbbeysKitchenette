@@ -3,9 +3,11 @@
  *
  * Route structure:
  *   /                → Landing page (public)
- *   /login           → Email + password login for all roles (public, redirect if logged in)
- *   /forgot-password → Forgot password (public)
- *   /reset-password  → Reset password from link (public)
+ *   /login           → Staff login (cashier + kitchen, public, redirect if logged in)
+ *   /admin-login     → Hidden admin login (admin only + OTP, public, never linked)
+ *   /forgot-password → Forgot password (public, admin-only enforced server-side)
+ *   /reset-password  → Reset password from link (public, admin-only enforced server-side)
+ *   /change-password → Forced first-login change (authenticated, mustChangePwd)
  *   /dashboard       → Dashboard (protected, admin layout)
  *   /products        → Products (protected, admin layout)
  *   /inventory       → Inventory (protected, admin layout)
@@ -14,7 +16,7 @@
  *   /kitchen         → Kitchen display (protected, full-screen)
  *   /staff           → Staff (protected, admin layout)
  *   /forecasting     → Forecasting (protected, admin layout)
- *   /market-basket   → Market Basket (protected, admin layout)
+ *   /promotions     → Promotions (protected, admin layout) — formerly /market-basket
  *   /anomalies       → Anomalies (protected, admin layout)
  *   /audit-logs      → Audit Logs (protected, admin layout)
  *   /settings        → Settings (protected, admin layout)
@@ -31,8 +33,10 @@ import TrackingPage from "@/features/landing/pages/TrackingPage";
 import PrivacyPolicy from "@/features/landing/pages/PrivacyPolicy";
 import TermsOfService from "@/features/landing/pages/TermsOfService";
 import LoginPage from "@/features/auth/pages/LoginPage";
+import AdminLoginPage from "@/features/auth/pages/AdminLoginPage";
 import ForgotPasswordPage from "@/features/auth/pages/ForgotPasswordPage";
 import ResetPasswordPage from "@/features/auth/pages/ResetPasswordPage";
+import ChangePasswordPage from "@/features/auth/pages/ChangePasswordPage";
 import IngredientsPage from "@/features/ingredients/pages/InventoryPage";
 import ProductsPage from "@/features/products/pages/ProductsPage";
 import OrdersPage from "@/features/orders/pages/OrdersPage";
@@ -90,8 +94,25 @@ const router = createBrowserRouter([
                     </PublicRoute>
                 ),
             },
+            // Hidden admin portal — never linked in UI, only admins know it.
+            {
+                path: "/admin-login",
+                element: (
+                    <PublicRoute>
+                        <AdminLoginPage />
+                    </PublicRoute>
+                ),
+            },
             { path: "/forgot-password", element: <ForgotPasswordPage /> },
             { path: "/reset-password", element: <ResetPasswordPage /> },
+            {
+                path: "/change-password",
+                element: (
+                    <ProtectedRoute>
+                        <ChangePasswordPage />
+                    </ProtectedRoute>
+                ),
+            },
         ],
     },
 
@@ -109,6 +130,7 @@ const router = createBrowserRouter([
             { path: "/orders", element: <OrdersPage /> },
             { path: "/staff", element: <StaffPage /> },
             { path: "/forecasting", element: <ForecastingPage /> },
+            { path: "/promotions", element: <MarketBasketPage /> },
             { path: "/market-basket", element: <MarketBasketPage /> },
             { path: "/anomalies", element: <AnomalyPage /> },
             { path: "/audit-logs", element: <AuditLogsPage /> },

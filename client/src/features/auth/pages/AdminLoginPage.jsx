@@ -26,7 +26,7 @@ export default function AdminLoginPage() {
                     </span>
                 </div>
 
-                <EmailForm />
+                <EmailForm mode="admin" />
 
                 <div className="mt-4 text-center">
                     <Button variant="ghost" size="sm" asChild>

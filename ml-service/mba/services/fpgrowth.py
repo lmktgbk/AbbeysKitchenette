@@ -1,14 +1,8 @@
 import json
 import pandas as pd
-from google import genai
 from mlxtend.frequent_patterns import fpgrowth, association_rules
 from mba.services.data_loader import load_order_baskets, load_product_details, load_combo_discount, load_margin_target
 from database import get_pool
-from config import GEMINI_API_KEY, GEMINI_MODEL
-
-_client = None
-if GEMINI_API_KEY:
-    _client = genai.Client(api_key=GEMINI_API_KEY)
 
 
 def _build_baskets(df: pd.DataFrame) -> pd.DataFrame:
@@ -55,31 +49,6 @@ def _compute_rules(basket: pd.DataFrame, min_support: float = 0.02, min_confiden
     rules = rules.sort_values("lift", ascending=False)
 
     return rules[["variant_a", "variant_b", "support", "confidence", "lift"]].reset_index(drop=True)
-
-
-async def _generate_explanation(variant_a: str, variant_b: str, confidence: float, lift: float) -> str:
-    """Use Gemini to generate a natural language explanation for the pairing."""
-    if not _client:
-        return f"{confidence:.0%} of customers who order {variant_a} also order {variant_b}. This pairing is {lift:.1f}x more likely than average, suggesting strong cross-selling potential."
-
-    try:
-        prompt = f"""You are a menu strategist for a milk tea shop in Lipa City, Batangas, Philippines.
-
-Given this product association data:
-- Product pair: "{variant_a}" and "{variant_b}"
-- {confidence:.0%} of customers who order {variant_a} also order {variant_b}
-- This pairing is {lift:.1f}x more likely than random chance
-
-Write 1-2 concise sentences explaining:
-1. Why these products are frequently ordered together (practical reason based on customer behavior, not just flavor pairing)
-2. How bundling them can increase sales
-
-Be direct, practical, and business-focused. No markdown, no formatting, no fluff."""
-
-        response = _client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
-        return response.text.strip()
-    except Exception:
-        return f"{confidence:.0%} of customers who order {variant_a} also order {variant_b}. This pairing is {lift:.1f}x more likely than average, suggesting strong cross-selling potential."
 
 
 async def _get_variant_details(variant_label: str, product_details: pd.DataFrame) -> dict:
@@ -316,12 +285,10 @@ async def run_market_basket_analysis(
         price_b = details_b.get("price", 0)
         pricing = _compute_combo_price(merged_ingredients, price_a, price_b, discount_percent, margin_target)
 
-        # Gemini explanation for top 5, fallback for rest
-        if idx < 5:
-            explanation = await _generate_explanation(variant_a, variant_b, confidence, lift)
-        else:
-            explanation = f"{confidence:.0%} of customers who order {variant_a} also order {variant_b}. This pairing is {lift:.1f}x more likely than average, suggesting strong cross-selling potential."
+        explanation = None
 
+        # Score for ranking: confidence * lift (how good the promotion is)
+        score = round(confidence * lift, 4)
         rule_entry = {
             "id": idx + 1,
             "product_a": details_a.get("product_name", variant_a),
@@ -335,6 +302,7 @@ async def run_market_basket_analysis(
             "support": round(support, 4),
             "confidence": round(confidence, 4),
             "lift": round(lift, 2),
+            "score": score,
             "is_combo": True,
             "explanation": explanation,
             "suggested_name": f"{variant_a} + {variant_b}",
@@ -342,6 +310,11 @@ async def run_market_basket_analysis(
             "pricing": pricing,
         }
         rules_list.append(rule_entry)
+
+    # Rank by score (confidence * lift) — best promotions first
+    rules_list.sort(key=lambda x: x["score"], reverse=True)
+    for i, r in enumerate(rules_list):
+        r["id"] = i + 1
 
     return {
         "rules": rules_list,

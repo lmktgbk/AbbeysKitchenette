@@ -46,12 +46,14 @@ export const updateStaffSchema = z.object({
   role: z.enum(["cashier", "kitchen"]).optional(),
 });
 
-// Used by POST /api/staff/:id/reset-password
+// Used by POST /api/staff/:id/reset-password — blank = auto-generate + email
 export const resetPasswordSchema = z.object({
   new_password: z
     .string()
     .min(8, "Password must be at least 8 characters")
-    .max(128, "Password must not exceed 128 characters"),
+    .max(128, "Password must not exceed 128 characters")
+    .optional()
+    .default(""),
 });
 
 // Used by PATCH /api/staff/:id/toggle-active, DELETE /api/staff/:id

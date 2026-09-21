@@ -11,8 +11,14 @@ export default function LoginPage() {
             </div>
             <div className="animate-in fade-in-0 duration-300">
                 <AuthBranding />
+                <div className="mt-2 mb-6 text-center">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Staff Login
+                    </span>
+                </div>
                 <div className="mt-8">
-                    <EmailForm />
+                    {/* Staff portal: no forgot-password link (admin-only). */}
+                    <EmailForm mode="staff" />
                 </div>
             </div>
         </Card>

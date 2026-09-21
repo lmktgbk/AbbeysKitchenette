@@ -98,7 +98,7 @@ async def get_job(job_id: int):
                       ) AS combo_exists
                FROM mba_rules r
                WHERE r.job_id = $1
-               ORDER BY r.lift DESC""",
+               ORDER BY r.confidence * r.lift DESC""",
             job_id,
         )
         for r in rule_rows:
@@ -123,6 +123,7 @@ async def get_job(job_id: int):
                 "support": r["support"],
                 "confidence": r["confidence"],
                 "lift": r["lift"],
+                "score": round(float(r["confidence"]) * float(r["lift"]), 4),
                 "is_combo": r["is_combo"],
                 "combo_exists": bool(r["combo_exists"]),
                 "explanation": r["explanation"],

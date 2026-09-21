@@ -19,7 +19,8 @@ import { resetPasswordSchema } from "../staffValidation";
  * ResetPasswordModal
  *
  * Reset a staff member's password.
- * Admin enters a new password (min 8 chars).
+ * Blank = auto-generate temp password. Either way it is emailed to the
+ * staff member, who must change it on next login (mustChangePwd).
  */
 export default function ResetPasswordModal({
   open,
@@ -59,7 +60,8 @@ export default function ResetPasswordModal({
         <DialogHeader>
           <DialogTitle>Reset Password</DialogTitle>
           <DialogDescription>
-            Set a new password for <strong>{staff?.name}</strong>.
+            Set a new password for <strong>{staff?.name}</strong>. Leave blank
+            to auto-generate. It will be emailed to them.
           </DialogDescription>
         </DialogHeader>
 
@@ -71,7 +73,7 @@ export default function ResetPasswordModal({
             <div className="relative">
               <Input
                 type={showPassword ? "text" : "password"}
-                placeholder="Min 8 characters"
+                placeholder="Blank = auto-generate"
                 error={errors.new_password?.message}
                 {...register("new_password")}
               />

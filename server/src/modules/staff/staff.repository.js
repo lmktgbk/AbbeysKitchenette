@@ -104,12 +104,17 @@ export const staffRepository = {
   },
 
   /**
-   * Reset password hash.
+   * Reset password hash + force change on next login + clear lockout.
    */
   async resetPassword(id, passwordHash) {
     return prisma.user.update({
       where: { id },
-      data: { passwordHash },
+      data: {
+        passwordHash,
+        mustChangePwd: true,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+      },
       select: { id: true },
     });
   },

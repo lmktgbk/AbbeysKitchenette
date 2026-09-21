@@ -16,8 +16,11 @@ import {
 
 const router = Router();
 
-// POST /api/auth/login — email + password (all roles)
+// POST /api/auth/login — staff portal (cashier + kitchen). Admins get USE_ADMIN_PORTAL.
 router.post("/login", validate(loginSchema), authController.login);
+
+// POST /api/auth/admin-login — hidden admin portal (admin only, OTP 2FA). Not linked in UI.
+router.post("/admin-login", validate(loginSchema), authController.adminLogin);
 
 // GET /api/auth/me — current user (protected)
 router.get("/me", authenticate, authController.getMe);
@@ -31,14 +34,14 @@ router.post("/verify-otp", validate(verifyOtpSchema), authController.verifyOtp);
 // POST /api/auth/resend-otp — resend OTP to email
 router.post("/resend-otp", validate(resendOtpSchema), authController.resendOtp);
 
-// POST /api/auth/forgot-password — send reset link to email
+// POST /api/auth/forgot-password — admin-only (staff silently skipped, same response)
 router.post(
   "/forgot-password",
   validate(forgotPasswordSchema),
   authController.forgotPassword,
 );
 
-// POST /api/auth/reset-password — reset password from email link
+// POST /api/auth/reset-password — admin-only (staff tokens rejected in service)
 router.post(
   "/reset-password",
   validate(resetPasswordSchema),

@@ -23,7 +23,7 @@ const NAV_GROUPS = [
         items: [
             { icon: "users", label: "Staff", href: "/staff" },
             { icon: "trendingUp", label: "Forecasting", href: "/forecasting" },
-            { icon: "shoppingBag", label: "Market Basket", href: "/market-basket" },
+            { icon: "shoppingBag", label: "Promotions", href: "/promotions" },
             { icon: "alertTriangle", label: "Anomalies", href: "/anomalies" },
         ],
     },

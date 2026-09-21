@@ -107,11 +107,12 @@ export function generateOtpEmail(code) {
 }
 
 /**
- * Generate new PIN email HTML
- * @param {string} newPin - The new temporary PIN
+ * Generate new temporary password email HTML (admin reset for staff).
+ * Staff must change it on first login (mustChangePwd flow).
+ * @param {string} newPassword - The temporary password
  * @returns {string} - HTML string
  */
-export function generateNewPinEmail(newPin) {
+export function generateNewPasswordEmail(newPassword) {
   return `
     <!DOCTYPE html>
     <html>
@@ -125,7 +126,7 @@ export function generateNewPinEmail(newPin) {
         .body { padding: 32px 24px; text-align: center; }
         .body h2 { color: #333333; font-size: 18px; margin-bottom: 16px; }
         .body p { color: #666666; font-size: 14px; line-height: 1.6; margin-bottom: 24px; }
-        .pin { display: inline-block; background-color: #f4f4f4; color: #1a1a1a; font-size: 32px; font-weight: bold; letter-spacing: 8px; padding: 16px 32px; border-radius: 6px; margin-bottom: 24px; }
+        .pin { display: inline-block; background-color: #f4f4f4; color: #1a1a1a; font-size: 20px; font-weight: bold; padding: 16px 32px; border-radius: 6px; margin-bottom: 24px; }
         .footer { padding: 16px 24px; text-align: center; border-top: 1px solid #eeeeee; }
         .footer p { color: #999999; font-size: 12px; margin: 0; }
       </style>
@@ -137,13 +138,13 @@ export function generateNewPinEmail(newPin) {
           <p>POS & Inventory System</p>
         </div>
         <div class="body">
-          <h2>Your New PIN</h2>
-          <p>Your PIN has been reset. Use this temporary PIN to log in:</p>
-          <div class="pin">${newPin}</div>
-          <p>You will be asked to set a new PIN after logging in.</p>
+          <h2>Your Password Was Reset</h2>
+          <p>Your admin has reset your password. Use this temporary password to log in:</p>
+          <div class="pin">${newPassword}</div>
+          <p>You will be asked to set a new password after logging in.</p>
         </div>
         <div class="footer">
-          <p>If you didn't request this, please contact your administrator.</p>
+          <p>If you didn't expect this, please contact your administrator.</p>
         </div>
       </div>
     </body>

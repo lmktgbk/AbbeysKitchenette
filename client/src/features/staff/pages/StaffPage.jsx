@@ -107,7 +107,9 @@ export default function StaffPage() {
       { id: selectedStaff.staff_id, data },
       {
         onSuccess: () => {
-          toast.success("Password reset successfully");
+          toast.success("Password reset — temp password emailed", {
+            description: `${selectedStaff?.name} must change it on next login.`,
+          });
           setShowResetPasswordModal(false);
         },
         onError: (err) =>

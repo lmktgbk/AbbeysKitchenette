@@ -11,7 +11,7 @@ const STORAGE_KEY = "mbaJobId";
  * Persists active job ID in localStorage so progress survives navigation.
  * Shows spinner immediately on click (optimistic UI).
  */
-export default function MarketBasketRunButton() {
+export default function MarketBasketRunButton({ compact = false }) {
   const [activeJobId, setActiveJobId] = useState(() => {
     try { return localStorage.getItem(STORAGE_KEY) || null; }
     catch { return null; }
@@ -83,6 +83,31 @@ export default function MarketBasketRunButton() {
       toast.error(msg);
     }
   };
+
+  if (compact) {
+    return (
+      <button
+        onClick={handleRun}
+        disabled={showSpinner}
+        className={cn(
+          "inline-flex items-center gap-1 text-xs font-medium transition-colors",
+          showSpinner ? "text-muted-foreground cursor-not-allowed" : "text-amber-700 hover:underline"
+        )}
+      >
+        {showSpinner ? (
+          <>
+            <span className="h-3 w-3 animate-spin rounded-full border-2 border-amber-700 border-t-transparent" />
+            {isRunning ? "Running..." : "Updating..."}
+          </>
+        ) : (
+          <>
+            <Icon name="sparkles" size={12} />
+            Run Analysis
+          </>
+        )}
+      </button>
+    );
+  }
 
   return (
     <button

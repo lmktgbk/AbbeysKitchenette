@@ -21,7 +21,7 @@ model User {
   imageUrl          String?   @map("image_url")
   isActive          Boolean   @default(true)
   mustChangePwd     Boolean   @default(false)
-  failedLoginAttempts Int     @default(0) @map("failedPinAttempts")
+  failedLoginAttempts Int     @default(0) @map("failed_login_attempts")
   lockedUntil       DateTime?
   lastLoginAt       DateTime?
   createdAt         DateTime  @default(now())

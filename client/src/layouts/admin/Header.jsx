@@ -14,7 +14,8 @@ const PAGE_TITLES = {
     "/kitchen": "Kitchen",
     "/staff": "Staff",
     "/forecasting": "Forecasting",
-    "/market-basket": "Market Basket",
+    "/market-basket": "Promotions",
+    "/promotions": "Promotions",
     "/audit-logs": "Audit Logs",
     "/settings": "Settings",
     "/anomalies": "Anomalies"

@@ -19,11 +19,29 @@ const LOGIN_LOCKOUT_MINUTES = 15;
 const OTP_EXPIRY_MINUTES = 10;
 
 export const authService = {
+  // Staff portal: cashier + kitchen only. Admins are redirected to /admin-login.
   async login(email, password, clientIP) {
+    return this._loginCore(email, password, clientIP, "staff");
+  },
+
+  // Hidden admin portal: admin only, with OTP 2FA.
+  async adminLogin(email, password, clientIP) {
+    return this._loginCore(email, password, clientIP, "admin");
+  },
+
+  async _loginCore(email, password, clientIP, portal) {
     const user = await authRepository.findByEmailWithCredentials(email);
 
     if (!user) {
       throw new AppError(401, "Invalid email or password", "INVALID_CREDENTIALS");
+    }
+
+    if (portal === "staff" && user.role === "admin") {
+      throw new AppError(403, "Admins must use the admin login page", "USE_ADMIN_PORTAL");
+    }
+
+    if (portal === "admin" && user.role !== "admin") {
+      throw new AppError(403, "Staff must use the staff login page", "USE_STAFF_PORTAL");
     }
 
     if (!user.isActive) {
@@ -110,7 +128,9 @@ export const authService = {
 
   async forgotPassword(email) {
     const user = await authRepository.findByEmail(email);
-    if (!user) {
+    // Admin-only self-service. Staff accounts cannot use forgot-password:
+    // silently skip (same generic response) to avoid account enumeration.
+    if (!user || user.role !== "admin") {
       return;
     }
     const resetToken = signToken({ sub: user.id, purpose: "password-reset" }, "15m");
@@ -137,8 +157,14 @@ export const authService = {
     if (!user) {
       throw new AppError(401, "User not found", "USER_NOT_FOUND");
     }
+    // Reset links are only ever issued to admins (see forgotPassword).
+    if (user.role !== "admin") {
+      throw new AppError(403, "Password reset is for admins only", "FORBIDDEN");
+    }
     const passwordHash = await bcrypt.hash(newPassword, 10);
     await authRepository.updatePassword(user.id, passwordHash);
+    await authRepository.setMustChangePwd(user.id, false);
+    await authRepository.resetFailedLoginAttempts(user.id);
   },
 
   async updateProfile(userId, name, email) {
@@ -160,6 +186,8 @@ export const authService = {
     }
     const newHash = await bcrypt.hash(newPassword, 10);
     await authRepository.updatePassword(userId, newHash);
+    // First-login / admin-reset flow completes here.
+    await authRepository.setMustChangePwd(userId, false);
   },
 
   async uploadProfileImage(userId, imageUrl) {

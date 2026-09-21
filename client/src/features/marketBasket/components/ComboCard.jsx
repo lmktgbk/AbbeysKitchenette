@@ -1,59 +1,40 @@
-import { useState, useRef, useEffect, memo } from "react";
+import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
 
 /**
- * ComboCard
- *
- * Card for displaying an association rule in a grid layout.
- * All cards show the same format: names, stats, explanation, pricing, Create Combo.
- *
+ * ComboCard — Promotion card (FP-Growth)
+ * All cards show the same format: names, stats, pricing, Create Promotion.
  * Props:
- * - rule: { id, product_a, product_b, size_name_a, size_name_b, support, confidence, lift, explanation, pricing }
+ * - rule: { id, product_a, product_b, size_name_a, size_name_b, support, confidence, lift, pricing }
  * - onCreateCombo: (rule) => void
+ * - isTop: boolean
  */
-function ComboCard({ rule, onCreateCombo }) {
-  const [expanded, setExpanded] = useState(false);
-  const [isClamped, setIsClamped] = useState(false);
-  const textRef = useRef(null);
-
-  useEffect(() => {
-    const el = textRef.current;
-    if (el) {
-      setIsClamped(el.scrollHeight > el.clientHeight);
-    }
-  }, [rule.explanation]);
+function ComboCard({ rule, onCreateCombo, isTop, totalOrders }) {
 
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/30">
-      {/* Product pairing */}
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-          <Icon name="shoppingBag" size={14} className="text-primary" />
-          <span>{rule.product_a}</span>
-          {rule.size_name_a && (
-            <span className="text-xs text-muted-foreground">{rule.size_name_a}</span>
-          )}
-        </div>
-        <span className="text-xs font-bold text-muted-foreground">+</span>
-        <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-          <Icon name="shoppingBag" size={14} className="text-primary" />
-          <span>{rule.product_b}</span>
-          {rule.size_name_b && (
-            <span className="text-xs text-muted-foreground">{rule.size_name_b}</span>
-          )}
-        </div>
+    <div className={`flex h-full flex-col rounded-xl border bg-card p-4 transition-all hover:shadow-sm ${isTop ? "border-amber-300 bg-amber-50/30 hover:border-amber-400 hover:shadow" : "border-border hover:border-primary/30"}`}>
+      {isTop && (
+        <span className="mb-2 inline-flex w-fit items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700 border border-amber-200">
+          ★ Top Promotion
+        </span>
+      )}
+      {/* Product pairing — clean single line */}
+      <div className="min-h-[40px]">
+        <p className="text-sm font-semibold leading-tight text-foreground line-clamp-2">
+          {rule.product_a} <span className="text-xs font-normal text-muted-foreground">({rule.size_name_a})</span>
+          <span className="mx-1 text-xs font-normal text-muted-foreground">+</span>
+          {rule.product_b} <span className="text-xs font-normal text-muted-foreground">({rule.size_name_b})</span>
+        </p>
       </div>
 
-      {/* Stats badges */}
-      <div className="mt-3 flex flex-wrap gap-2">
-        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-          {(rule.support * 100).toFixed(1)}% match
-        </span>
-        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-          {(rule.confidence * 100).toFixed(0)}% conf
-        </span>
+      {/* Stats — sentence, plain */}
+      <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+        <span>{totalOrders ? `${Math.round(rule.support * totalOrders)} orders bought together` : `${(rule.support * 100).toFixed(1)}% bought together`}</span>
+        <span>·</span>
+        <span>{rule.confidence >= 0.5 ? "Half also buy" : `${(rule.confidence * 100).toFixed(0)}% also buy`}</span>
         <span
+          title={`Lift ${rule.lift.toFixed(1)}× — support ${(rule.support*100).toFixed(1)}%, confidence ${(rule.confidence*100).toFixed(0)}%`}
           className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
             rule.lift >= 2
               ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
@@ -62,66 +43,42 @@ function ComboCard({ rule, onCreateCombo }) {
                 : "bg-muted text-muted-foreground"
           }`}
         >
-          {rule.lift.toFixed(1)}x lift
+          {rule.lift >= 2 ? "Pairs well" : "Often together"}
         </span>
       </div>
 
-      {/* AI Explanation */}
-      {rule.explanation && (
-        <div className="mt-3 flex-1">
-          <p
-            ref={textRef}
-            className={`text-xs leading-relaxed text-muted-foreground ${expanded ? "" : "line-clamp-4"}`}
-          >
-            {rule.explanation}
-          </p>
-          {isClamped && (
-            <button
-              onClick={() => setExpanded((prev) => !prev)}
-              className="mt-1 text-xs font-medium text-primary hover:underline"
-            >
-              {expanded ? "Show less" : "Show more"}
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Pricing preview */}
+      {/* Pricing preview — flex-1 to align buttons */}
       {rule.pricing && (
-        <div className="mt-3 rounded-lg bg-muted/50 px-3 py-2 text-xs">
+        <div className="mt-3 flex-1 rounded-lg bg-muted/50 px-3 py-2 text-xs">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Combined price:</span>
-            <span className="text-foreground">
+            <span className="font-mono text-foreground">
               ₱{rule.pricing.price_a} + ₱{rule.pricing.price_b} = ₱{rule.pricing.total_price}
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Bundle (15% off):</span>
-            <span className="text-foreground">₱{rule.pricing.bundle_price}</span>
-          </div>
-          <div className="flex justify-between">
             <span className="text-muted-foreground">Suggested price:</span>
-            <span className="font-medium text-foreground">
+            <span className="font-mono font-medium text-foreground">
               ₱{rule.pricing.suggested_price}
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Cost/cup:</span>
-            <span className="text-foreground">₱{rule.pricing.total_cogs}</span>
+            <span className="text-muted-foreground">Cost:</span>
+            <span className="font-mono text-foreground">₱{rule.pricing.total_cogs}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Margin:</span>
-            <span className="text-foreground">{rule.pricing.margin_percent}%</span>
+            <span className="font-mono text-foreground">{rule.pricing.margin_percent}%</span>
           </div>
         </div>
       )}
 
-      {/* Create Combo / Already Created button */}
+      {/* Create Promotion / Already Created button — mt-auto for alignment */}
       {rule.combo_exists ? (
         <Button
           size="sm"
           variant="outline"
-          className="mt-3 w-full text-xs cursor-not-allowed opacity-60"
+          className="mt-auto w-full text-xs cursor-not-allowed opacity-60"
           disabled
         >
           <Icon name="checkCircle" size={14} className="mr-1" />
@@ -131,11 +88,11 @@ function ComboCard({ rule, onCreateCombo }) {
         <Button
           size="sm"
           variant="primary"
-          className="mt-3 w-full text-xs"
+          className="mt-auto w-full text-xs"
           onClick={() => onCreateCombo(rule)}
         >
           <Icon name="plus" size={14} className="mr-1" />
-          Create Combo
+          Create Promotion
         </Button>
       )}
     </div>

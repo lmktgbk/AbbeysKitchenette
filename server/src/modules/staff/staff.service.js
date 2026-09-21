@@ -4,6 +4,7 @@ import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { notificationService } from "../notifications/notification.service.js";
+import { sendEmail, generateNewPasswordEmail } from "../../utils/email.js";
 
 const SALT_ROUNDS = 10;
 
@@ -84,10 +85,23 @@ export const staffService = {
   async resetPassword(id, newPassword, userId) {
     const user = await staffRepository.findById(id);
     if (!user) throw new AppError(404, "Staff not found", "STAFF_NOT_FOUND");
-    const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    // Blank input = auto-generate temp password (same pattern as createStaff).
+    const plain = newPassword?.trim() || `${user.name.split(" ")[0]}@12345`;
+    if (plain.length < 8) throw new AppError(400, "Password must be at least 8 characters", "WEAK_PASSWORD");
+    const passwordHash = await bcrypt.hash(plain, SALT_ROUNDS);
     await staffRepository.resetPassword(id, passwordHash);
+    // Email temp password to staff; they must change it on next login.
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: "Your Password Was Reset — Abbey's Kitchenette",
+        html: generateNewPasswordEmail(plain),
+      });
+    } catch (err) {
+      console.error("[STAFF_RESET_PWD_EMAIL]", err);
+    }
     auditLogService.logAction({ userId, action: ACTIONS.STAFF_PASSWORD_RESET, targetType: "staff", targetId: id, details: { name: user.name } });
-    return { success: true };
+    return { success: true, emailed: true };
   },
 
   async deleteStaff(id, userId) {

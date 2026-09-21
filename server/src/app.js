@@ -89,6 +89,7 @@ app.use("/api/reorder-suggestions", reorderSuggestionsRoutes);
 app.use("/api/waste-reduction", wasteReductionRoutes);
 app.use("/api/price-optimization", priceOptimizationRoutes);
 app.use("/api/market-basket", marketBasketRoutes);
+app.use("/api/promotions", marketBasketRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/audit-logs", auditLogRoutes);
 app.use("/api/dashboard", dashboardRoutes);

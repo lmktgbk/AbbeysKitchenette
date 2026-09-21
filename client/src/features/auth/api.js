@@ -2,9 +2,15 @@ import api from "@/config/axios";
 
 /* ── Login  */
 
-/** Submit email + password — returns { user, token } or { requiresOtp, user } */
+/** Staff login (cashier + kitchen) — admins get USE_ADMIN_PORTAL */
 export async function loginRequest(email, password) {
   const res = await api.post("/auth/login", { email, password });
+  return res.data;
+}
+
+/** Hidden admin login (admin only, OTP 2FA) */
+export async function adminLoginRequest(email, password) {
+  const res = await api.post("/auth/admin-login", { email, password });
   return res.data;
 }
 
@@ -47,5 +53,11 @@ export async function getMeRequest() {
 /** Log out — clears httpOnly cookie */
 export async function logoutRequest() {
   const res = await api.post("/auth/logout");
+  return res.data;
+}
+
+/** First-login / forced change (authenticated, clears mustChangePwd) */
+export async function changePasswordRequest(currentPassword, newPassword) {
+  const res = await api.post("/auth/change-password", { currentPassword, newPassword });
   return res.data;
 }
