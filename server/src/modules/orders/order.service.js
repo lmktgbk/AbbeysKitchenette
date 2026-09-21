@@ -7,6 +7,7 @@ import prisma from "../../config/prisma.js";
 import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { notificationService } from "../notifications/notification.service.js";
+import { settingsService } from "../settings/settings.service.js";
 
 export const orderService = {
   /* ── Queries ─────────────────────────── */
@@ -169,7 +170,7 @@ export const orderService = {
     const { pricedItems, subtotal, discount: discountResult, total } =
       await this._priceItemsAndTotals(items, discount);
 
-    this._assertPaymentValid({ amountPaid, total, paymentMethod: payment.payment_method });
+    await this._assertPaymentValid({ amountPaid, total, paymentMethod: payment.payment_method });
 
     const paymentMethod = payment.payment_method ?? "cash";
     const change = paymentMethod === "cash" ? roundMoney(amountPaid - total) : 0;
@@ -369,7 +370,7 @@ export const orderService = {
     const { pricedItems, subtotal, discount: discountResult, total } =
       await this._priceItemsAndTotals(items, discount);
 
-    this._assertPaymentValid({ amountPaid, total, paymentMethod: payment.payment_method });
+    await this._assertPaymentValid({ amountPaid, total, paymentMethod: payment.payment_method });
 
     const paymentMethod = payment.payment_method ?? "cash";
     const change = paymentMethod === "cash" ? roundMoney(amountPaid - total) : 0;
@@ -879,8 +880,13 @@ export const orderService = {
   /**
    * Validate payment against net total. Cash needs paid >= total.
    * E-wallets are record-only: paid must equal total, change is 0.
+   * Also rejects methods disabled in Settings → acceptedPayments.
    */
-  _assertPaymentValid({ amountPaid, total, paymentMethod = "cash" }) {
+  async _assertPaymentValid({ amountPaid, total, paymentMethod = "cash" }) {
+    const accepted = await settingsService.getAcceptedPayments();
+    if (!accepted.includes(paymentMethod)) {
+      throw new AppError(403, `${paymentMethod} is currently not accepted`, "PAYMENT_DISABLED");
+    }
     if (amountPaid == null || Number(amountPaid) <= 0) {
       throw new AppError(400, "Amount paid is required", "PAYMENT_REQUIRED");
     }
@@ -1442,7 +1448,7 @@ export const orderService = {
         promo_value: meta.promo_value,
       });
 
-    this._assertPaymentValid({ amountPaid: meta.amountPaid, total, paymentMethod: meta.payment_method });
+    await this._assertPaymentValid({ amountPaid: meta.amountPaid, total, paymentMethod: meta.payment_method });
 
     const paymentMethod = meta.payment_method ?? order.paymentMethod ?? "cash";
     const change = paymentMethod === "cash" ? roundMoney(meta.amountPaid - total) : 0;

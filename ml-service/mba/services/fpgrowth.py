@@ -1,7 +1,7 @@
 import json
 import pandas as pd
 from mlxtend.frequent_patterns import fpgrowth, association_rules
-from mba.services.data_loader import load_order_baskets, load_product_details, load_combo_discount, load_margin_target
+from mba.services.data_loader import load_order_baskets, load_product_details, load_combo_discount
 from database import get_pool
 
 
@@ -117,11 +117,11 @@ def _merge_recipes(details_a: dict, details_b: dict) -> list[dict]:
     return result
 
 
-def _compute_combo_price(merged_ingredients: list[dict], price_a: float, price_b: float, discount_percent: float = 15, margin_target: float = 0.30) -> dict:
-    """Compute suggested combo price based on margin floor and bundle discount off TOTAL price."""
+def _compute_combo_price(merged_ingredients: list[dict], price_a: float, price_b: float, discount_percent: float = 15) -> dict:
+    """Compute suggested combo price based on bundle discount off TOTAL price. Only guard is break-even (cover cost)."""
     total_cogs = sum(ing["line_cost"] for ing in merged_ingredients)
 
-    min_price = round(total_cogs / (1 - margin_target), 2) if total_cogs > 0 else 0
+    min_price = round(total_cogs + 1, 2) if total_cogs > 0 else 0
 
     # Bundle discount off TOTAL price (not average)
     total_price = price_a + price_b
@@ -220,9 +220,8 @@ async def run_market_basket_analysis(
     top_n: int = 20,
 ) -> dict:
     """Run the full MBA pipeline: load data → FP-Growth → rules → explanations → pricing."""
-    # Load config from settings
+    # Load config from settings (discount only, no margin floor)
     discount_percent = await load_combo_discount()
-    margin_target = await load_margin_target()
 
     # Step 1: Load order baskets (variant level)
     baskets_df = await load_order_baskets()
@@ -283,7 +282,7 @@ async def run_market_basket_analysis(
         merged_ingredients = _merge_recipes(details_a, details_b)
         price_a = details_a.get("price", 0)
         price_b = details_b.get("price", 0)
-        pricing = _compute_combo_price(merged_ingredients, price_a, price_b, discount_percent, margin_target)
+        pricing = _compute_combo_price(merged_ingredients, price_a, price_b, discount_percent)
 
         explanation = None
 

@@ -43,11 +43,14 @@ export const reorderSuggestionsRepository = {
         i.unit,
         i.minimum_threshold,
         COALESCE(SUM(rb.quantity_left), 0)::float AS stock,
+        COALESCE(SUM(CASE WHEN rb.expiry_date IS NOT NULL AND rb.expiry_date < CURRENT_DATE THEN rb.quantity_left ELSE 0 END), 0)::float AS stock_expired,
+        COALESCE(SUM(CASE WHEN rb.expiry_date IS NOT NULL AND rb.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days' THEN rb.quantity_left ELSE 0 END), 0)::float AS stock_expiring_7d,
+        COALESCE(SUM(CASE WHEN rb.expiry_date IS NULL OR rb.expiry_date > CURRENT_DATE + INTERVAL '7 days' THEN rb.quantity_left ELSE 0 END), 0)::float AS stock_fresh,
         COALESCE(id2.daily_avg, 0)::float AS daily_avg,
         COALESCE(id2.total_forecast, 0)::float AS total_forecast,
         CASE
           WHEN COALESCE(id2.daily_avg, 0) > 0
-            THEN ROUND(COALESCE(SUM(rb.quantity_left), 0)::numeric / id2.daily_avg::numeric, 1)
+            THEN ROUND(COALESCE(SUM(CASE WHEN rb.expiry_date IS NULL OR rb.expiry_date > CURRENT_DATE + INTERVAL '7 days' THEN rb.quantity_left ELSE 0 END), 0)::numeric / id2.daily_avg::numeric, 1)
           ELSE NULL
         END AS days_until_stockout
       FROM ingredients i

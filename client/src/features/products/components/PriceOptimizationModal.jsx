@@ -165,14 +165,11 @@ export default function PriceOptimizationModal({ open, onOpenChange, product }) 
                   key={s.id}
                   className="space-y-3 rounded-lg border border-border p-4"
                 >
-                  {/* Header: name + confidence */}
+                  {/* Header: name */}
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium text-foreground">
                       {s.productName} ({s.sizeName})
                     </p>
-                    <span className="text-xs text-muted-foreground">
-                      {Math.round(s.confidence * 100)}% confidence
-                    </span>
                   </div>
 
                   {/* Price change display */}

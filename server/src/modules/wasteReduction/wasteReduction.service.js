@@ -73,19 +73,33 @@ export const wasteReductionService = {
       );
     }
 
-    // Step 5: Validate and filter insights
-    const validIngredientIds = new Set(
-      stockVsForecast.map((i) => i.ingredient_id),
-    );
+    // Step 5: Validate and fix numbers ourselves (don't trust AI math)
+    const stockMap = new Map(stockVsForecast.map((s) => [s.ingredient_id, s]));
+    const costMap = new Map((ingredientCosts || []).map((c) => [c.ingredient_id, Number(c.cost_per_unit) || 0]));
+    const validIngredientIds = new Set(stockMap.keys());
     const insights = (parsed.insights || []).filter((i) => {
-      if (!i.ingredient_id || !validIngredientIds.has(i.ingredient_id)) {
-        return false;
-      }
-      if (typeof i.overstock_amount !== "number" || i.overstock_amount <= 0) {
-        return false;
-      }
+      if (!i.ingredient_id || !validIngredientIds.has(i.ingredient_id)) return false;
+      if (typeof i.overstock_amount !== "number" || i.overstock_amount <= 0) return false;
       return true;
-    });
+    }).map((i) => {
+      const ctx = stockMap.get(i.ingredient_id) || {};
+      const fresh = Number(ctx.stock_fresh ?? ctx.stock ?? 0);
+      const weekly = Number(ctx.weekly_usage ?? i.forecasted_weekly_usage ?? 0);
+      const expiring = Number(ctx.stock_expiring_7d ?? 0);
+      const cost = costMap.get(i.ingredient_id) || 0;
+      // Deterministic overstock: fresh minus weekly need (floor 0), rounded
+      const trueOverstock = weekly > 0 ? Math.max(0, Math.round((fresh - weekly) * 100) / 100) : Math.max(0, fresh);
+      // Savings must match overstock * cost (cap at true exposure)
+      const trueSavings = cost > 0 ? Math.round(trueOverstock * cost * 100) / 100 : null;
+      // Keep AI reasoning/suggestion but fix numbers
+      return {
+        ...i,
+        overstock_amount: trueOverstock,
+        forecasted_weekly_usage: weekly,
+        potential_savings: trueSavings,
+        reasoning: `${Number(expiring) > 0 ? `${expiring} ${ctx.unit || i.unit || ""} expiring within 7 days. ` : ""}Fresh stock ${fresh} vs weekly need ${weekly}. ${i.reasoning || ""}`.trim(),
+      };
+    }).filter((i) => i.overstock_amount > 0 || Number(stockMap.get(i.ingredient_id)?.stock_expiring_7d ?? 0) > 0);
 
     // Step 6: Store in DB
     await repo.saveInsights(insights);

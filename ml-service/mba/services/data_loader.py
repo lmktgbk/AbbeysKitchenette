@@ -75,18 +75,5 @@ async def load_product_details() -> pd.DataFrame:
 
 
 async def load_combo_discount() -> float:
-    """Load combo discount percentage from system settings."""
-    pool = await get_pool()
-    row = await pool.fetchrow("SELECT combo_discount_percent FROM system_settings WHERE id = 1")
-    if row and row["combo_discount_percent"] is not None:
-        return float(row["combo_discount_percent"])
+    """Promotion discount is fixed at 15% — no system_settings column exists."""
     return 15.0
-
-
-async def load_margin_target() -> float:
-    """Load minimum margin percentage from system settings."""
-    pool = await get_pool()
-    row = await pool.fetchrow("SELECT min_margin_percent FROM system_settings WHERE id = 1")
-    if row and row["min_margin_percent"] is not None:
-        return float(row["min_margin_percent"]) / 100
-    return 0.30

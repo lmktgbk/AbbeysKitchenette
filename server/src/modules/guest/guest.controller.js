@@ -32,6 +32,8 @@ export const guestController = {
         storePhone: settings?.storePhone || "",
         storeEmail: settings?.storeEmail || "",
         storeHours: settings?.storeHours || null,
+        // Public so the cashier POS (non-admin) can hide disabled methods.
+        acceptedPayments: settings?.acceptedPayments ?? ["cash", "gcash", "maya"],
       });
     } catch (error) {
       return handleError(res, error, "GET_STORE_SETTINGS_ERROR");

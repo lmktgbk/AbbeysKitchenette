@@ -7,6 +7,7 @@
 import app from "./src/app.js";
 import { env } from "./src/config/env.js";
 import { anomalyService } from "./src/modules/anomalyDetection/anomalyDetection.service.js";
+import { automationScheduler } from "./src/modules/automation/automation.scheduler.js";
 
 app.listen(env.PORT, () => {
   console.log(
@@ -15,4 +16,7 @@ app.listen(env.PORT, () => {
 
   // Start anomaly detection scheduler
   anomalyService.startScheduler();
+
+  // Load automation schedules (ML jobs) from settings
+  automationScheduler.reschedule().catch((err) => console.error("[automation] Boot load failed:", err.message));
 });

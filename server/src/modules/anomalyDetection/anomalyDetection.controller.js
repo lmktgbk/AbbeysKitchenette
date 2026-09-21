@@ -41,6 +41,17 @@ export const anomalyController = {
     }
   },
 
+  async triggerScan(req, res) {
+    try {
+      const { rules } = req.body || {};
+      const result = await anomalyService.runScan(rules || null);
+      return successResponse(res, "Anomaly scan complete", result);
+    } catch (error) {
+      console.error("[TRIGGER_SCAN]", error);
+      return errorResponse(res, "Something went wrong", null, 500, "TRIGGER_SCAN_ERROR");
+    }
+  },
+
   async acknowledge(req, res) {
     try {
       await anomalyService.acknowledge(req.params.id);

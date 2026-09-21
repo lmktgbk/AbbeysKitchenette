@@ -1,4 +1,5 @@
 import { settingsService } from "./settings.service.js";
+import { automationScheduler } from "../automation/automation.scheduler.js";
 import { successResponse, errorResponse } from "../../utils/response.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 
@@ -31,6 +32,8 @@ export const settingsController = {
       }
 
       const settings = await settingsService.updateSettings(req.body, req.user.id);
+      // Automation schedules may have changed — reload without blocking the response.
+      automationScheduler.reschedule().catch(() => {});
       return successResponse(res, "Settings updated", { settings });
     } catch (error) {
       return handleError(res, error, "UPDATE_SETTINGS_ERROR");

@@ -29,15 +29,36 @@ export const anomalyService = {
     }
   },
 
-  async runScan() {
+  _lastFired: new Map(),
+
+  async runScan(ruleIds = null) {
     const startTime = Date.now();
     const allResults = [];
+    const now = Date.now();
+    const COOLDOWN_MS = 15 * 60 * 1000;
 
     for (const rule of RULE_REGISTRY) {
       if (!rule.enabled) continue;
+      if (ruleIds && !ruleIds.includes(rule.id)) continue;
+      // 15-min cooldown per rule for real-time hooks
+      if (ruleIds) {
+        const last = this._lastFired.get(rule.id) || 0;
+        if (now - last < COOLDOWN_MS) continue;
+      }
       try {
         const result = await engine.evaluate(rule);
-        if (result) allResults.push(result);
+        if (result) {
+          // Same-day dedup: skip if active same rule already exists today
+          const exists = await anomalyRepository.existsActiveToday(rule.id, result.ingredientId);
+          if (exists) continue;
+          // Supplier quiet: skip if reviewed same ingredient+price already acknowledged
+          if (rule.id === "supplier_price_jump" && result.ingredientId) {
+            const reviewed = await anomalyRepository.existsReviewedSupplier(result.ingredientId, String(result.actualValue));
+            if (reviewed) continue;
+          }
+          allResults.push(result);
+          if (ruleIds) this._lastFired.set(rule.id, now);
+        }
       } catch (err) {
         console.error(`[anomaly] Rule "${rule.id}" failed:`, err.message);
       }

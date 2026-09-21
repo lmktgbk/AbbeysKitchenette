@@ -58,16 +58,16 @@ export default function WasteInsights() {
 
   const riskConfig = {
     high: {
-      label: "High",
+      label: "Use soon",
       className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
     },
     medium: {
-      label: "Medium",
+      label: "Watch",
       className:
         "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
     },
     low: {
-      label: "Low",
+      label: "A bit over",
       className:
         "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
     },
@@ -153,18 +153,15 @@ export default function WasteInsights() {
                         </span>
                       </div>
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        Overstocked by {i.overstock_amount} {i.unit}
+                        Too much by {i.overstock_amount} {i.unit}
                         {i.potential_savings && (
                           <span>
                             {" "}
-                            · Save ₱{i.potential_savings.toLocaleString()}/mo
+                            · Save ₱{i.potential_savings.toLocaleString()} if reduced
                           </span>
                         )}
                       </p>
                     </div>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      {Math.round(i.confidence * 100)}% confidence
-                    </span>
                   </div>
 
                   {/* Expandable reasoning */}

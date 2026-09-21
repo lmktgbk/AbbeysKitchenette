@@ -52,13 +52,8 @@ model SystemSettings {
   storeEmail           String?
   storeIpWhitelist     String?
   storeHours           Json?    @map("store_hours")
-  currency             String   @default("PHP")
-  taxRate              Float    @default(0) @map("tax_rate")
-  comboDiscountPercent Float    @default(15) @map("combo_discount_percent")
-  minMarginPercent     Float    @default(30) @map("min_margin_percent")
-  notifyLowStock       Boolean  @default(true) @map("notify_low_stock")
-  notifyNewOrders      Boolean  @default(true) @map("notify_new_orders")
-  notifyDailyReport    Boolean  @default(false) @map("notify_daily_report")
+  acceptedPayments     String[] @default(["cash", "gcash", "maya"]) @map("accepted_payments")
+  automation           Json     @default("{}")
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 

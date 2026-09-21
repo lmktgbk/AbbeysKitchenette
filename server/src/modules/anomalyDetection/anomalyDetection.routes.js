@@ -11,6 +11,7 @@ router.use(authenticate);
 router.get("/results", validateQuery(anomalyQuerySchema), anomalyController.getResults);
 router.get("/active", validateQuery(activeAnomalyQuerySchema), anomalyController.getActive);
 router.get("/stats", anomalyController.getStats);
+router.post("/scan", anomalyController.triggerScan);
 router.patch("/:id/acknowledge", anomalyController.acknowledge);
 
 export default router;

@@ -19,3 +19,8 @@ export async function acknowledgeAnomaly(id) {
   const res = await api.patch(`/anomaly/${id}/acknowledge`);
   return res.data;
 }
+
+export async function triggerAnomalyScan() {
+  const res = await api.post("/anomaly/scan", {});
+  return res.data;
+}

@@ -9,6 +9,7 @@ import OrderStats from "../components/OrderStats";
 import OrderTable from "../components/OrderTable";
 import OrderDetailModal from "../components/OrderDetailModal";
 import PosPaymentModal from "../components/PosPaymentModal";
+import { useStoreSettings } from "@/features/landing/query";
 import CancelOrderDialog from "@/components/orders/CancelOrderDialog";
 import RemoveItemDialog from "@/components/orders/RemoveItemDialog";
 import { Pagination } from "@/components/filters/Pagination";
@@ -39,6 +40,10 @@ export default function OrdersPage({ embedded = false }) {
   const mutations = useOrderMutations();
   const shiftMutations = useShiftMutations();
   const user = useAuthStore((s) => s.user);
+
+  // Accepted payment methods (Settings → public store settings).
+  const { data: storeSettingsData } = useStoreSettings();
+  const acceptedPayments = storeSettingsData?.data?.acceptedPayments;
 
   // Ledger lives inside Orders for admins (BR-03); cashiers stay on the queue.
   const [view, setView] = useState("orders");
@@ -409,6 +414,7 @@ export default function OrdersPage({ embedded = false }) {
       <PosPaymentModal
         open={!!acceptingOrder}
         onOpenChange={(open) => { if (!open) setAcceptingOrder(null); }}
+        acceptedPayments={acceptedPayments}
         totalAmount={acceptingOrder ? Number(acceptingOrder.total_amount) : 0}
         onConfirm={handleAcceptPaymentConfirm}
         isLoading={mutations.advanceStatus.isPending}

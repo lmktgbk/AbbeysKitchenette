@@ -74,15 +74,15 @@ MARKET CONTEXT (Lipa City, Batangas, Philippines):
 - Currency: Philippine Peso (₱)
 
 ANALYSIS RULES:
-1. Consider ingredient cost per unit (COGS) — margin should be 30-35%
+1. Consider ingredient cost per unit (COGS) — show margin as info only, no forced floor
 2. Consider sales volume — high-volume items can be priced more competitively
 3. Consider trend direction — trending up items can sustain slightly higher prices
 4. Consider market positioning — price within realistic range for your target segment
 5. Recommend round numbers (₱45, ₱55, ₱65, not ₱47.32)
 6. Price changes should be modest (±5-15%) unless there's a strong reason
-7. Never recommend prices below cost + 25% minimum margin
+7. Never recommend prices below cost (must at least break even)
 8. Never recommend prices above ₱160 for regular milk tea (local market cap)
-9. For products with negative margins, prioritize reaching break-even first
+9. For products below cost, prioritize reaching break-even first
 10. Consider price elasticity — large price jumps may reduce demand
 
 OUTPUT FORMAT (JSON only, no markdown):

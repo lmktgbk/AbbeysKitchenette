@@ -111,6 +111,8 @@ export default function PosPaymentModal({
   orderSummary,
   onConfirm,
   isLoading,
+  // Accepted methods from Settings (public store settings). Defaults to all.
+  acceptedPayments,
 }) {
   const subtotal = Number(subtotalAmount ?? totalAmount ?? 0);
   const summaryItems = orderSummary?.items ?? [];
@@ -126,6 +128,12 @@ export default function PosPaymentModal({
 
   const [prevOpen, setPrevOpen] = useState(open);
 
+  // Methods enabled in Settings; server re-validates on submit regardless.
+  const visibleMethods = useMemo(() => {
+    if (!Array.isArray(acceptedPayments) || acceptedPayments.length === 0) return PAYMENT_METHODS;
+    return PAYMENT_METHODS.filter((m) => acceptedPayments.includes(m.value));
+  }, [acceptedPayments]);
+
   // Reset form when the modal is (re)opened — state adjustment during
   // render (React-recommended reset pattern, avoids set-state-in-effect).
   if (open !== prevOpen) {
@@ -136,10 +144,17 @@ export default function PosPaymentModal({
       setPromoValue("");
       setDiscountIdNo("");
       setDiscountLabel("");
-      setPaymentMethod("cash");
+      setPaymentMethod((prev) =>
+        visibleMethods.some((m) => m.value === prev) ? prev : (visibleMethods[0]?.value ?? "cash"),
+      );
       setReferenceNo("");
       setAmountPaid("");
     }
+  }
+
+  // Accepted list may arrive after open (settings fetch) — coerce if needed.
+  if (open && !visibleMethods.some((m) => m.value === paymentMethod)) {
+    setPaymentMethod(visibleMethods[0]?.value ?? "cash");
   }
 
   const { discountAmount, total } = useMemo(() => {
@@ -294,7 +309,7 @@ export default function PosPaymentModal({
           {/* Right — tender flow (fixed height, always full) */}
           <div className="flex flex-col space-y-2.5">
             <div className="grid grid-cols-3 gap-1.5">
-              {PAYMENT_METHODS.map((m) => (
+              {visibleMethods.map((m) => (
                 <MethodCard
                   key={m.value}
                   method={m}

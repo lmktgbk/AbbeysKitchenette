@@ -59,16 +59,16 @@ export default function ReorderSuggestions({ onAccept }) {
 
   const urgencyConfig = {
     high: {
-      label: "High",
+      label: "Need soon",
       className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
     },
     medium: {
-      label: "Medium",
+      label: "Need in 3-5 days",
       className:
         "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
     },
     low: {
-      label: "Low",
+      label: "Ok for a week",
       className:
         "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
     },
@@ -154,15 +154,12 @@ export default function ReorderSuggestions({ onAccept }) {
                         </span>
                       </div>
                       <div className="mt-0.5 text-xs text-muted-foreground">
-                        <p>Order: {s.suggested_quantity} {s.unit}</p>
+                        <p>Order {s.suggested_quantity} {s.unit} (covers 7 days + buffer)</p>
                         {s.estimated_stockout && (
-                          <p>Stockout: {new Date(s.estimated_stockout).toLocaleDateString()}</p>
+                          <p>Runs out: {new Date(s.estimated_stockout).toLocaleDateString()}</p>
                         )}
                       </div>
                     </div>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      {Math.round(s.confidence * 100)}% confidence
-                    </span>
                   </div>
 
                   {/* Expandable reasoning */}

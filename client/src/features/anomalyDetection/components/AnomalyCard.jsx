@@ -13,13 +13,29 @@ const CATEGORY_ICONS = {
   loss: "warehouse",
   cancellation: "alertCircle",
   fulfillment: "clock",
+  refund: "receipt",
+  discount: "percent",
+  cash: "wallet",
+  restock: "package",
+  stockout: "alertTriangle",
+  supplier: "truck",
+  payment: "creditCard",
+  sales_hours: "clock",
 };
 
 const CATEGORY_LABELS = {
-  revenue: "Revenue",
-  loss: "Loss",
-  cancellation: "Cancellation",
-  fulfillment: "Fulfillment",
+  revenue: "Sales",
+  loss: "Waste",
+  cancellation: "Cancelled",
+  fulfillment: "Service",
+  refund: "Refunds",
+  discount: "Discounts",
+  cash: "Cash",
+  restock: "Restock",
+  stockout: "Stock",
+  supplier: "Supplier",
+  payment: "Payments",
+  sales_hours: "Hours",
 };
 
 function formatTimeAgo(dateStr) {
@@ -73,29 +89,15 @@ export default function AnomalyCard({ anomaly, onAcknowledge }) {
           </div>
         </div>
 
-        {/* Confidence bar */}
-        <div className="mt-2 flex items-center gap-2">
-          <span className="text-[11px] text-muted-foreground">Confidence:</span>
-          <div className="h-1.5 w-16 rounded-full bg-muted overflow-hidden">
-            <div
-              className="h-full rounded-full bg-primary"
-              style={{ width: `${(anomaly.confidence * 100).toFixed(0)}%` }}
-            />
-          </div>
-          <span className="text-[11px] text-muted-foreground">
-            {(anomaly.confidence * 100).toFixed(0)}%
-          </span>
-        </div>
-
-        {/* Gemini Insight */}
+        {/* What to do — collapsed */}
         {anomaly.geminiInsight && (
-          <div className="mt-3">
+          <div className="mt-2">
             <button
               onClick={() => setExpanded(!expanded)}
               className="flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
             >
               <Icon name="sparkles" size={12} />
-              {expanded ? "Hide" : "Show"} Prescriptive Analytics
+              {expanded ? "Hide" : "Show"} What to do
               <Icon name={expanded ? "chevronDown" : "chevronRight"} size={12} />
             </button>
             {expanded && (

@@ -80,6 +80,23 @@ export const anomalyRepository = {
     });
   },
 
+  async existsActiveToday(ruleId, ingredientId = null) {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const where = { ruleId, isAcknowledged: false, detectedAt: { gte: start } };
+    const found = await prisma.anomalyResult.findFirst({ where, select: { id: true } });
+    return !!found;
+  },
+
+  async existsReviewedSupplier(ingredientId, actualValue) {
+    if (!ingredientId) return false;
+    const found = await prisma.anomalyResult.findFirst({
+      where: { ruleId: "supplier_price_jump", isAcknowledged: true, description: { contains: actualValue } },
+      select: { id: true },
+    });
+    return !!found;
+  },
+
   async deleteOlderThan(days = 90) {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);

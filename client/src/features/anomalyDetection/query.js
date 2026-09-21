@@ -19,7 +19,7 @@ export function useActiveAnomalies(severity = "critical,high") {
   return useQuery({
     queryKey: anomalyKeys.active(severity),
     queryFn: () => api.getActiveAnomalies(severity),
-    refetchInterval: 60000,
+    refetchInterval: 15000,
   });
 }
 
@@ -34,6 +34,16 @@ export function useAcknowledgeAnomaly() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: api.acknowledgeAnomaly,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: anomalyKeys.all });
+    },
+  });
+}
+
+export function useTriggerScan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.triggerAnomalyScan,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: anomalyKeys.all });
     },

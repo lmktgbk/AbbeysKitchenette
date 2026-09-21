@@ -112,29 +112,33 @@ export const reorderSuggestionsService = {
     for (const ing of ingredients) {
       if (geminiIds.has(ing.ingredient_id)) continue;
 
-      const demandDeficit = ing.total_forecast > 0 && ing.stock < ing.total_forecast;
-      const belowThreshold = ing.minimum_threshold > 0 && ing.stock < ing.minimum_threshold;
+      const fresh = Number(ing.stock_fresh ?? ing.stock);
+      const expiring = Number(ing.stock_expiring_7d ?? 0);
+      const demandDeficit = ing.total_forecast > 0 && fresh < ing.total_forecast;
+      const belowThreshold = ing.minimum_threshold > 0 && fresh < ing.minimum_threshold;
 
       if (!demandDeficit && !belowThreshold) continue;
 
-      // Urgency: lead-time-aware
+      // Urgency: lead-time-aware on fresh stock (zero fresh with need = high)
       const daysOut = ing.days_until_stockout;
       let urgency = "low";
-      if (daysOut != null) {
+      if (fresh <= 0 && (demandDeficit || belowThreshold)) urgency = "high";
+      else if (daysOut != null) {
         if (daysOut <= LEAD_TIME_DAYS) urgency = "high";
         else if (daysOut <= LEAD_TIME_DAYS + 3) urgency = "medium";
       }
 
-      // Quantity: deficit × 1.2 buffer, rounded to nice numbers
+      // Quantity: deficit on fresh × 1.2 buffer, minus usable expiring, rounded
+      const usableExpiring = Math.min(expiring, Number(ing.total_forecast) || 0);
       const rawQty = demandDeficit
-        ? Math.max(0, ing.total_forecast - ing.stock) * 1.2
-        : Math.max(0, ing.minimum_threshold - ing.stock) * 1.2;
+        ? Math.max(0, ing.total_forecast - fresh - usableExpiring * 0.5) * 1.2
+        : Math.max(0, ing.minimum_threshold - fresh) * 1.2;
       const suggestedQty = roundToNiceQty(rawQty, ing.unit);
 
-      // Trigger type in reasoning
+      // Trigger type in reasoning (use fresh stock, not total)
       const triggers = [];
-      if (belowThreshold) triggers.push(`below minimum threshold (${ing.stock} ${ing.unit} < ${ing.minimum_threshold} ${ing.unit})`);
-      if (demandDeficit) triggers.push(`stock insufficient for forecast period (${ing.stock} ${ing.unit} < ${ing.total_forecast} ${ing.unit} needed)`);
+      if (belowThreshold) triggers.push(`below minimum threshold (fresh ${fresh} ${ing.unit} < ${ing.minimum_threshold} ${ing.unit})`);
+      if (demandDeficit) triggers.push(`fresh stock insufficient for forecast (fresh ${fresh} ${ing.unit} < ${ing.total_forecast} ${ing.unit} needed${expiring > 0 ? `, ${expiring} ${ing.unit} expiring in 7d usable first` : ""})`);
       const triggerLabel = triggers.join(" and ");
 
       // Estimated cost

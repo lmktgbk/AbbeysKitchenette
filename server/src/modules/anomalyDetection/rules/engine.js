@@ -46,10 +46,36 @@ export const engine = {
   classifySeverity,
 
   async evaluate(rule) {
+    if (typeof rule.evaluateOverride === "function") {
+      const data = await rule.dataFetcher();
+      if (!data || !data.shouldDetect) return null;
+      rule._lastData = data;
+      const result = await rule.evaluateOverride(computeZScore, classifySeverity);
+      rule._lastData = null;
+      if (!result || !result.triggered) return null;
+      const geminiInsight = await generateInsight(rule, { ...data, ...result });
+      return {
+        ruleId: rule.id,
+        category: rule.category,
+        severity: result.severity,
+        title: result.title,
+        description: result.description,
+        actualValue: result.actualValue,
+        expectedValue: result.expectedValue,
+        expectedMin: result.expectedMin,
+        expectedMax: result.expectedMax,
+        confidence: result.confidence,
+        geminiInsight,
+        detectedAt: new Date(),
+        ...(result.ingredientId ? { ingredientId: result.ingredientId } : {}),
+      };
+    }
     const data = await rule.dataFetcher();
     if (!data || !data.shouldDetect) return null;
 
+    rule._lastData = data;
     const result = rule.condition(data, computeZScore, classifySeverity);
+    rule._lastData = null;
     if (!result || !result.triggered) return null;
 
     const geminiInsight = await generateInsight(rule, { ...data, ...result });

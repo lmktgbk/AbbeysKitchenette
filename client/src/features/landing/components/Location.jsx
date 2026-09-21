@@ -1,21 +1,5 @@
 import Icon from "@/components/ui/icon";
-
-function formatStoreHours(hours) {
-  if (!hours) return "Hours not set";
-  const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-  const enabled = days.filter((d) => hours[d]?.enabled);
-  if (enabled.length === 0) return "Currently closed";
-  const open = hours[enabled[0]]?.open || "08:00";
-  const close = hours[enabled[0]]?.close || "20:00";
-  const fmt = (t) => {
-    const [h, m] = t.split(":");
-    const hr = parseInt(h);
-    if (hr === 0) return `12:${m} AM`;
-    if (hr === 12) return `12:${m} PM`;
-    return hr > 12 ? `${hr - 12}:${m} PM` : `${hr}:${m} AM`;
-  };
-  return `Mon – Sun: ${fmt(open)} – ${fmt(close)}`;
-}
+import { formatStoreHours } from "../formatHours";
 
 export default function Location({ settings = {} }) {
     const details = [

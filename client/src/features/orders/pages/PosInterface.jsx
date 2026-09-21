@@ -15,6 +15,7 @@ import PosMenuGrid from "../components/PosMenuGrid";
 import PosOrderSummary from "../components/PosOrderSummary";
 import PosPaymentModal from "../components/PosPaymentModal";
 import PosOnlineOrders from "../components/PosOnlineOrders";
+import { useStoreSettings } from "@/features/landing/query";
 import { confirm } from "@/components/alerts/ConfirmDialog";
 import { confirmWithReason } from "@/components/alerts/ConfirmDialog";
 import { toLocalDate } from "@/lib/date";
@@ -51,6 +52,10 @@ export default function PosInterface() {
 
   // ── Payment modal ───────────────────
   const [showPayment, setShowPayment] = useState(false);
+
+  // Accepted payment methods (Settings → public store settings).
+  const { data: storeSettingsData } = useStoreSettings();
+  const acceptedPayments = storeSettingsData?.data?.acceptedPayments;
 
   // ── Online order fulfillment ────────
   const [fulfillingOrderId, setFulfillingOrderId] = useState(null);
@@ -300,6 +305,7 @@ export default function PosInterface() {
       <PosPaymentModal
         open={showPayment}
         onOpenChange={setShowPayment}
+        acceptedPayments={acceptedPayments}
         totalAmount={subtotal}
         orderSummary={{
           itemCount: items.reduce((sum, i) => sum + i.quantity, 0),

@@ -18,13 +18,14 @@ export function buildWastePrompt(context) {
 Your task is to identify over-ordering patterns, waste risks, and suggest improvements.
 
 Rules:
-- Focus on ingredients where current stock significantly exceeds forecasted usage
-- Identify patterns: over-ordering on certain days, seasonal mismatches, spoilage trends
-- Calculate potential savings based on ingredient costs
-- waste_risk is "high" if stock exceeds 3x forecasted usage, "medium" if 2-3x, "low" if 1.5-2x
-- Be specific in reasoning — reference actual numbers (stock, usage, waste amounts, costs)
+- Focus on ingredients where fresh stock significantly exceeds forecasted usage, or where stock expires within 7 days
+- Identify patterns: over-ordering, expiring batches, spoilage trends
+- Calculate potential savings based on ingredient costs, including expiring cost
+- waste_risk is "high" if fresh stock exceeds 3x usage OR if expiring within 7d exceeds weekly usage, "medium" if 2-3x, "low" if 1.5-2x
+- If ingredient has expiring stock within 7 days, suggest using it first, markdown, bundle or move to front
+- Be specific in reasoning — reference fresh stock, expiring amount, usage, costs
 - confidence should reflect data quality (0.0 to 1.0)
-- Only include ingredients with meaningful overstock (skip minor differences)
+- Only include ingredients with meaningful overstock or expiring risk (skip minor differences)
 
 Output ONLY a valid JSON object with this structure:
 {
@@ -81,7 +82,7 @@ function formatStockVsForecast(data) {
   return data
     .map(
       (d) =>
-        `- [${d.ingredient_id}] ${d.name}: ${d.stock} ${d.unit} in stock, forecasted ${d.weekly_usage} ${d.unit}/week (${d.days_covered} days covered)`,
+        `- [${d.ingredient_id}] ${d.name}: ${d.stock} ${d.unit} in stock (fresh ${d.stock_fresh ?? d.stock}, expiring 7d ${d.stock_expiring_7d ?? 0}, expired ${d.stock_expired ?? 0}), forecasted ${d.weekly_usage} ${d.unit}/week (${d.days_covered} days covered)`,
     )
     .join("\n");
 }

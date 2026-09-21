@@ -240,6 +240,26 @@ async function main() {
     create: { id: KITCHEN_ID, name: "Kitchen", email: "kitchen@abbeys.test", role: "kitchen", passwordHash: dummyHash },
   }).catch(()=>{});
 
+  // ── Ensure system settings row exists (fresh DBs only; never overwrite admin config) ──
+  const defaultHours = Object.fromEntries(
+    ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"].map((d) => [
+      d, { enabled: true, open: "08:00", close: "20:00" },
+    ]),
+  );
+  defaultHours.sunday = { enabled: false, open: "08:00", close: "20:00" };
+  await prisma.systemSettings.upsert({
+    where: { id: 1 },
+    update: {},
+    create: {
+      id: 1,
+      storeName: "Abbey's Kitchenette",
+      storeAddress: "Robledo Compound, Bulacnin, Lipa City",
+      storePhone: "0929 781 1212",
+      storeEmail: "maryrosemendoza78@yahoo.com",
+      storeHours: defaultHours,
+    },
+  }).catch(()=>{});
+
   // ── Phase 1: Categories & Subcategories ──
   console.log("Phase 1: Categories & Subcategories");
 
