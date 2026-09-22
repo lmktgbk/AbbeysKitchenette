@@ -1,12 +1,13 @@
 import api from "@/config/axios";
 
 /** Get audit logs with filters and pagination */
-export async function getAuditLogsRequest({ page, limit, userId, action, targetType, startDate, endDate, search }) {
+export async function getAuditLogsRequest({ page, limit, userId, action, actions, targetType, startDate, endDate, search }) {
   const params = new URLSearchParams();
   if (page) params.set("page", page);
   if (limit) params.set("limit", limit);
   if (userId) params.set("userId", userId);
   if (action) params.set("action", action);
+  if (actions) params.set("actions", actions);
   if (targetType) params.set("targetType", targetType);
   if (startDate) params.set("startDate", startDate);
   if (endDate) params.set("endDate", endDate);

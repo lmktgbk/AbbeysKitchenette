@@ -407,7 +407,7 @@ export const ingredientService = {
       action: ACTIONS.STOCK_RESTOCKED,
       targetType: "ingredient",
       targetId: id,
-      details: { quantity: qty, cost_per_unit: cost, supplier: supplier_name },
+      details: { name: existing.ingredientName, unit: existing.unit, quantity: qty, cost_per_unit: cost, supplier: supplier_name },
     }).catch(() => {});
 
     return response;
@@ -535,7 +535,7 @@ export const ingredientService = {
       action: ACTIONS.STOCK_LOSS_DECLARED,
       targetType: "ingredient",
       targetId: id,
-      details: { loss_type, quantity_lost: qty, batch_id },
+      details: { name: existing.ingredientName, unit: existing.unit, loss_type, quantity_lost: qty, batch_id },
     }).catch(() => {});
 
     return response;
@@ -731,7 +731,7 @@ export const ingredientService = {
       action: ACTIONS.STOCK_COUNT_RECORDED,
       targetType: "ingredient",
       targetId: id,
-      details: { system: systemStock, physical, variance, reason },
+      details: { name: existing.ingredientName, unit: existing.unit, system: systemStock, physical, variance, reason },
     }).catch(() => {});
 
     return {

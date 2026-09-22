@@ -17,13 +17,14 @@ export const auditLogController = {
         throw new AppError(403, "Only admins can view audit logs", "FORBIDDEN");
       }
 
-      const { page, limit, userId, action, targetType, startDate, endDate, search } = req.query;
+      const { page, limit, userId, action, actions, targetType, startDate, endDate, search } = req.query;
 
       const result = await auditLogService.getLogs({
         page: page ? parseInt(page) : 1,
         limit: limit ? parseInt(limit) : 50,
         userId,
         action,
+        actions,
         targetType,
         startDate,
         endDate,

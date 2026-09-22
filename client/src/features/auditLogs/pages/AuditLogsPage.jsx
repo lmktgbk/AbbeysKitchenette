@@ -7,6 +7,8 @@ import { useAuditLogs } from "../query";
 import { formatTime } from "@/lib/date";
 import Icon from "@/components/ui/icon";
 
+// Mirrors server ACTION_GROUPS (auditLog.constants.js) — filtering happens
+// server-side via `actions`, so pagination counts stay correct.
 const ACTION_GROUPS = [
   { value: "", label: "All Actions" },
   { value: "group:Product", label: "Product" },
@@ -15,17 +17,19 @@ const ACTION_GROUPS = [
   { value: "group:Staff", label: "Staff" },
   { value: "group:Auth", label: "Auth" },
   { value: "group:Order", label: "Order" },
+  { value: "group:Shift", label: "Shift" },
   { value: "group:System", label: "System" },
 ];
 
 const ACTION_GROUP_MAP = {
-  "group:Product": ["PRODUCT_CREATED", "PRODUCT_UPDATED", "PRODUCT_DELETED", "PRODUCT_ACTIVATED", "PRODUCT_DEACTIVATED", "PRODUCT_VARIANTS_UPDATED"],
+  "group:Product": ["PRODUCT_CREATED", "PRODUCT_UPDATED", "PRODUCT_DELETED", "PRODUCT_ACTIVATED", "PRODUCT_DEACTIVATED", "PRODUCT_VARIANTS_UPDATED", "VARIANT_ACTIVATED", "VARIANT_DEACTIVATED"],
   "group:Category": ["CATEGORY_CREATED", "CATEGORY_UPDATED", "CATEGORY_DELETED"],
-  "group:Inventory": ["INGREDIENT_CREATED", "INGREDIENT_UPDATED", "INGREDIENT_ARCHIVED", "INGREDIENT_RESTORED", "INGREDIENT_DELETED", "STOCK_RESTOCKED", "STOCK_LOSS_DECLARED"],
-  "group:Staff": ["STAFF_CREATED", "STAFF_UPDATED", "STAFF_DEACTIVATED", "STAFF_ACTIVATED", "STAFF_PIN_RESET", "STAFF_PASSWORD_RESET", "STAFF_DELETED"],
-  "group:Auth": ["LOGIN_SUCCESS", "LOGIN_FAILED", "LOGOUT", "PASSWORD_CHANGED", "PIN_CHANGED", "OTP_VERIFIED"],
+  "group:Inventory": ["INGREDIENT_CREATED", "INGREDIENT_UPDATED", "INGREDIENT_ARCHIVED", "INGREDIENT_RESTORED", "INGREDIENT_DELETED", "STOCK_RESTOCKED", "STOCK_LOSS_DECLARED", "STOCK_COUNT_RECORDED"],
+  "group:Staff": ["STAFF_CREATED", "STAFF_UPDATED", "STAFF_DEACTIVATED", "STAFF_ACTIVATED", "STAFF_PASSWORD_RESET", "STAFF_DELETED"],
+  "group:Auth": ["LOGIN_SUCCESS", "LOGIN_FAILED", "LOGOUT", "PASSWORD_CHANGED", "OTP_VERIFIED"],
   "group:Order": ["ORDER_CREATED", "ORDER_ACCEPTED", "ORDER_COMPLETED", "ORDER_CANCELLED", "ORDER_DELETED"],
-  "group:System": ["SETTINGS_UPDATED", "FORECAST_RUN", "MBA_RUN"],
+  "group:Shift": ["SHIFT_OPENED", "SHIFT_CLOSED", "SHIFT_FORCE_CLOSED"],
+  "group:System": ["SETTINGS_UPDATED", "FORECAST_RUN", "MBA_RUN", "REORDER_RUN", "WASTE_RUN", "ANOMALY_SCAN"],
 };
 
 const BADGE_STYLES = {
@@ -60,6 +64,15 @@ const BADGE_STYLES = {
   SETTINGS_UPDATED: "bg-blue-50 text-blue-700 border-blue-200",
   FORECAST_RUN: "bg-blue-50 text-blue-700 border-blue-200",
   MBA_RUN: "bg-blue-50 text-blue-700 border-blue-200",
+  REORDER_RUN: "bg-blue-50 text-blue-700 border-blue-200",
+  WASTE_RUN: "bg-blue-50 text-blue-700 border-blue-200",
+  ANOMALY_SCAN: "bg-blue-50 text-blue-700 border-blue-200",
+  SHIFT_OPENED: "bg-blue-50 text-blue-700 border-blue-200",
+  VARIANT_ACTIVATED: "bg-green-50 text-green-700 border-green-200",
+  VARIANT_DEACTIVATED: "bg-blue-50 text-blue-700 border-blue-200",
+  STOCK_COUNT_RECORDED: "bg-amber-50 text-amber-700 border-amber-200",
+  SHIFT_CLOSED: "bg-amber-50 text-amber-700 border-amber-200",
+  SHIFT_FORCE_CLOSED: "bg-red-50 text-red-700 border-red-200",
 
   STAFF_PIN_RESET: "bg-amber-50 text-amber-700 border-amber-200",
   STAFF_PASSWORD_RESET: "bg-amber-50 text-amber-700 border-amber-200",
@@ -102,6 +115,15 @@ const ROW_BORDER_COLORS = {
   SETTINGS_UPDATED: "border-l-blue-500",
   FORECAST_RUN: "border-l-blue-500",
   MBA_RUN: "border-l-blue-500",
+  REORDER_RUN: "border-l-blue-500",
+  WASTE_RUN: "border-l-blue-500",
+  ANOMALY_SCAN: "border-l-blue-500",
+  SHIFT_OPENED: "border-l-blue-500",
+  VARIANT_ACTIVATED: "border-l-green-500",
+  VARIANT_DEACTIVATED: "border-l-blue-500",
+  STOCK_COUNT_RECORDED: "border-l-amber-500",
+  SHIFT_CLOSED: "border-l-amber-500",
+  SHIFT_FORCE_CLOSED: "border-l-red-500",
 
   STAFF_PIN_RESET: "border-l-amber-500",
   STAFF_PASSWORD_RESET: "border-l-amber-500",
@@ -179,6 +201,15 @@ function formatDescription(log) {
     case "SETTINGS_UPDATED": return `Updated settings${fields.length ? ` (${fields.join(", ")})` : ""}`;
     case "FORECAST_RUN": return "Ran demand forecast";
     case "MBA_RUN": return "Ran market basket analysis";
+    case "REORDER_RUN": return "Ran reorder suggestions";
+    case "WASTE_RUN": return "Ran waste analysis";
+    case "ANOMALY_SCAN": return "Ran anomaly scan";
+    case "SHIFT_OPENED": return "Opened shift";
+    case "SHIFT_CLOSED": return "Closed shift";
+    case "SHIFT_FORCE_CLOSED": return "Force-closed shift";
+    case "STOCK_COUNT_RECORDED": return `Counted "${name}" — system ${d.system ?? ""}, physical ${d.physical ?? ""}`;
+    case "VARIANT_ACTIVATED": return `Activated variant of "${name}"`;
+    case "VARIANT_DEACTIVATED": return `Deactivated variant of "${name}"`;
 
     default: return formatAction(log.action);
   }
@@ -197,7 +228,7 @@ export default function AuditLogsPage() {
     page,
     limit,
     ...(search && { search }),
-    ...(resolvedActions.length === 1 && { action: resolvedActions[0] }),
+    ...(resolvedActions.length > 0 && { actions: resolvedActions.join(",") }),
     ...(startDate && { startDate }),
     ...(endDate && { endDate }),
   }), [page, limit, search, resolvedActions, startDate, endDate]);
@@ -206,14 +237,10 @@ export default function AuditLogsPage() {
   const logs = data?.logs || [];
   const pagination = data?.pagination || { page: 1, limit: 50, totalItems: 0, totalPages: 0 };
 
-  const filteredLogs = resolvedActions.length > 1
-    ? logs.filter((log) => resolvedActions.includes(log.action))
-    : logs;
-
   const grouped = useMemo(() => {
     const groups = [];
     let currentDate = null;
-    for (const log of filteredLogs) {
+    for (const log of logs) {
       const dateKey = new Date(log.createdAt).toLocaleDateString("en-PH", {
         year: "numeric",
         month: "short",
@@ -227,7 +254,7 @@ export default function AuditLogsPage() {
       groups.push({ type: "log", log, key: log.id });
     }
     return groups;
-  }, [filteredLogs]);
+  }, [logs]);
 
   return (
     <div className="flex flex-col h-full">

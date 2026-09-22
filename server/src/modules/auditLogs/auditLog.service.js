@@ -24,12 +24,13 @@ export const auditLogService = {
     }
   },
 
-  async getLogs({ page, limit, userId, action, targetType, startDate, endDate, search }) {
+  async getLogs({ page, limit, userId, action, actions, targetType, startDate, endDate, search }) {
     return auditLogRepository.findMany({
       page,
       limit,
       userId,
       action,
+      actions,
       targetType,
       startDate,
       endDate,
