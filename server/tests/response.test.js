@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { controllerError, mapPrismaError } from "../src/utils/response.js";
+import { controllerError, mapPrismaError, mapUploadError } from "../src/utils/response.js";
 import { AppError } from "../src/middleware/errorHandler.middleware.js";
 
 function stubRes() {
@@ -58,5 +58,18 @@ describe("controllerError envelope", () => {
   it("mapPrismaError returns null for unknown errors", () => {
     expect(mapPrismaError(new Error("x"))).toBeNull();
     expect(mapPrismaError(null)).toBeNull();
+  });
+
+  it("maps oversized uploads to 400 FILE_TOO_LARGE", () => {
+    const res = stubRes();
+    controllerError(res, Object.assign(new Error("File too large"), { name: "MulterError", code: "LIMIT_FILE_SIZE" }), "UPLOAD_IMAGE_ERROR");
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toBe("FILE_TOO_LARGE");
+  });
+
+  it("maps rejected file types to 400 INVALID_FILE_TYPE", () => {
+    const mapped = mapUploadError(new Error("Only image files are allowed (jpeg, jpg, png, gif, webp)"));
+    expect(mapped.statusCode).toBe(400);
+    expect(mapped.code).toBe("INVALID_FILE_TYPE");
   });
 });

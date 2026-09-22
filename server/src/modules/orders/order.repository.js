@@ -176,6 +176,51 @@ export const orderRepository = {
   },
 
   /**
+   * Guard-only order read: scalars + cumulative refund, no actor joins,
+   * no items. For status/total checks on write paths (cancel, remove-item,
+   * prepare). Response shaping still uses findById.
+   */
+  async findByIdGuard(id) {
+    return prisma.order.findUnique({
+      where: { orderId: id },
+      select: {
+        orderId: true,
+        orderNumber: true,
+        orderDate: true,
+        customerName: true,
+        tableNumber: true,
+        orderSource: true,
+        status: true,
+        acceptedAt: true,
+        acceptedBy: true,
+        preparingAt: true,
+        preparingBy: true,
+        completedAt: true,
+        completedBy: true,
+        fulfillmentMinutes: true,
+        subtotalAmount: true,
+        discountType: true,
+        discountPercent: true,
+        discountLabel: true,
+        discountIdNo: true,
+        discountAmount: true,
+        discountBy: true,
+        shiftId: true,
+        paymentMethod: true,
+        referenceNo: true,
+        totalAmount: true,
+        amountPaid: true,
+        change: true,
+        guestToken: true,
+        createdAt: true,
+        updatedAt: true,
+        createdBy: true,
+        refund: { select: { amount: true } },
+      },
+    });
+  },
+
+  /**
    * Find order by guest token (public API).
    * @param {string} token - guest UUID
    * @returns {object|null} - order or null
@@ -476,9 +521,10 @@ export const orderRepository = {
     });
   },
 
-  async createOrderItemLoss(data, tx) {
+  async createOrderItemLosses(rows, tx) {
+    if (rows.length === 0) return { count: 0 };
     const client = tx || prisma;
-    return client.lossRecord.create({ data });
+    return client.lossRecord.createMany({ data: rows });
   },
 
   async overrideLoss(lossId, { overrideReason, overrideNote, overriddenById }, tx) {

@@ -90,6 +90,8 @@ app.use("/api/reorder-suggestions", reorderSuggestionsRoutes);
 app.use("/api/waste-reduction", wasteReductionRoutes);
 app.use("/api/price-optimization", priceOptimizationRoutes);
 app.use("/api/market-basket", marketBasketRoutes);
+// Canonical new name after the MBA → Promotions rename; market-basket kept
+// for backward compatibility (bookmarks, old clients).
 app.use("/api/promotions", marketBasketRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/audit-logs", auditLogRoutes);

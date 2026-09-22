@@ -221,72 +221,22 @@ export const shiftService = {
       throw new AppError(403, "You can only view your own shifts", "FORBIDDEN");
     }
 
-    const orders = await prisma.order.findMany({
-      where: {
-        shiftId: id,
-        status: { in: ["accepted", "preparing", "completed"] },
-      },
-      include: {
-        items: {
-          include: {
-            product: {
-              include: {
-                subcategory: {
-                  include: {
-                    category: true,
-                  },
-                },
-              },
-            },
-            variant: {
-              include: {
-                recipes: {
-                  include: {
-                    ingredient: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
+    // Single GROUP BY query (was: full order trees hydrated in memory).
+    // Removed items are excluded — restored stock was never consumed.
+    const rows = await shiftRepository.getIngredientUsageGrouped(id);
 
-    const cashierMap = new Map();
-    const kitchenMap = new Map();
-
-    for (const order of orders) {
-      for (const item of order.items) {
-        if (!item.product || !item.variant) continue;
-        
-        const categoryName = item.product.subcategory?.category?.categoryName;
-        const isBeverage = categoryName === "Beverages";
-        
-        const targetMap = isBeverage ? cashierMap : kitchenMap;
-
-        for (const recipe of item.variant.recipes) {
-          if (!recipe.ingredient) continue;
-          
-          const ingredientName = recipe.ingredient.ingredientName;
-          const unit = recipe.ingredient.unit;
-          const qtyUsed = Number(recipe.quantityNeeded) * item.quantity;
-          
-          if (!targetMap.has(ingredientName)) {
-            targetMap.set(ingredientName, { name: ingredientName, unit, total: 0 });
-          }
-          targetMap.get(ingredientName).total += qtyUsed;
-        }
-      }
+    const cashierIngredients = [];
+    const kitchenIngredients = [];
+    for (const row of rows) {
+      const entry = { name: row.name, unit: row.unit, total: roundMoney(row.total) };
+      if (row.category === "Beverages") cashierIngredients.push(entry);
+      else kitchenIngredients.push(entry);
     }
+    const byName = (a, b) => a.name.localeCompare(b.name);
+    cashierIngredients.sort(byName);
+    kitchenIngredients.sort(byName);
 
-    const formatMap = (map) => Array.from(map.values())
-      .map(i => ({ ...i, total: roundMoney(i.total) }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-
-    return {
-      cashierIngredients: formatMap(cashierMap),
-      kitchenIngredients: formatMap(kitchenMap),
-    };
+    return { cashierIngredients, kitchenIngredients };
   },
 
   /* ── Close ─────────────────────────────── */

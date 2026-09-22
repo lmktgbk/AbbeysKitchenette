@@ -550,7 +550,7 @@ export const orderService = {
   /* ── Prepare Order ───────────────────── */
 
   async prepareOrder(id, userId) {
-    const order = await orderRepository.findById(id);
+    const order = await orderRepository.findByIdGuard(id);
     if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
 
     if (!isValidTransition(order.status, "preparing")) {
@@ -573,7 +573,7 @@ export const orderService = {
   /* ── Check Order Item ────────────────── */
 
   async checkOrderItem(orderId, orderItemId, isPrepared, userId) {
-    const order = await orderRepository.findById(orderId);
+    const order = await orderRepository.findByIdGuard(orderId);
     if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
 
     if (order.status !== "preparing" && order.status !== "accepted") {
@@ -588,7 +588,7 @@ export const orderService = {
   /* ── Cancel / Delete ─────────────────── */
 
   async cancelOrDelete(id, userId, reason, options = {}) {
-    const order = await orderRepository.findById(id);
+    const order = await orderRepository.findByIdGuard(id);
     if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
 
     if (order.status === "completed") {
@@ -758,7 +758,7 @@ export const orderService = {
   /* ── Remove Single Item ────────────── */
 
   async removeOrderItem(orderId, orderItemId, userId, reason, options = {}) {
-    const order = await orderRepository.findById(orderId);
+    const order = await orderRepository.findByIdGuard(orderId);
     if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
 
     if (order.status !== "accepted" && order.status !== "preparing") {
@@ -1486,6 +1486,7 @@ export const orderService = {
       ? (orderItem.variant?.sizeName ? `${orderItem.product.productName} (${orderItem.variant.sizeName})` : orderItem.product.productName)
       : null;
 
+    const lossRows = [];
     for (const recipe of itemRecipes) {
       const totalNeeded = Number(recipe.quantityNeeded) * orderItem.quantity;
       const quantityLost = lossMap.has(recipe.ingredientId)
@@ -1496,7 +1497,7 @@ export const orderService = {
 
       const costPerUnit = deductionCostMap.get(recipe.ingredientId) || 0;
 
-      await orderRepository.createOrderItemLoss({
+      lossRows.push({
         ingredientId: recipe.ingredientId,
         declaredById: userId,
         lossType: "cancellation",
@@ -1508,8 +1509,9 @@ export const orderService = {
         notes: lossMap.has(recipe.ingredientId)
           ? `${itemLabel}: Partial loss declared`
           : `${itemLabel}: Item cancelled mid-preparation`,
-      }, tx);
+      });
     }
+    await orderRepository.createOrderItemLosses(lossRows, tx);
   },
 
   /**
@@ -1596,6 +1598,7 @@ export const orderService = {
       partialLossMap.set(entry.order_item_id, ingredientMap);
     }
 
+    const lossRows = [];
     for (const item of preparedItems) {
       const itemRecipes = recipeMap.get(item.variantId) || [];
       const partialMap = partialLossMap.get(item.orderItemId);
@@ -1614,7 +1617,7 @@ export const orderService = {
           ? (item.variant?.sizeName ? `${item.product.productName} (${item.variant.sizeName})` : item.product.productName)
           : null;
 
-        await orderRepository.createOrderItemLoss({
+        lossRows.push({
           ingredientId: recipe.ingredientId,
           declaredById: userId,
           lossType: "cancellation",
@@ -1626,9 +1629,10 @@ export const orderService = {
           notes: partialMap?.has(recipe.ingredientId)
             ? `${itemLabel}: Partial loss declared`
             : `${itemLabel}: Item cancelled mid-preparation`,
-        }, tx);
+        });
       }
     }
+    await orderRepository.createOrderItemLosses(lossRows, tx);
   },
 
   /* ── Acceptance Handler ──────────────── */

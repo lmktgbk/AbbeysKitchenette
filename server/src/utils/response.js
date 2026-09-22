@@ -90,6 +90,32 @@ export const mapPrismaError = (error) => {
 };
 
 /**
+ * Maps multer upload rejections to safe client responses.
+ * Covers the image fileFilter ("Only image files…") and size limits —
+ * both would otherwise surface as generic 500s.
+ * Returns { statusCode, message, code } or null when unrecognized.
+ */
+export const mapUploadError = (error) => {
+  if (error?.name === "MulterError" && error?.code === "LIMIT_FILE_SIZE") {
+    return {
+      statusCode: 400,
+      message: "Image is too large — 5MB max for products, 2MB for avatars",
+      code: "FILE_TOO_LARGE",
+    };
+  }
+  if (
+    error?.message === "Only image files are allowed (jpeg, jpg, png, gif, webp)"
+  ) {
+    return {
+      statusCode: 400,
+      message: error.message,
+      code: "INVALID_FILE_TYPE",
+    };
+  }
+  return null;
+};
+
+/**
  * Single error serializer for controllers.
  * Replaces the per-controller handleError copies: AppError passes through,
  * known Prisma races map to 409s, everything else becomes a generic 500
@@ -99,7 +125,7 @@ export const controllerError = (res, error, fallbackCode) => {
   if (error instanceof AppError) {
     return errorResponse(res, error.message, null, error.statusCode, error.code);
   }
-  const mapped = mapPrismaError(error);
+  const mapped = mapPrismaError(error) || mapUploadError(error);
   if (mapped) {
     return errorResponse(res, mapped.message, null, mapped.statusCode, mapped.code);
   }

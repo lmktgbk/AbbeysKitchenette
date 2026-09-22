@@ -206,6 +206,43 @@ export const shiftRepository = {
   },
 
   /**
+   * Ingredient consumption for a shift in ONE query.
+   * Joins orders → active items → recipes → ingredients, summing
+   * quantity_needed × item quantity per ingredient. The product chain is
+   * LEFT-joined: it only decides the Beverages/kitchen split, and items
+   * with a missing product fall into kitchen (same as the old in-memory
+   * version). Removed items are excluded — their stock was restored, so
+   * they were never consumed.
+   * @returns {Array<{name, unit, total, category}>}
+   */
+  async getIngredientUsageGrouped(shiftId, tx) {
+    const client = tx || prisma;
+    const rows = await client.$queryRaw`
+      SELECT i.ingredient_name AS name,
+             i.unit AS unit,
+             SUM(r.quantity_needed * oi.quantity)::float AS total,
+             MAX(c.category_name) AS category
+      FROM orders o
+      JOIN order_items oi ON oi.order_id = o.order_id AND oi.removed_at IS NULL
+      JOIN product_variants pv ON pv.variant_id = oi.variant_id
+      JOIN recipes r ON r.variant_id = pv.variant_id
+      JOIN ingredients i ON i.ingredient_id = r.ingredient_id
+      LEFT JOIN products p ON p.product_id = oi.product_id
+      LEFT JOIN subcategories sc ON sc.subcategory_id = p.subcategory_id
+      LEFT JOIN categories c ON c.category_id = sc.category_id
+      WHERE o.shift_id = ${shiftId}::uuid
+        AND o.status IN ('accepted', 'preparing', 'completed')
+      GROUP BY i.ingredient_id, i.ingredient_name, i.unit
+    `;
+    return rows.map((r) => ({
+      name: r.name,
+      unit: r.unit,
+      total: Number(r.total || 0),
+      category: r.category ?? null,
+    }));
+  },
+
+  /**
    * Closed shifts for one cashier (own history, latest first).
    */
   async findClosedByUser(userId, limit = 20) {
