@@ -8,8 +8,8 @@ import { formatTime } from "@/lib/date";
 import { orderNumberLabel } from "@/lib/orderNumber";
 import Icon from "@/components/ui/icon";
 
-// Mirrors server ACTION_GROUPS (auditLog.constants.js) — filtering happens
-// server-side via `actions`, so pagination counts stay correct.
+// Group filter lists mirror the server audit actions (auditLog.constants.js)
+// — filtering happens server-side via `actions`, so pagination counts stay correct.
 const ACTION_GROUPS = [
   { value: "", label: "All Actions" },
   { value: "group:Product", label: "Product" },

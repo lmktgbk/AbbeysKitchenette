@@ -197,6 +197,8 @@ model RestockBatch {
   restockedBy  User       @relation(fields: [restockedById], references: [id])
   orderDeductions OrderIngredientDeduction[]
 
+  @@index([ingredientId], map: "restock_batches_ingredient_id_idx")
+  @@index([ingredientId, quantityLeft], map: "restock_batches_ingredient_id_quantity_left_idx")
   @@map("restock_batches")
 }
 
@@ -224,6 +226,8 @@ model LossRecord {
   relatedOrder  Order?     @relation(fields: [relatedOrderId], references: [orderId])
   overriddenBy  User?      @relation("LossOverriddenBy", fields: [overriddenById], references: [id])
 
+  @@index([relatedOrderId], map: "loss_records_related_order_id_idx")
+  @@index([ingredientId], map: "loss_records_ingredient_id_idx")
   @@map("loss_records")
 }
 
@@ -245,6 +249,7 @@ model StockAdjustment {
   ingredient Ingredient @relation(fields: [ingredientId], references: [ingredientId], onDelete: Cascade)
   adjustedBy User       @relation(fields: [adjustedById], references: [id])
 
+  @@index([ingredientId, adjustedAt], map: "stock_adjustments_ingredient_id_adjusted_at_idx")
   @@map("stock_adjustments")
 }
 
@@ -260,6 +265,8 @@ model StockAlert {
 
   ingredient Ingredient @relation(fields: [ingredientId], references: [ingredientId], onDelete: Cascade)
 
+  @@index([ingredientId], map: "stock_alerts_ingredient_id_idx")
+  @@index([isResolved], map: "stock_alerts_is_resolved_idx")
   @@map("stock_alerts")
 }
 
@@ -390,6 +397,7 @@ model Order {
   @@index([status])
   @@index([orderDate])
   @@index([createdBy])
+  @@index([shiftId], map: "orders_shift_id_idx")
   @@unique([orderDate, orderNumber])
   @@map("orders")
 }
@@ -416,6 +424,9 @@ model OrderItem {
   preparedByUser User?    @relation("OrderItemPreparedBy", fields: [preparedBy], references: [id])
   removedByUser   User?    @relation("OrderItemRemovedBy", fields: [removedBy], references: [id])
 
+  @@index([orderId], map: "order_items_order_id_idx")
+  @@index([orderId, removedAt], map: "order_items_order_id_removed_at_idx")
+  @@index([variantId], map: "order_items_variant_id_idx")
   @@map("order_items")
 }
 
@@ -462,6 +473,7 @@ model OrderIngredientDeduction {
 
   @@index([orderId])
   @@index([ingredientId])
+  @@index([orderId, reversedAt], map: "deductions_order_id_reversed_at_idx")
   @@map("order_ingredient_deductions")
 }
 
@@ -705,6 +717,8 @@ model Notification {
 
   @@index([isRead])
   @@index([createdAt])
+  @@index([type], map: "notifications_type_idx")
+  @@index([referenceType, referenceId], map: "notifications_reference_idx")
   @@map("notifications")
 }
 
