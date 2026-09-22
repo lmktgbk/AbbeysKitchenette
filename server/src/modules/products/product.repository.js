@@ -366,31 +366,33 @@ export const productRepository = {
     });
   },
 
-  /* ── Transaction Checks (Placeholder) ── */
+  /* ── Transaction Checks ── */
 
   /**
    * Check if a product has any order transactions.
-   * Placeholder — always returns 0 until Order module is built.
+   * Blocks hard-delete of products with order history.
    * @param {string} id - product UUID
-   * @returns {number} - transaction count (0 for now)
+   * @returns {number} - order item count referencing this product
    */
   async countTransactions(id) {
-    // TODO: Replace with real check when Order module is built
-    // Example: return prisma.orderItem.count({ where: { variant: { productId: id } } });
-    return 0;
+    return prisma.orderItem.count({ where: { productId: id } });
   },
 
   /**
    * Batch-check which variants have transactions.
-   * Placeholder — returns empty map until Order module is built.
    * @param {number[]} variantIds - array of variant IDs
    * @returns {Object<number, number>} - map of variantId → transaction count
    */
   async countVariantTransactionsBatch(variantIds) {
     if (variantIds.length === 0) return {};
-    // TODO: Replace with real check when Order module is built
+    const rows = await prisma.orderItem.groupBy({
+      by: ["variantId"],
+      where: { variantId: { in: variantIds } },
+      _count: { variantId: true },
+    });
     const result = {};
     for (const id of variantIds) result[id] = 0;
+    for (const row of rows) result[row.variantId] = row._count.variantId;
     return result;
   },
 

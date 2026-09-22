@@ -537,7 +537,7 @@ export const productService = {
   async remove(id, userId) {
     const existing = await requireProduct(id);
 
-    // Check for transactions (placeholder — always 0 for now)
+    // Block hard-delete when order history references this product
     const txCount = await productRepository.countTransactions(id);
     if (txCount > 0) {
       throw new AppError(

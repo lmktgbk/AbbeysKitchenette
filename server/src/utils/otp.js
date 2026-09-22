@@ -57,26 +57,3 @@ export function verifyOtp(userId, code) {
   otpStore.delete(userId);
   return true;
 }
-
-/**
- * Delete OTP for a user (used after successful login or resend)
- * @param {string} userId - The user ID
- */
-export function deleteOtp(userId) {
-  otpStore.delete(userId);
-}
-
-/**
- * Check if a valid OTP exists for a user
- * @param {string} userId - The user ID
- * @returns {boolean}
- */
-export function hasValidOtp(userId) {
-  const stored = otpStore.get(userId);
-  if (!stored) return false;
-  if (Date.now() > stored.expiresAt) {
-    otpStore.delete(userId);
-    return false;
-  }
-  return true;
-}

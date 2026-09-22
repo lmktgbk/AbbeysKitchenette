@@ -280,6 +280,25 @@ export const orderRepository = {
   /* ── Status Management ─────────────────── */
 
   /**
+   * Atomically claim an order for a status transition.
+   * Only flips status when the current status is one of `from` — the
+   * affected-row count tells the caller whether it won the race.
+   * @param {string} id - order UUID
+   * @param {string|string[]} from - allowed current statuses
+   * @param {string} toStatus - new status
+   * @param {object} [tx] - transaction client
+   * @returns {number} - rows claimed (0 = lost race / wrong status)
+   */
+  async claimStatus(id, from, toStatus, tx) {
+    const client = tx || prisma;
+    const result = await client.order.updateMany({
+      where: { orderId: id, status: Array.isArray(from) ? { in: from } : from },
+      data: { status: toStatus },
+    });
+    return result.count;
+  },
+
+  /**
    * Update order status with timestamp and actor.
    * @param {string} id - order UUID
    * @param {string} status - new status
@@ -377,16 +396,6 @@ export const orderRepository = {
     });
   },
 
-  /**
-   * Hard delete order (cascade removes items).
-   * @param {string} id - order UUID
-   * @param {object} [tx] - transaction client
-   */
-  async delete(id, tx) {
-    const client = tx || prisma;
-    return client.order.delete({ where: { orderId: id } });
-  },
-
   /* ── Order Item Preparation ───────────── */
 
   async setOrderItemPrepared(orderItemId, isPrepared, userId, tx) {
@@ -401,8 +410,9 @@ export const orderRepository = {
     });
   },
 
-  async getOrderItems(orderId) {
-    return prisma.orderItem.findMany({
+  async getOrderItems(orderId, tx) {
+    const client = tx || prisma;
+    return client.orderItem.findMany({
       where: { orderId, removedAt: null },
       include: {
         product: { select: { productName: true } },
@@ -580,20 +590,27 @@ export const orderRepository = {
   },
 
   /**
-   * Restore stock to a restock batch.
-   * @param {number} batchId - restock batch ID
-   * @param {number} quantity - amount to restore
+   * Bulk restore quantities to multiple batches in a single SQL query.
+   * Uses optimistic locking (version check) via CASE/WHEN — mirrors
+   * bulkDeductBatches. Returns rows updated; caller must verify it matches
+   * items.length and throw 409 CONCURRENT_STOCK otherwise.
+   * @param {Array<{restockId: number, quantity: number, version: number}>} items
    * @param {object} tx - transaction client
+   * @returns {number} - number of rows updated (should match items.length)
    */
-  async restoreBatch(batchId, quantity, tx) {
+  async bulkRestoreBatches(items, tx) {
+    if (items.length === 0) return 0;
     const client = tx || prisma;
-    return client.restockBatch.update({
-      where: { restockId: batchId },
-      data: {
-        quantityLeft: { increment: quantity },
-        version: { increment: 1 },
-      },
-    });
+
+    const result = await client.$executeRawUnsafe(`
+      UPDATE restock_batches
+      SET
+        quantity_left = quantity_left + CASE restock_id ${items.map((d, i) => `WHEN $${i * 3 + 1} THEN $${i * 3 + 2}`).join(" ")} ELSE 0 END,
+        version = version + 1
+      WHERE (${items.map((d, i) => `(restock_id = $${i * 3 + 1} AND version = $${i * 3 + 3})`).join(" OR ")})
+    `, ...items.flatMap((d) => [d.restockId, d.quantity, d.version]));
+
+    return result;
   },
 
   /**

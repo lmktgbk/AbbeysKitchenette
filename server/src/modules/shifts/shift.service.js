@@ -37,15 +37,25 @@ export const shiftService = {
     }
 
     // One open shift per cashier — close the current one first.
+    // The pre-check is UX; the partial unique index (see migration) is the
+    // real guard — a double-click race lands here as P2002.
     const mine = await shiftRepository.findOpenByUser(userId);
     if (mine.length > 0) {
       throw new AppError(409, "Close your current shift before opening a new one", "SHIFT_ALREADY_OPEN");
     }
 
-    const shift = await shiftRepository.create({
-      openingCash: roundMoney(openingCash),
-      openedBy: userId,
-    });
+    let shift;
+    try {
+      shift = await shiftRepository.create({
+        openingCash: roundMoney(openingCash),
+        openedBy: userId,
+      });
+    } catch (err) {
+      if (err?.code === "P2002") {
+        throw new AppError(409, "Close your current shift before opening a new one", "SHIFT_ALREADY_OPEN");
+      }
+      throw err;
+    }
 
     auditLogService.logAction({
       userId,
@@ -158,7 +168,7 @@ export const shiftService = {
    * once closed, otherwise expected derives from the math below.
    * expected = opening + cash sales − cash refunds.
    */
-  async buildSummary(shift) {
+  async buildSummary(shift, tx) {
     const openedAt = shift.openedAt ?? shift.opened_at;
     const closedAt = shift.closedAt ?? shift.closed_at ?? null;
     const openingCash = Number(shift.openingCash ?? shift.opening_cash ?? 0);
@@ -166,9 +176,9 @@ export const shiftService = {
     const closed = (shift.status ?? "open") === "closed";
 
     const [sales, refunds, openOrders] = await Promise.all([
-      shiftRepository.getShiftSales(shiftId, openedAt, closedAt),
-      shiftRepository.getShiftCashRefunds(shiftId, openedAt, closedAt),
-      shiftRepository.getShiftOpenOrders(shiftId, openedAt, closedAt),
+      shiftRepository.getShiftSales(shiftId, openedAt, closedAt, tx),
+      shiftRepository.getShiftCashRefunds(shiftId, openedAt, closedAt, tx),
+      shiftRepository.getShiftOpenOrders(shiftId, openedAt, closedAt, tx),
     ]);
     const computed = roundMoney(openingCash + sales.cashSales - refunds.cashRefunds);
     const stored = (v) => (v != null ? Number(v) : null);
@@ -300,40 +310,47 @@ export const shiftService = {
     // item removal can ever strand a refund outside the books. Pending
     // online orders are unpaid and never block. Admin force-close bypasses
     // with its mandatory note.
-    if (!forced) {
-      const openOrders = await shiftRepository.getShiftOpenOrders(
-        id, shift.openedAt ?? shift.opened_at, shift.closedAt ?? shift.closed_at ?? null
-      );
-      if (openOrders.openCount > 0) {
-        throw new AppError(
-          400,
-          `Kitchen still has ${openOrders.openCount} order${openOrders.openCount === 1 ? "" : "s"} — complete or cancel ${openOrders.openCount === 1 ? "it" : "them"} before closing`,
-          "OPEN_ORDERS_PENDING"
+    // Everything below runs in ONE tx: an order accepted between the
+    // open-orders check and the close lands inside the same snapshot, and a
+    // concurrent close loses the closeIfOpen claim instead of overwriting.
+    const { row: closed, expected, actual, variance } = await prisma.$transaction(async (tx) => {
+      if (!forced) {
+        const openOrders = await shiftRepository.getShiftOpenOrders(
+          id, shift.openedAt ?? shift.opened_at, null, tx
         );
+        if (openOrders.openCount > 0) {
+          throw new AppError(
+            400,
+            `Kitchen still has ${openOrders.openCount} order${openOrders.openCount === 1 ? "" : "s"} — complete or cancel ${openOrders.openCount === 1 ? "it" : "them"} before closing`,
+            "OPEN_ORDERS_PENDING"
+          );
+        }
       }
-    }
 
-    const summary = await this.buildSummary(shift);
-    const expected = summary.expected_cash;
-    const actual = roundMoney(actualCash);
-    const variance = roundMoney(actual - expected);
+      const summary = await this.buildSummary(shift, tx);
+      const expectedCash = summary.expected_cash;
+      const actualCashCount = roundMoney(actualCash);
+      const cashVariance = roundMoney(actualCashCount - expectedCash);
 
-    if (variance !== 0 && !closeNote?.trim()) {
-      throw new AppError(400, "A note is required when actual cash differs from expected", "VARIANCE_NOTE_REQUIRED");
-    }
-    if (forced && !closeNote?.trim()) {
-      throw new AppError(400, "A note is required for force-close", "NOTE_REQUIRED");
-    }
+      if (cashVariance !== 0 && !closeNote?.trim()) {
+        throw new AppError(400, "A note is required when actual cash differs from expected", "VARIANCE_NOTE_REQUIRED");
+      }
+      if (forced && !closeNote?.trim()) {
+        throw new AppError(400, "A note is required for force-close", "NOTE_REQUIRED");
+      }
 
-    const closed = await prisma.$transaction(async (tx) => {
-      return shiftRepository.close(id, {
-        expectedCash: expected,
-        actualCash: actual,
-        variance,
+      const row = await shiftRepository.closeIfOpen(id, {
+        expectedCash: expectedCash,
+        actualCash: actualCashCount,
+        variance: cashVariance,
         closeNote: closeNote?.trim() || null,
         closedBy: userId,
       }, tx);
-    });
+      if (!row) {
+        throw new AppError(400, "Shift is already closed", "SHIFT_ALREADY_CLOSED");
+      }
+      return { row, expected: expectedCash, actual: actualCashCount, variance: cashVariance };
+    }, { timeout: 15000 });
 
     auditLogService.logAction({
       userId,
@@ -345,7 +362,7 @@ export const shiftService = {
 
     // Real-time anomaly hook: cash variance (fire-and-forget, only when off)
     if (variance !== 0) {
-      anomalyService.runScan(["shift_variance_spike"]).catch(() => {});
+      anomalyService.runScan(["shift_variance_spike"]).catch((err) => console.warn("[anomaly] hook scan dropped:", err?.message));
     }
 
     return {

@@ -48,6 +48,18 @@ const errorHandler = (err, req, res, next) => {
     });
   }
 
+  // Optimistic-lock race (version-guard mismatch on stock batches).
+  // Services that can name the conflict throw 409 CONCURRENT_STOCK
+  // themselves; this is the net for the rest.
+  if (err?.code === "P2025") {
+    return res.status(409).json({
+      success: false,
+      message: "Stock changed while processing — please retry",
+      error: "CONCURRENT_STOCK",
+      data: null,
+    });
+  }
+
   // Unexpected error — hide internals, log for debugging
   const ref = crypto.randomBytes(4).toString("hex");
   console.error(`[${ref}] ${err.message}`);

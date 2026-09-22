@@ -2,7 +2,8 @@ import { auditLogRepository } from "./auditLog.repository.js";
 
 export const auditLogService = {
   /**
-   * Log a user action. Fire-and-forget — failures are silently caught.
+   * Log a user action. Fire-and-forget — failures are logged with the action
+   * name (never thrown, never silent).
    * @param {object} params
    * @param {string} [params.userId] - who performed the action
    * @param {string} params.action - action type constant

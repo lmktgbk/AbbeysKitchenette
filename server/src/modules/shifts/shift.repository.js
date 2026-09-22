@@ -56,6 +56,28 @@ export const shiftRepository = {
     });
   },
 
+  /**
+   * Atomically close a shift only if still open. Returns the closed row,
+   * or null when another close won the race.
+   */
+  async closeIfOpen(id, { expectedCash, actualCash, variance, closeNote, closedBy }, tx) {
+    const client = tx || prisma;
+    const claimed = await client.shift.updateMany({
+      where: { shiftId: id, status: "open" },
+      data: {
+        status: "closed",
+        closedAt: new Date(),
+        closedBy,
+        expectedCash,
+        actualCash,
+        variance,
+        closeNote: closeNote ?? null,
+      },
+    });
+    if (claimed.count === 0) return null;
+    return client.shift.findUnique({ where: { shiftId: id } });
+  },
+
   /* ── Summary aggregates ──────────────────── */
 
   /**
@@ -70,9 +92,10 @@ export const shiftRepository = {
    * Pending (unpaid) orders never count.
    * @returns {{ cashSales, gcashSales, mayaSales, cashOrders, totalOrders }}
    */
-  async getShiftSales(shiftId, openedAt, closedAt) {
+  async getShiftSales(shiftId, openedAt, closedAt, tx) {
+    const client = tx || prisma;
     const end = closedAt ?? new Date();
-    const rows = await prisma.$queryRaw`
+    const rows = await client.$queryRaw`
       SELECT
         COALESCE(payment_method, 'cash') AS method,
         COUNT(*)::int AS orders,
@@ -119,9 +142,10 @@ export const shiftRepository = {
    * moved money and must not reduce any expected total.
    * A refund always follows its order's channel (no cross-channel refunds).
    */
-  async getShiftCashRefunds(shiftId, openedAt, closedAt) {
+  async getShiftCashRefunds(shiftId, openedAt, closedAt, tx) {
+    const client = tx || prisma;
     const end = closedAt ?? new Date();
-    const rows = await prisma.$queryRaw`
+    const rows = await client.$queryRaw`
       SELECT COALESCE(o.payment_method, 'cash') AS method,
              COALESCE(SUM(pr.amount), 0)::float AS refunds,
              COUNT(pr.refund_id)::int AS count
@@ -163,9 +187,10 @@ export const shiftRepository = {
    * completed/cancelled). Their cash is already in the drawer —
    * surfaced as a close-time warning, never a blocker.
    */
-  async getShiftOpenOrders(shiftId, openedAt, closedAt) {
+  async getShiftOpenOrders(shiftId, openedAt, closedAt, tx) {
+    const client = tx || prisma;
     const end = closedAt ?? new Date();
-    const rows = await prisma.$queryRaw`
+    const rows = await client.$queryRaw`
       SELECT COUNT(*)::int AS count,
              COALESCE(SUM(total_amount), 0)::float AS total
       FROM orders
