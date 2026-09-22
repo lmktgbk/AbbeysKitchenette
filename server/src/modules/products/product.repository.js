@@ -488,18 +488,20 @@ export const productRepository = {
   },
 
   /**
-   * Bulk update isAvailable for multiple variants in a single transaction.
+   * Bulk update isAvailable for multiple variants in ONE statement.
+   * Single CASE-based UPDATE — atomic like the old per-row array-tx, but
+   * one round-trip regardless of variant count, so it can never expire a
+   * 5s transaction the way V sequential updates could.
    * @param {Array<{ variantId: number, isAvailable: boolean }>} updates
+   * @returns {number} - rows updated
    */
   async bulkUpdateVariantAvailability(updates) {
-    if (updates.length === 0) return;
-    await prisma.$transaction(
-      updates.map((u) =>
-        prisma.productVariant.update({
-          where: { variantId: u.variantId },
-          data: { isAvailable: u.isAvailable },
-        })
-      )
-    );
+    if (updates.length === 0) return 0;
+    const result = await prisma.$executeRawUnsafe(`
+      UPDATE product_variants
+      SET is_available = CASE variant_id ${updates.map((u, i) => `WHEN $${i * 2 + 1} THEN $${i * 2 + 2}`).join(" ")} ELSE is_available END
+      WHERE variant_id IN (${updates.map((u, i) => `$${i * 2 + 1}`).join(", ")})
+    `, ...updates.flatMap((u) => [u.variantId, u.isAvailable]));
+    return result;
   },
 };

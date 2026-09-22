@@ -87,14 +87,17 @@ export const orderService = {
     }
 
     // Get actual weighted costs from deduction records
-    const deductionCosts = await orderRepository.getDeductionIngredientCosts(id);
+    // Independent of the recipe lookup above — one round instead of two.
+    const [deductionCosts, lossRecords] = await Promise.all([
+      orderRepository.getDeductionIngredientCosts(id),
+      orderRepository.getOrderItemLosses(id),
+    ]);
     const deductionCostMap = new Map();
     for (const dc of deductionCosts) {
       deductionCostMap.set(dc.ingredient_id, Number(dc.weighted_cost_per_unit));
     }
 
     // Query loss records and group by order item
-    const lossRecords = await orderRepository.getOrderItemLosses(id);
     const lossCostMap = new Map();
     for (const record of lossRecords) {
       const itemId = record.relatedOrderItemId;
@@ -166,10 +169,11 @@ export const orderService = {
 
   async createWalkIn({ customerName, tableNumber, items, amountPaid, createdBy, orderDate: orderDateStr, discount = {}, payment = {} }) {
     // BR-02: payment requires an open drawer session.
-    const { shiftId } = await shiftService.resolveShiftForUser(createdBy);
-
-    const { pricedItems, subtotal, discount: discountResult, total } =
-      await this._priceItemsAndTotals(items, discount);
+    // Independent reads — one round instead of three sequential ones.
+    const [{ shiftId }, { pricedItems, subtotal, discount: discountResult, total }] = await Promise.all([
+      shiftService.resolveShiftForUser(createdBy),
+      this._priceItemsAndTotals(items, discount),
+    ]);
 
     await this._assertPaymentValid({ amountPaid, total, paymentMethod: payment.payment_method });
 
@@ -245,7 +249,10 @@ export const orderService = {
       referenceId: order.order.orderId,
     }).catch(() => {});
 
-    return this.getById(order.order.orderId);
+    // Light response: POS only needs the id for receipt printing (the full
+    // detail reloads via GET /:id and list invalidation). Skips the 4-query
+    // getById tail on the hot path.
+    return { order_id: order.order.orderId, order_number: order.order.orderNumber };
   },
 
   /* ── Online Order Creation (Guest) ──── */
@@ -274,14 +281,23 @@ export const orderService = {
         quantity: item.quantity,
         unitPrice: item.unit_price,
       })), tx);
-    });
+    }, { timeout: 15000 });
 
-    const fullOrder = await this.getById(result.orderId);
+    // Light response: POS only needs the id for receipt printing (the full
+    // detail reloads via GET /:id and list invalidation). Skips the 4-query
+    // getById tail on the hot path.
+    const created = {
+      order_id: result.orderId,
+      order_number: orderNumber,
+      guest_token: guestToken,
+      total_amount: total,
+      created_at: new Date().toISOString(),
+    };
 
     notificationService.create({
       type: "order_new",
       title: "New Online Order",
-      message: `Order ${formatOrderNumber(fullOrder.order_number)} from ${customerName} — ₱${total.toFixed(2)}`,
+      message: `Order ${formatOrderNumber(created.order_number)} from ${customerName} — ₱${total.toFixed(2)}`,
       referenceType: "order",
       referenceId: result.orderId,
     }).catch(() => {});
@@ -290,10 +306,10 @@ export const orderService = {
       action: ACTIONS.ORDER_CREATED,
       targetType: "order",
       targetId: result.orderId,
-      details: { order_number: fullOrder.order_number, total, source: "online" },
+      details: { order_number: created.order_number, total, source: "online" },
     }).catch(() => {});
 
-    return fullOrder;
+    return created;
   },
 
   /* ── Receipt Payload (BR-03) ─────────── */
@@ -369,7 +385,7 @@ export const orderService = {
         })), tx);
         await orderRepository.recalculateTotal(id, tx);
       }
-    });
+    }, { timeout: 15000 });
     // Read AFTER commit via the global client so the response reflects the edit.
     const result = await this.getById(id);
     auditLogService.logAction({
@@ -392,10 +408,11 @@ export const orderService = {
     }
 
     // BR-02: payment requires an open drawer session.
-    const { shiftId } = await shiftService.resolveShiftForUser(userId);
-
-    const { pricedItems, subtotal, discount: discountResult, total } =
-      await this._priceItemsAndTotals(items, discount);
+    // Independent reads — shift lookup and pricing run together.
+    const [{ shiftId }, { pricedItems, subtotal, discount: discountResult, total }] = await Promise.all([
+      shiftService.resolveShiftForUser(userId),
+      this._priceItemsAndTotals(items, discount),
+    ]);
 
     await this._assertPaymentValid({ amountPaid, total, paymentMethod: payment.payment_method });
 
@@ -467,7 +484,8 @@ export const orderService = {
       details: { order_number: existing.orderNumber, subtotal, discount: discountResult.discountAmount, total, source: "online", paymentMethod },
     }).catch(() => {});
 
-    return this.getById(id);
+    // Light response (same rationale as createWalkIn above).
+    return { order_id: id, order_number: existing.orderNumber };
   },
 
   /* ── Status Transitions ──────────────── */
@@ -496,7 +514,7 @@ export const orderService = {
           throw new AppError(409, "Order is no longer completable — it was settled concurrently", "ORDER_ALREADY_SETTLED");
         }
         await orderRepository.updateStatus(id, "completed", { userId: meta.userId, fulfillmentMinutes }, tx);
-      });
+      }, { timeout: 15000 });
 
       auditLogService.logAction({
         userId: meta.userId,
