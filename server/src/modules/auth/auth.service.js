@@ -80,7 +80,7 @@ export const authService = {
 
     // Admin → send OTP, don't issue JWT yet
     if (user.role === "admin") {
-      const otpCode = generateOtp(user.id);
+      const otpCode = await generateOtp(user.id);
       await sendEmail({
         to: user.email,
         subject: "Your Verification Code — Abbey's Kitchenette",
@@ -98,10 +98,8 @@ export const authService = {
   },
 
   async verifyOtp(userId, code) {
-    const isValid = verifyOtpCode(userId, code);
-    if (!isValid) {
-      throw new AppError(401, "Invalid or expired OTP code", "INVALID_OTP");
-    }
+    // Throws INVALID_OTP / OTP_ATTEMPTS_EXCEEDED — never returns false.
+    await verifyOtpCode(userId, code);
     const user = await authRepository.findById(userId);
     if (!user) {
       throw new AppError(401, "User not found", "USER_NOT_FOUND");
@@ -116,7 +114,7 @@ export const authService = {
     if (!user) {
       throw new AppError(401, "User not found", "USER_NOT_FOUND");
     }
-    const otpCode = generateOtp(user.id);
+    const otpCode = await generateOtp(user.id);
     await sendEmail({
       to: user.email,
       subject: "Your New Verification Code — Abbey's Kitchenette",

@@ -42,6 +42,7 @@ model User {
   openedShifts    Shift[]          @relation("ShiftOpener")
   closedShifts    Shift[]          @relation("ShiftCloser")
   auditLogs        AuditLog[]
+  otpCodes         OtpCode[]
 }
 
 model SystemSettings {
@@ -720,6 +721,21 @@ model Notification {
   @@index([type], map: "notifications_type_idx")
   @@index([referenceType, referenceId], map: "notifications_reference_idx")
   @@map("notifications")
+}
+
+// ── OTP Codes (admin 2FA — DB-backed so codes survive restarts/clusters) ──
+model OtpCode {
+  id        Int      @id @default(autoincrement()) @map("id")
+  userId    String   @map("user_id") @db.Uuid
+  code      String   @db.VarChar(6)
+  attempts  Int      @default(0)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "otp_codes_user_id_idx")
+  @@map("otp_codes")
 }
 
 // ── Anomaly Detection ─────────────────────────────────
