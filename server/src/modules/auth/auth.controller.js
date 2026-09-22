@@ -1,5 +1,6 @@
 import { authService } from "./auth.service.js";
 import { successResponse, errorResponse, controllerError } from "../../utils/response.js";
+import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { env } from "../../config/env.js";
 import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";

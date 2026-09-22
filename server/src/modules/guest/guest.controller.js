@@ -1,5 +1,5 @@
 import { guestService } from "./guest.service.js";
-import { successResponse, controllerError } from "../../utils/response.js";
+import { successResponse, errorResponse, controllerError } from "../../utils/response.js";
 import { settingsRepository } from "../settings/settings.repository.js";
 import { isStoreOpen } from "../../utils/storeHours.js";
 
