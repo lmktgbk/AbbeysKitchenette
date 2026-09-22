@@ -59,9 +59,15 @@ export const shiftRepository = {
   /* ── Summary aggregates ──────────────────── */
 
   /**
-   * Cash + per-method sales for a shift window.
-   * Only paid orders count: accepted/preparing/completed (pending is
-   * unpaid, cancelled is voided).
+   * Cash + per-method sales for a shift window (tendered cash).
+   * Counts what the drawer actually received: amount_paid minus change
+   * given (which equals the net total for untouched orders). Using the
+   * live total_amount instead breaks partially-refunded orders: their
+   * total was recomputed down to the remaining net while change had
+   * already left the drawer, understating tender by the refund.
+   * Includes cancelled-but-paid orders at tender; their refund is
+   * subtracted separately so a full refund nets to zero as it should.
+   * Pending (unpaid) orders never count.
    * @returns {{ cashSales, gcashSales, mayaSales, cashOrders, totalOrders }}
    */
   async getShiftSales(shiftId, openedAt, closedAt) {
@@ -70,10 +76,18 @@ export const shiftRepository = {
       SELECT
         COALESCE(payment_method, 'cash') AS method,
         COUNT(*)::int AS orders,
-        COALESCE(SUM(total_amount), 0)::float AS sales
+        COALESCE(SUM(
+          CASE
+            WHEN amount_paid IS NULL THEN total_amount
+            ELSE amount_paid - COALESCE(change, 0)
+          END
+        ), 0)::float AS sales
       FROM orders
       WHERE shift_id = ${shiftId}::uuid
-        AND status IN ('accepted', 'preparing', 'completed')
+        AND (
+          status IN ('accepted', 'preparing', 'completed')
+          OR (status = 'cancelled' AND COALESCE(amount_paid, 0) > 0)
+        )
         AND accepted_at >= ${openedAt}
         AND accepted_at <= ${end}
       GROUP BY payment_method
@@ -98,9 +112,12 @@ export const shiftRepository = {
   },
 
   /**
-   * Cash refunds issued against orders paid in this shift.
+   * Cash refunds issued against paid orders in this shift window.
+   * Guarded to paid orders only: refunds on unpaid/pending orders never
+   * touched the drawer and must not reduce the expected cash.
    */
-  async getShiftCashRefunds(shiftId) {
+  async getShiftCashRefunds(shiftId, openedAt, closedAt) {
+    const end = closedAt ?? new Date();
     const rows = await prisma.$queryRaw`
       SELECT COALESCE(SUM(pr.amount), 0)::float AS refunds,
              COUNT(pr.refund_id)::int AS count
@@ -108,6 +125,9 @@ export const shiftRepository = {
       JOIN orders o ON o.order_id = pr.order_id
       WHERE o.shift_id = ${shiftId}::uuid
         AND (o.payment_method IS NULL OR o.payment_method = 'cash')
+        AND COALESCE(o.amount_paid, 0) > 0
+        AND pr.refunded_at >= ${openedAt}
+        AND pr.refunded_at <= ${end}
     `;
     return {
       cashRefunds: Number(rows[0]?.refunds || 0),
@@ -163,7 +183,7 @@ export const shiftRepository = {
     for (const s of sessions) {
       const [sales, refunds] = await Promise.all([
         this.getShiftSales(s.shiftId, s.openedAt, s.closedAt),
-        this.getShiftCashRefunds(s.shiftId),
+        this.getShiftCashRefunds(s.shiftId, s.openedAt, s.closedAt),
       ]);
       cashSales += sales.cashSales;
       cashRefunds += refunds.cashRefunds;

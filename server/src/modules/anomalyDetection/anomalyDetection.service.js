@@ -46,11 +46,11 @@ export const anomalyService = {
         if (now - last < COOLDOWN_MS) continue;
       }
       try {
+        // Dedup-first: skip before aggregation + Gemini when an active card exists today
+        const dupExists = await anomalyRepository.existsActiveToday(rule.id);
+        if (dupExists) continue;
         const result = await engine.evaluate(rule);
         if (result) {
-          // Same-day dedup: skip if active same rule already exists today
-          const exists = await anomalyRepository.existsActiveToday(rule.id, result.ingredientId);
-          if (exists) continue;
           // Supplier quiet: skip if reviewed same ingredient+price already acknowledged
           if (rule.id === "supplier_price_jump" && result.ingredientId) {
             const reviewed = await anomalyRepository.existsReviewedSupplier(result.ingredientId, String(result.actualValue));

@@ -2,6 +2,7 @@ import { shiftRepository } from "./shift.repository.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
+import { anomalyService } from "../anomalyDetection/anomalyDetection.service.js";
 import prisma from "../../config/prisma.js";
 
 function roundMoney(n) {
@@ -166,7 +167,7 @@ export const shiftService = {
 
     const [sales, refunds, openOrders] = await Promise.all([
       shiftRepository.getShiftSales(shiftId, openedAt, closedAt),
-      shiftRepository.getShiftCashRefunds(shiftId),
+      shiftRepository.getShiftCashRefunds(shiftId, openedAt, closedAt),
       shiftRepository.getShiftOpenOrders(shiftId, openedAt, closedAt),
     ]);
     const computed = roundMoney(openingCash + sales.cashSales - refunds.cashRefunds);
@@ -318,6 +319,11 @@ export const shiftService = {
       targetId: id,
       details: { expected, actual, variance },
     }).catch(() => {});
+
+    // Real-time anomaly hook: cash variance (fire-and-forget, only when off)
+    if (variance !== 0) {
+      anomalyService.runScan(["shift_variance_spike"]).catch(() => {});
+    }
 
     return {
       ...formatShift(closed),

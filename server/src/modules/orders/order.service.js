@@ -8,6 +8,7 @@ import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { notificationService } from "../notifications/notification.service.js";
 import { settingsService } from "../settings/settings.service.js";
+import { anomalyService } from "../anomalyDetection/anomalyDetection.service.js";
 
 export const orderService = {
   /* ── Queries ─────────────────────────── */
@@ -473,6 +474,9 @@ export const orderService = {
         referenceId: id,
       }).catch(() => {});
 
+      // Real-time anomaly hook: discount spike (fire-and-forget)
+      anomalyService.runScan(["discount_spike"]).catch(() => {});
+
       return this.getById(id);
     }
 
@@ -587,18 +591,27 @@ export const orderService = {
     const refundOption = options.refund_option || "partial"; // "full" | "partial" | "none"
     const itemLosses = options.item_losses || []; // [{ item_id, ingredient_losses: [{ ingredient_id, quantity_lost }] }]
 
-    // Calculate refund based on refund_option (or custom override)
+    // Refund capped at what the customer actually paid (minus prior refunds) —
+    // a refund can never exceed tender, even if totals were touched before.
+    const paidCap = Math.max(
+      0,
+      roundMoney(
+        Math.min(Number(order.totalAmount) || 0, order.amountPaid != null ? Number(order.amountPaid) : Number(order.totalAmount) || 0) -
+        Number(order.refund?.amount || 0)
+      )
+    );
     let refundAmount;
     if (refundOption === "full") {
-      refundAmount = Number(order.totalAmount);
+      refundAmount = paidCap;
     } else if (refundOption === "none") {
       refundAmount = 0;
     } else if (options.refund_amount != null) {
-      // partial: user-specified amount, capped at order total
-      refundAmount = Math.min(Number(options.refund_amount), Number(order.totalAmount));
+      // partial: user-specified amount, capped at order total and paid
+      refundAmount = Math.min(Number(options.refund_amount), Number(order.totalAmount), paidCap);
     } else {
       refundAmount = 0;
     }
+    refundAmount = Math.max(0, roundMoney(refundAmount));
 
     await prisma.$transaction(async (tx) => {
       if (order.status === "accepted") {
@@ -682,6 +695,9 @@ export const orderService = {
       referenceId: id,
     }).catch(() => {});
 
+    // Real-time anomaly hooks (fire-and-forget, never block response)
+    anomalyService.runScan(["refund_spike", "cancellation_spike"]).catch(() => {});
+
     return { order_id: id, action: "cancelled" };
   },
 
@@ -712,9 +728,6 @@ export const orderService = {
     const recipes = await orderRepository.getRecipesByVariantIds([orderItem.variantId]);
     const itemRecipes = recipes.filter((r) => r.variantId === orderItem.variantId);
 
-    // Calculate refund based on refund_option
-    const itemSubtotal = Number(orderItem.subtotal || 0);
-
     // Get active deductions for restore/loss calculations
     const deductions = await orderRepository.getActiveDeductions(orderId);
     const affectedIngredientIds = [...new Set(deductions.map((d) => d.ingredientId))];
@@ -739,18 +752,9 @@ export const orderService = {
       itemCostMap.set(ingId, data.cost);
     }
 
-    // Calculate refund based on refund_option (or custom override)
-    let refundAmount;
-    if (refundOption === "full") {
-      refundAmount = itemSubtotal;
-    } else if (refundOption === "none") {
-      refundAmount = 0;
-    } else if (options.refund_amount != null) {
-      // partial: user-specified amount, capped at item subtotal
-      refundAmount = Math.min(Number(options.refund_amount), itemSubtotal);
-    } else {
-      refundAmount = 0;
-    }
+    // Refund resolved inside the tx after totals are recomputed:
+    // refund = net drop caused by the removal, capped at what was actually paid.
+    let refundAmount = 0;
 
     await prisma.$transaction(async (tx) => {
       if (lossOption === "no_loss") {
@@ -765,9 +769,50 @@ export const orderService = {
       // Soft-delete the order item
       await orderRepository.removeOrderItem(orderItemId, { userId, reason, lossOption }, tx);
 
-      // Recalculate order total
-      const newTotal = Number(order.totalAmount) - refundAmount;
-      await orderRepository.updateOrder(orderId, { totalAmount: Math.max(newTotal, 0) }, tx);
+      // Recompute totals from remaining items (net of discount) — never
+      // subtract a gross refund from a net total.
+      const remainingItems = await tx.orderItem.findMany({
+        where: { orderId, removedAt: null },
+        select: { subtotal: true },
+      });
+      const remainingSubtotal = roundMoney(
+        remainingItems.reduce((sum, i) => sum + Number(i.subtotal || 0), 0)
+      );
+      const discountInput = { discount_type: order.discountType ?? "none" };
+      if (discountInput.discount_type === "promo") {
+        if (Number(order.discountPercent) > 0) {
+          discountInput.promo_mode = "percent";
+          discountInput.promo_value = Number(order.discountPercent);
+        } else {
+          discountInput.promo_mode = "peso";
+          discountInput.promo_value = Number(order.discountAmount) || 0;
+        }
+      }
+      const priced = computeDiscountedTotal(remainingSubtotal, discountInput);
+      const oldTotal = roundMoney(Number(order.totalAmount) || 0);
+      await orderRepository.updateOrder(orderId, {
+        subtotalAmount: remainingSubtotal,
+        discountAmount: priced.discountAmount,
+        discountPercent: priced.discountPercent,
+        totalAmount: priced.total,
+      }, tx);
+
+      // Refund = net drop caused by the removal, capped at what the customer
+      // actually paid (minus any refunds already recorded for this order).
+      const paid = order.amountPaid != null ? Number(order.amountPaid) : oldTotal;
+      const priorRefunded = Number(order.refund?.amount || 0);
+      const maxRefundable = Math.max(0, roundMoney(Math.min(oldTotal, paid) - priorRefunded));
+      const drop = roundMoney(oldTotal - priced.total);
+      if (refundOption === "full") {
+        refundAmount = Math.min(drop, maxRefundable);
+      } else if (refundOption === "none") {
+        refundAmount = 0;
+      } else if (options.refund_amount != null) {
+        refundAmount = Math.min(Number(options.refund_amount), drop, maxRefundable);
+      } else {
+        refundAmount = 0;
+      }
+      refundAmount = Math.max(0, roundMoney(refundAmount));
 
       // Count remaining items
       const remainingCount = await orderRepository.countOrderItems(orderId, tx);
@@ -817,6 +862,12 @@ export const orderService = {
     }).catch(() => {});
 
     const remainingCount = await orderRepository.countOrderItems(orderId);
+
+    // Real-time anomaly hooks (fire-and-forget, never block response)
+    if (refundAmount > 0) {
+      anomalyService.runScan(["refund_spike", "cancellation_spike"]).catch(() => {});
+    }
+
     return {
       order_id: orderId,
       action: remainingCount === 0 ? "cancelled" : "item_removed",

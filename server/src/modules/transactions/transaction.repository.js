@@ -48,7 +48,13 @@ export const transactionRepository = {
           o.accepted_at AS ts,
           'payment' AS type,
           COALESCE(o.payment_method, 'cash') AS method,
-          o.total_amount::float AS amount,
+          -- Tendered cash (paid minus change), matching the drawer math in
+          -- shifts.getShiftSales: cancelled-but-paid orders show tender so
+          -- the refund leg nets them to zero as the drawer saw it.
+          CASE
+            WHEN o.amount_paid IS NULL THEN o.total_amount::float
+            ELSE (o.amount_paid - COALESCE(o.change, 0))::float
+          END AS amount,
           o.order_id AS order_id,
           o.order_number AS order_number,
           o.accepted_by AS staff_id,
@@ -56,7 +62,8 @@ export const transactionRepository = {
           NULL::text AS note
         FROM orders o
         LEFT JOIN "User" u ON u.id = o.accepted_by
-        WHERE o.status IN ('accepted', 'preparing', 'completed')
+        WHERE (o.status IN ('accepted', 'preparing', 'completed')
+               OR (o.status = 'cancelled' AND COALESCE(o.amount_paid, 0) > 0))
           AND o.accepted_at IS NOT NULL
         UNION ALL
         -- Refunds: money leaves the drawer
@@ -139,10 +146,14 @@ export const transactionRepository = {
         SELECT o.accepted_at AS ts,
                'payment' AS type,
                COALESCE(o.payment_method, 'cash') AS method,
-               o.total_amount::float AS amount,
+               CASE
+                 WHEN o.amount_paid IS NULL THEN o.total_amount::float
+                 ELSE (o.amount_paid - COALESCE(o.change, 0))::float
+               END AS amount,
                o.accepted_by AS staff_id
         FROM orders o
-        WHERE o.status IN ('accepted', 'preparing', 'completed')
+        WHERE (o.status IN ('accepted', 'preparing', 'completed')
+               OR (o.status = 'cancelled' AND COALESCE(o.amount_paid, 0) > 0))
           AND o.accepted_at IS NOT NULL
         UNION ALL
         SELECT pr.refunded_at AS ts,
