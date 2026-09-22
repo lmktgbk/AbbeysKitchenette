@@ -826,7 +826,14 @@ async function main() {
   console.log("\nPhase 7: Loss records...");
 
   const lossInsertData = [];
-  const lossTypes = ["spoilage", "spillage", "expiry", "other"];
+  // lossType is derived from the note so seeded rows never lie to the Waste filter
+  const LOSS_NOTE_TYPES = [
+    { note: "Routine check", type: "other" },
+    { note: "Storage issue", type: "spoilage" },
+    { note: "Expired batch", type: "expiry" },
+    { note: "Accidental spill", type: "spillage" },
+    { note: "Quality control", type: "other" },
+  ];
 
   // Generate ~3-5 loss records per month over seed window
   const lossMonths = Math.ceil(TOTAL_DAYS / 30);
@@ -839,15 +846,16 @@ async function main() {
       const lossDate = addDays(SEED_START, monthOffset * 30 + dayOfMonth);
       const qtyLost = randInt(10, Math.max(20, Math.round(ing.initialStock * 0.05)));
       const costPerUnit = ing.costPerUnit;
+      const noteType = pick(LOSS_NOTE_TYPES);
 
       lossInsertData.push({
         ingredientId: ingId,
         declaredById: KITCHEN_ID,
-        lossType: pick(lossTypes),
+        lossType: noteType.type,
         quantityLost: qtyLost,
         costPerUnit,
         totalCostLost: Math.round(qtyLost * costPerUnit * 100) / 100,
-        notes: `${pick(["Routine check", "Storage issue", "Expired batch", "Accidental spill", "Quality control"])} — seeded`,
+        notes: `${noteType.note} — seeded`,
         loggedAt: lossDate,
       });
     }

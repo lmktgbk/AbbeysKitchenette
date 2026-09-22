@@ -72,7 +72,9 @@ function DashboardKpis({ kpis, isLoading }) {
       icon: "package",
       label: "COGS",
       value: formatPeso(kpis?.cogs),
-      sub: "Cost of goods sold",
+      // NOTE: legacy strip uses weighted-average cost, unlike the Analytics
+      // strip which uses true FIFO. Labeled est. so the two never look equal.
+      sub: "Est. avg cost",
       delta: null,
       iconBg: "bg-orange-500/10",
       iconColor: "text-orange-600 dark:text-orange-400",

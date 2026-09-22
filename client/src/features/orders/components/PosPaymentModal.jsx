@@ -12,6 +12,9 @@ import mayaLogo from "@/assets/maya_logo.png";
  */
 const QUICK_AMOUNTS = [100, 200, 500, 1000];
 
+// Static lookup — Tailwind can't compile dynamic grid-cols-${n}.
+const GRID_COLS = { 1: "grid-cols-1", 2: "grid-cols-2", 3: "grid-cols-3" };
+
 const DISCOUNT_OPTIONS = [
   { value: "none", label: "None" },
   { value: "senior", label: "Senior 20%" },
@@ -259,6 +262,35 @@ export default function PosPaymentModal({
                   </SegButton>
                 ))}
               </div>
+              {/* PH rule: Senior/PWD 20% can't combine with promos — show best value */}
+              {(() => {
+                const seniorAmt = roundMoney((subtotal * 20) / 100);
+                if (discountType === "promo" && promoValue !== "" && Number(promoValue) >= 0) {
+                  const better = seniorAmt > discountAmount ? "senior" : "promo";
+                  return (
+                    <div className="rounded-md border border-border bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground">
+                      Senior/PWD 20% saves ₱{seniorAmt.toLocaleString()} vs promo ₱{discountAmount.toLocaleString()} — only one can apply{better === "senior" ? ", Senior/PWD wins" : ", promo wins"}.
+                      {better === "senior" && (
+                        <button
+                          type="button"
+                          onClick={() => setDiscountType("senior")}
+                          className="ml-1 font-medium text-primary hover:underline"
+                        >
+                          Use Senior/PWD instead
+                        </button>
+                      )}
+                    </div>
+                  );
+                }
+                if (discountType === "senior" || discountType === "pwd") {
+                  return (
+                    <p className="text-xs text-muted-foreground">
+                      Saves ₱{seniorAmt.toLocaleString()} (statutory 20% — can't combine with promos).
+                    </p>
+                  );
+                }
+                return null;
+              })()}
 
               {(discountType === "senior" || discountType === "pwd") && (
                 <Input
@@ -308,7 +340,7 @@ export default function PosPaymentModal({
 
           {/* Right — tender flow (fixed height, always full) */}
           <div className="flex flex-col space-y-2.5">
-            <div className="grid grid-cols-3 gap-1.5">
+            <div className={cn("grid gap-1.5", GRID_COLS[visibleMethods.length] ?? "grid-cols-3")}>
               {visibleMethods.map((m) => (
                 <MethodCard
                   key={m.value}

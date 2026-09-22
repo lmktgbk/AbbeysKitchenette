@@ -61,30 +61,39 @@ export default function AnalyticsKpis({ kpis, isLoading }) {
     );
   }
 
+  // Auto-collapse: Discounts card only matters when discounts were actually given.
+  // When ₱0, Gross == Net and the extra card is pure noise.
+  const hasDiscounts = Number(kpis?.discounts || 0) > 0;
+  const hasLosses = Number(kpis?.totalLosses || 0) > 0;
+
   const cards = [
     {
       icon: "dollarSign",
       label: "Gross Sales",
       value: formatPeso(kpis?.grossSales),
-      sub: "Before discounts",
+      sub: hasDiscounts ? "Before discounts" : "No discounts given",
       delta: kpis?.deltas?.grossSales,
       iconBg: "bg-emerald-500/10",
       iconColor: "text-emerald-600 dark:text-emerald-400",
     },
-    {
-      icon: "wallet",
-      label: "Discounts",
-      value: formatPeso(kpis?.discounts),
-      sub: "Total given",
-      delta: null,
-      iconBg: "bg-orange-500/10",
-      iconColor: "text-orange-600 dark:text-orange-400",
-    },
+    ...(hasDiscounts
+      ? [
+          {
+            icon: "wallet",
+            label: "Discounts",
+            value: formatPeso(kpis?.discounts),
+            sub: "Total given",
+            delta: null,
+            iconBg: "bg-orange-500/10",
+            iconColor: "text-orange-600 dark:text-orange-400",
+          },
+        ]
+      : []),
     {
       icon: "trendingUp",
       label: "Net Sales",
       value: formatPeso(kpis?.netSales),
-      sub: "After discounts",
+      sub: hasDiscounts ? "After discounts" : "Equals gross (no discounts)",
       delta: kpis?.deltas?.netSales,
       iconBg: "bg-emerald-500/10",
       iconColor: "text-emerald-600 dark:text-emerald-400",
@@ -129,7 +138,10 @@ export default function AnalyticsKpis({ kpis, isLoading }) {
       icon: "wallet",
       label: "Net Profit",
       value: formatPeso(kpis?.netProfit),
-      sub: `${kpis?.netMargin ?? 0}% margin · Loss ${formatPeso(kpis?.totalLosses)}`,
+      // Losses here are wasted ingredients only (cash refunds live in the shift ledger).
+      sub: hasLosses
+        ? `${kpis?.netMargin ?? 0}% margin · Loss ${formatPeso(kpis?.totalLosses)}`
+        : `${kpis?.netMargin ?? 0}% margin`,
       delta: kpis?.deltas?.netProfit,
       iconBg: "bg-amber-500/10",
       iconColor: "text-amber-600 dark:text-amber-400",
