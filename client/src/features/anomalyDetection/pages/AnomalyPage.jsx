@@ -39,17 +39,25 @@ export default function AnomalyPage() {
       {/* Header with merged status — single card on top in all states */}
       <div className="rounded-xl border border-border bg-card px-4 py-4 sm:px-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <h1 className="text-base text-muted-foreground">
-              Anomalies:{" "}
-              {statsLoading ? (
-                <span className="font-semibold text-foreground">…</span>
-              ) : total === 0 ? (
-                <span className="font-semibold text-green-600 dark:text-green-400">All good</span>
-              ) : (
-                <span className="font-semibold text-foreground">{total} Need Attention</span>
-              )}
-            </h1>
+          <div className="flex items-start gap-3 min-w-0">
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md ${statsLoading || total === 0 ? "bg-green-500/10" : critical > 0 ? "bg-red-500/10" : "bg-amber-500/10"}`}>
+              <Icon
+                name={statsLoading || total === 0 ? "checkCircle" : "alertTriangle"}
+                size={18}
+                className={statsLoading || total === 0 ? "text-green-600 dark:text-green-400" : critical > 0 ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"}
+              />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-base text-muted-foreground">
+                Anomalies:{" "}
+                {statsLoading ? (
+                  <span className="font-semibold text-foreground">…</span>
+                ) : total === 0 ? (
+                  <span className="font-semibold text-green-600 dark:text-green-400">All good</span>
+                ) : (
+                  <span className="font-semibold text-foreground">{total} Need Attention</span>
+                )}
+              </h1>
             {!statsLoading && total > 0 && (
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                 {critical > 0 && (
@@ -69,6 +77,7 @@ export default function AnomalyPage() {
             ) : (
               <p className="mt-1 text-xs text-muted-foreground">Unusual sales, waste and operations</p>
             )}
+            </div>
           </div>
           <div className="shrink-0">
             <Button size="sm" variant="primary" onClick={() => scanMutation.mutate()} disabled={scanMutation.isPending}>
