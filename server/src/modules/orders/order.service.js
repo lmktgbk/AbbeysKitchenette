@@ -592,21 +592,16 @@ export const orderService = {
     const itemLosses = options.item_losses || []; // [{ item_id, ingredient_losses: [{ ingredient_id, quantity_lost }] }]
 
     // Refund capped at what the customer actually paid (minus prior refunds) —
-    // a refund can never exceed tender, even if totals were touched before.
-    const paidCap = Math.max(
-      0,
-      roundMoney(
-        Math.min(Number(order.totalAmount) || 0, order.amountPaid != null ? Number(order.amountPaid) : Number(order.totalAmount) || 0) -
-        Number(order.refund?.amount || 0)
-      )
-    );
+    // cumulative refunds can never exceed tender, even across removals + cancel.
+    const paidForCap = order.amountPaid != null ? Number(order.amountPaid) : Number(order.totalAmount) || 0;
+    const paidCap = Math.max(0, roundMoney(paidForCap - Number(order.refund?.amount || 0)));
     let refundAmount;
     if (refundOption === "full") {
-      refundAmount = paidCap;
+      refundAmount = Math.min(Number(order.totalAmount), paidCap);
     } else if (refundOption === "none") {
       refundAmount = 0;
     } else if (options.refund_amount != null) {
-      // partial: user-specified amount, capped at order total and paid
+      // partial: user-specified amount, capped at drop-equivalent and paid
       refundAmount = Math.min(Number(options.refund_amount), Number(order.totalAmount), paidCap);
     } else {
       refundAmount = 0;
@@ -797,11 +792,13 @@ export const orderService = {
         totalAmount: priced.total,
       }, tx);
 
-      // Refund = net drop caused by the removal, capped at what the customer
-      // actually paid (minus any refunds already recorded for this order).
+      // Refund = net drop caused by the removal. Cumulative refunds can never
+      // exceed what the customer paid (invariant: refunds + current total =
+      // original total ≤ paid + change given). Note: cap is against paid,
+      // NOT oldTotal — oldTotal shrinks with each removal.
       const paid = order.amountPaid != null ? Number(order.amountPaid) : oldTotal;
       const priorRefunded = Number(order.refund?.amount || 0);
-      const maxRefundable = Math.max(0, roundMoney(Math.min(oldTotal, paid) - priorRefunded));
+      const maxRefundable = Math.max(0, roundMoney(paid - priorRefunded));
       const drop = roundMoney(oldTotal - priced.total);
       if (refundOption === "full") {
         refundAmount = Math.min(drop, maxRefundable);
