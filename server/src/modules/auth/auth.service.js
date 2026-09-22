@@ -36,12 +36,10 @@ export const authService = {
       throw new AppError(401, "Invalid email or password", "INVALID_CREDENTIALS");
     }
 
-    if (portal === "staff" && user.role === "admin") {
-      throw new AppError(403, "Admins must use the admin login page", "USE_ADMIN_PORTAL");
-    }
-
-    if (portal === "admin" && user.role !== "admin") {
-      throw new AppError(403, "Staff must use the staff login page", "USE_STAFF_PORTAL");
+    // No portal-specific errors: wrong-portal logins return the same generic
+    // credentials error so neither portal reveals the other's existence.
+    if ((portal === "staff" && user.role === "admin") || (portal === "admin" && user.role !== "admin")) {
+      throw new AppError(401, "Invalid email or password", "INVALID_CREDENTIALS");
     }
 
     if (!user.isActive) {

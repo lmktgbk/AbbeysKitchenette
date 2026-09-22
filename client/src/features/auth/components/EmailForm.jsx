@@ -50,13 +50,8 @@ export default function EmailForm({ onBack, mode = "staff" }) {
                 default: navigate("/dashboard");
             }
         } catch (err) {
-            const code = err.response?.data?.error;
             const msg = err.response?.data?.message;
-            if (code === "USE_ADMIN_PORTAL") {
-                setServerError("This account uses the admin portal. Ask your admin for the link.");
-            } else if (code === "USE_STAFF_PORTAL") {
-                setServerError("Staff accounts must use the staff login page.");
-            } else if (msg) {
+            if (msg) {
                 setServerError(msg);
             } else {
                 toast.error("Login failed. Please try again.");
