@@ -71,7 +71,13 @@ export default function CloseShiftModal({ open, onOpenChange, shift, forced, onC
                 value={`−₱${Number(summary.cash_refunds ?? 0).toLocaleString()}`}
               />
               <SummaryRow label="GCash sales" value={`₱${Number(summary.gcash_sales ?? 0).toLocaleString()}`} />
+              {Number(summary.gcash_refunds ?? 0) > 0 && (
+                <SummaryRow label={`GCash refunds (${summary.gcash_refund_count ?? 0})`} value={`−₱${Number(summary.gcash_refunds ?? 0).toLocaleString()}`} />
+              )}
               <SummaryRow label="Maya sales" value={`₱${Number(summary.maya_sales ?? 0).toLocaleString()}`} />
+              {Number(summary.maya_refunds ?? 0) > 0 && (
+                <SummaryRow label={`Maya refunds (${summary.maya_refund_count ?? 0})`} value={`−₱${Number(summary.maya_refunds ?? 0).toLocaleString()}`} />
+              )}
               <div className="border-t border-border pt-1">
                 <SummaryRow
                   label="Expected in drawer"

@@ -112,27 +112,50 @@ export const shiftRepository = {
   },
 
   /**
-   * Cash refunds issued against paid orders in this shift window.
+   * Refunds per payment channel for a shift window.
+   * Cash refunds reduce the drawer; gcash/maya refunds never touch it —
+   * they net against their own e-wallet leg for account reconciliation.
    * Guarded to paid orders only: refunds on unpaid/pending orders never
-   * touched the drawer and must not reduce the expected cash.
+   * moved money and must not reduce any expected total.
+   * A refund always follows its order's channel (no cross-channel refunds).
    */
   async getShiftCashRefunds(shiftId, openedAt, closedAt) {
     const end = closedAt ?? new Date();
     const rows = await prisma.$queryRaw`
-      SELECT COALESCE(SUM(pr.amount), 0)::float AS refunds,
+      SELECT COALESCE(o.payment_method, 'cash') AS method,
+             COALESCE(SUM(pr.amount), 0)::float AS refunds,
              COUNT(pr.refund_id)::int AS count
       FROM payment_refunds pr
       JOIN orders o ON o.order_id = pr.order_id
       WHERE o.shift_id = ${shiftId}::uuid
-        AND (o.payment_method IS NULL OR o.payment_method = 'cash')
         AND COALESCE(o.amount_paid, 0) > 0
         AND pr.refunded_at >= ${openedAt}
         AND pr.refunded_at <= ${end}
+      GROUP BY o.payment_method
     `;
-    return {
-      cashRefunds: Number(rows[0]?.refunds || 0),
-      refundCount: Number(rows[0]?.count || 0),
+    const out = {
+      cashRefunds: 0, refundCount: 0,
+      gcashRefunds: 0, gcashRefundCount: 0,
+      mayaRefunds: 0, mayaRefundCount: 0,
     };
+    for (const r of rows) {
+      const amount = Number(r.refunds || 0);
+      const count = Number(r.count || 0);
+      if (r.method === "gcash") {
+        out.gcashRefunds = amount;
+        out.gcashRefundCount = count;
+      } else if (r.method === "maya") {
+        out.mayaRefunds = amount;
+        out.mayaRefundCount = count;
+      } else if (r.method === "cash") {
+        out.cashRefunds = amount;
+        out.refundCount = count;
+      } else {
+        // Legacy/unknown methods tracked but never drawer cash.
+      }
+    }
+    // Back-compat: refundCount stays cash-only (drawer UI counts cash refunds).
+    return out;
   },
 
   /**
@@ -179,7 +202,7 @@ export const shiftRepository = {
       select: { shiftId: true, openedAt: true, closedAt: true, openingCash: true, status: true, expectedCash: true, actualCash: true, variance: true },
     });
 
-    let cashSales = 0, cashRefunds = 0, gcashSales = 0, mayaSales = 0, varianceTotal = 0, offCount = 0;
+    let cashSales = 0, cashRefunds = 0, gcashSales = 0, gcashRefunds = 0, mayaSales = 0, mayaRefunds = 0, varianceTotal = 0, offCount = 0;
     for (const s of sessions) {
       const [sales, refunds] = await Promise.all([
         this.getShiftSales(s.shiftId, s.openedAt, s.closedAt),
@@ -188,7 +211,9 @@ export const shiftRepository = {
       cashSales += sales.cashSales;
       cashRefunds += refunds.cashRefunds;
       gcashSales += sales.gcashSales;
+      gcashRefunds += refunds.gcashRefunds;
       mayaSales += sales.mayaSales;
+      mayaRefunds += refunds.mayaRefunds;
       if (s.status === "closed") {
         const v = s.variance != null ? Number(s.variance) : 0;
         varianceTotal += v;
@@ -202,7 +227,9 @@ export const shiftRepository = {
       cashSales: round(cashSales),
       cashRefunds: round(cashRefunds),
       gcashSales: round(gcashSales),
+      gcashRefunds: round(gcashRefunds),
       mayaSales: round(mayaSales),
+      mayaRefunds: round(mayaRefunds),
       varianceTotal: round(varianceTotal),
       offCount,
     };

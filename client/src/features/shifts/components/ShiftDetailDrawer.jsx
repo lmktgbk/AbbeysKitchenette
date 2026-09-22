@@ -168,10 +168,15 @@ export default function ShiftDetailDrawer({ open, onOpenChange, shiftId, onClose
               )}
             </div>
 
-            {/* Non-cash aside */}
-            <p className="text-xs text-muted-foreground">
-              Touched no drawer — GCash {formatPeso(summary.gcash_sales)} · Maya {formatPeso(summary.maya_sales)}
-            </p>
+            {/* Non-cash aside — refunds follow their channel, never the drawer */}
+            <div className="space-y-0.5 text-xs text-muted-foreground">
+              <p>Touched no drawer — GCash {formatPeso(summary.gcash_sales)} · Maya {formatPeso(summary.maya_sales)}</p>
+              {((summary.gcash_refunds ?? 0) > 0 || (summary.maya_refunds ?? 0) > 0) && (
+                <p>
+                  E-wallet refunds — GCash {formatPeso(summary.gcash_refunds ?? 0)}{(summary.gcash_refund_count ?? 0) > 0 ? ` (${summary.gcash_refund_count})` : ""} · Maya {formatPeso(summary.maya_refunds ?? 0)}{(summary.maya_refund_count ?? 0) > 0 ? ` (${summary.maya_refund_count})` : ""} (netted per channel, not drawer)
+                </p>
+              )}
+            </div>
 
             {(summary.open_orders ?? 0) > 0 && (
               <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
