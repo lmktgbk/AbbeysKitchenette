@@ -1,6 +1,8 @@
 import { Router } from "express";
 import authenticate from "../../middleware/authenticate.middleware.js";
 import authorize from "../../middleware/authorize.middleware.js";
+import { validateQuery, validateParams } from "../../middleware/validate.middleware.js";
+import { mbaAnalyzeQuerySchema, mbaJobsQuerySchema, mbaJobIdParamSchema } from "./marketBasket.validation.js";
 import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
@@ -72,13 +74,14 @@ router.post(
   "/analyze",
   authenticate,
   authorize("admin"),
+  validateQuery(mbaAnalyzeQuerySchema),
   (req, res) => {
     auditLogService.logAction({ userId: req.user.id, action: ACTIONS.MBA_RUN, targetType: "market_basket", details: { source: "manual" } });
-    const { minSupport, minConfidence, topN } = req.query;
+    const { minSupport, minConfidence, topN } = req.validatedQuery || {};
     let path = "/mba/analyze?";
-    if (minSupport) path += `min_support=${minSupport}&`;
-    if (minConfidence) path += `min_confidence=${minConfidence}&`;
-    if (topN) path += `top_n=${topN}&`;
+    if (minSupport !== undefined) path += `min_support=${minSupport}&`;
+    if (minConfidence !== undefined) path += `min_confidence=${minConfidence}&`;
+    if (topN !== undefined) path += `top_n=${topN}&`;
     proxyPost(res, path, {}, "MBA_ANALYZE_ERROR");
   },
 );
@@ -88,10 +91,11 @@ router.get(
   "/jobs",
   authenticate,
   authorize("admin"),
+  validateQuery(mbaJobsQuerySchema),
   (req, res) => {
-    const { limit } = req.query;
+    const { limit } = req.validatedQuery || {};
     let path = "/mba/jobs?";
-    if (limit) path += `limit=${limit}&`;
+    if (limit !== undefined) path += `limit=${limit}&`;
     proxyGet(res, path, "MBA_JOBS_ERROR");
   },
 );
@@ -101,6 +105,7 @@ router.get(
   "/jobs/:id",
   authenticate,
   authorize("admin"),
+  validateParams(mbaJobIdParamSchema),
   (req, res) => {
     proxyGet(res, `/mba/jobs/${req.params.id}`, "MBA_JOB_ERROR");
   },
@@ -111,12 +116,13 @@ router.get(
   "/analyze",
   authenticate,
   authorize("admin"),
+  validateQuery(mbaAnalyzeQuerySchema),
   (req, res) => {
-    const { minSupport, minConfidence, topN } = req.query;
+    const { minSupport, minConfidence, topN } = req.validatedQuery || {};
     let path = "/mba/analyze?";
-    if (minSupport) path += `min_support=${minSupport}&`;
-    if (minConfidence) path += `min_confidence=${minConfidence}&`;
-    if (topN) path += `top_n=${topN}&`;
+    if (minSupport !== undefined) path += `min_support=${minSupport}&`;
+    if (minConfidence !== undefined) path += `min_confidence=${minConfidence}&`;
+    if (topN !== undefined) path += `top_n=${topN}&`;
     proxyGet(res, path, "MBA_ANALYZE_ERROR");
   },
 );
