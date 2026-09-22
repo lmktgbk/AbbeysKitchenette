@@ -36,11 +36,34 @@ export default function AnomalyPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Header — like Promotions */}
+      {/* Header with merged status — single card on top in all states */}
       <div className="rounded-xl border border-border bg-card px-4 py-4 sm:px-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-base font-semibold text-foreground">Anomalies</h1>
+          <div className="min-w-0">
+            <h1 className="text-base text-muted-foreground">
+              Anomalies:{" "}
+              {statsLoading ? (
+                <span className="font-semibold text-foreground">…</span>
+              ) : total === 0 ? (
+                <span className="font-semibold text-green-600 dark:text-green-400">All good</span>
+              ) : (
+                <span className="font-semibold text-foreground">{total} Need Attention</span>
+              )}
+            </h1>
+            {!statsLoading && total > 0 && (
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                {critical > 0 && (
+                  <span className="inline-flex items-center rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-600 dark:text-red-400">
+                    {critical} urgent
+                  </span>
+                )}
+                {(total - critical) > 0 && (
+                  <span className="inline-flex items-center rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+                    {total - critical} to watch
+                  </span>
+                )}
+              </div>
+            )}
             {stats.lastScan ? (
               <p className="mt-1 text-xs text-muted-foreground">Last scan: {new Date(stats.lastScan).toLocaleString()}</p>
             ) : (
@@ -55,38 +78,13 @@ export default function AnomalyPage() {
         </div>
       </div>
 
-      {/* Hero — All good or needs attention */}
-      {!statsLoading && (
-        total === 0 ? (
-          <div className="rounded-xl border border-border bg-card px-6 py-5 text-center">
-            <Icon name="checkCircle" size={28} className="mx-auto text-green-600" />
-            <p className="mt-2 text-base font-semibold text-foreground">All good</p>
-            <p className="text-xs text-muted-foreground">Nothing unusual found</p>
-          </div>
-        ) : (
-          <div className={`rounded-xl border border-border border-l-4 bg-card px-6 py-4 ${critical > 0 ? "border-l-red-500" : "border-l-amber-500"}`}>
-            <div className="flex items-center gap-3">
-              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md ${critical > 0 ? "bg-red-500/10" : "bg-amber-500/10"}`}>
-                <Icon name="alertTriangle" size={18} className={critical > 0 ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-base font-semibold text-foreground">{total} need attention</p>
-                <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                  {critical > 0 && (
-                    <span className="inline-flex items-center rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-600 dark:text-red-400">
-                      {critical} urgent
-                    </span>
-                  )}
-                  {(total - critical) > 0 && (
-                    <span className="inline-flex items-center rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
-                      {total - critical} to watch
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )
+      {/* Empty body — only when truly zero */}
+      {!statsLoading && total === 0 && (
+        <div className="rounded-xl border border-border bg-card px-6 py-5 text-center">
+          <Icon name="checkCircle" size={28} className="mx-auto text-green-600" />
+          <p className="mt-2 text-base font-semibold text-foreground">All good</p>
+          <p className="text-xs text-muted-foreground">Nothing unusual found</p>
+        </div>
       )}
 
       {/* Filters — hidden when zero total and no filter active */}
