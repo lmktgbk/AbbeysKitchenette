@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { mapPrismaError } from "../utils/response.js";
 
 /**
  * Custom Error Class for Expected Errors
@@ -36,26 +37,13 @@ const errorHandler = (err, req, res, next) => {
     });
   }
 
-  // Unique-constraint race (e.g. concurrent creates with the same name).
-  // Services map the known cases to friendlier errors; this is the net
-  // so a race never surfaces as a 500 anywhere.
-  if (err?.code === "P2002") {
-    return res.status(409).json({
+  // Known Prisma races/conflicts — never surface as a 500 anywhere.
+  const mapped = mapPrismaError(err);
+  if (mapped) {
+    return res.status(mapped.statusCode).json({
       success: false,
-      message: "A record with these details already exists",
-      error: "DUPLICATE_ENTRY",
-      data: null,
-    });
-  }
-
-  // Optimistic-lock race (version-guard mismatch on stock batches).
-  // Services that can name the conflict throw 409 CONCURRENT_STOCK
-  // themselves; this is the net for the rest.
-  if (err?.code === "P2025") {
-    return res.status(409).json({
-      success: false,
-      message: "Stock changed while processing — please retry",
-      error: "CONCURRENT_STOCK",
+      message: mapped.message,
+      error: mapped.code,
       data: null,
     });
   }

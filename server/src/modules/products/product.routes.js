@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 import { productController } from "./product.controller.js";
-import { successResponse } from "../../utils/response.js";
+import { successResponse, errorResponse } from "../../utils/response.js";
 import { validate, validateQuery, validateParams } from "../../middleware/validate.middleware.js";
 import authenticate from "../../middleware/authenticate.middleware.js";
 import authorize from "../../middleware/authorize.middleware.js";
@@ -46,7 +46,7 @@ router.post(
   uploadProductImage,
   (req, res) => {
     if (!req.file) {
-      return res.status(400).json({ success: false, message: "No image file provided" });
+      return errorResponse(res, "No image file provided", null, 400, "NO_FILE");
     }
     return successResponse(res, "Image uploaded", { url: req.file.path });
   },

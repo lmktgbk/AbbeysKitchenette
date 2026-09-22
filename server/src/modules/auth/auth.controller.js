@@ -1,6 +1,5 @@
 import { authService } from "./auth.service.js";
-import { successResponse, errorResponse } from "../../utils/response.js";
-import { AppError } from "../../middleware/errorHandler.middleware.js";
+import { successResponse, errorResponse, controllerError } from "../../utils/response.js";
 import { env } from "../../config/env.js";
 import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
@@ -14,11 +13,7 @@ const COOKIE_OPTIONS = {
 };
 
 function handleError(res, error, fallbackCode) {
-  if (error instanceof AppError) {
-    return errorResponse(res, error.message, null, error.statusCode, error.code);
-  }
-  console.error(`[${fallbackCode}]`, error);
-  return errorResponse(res, "Something went wrong", null, 500, fallbackCode);
+  return controllerError(res, error, fallbackCode);
 }
 
 export const authController = {

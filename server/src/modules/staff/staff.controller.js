@@ -1,6 +1,5 @@
 import { staffService } from "./staff.service.js";
-import { successResponse } from "../../utils/response.js";
-import { AppError } from "../../middleware/errorHandler.middleware.js";
+import { successResponse, controllerError } from "../../utils/response.js";
 
 /**
  * Staff Controller
@@ -10,21 +9,7 @@ import { AppError } from "../../middleware/errorHandler.middleware.js";
  */
 
 function handleError(res, error, fallbackCode) {
-  if (error instanceof AppError) {
-    return res.status(error.statusCode).json({
-      success: false,
-      message: error.message,
-      error: error.code,
-      data: null,
-    });
-  }
-  console.error("Staff error:", error);
-  return res.status(500).json({
-    success: false,
-    message: "Internal server error",
-    error: fallbackCode,
-    data: null,
-  });
+  return controllerError(res, error, fallbackCode);
 }
 
 export const staffController = {
