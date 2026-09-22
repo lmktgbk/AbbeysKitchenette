@@ -154,6 +154,7 @@ function formatDescription(log) {
   const quantity = d.quantity != null ? String(d.quantity) : "";
   const quantityLost = d.quantity_lost != null ? String(d.quantity_lost) : "";
   const lossType = d.loss_type || "";
+  const sizeName = d.sizeName || d.size_name || "";
   const costPerUnit = d.cost_per_unit != null ? `₱${d.cost_per_unit}` : "";
   const userId = d.userId || "";
 
@@ -208,8 +209,8 @@ function formatDescription(log) {
     case "SHIFT_CLOSED": return "Closed shift";
     case "SHIFT_FORCE_CLOSED": return "Force-closed shift";
     case "STOCK_COUNT_RECORDED": return `Counted "${name}" — system ${d.system ?? ""}, physical ${d.physical ?? ""}`;
-    case "VARIANT_ACTIVATED": return `Activated variant of "${name}"`;
-    case "VARIANT_DEACTIVATED": return `Deactivated variant of "${name}"`;
+    case "VARIANT_ACTIVATED": return `Activated variant of "${name}"${sizeName ? ` (${sizeName})` : ""}`;
+    case "VARIANT_DEACTIVATED": return `Deactivated variant of "${name}"${sizeName ? ` (${sizeName})` : ""}`;
 
     default: return formatAction(log.action);
   }

@@ -83,11 +83,16 @@ export const anomalyService = {
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`[anomaly] Scan complete: ${allResults.length} anomalies found in ${elapsed}s`);
 
-    auditLogService.logAction({
-      action: ACTIONS.ANOMALY_SCAN,
-      targetType: "anomaly",
-      details: { anomaliesFound: allResults.length, elapsedSeconds: Number(elapsed) },
-    }).catch(() => {});
+    // Noise throttle: hook-triggered scans (ruleIds set by POS events) audit
+    // only when they actually find something. Manual Check now + 6am cron
+    // (ruleIds null) always leave a trail.
+    if (allResults.length > 0 || !ruleIds) {
+      auditLogService.logAction({
+        action: ACTIONS.ANOMALY_SCAN,
+        targetType: "anomaly",
+        details: { anomaliesFound: allResults.length, elapsedSeconds: Number(elapsed) },
+      }).catch(() => {});
+    }
 
     return { anomaliesFound: allResults.length, elapsedSeconds: Number(elapsed) };
   },

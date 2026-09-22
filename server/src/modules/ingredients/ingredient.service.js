@@ -298,7 +298,7 @@ export const ingredientService = {
       action: ACTIONS.INGREDIENT_UPDATED,
       targetType: "ingredient",
       targetId: id,
-      details: { fields: Object.keys(updateData) },
+      details: { name: updated.ingredientName ?? existing.ingredientName, fields: Object.keys(updateData) },
     }).catch(() => {});
 
     return response;
@@ -589,12 +589,13 @@ export const ingredientService = {
       expiryDate ? new Date(`${expiryDate}T00:00:00Z`) : null,
     );
 
+    const batchIngredient = await ingredientRepository.findById(id);
     auditLogService.logAction({
       userId,
       action: ACTIONS.INGREDIENT_UPDATED,
       targetType: "restock_batch",
       targetId: String(batchId),
-      details: { expiry_date: expiryDate ?? null },
+      details: { name: batchIngredient?.ingredientName ?? "", fields: ["expiry_date"], expiry_date: expiryDate ?? null },
     }).catch(() => {});
 
     return mapToBatchResponse(updated);
@@ -1037,7 +1038,7 @@ export const ingredientService = {
       action: ACTIONS.INGREDIENT_ARCHIVED,
       targetType: "ingredient",
       targetId: id,
-      details: { name: ingredient.name },
+      details: { name: ingredient.ingredientName },
     }).catch(() => {});
 
     return {
@@ -1065,7 +1066,7 @@ export const ingredientService = {
       action: ACTIONS.INGREDIENT_RESTORED,
       targetType: "ingredient",
       targetId: id,
-      details: { name: ingredient.name },
+      details: { name: ingredient.ingredientName },
     }).catch(() => {});
 
     return {

@@ -288,7 +288,7 @@ export const productService = {
 
     await productRepository.update(id, updateData);
 
-    auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_UPDATED, targetType: "product", targetId: id, details: { name: data.product_name } });
+    auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_UPDATED, targetType: "product", targetId: id, details: { name: data.product_name ?? existing.productName } });
 
     return this.getById(id);
   },
@@ -487,7 +487,7 @@ export const productService = {
       action: ACTIONS.VARIANT_ACTIVATED,
       targetType: "variant",
       targetId: String(variantId),
-      details: { productId, sizeName: variant.sizeName },
+      details: { name: product.productName, productId, sizeName: variant.sizeName },
     });
 
     return this.getById(productId);
@@ -522,7 +522,7 @@ export const productService = {
       action: ACTIONS.VARIANT_DEACTIVATED,
       targetType: "variant",
       targetId: String(variantId),
-      details: { productId, sizeName: variant.sizeName },
+      details: { name: product.productName, productId, sizeName: variant.sizeName },
     });
 
     return this.getById(productId);
