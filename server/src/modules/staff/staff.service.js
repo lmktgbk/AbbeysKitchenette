@@ -109,7 +109,8 @@ export const staffService = {
     if (!user) throw new AppError(404, "Staff not found", "STAFF_NOT_FOUND");
     const hasTx = await staffRepository.hasTransactions(id);
     if (hasTx) throw new AppError(400, "Cannot delete staff with transaction history", "STAFF_HAS_TRANSACTIONS");
+    const deleted = await staffRepository.deleteUser(id);
     auditLogService.logAction({ userId, action: ACTIONS.STAFF_DELETED, targetType: "staff", targetId: id, details: { name: user.name } });
-    return staffRepository.deleteUser(id);
+    return deleted;
   },
 };

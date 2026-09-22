@@ -1,5 +1,7 @@
 import { anomalyService } from "./anomalyDetection.service.js";
 import { successResponse, errorResponse } from "../../utils/response.js";
+import { auditLogService } from "../auditLogs/auditLog.service.js";
+import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
 export const anomalyController = {
   async getResults(req, res) {
@@ -55,6 +57,12 @@ export const anomalyController = {
   async acknowledge(req, res) {
     try {
       await anomalyService.acknowledge(req.params.id);
+      auditLogService.logAction({
+        userId: req.user.id,
+        action: ACTIONS.ANOMALY_ACKNOWLEDGED,
+        targetType: "anomaly",
+        targetId: req.params.id,
+      }).catch(() => {});
       return successResponse(res, "Anomaly acknowledged");
     } catch (error) {
       console.error("[ACKNOWLEDGE_ANOMALY]", error);

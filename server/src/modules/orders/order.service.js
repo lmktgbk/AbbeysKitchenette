@@ -286,6 +286,13 @@ export const orderService = {
       referenceId: result.orderId,
     }).catch(() => {});
 
+    auditLogService.logAction({
+      action: ACTIONS.ORDER_CREATED,
+      targetType: "order",
+      targetId: result.orderId,
+      details: { order_number: fullOrder.order_number, total, source: "online" },
+    }).catch(() => {});
+
     return fullOrder;
   },
 
@@ -326,14 +333,19 @@ export const orderService = {
 
   /* ── Edit Pending Order ──────────────── */
 
-  async editPending(id, data) {
+  async editPending(id, data, userId) {
     const existing = await orderRepository.findPendingById(id);
     if (!existing) throw new AppError(404, "Pending order not found", "ORDER_NOT_FOUND");
     if (existing.status !== "pending") {
       throw new AppError(400, "Only pending orders can be edited", "INVALID_STATUS");
     }
+    const editedFields = [
+      ...(data.customer_name !== undefined ? ["customer_name"] : []),
+      ...(data.table_number !== undefined ? ["table_number"] : []),
+      ...(data.items !== undefined ? ["items"] : []),
+    ];
 
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const updateData = {};
       if (data.customer_name !== undefined) updateData.customerName = data.customer_name;
       if (data.table_number !== undefined) updateData.tableNumber = data.table_number;
@@ -354,6 +366,14 @@ export const orderService = {
 
       return this.getById(id);
     });
+    auditLogService.logAction({
+      userId,
+      action: ACTIONS.ORDER_UPDATED,
+      targetType: "order",
+      targetId: id,
+      details: { order_number: existing.orderNumber, fields: editedFields },
+    }).catch(() => {});
+    return result;
   },
 
   /* ── Fulfill Pending Online Order ──── */
@@ -491,7 +511,7 @@ export const orderService = {
       }).catch(() => {});
 
       notificationService.create({
-        type: "order_completed",
+        type: "order_accepted",
         title: "Order Accepted",
         message: `Order ${formatOrderNumber(order.orderNumber)} has been accepted`,
         referenceType: "order",
@@ -521,9 +541,10 @@ export const orderService = {
 
     auditLogService.logAction({
       userId,
-      action: "order_preparing",
+      action: ACTIONS.ORDER_PREPARING,
       targetType: "order",
       targetId: id,
+      details: { order_number: order.orderNumber },
     }).catch(() => {});
 
     return this.getById(id);
@@ -846,7 +867,7 @@ export const orderService = {
 
     auditLogService.logAction({
       userId,
-      action: "order_item_removed",
+      action: ACTIONS.ORDER_ITEM_REMOVED,
       targetType: "order_item",
       targetId: String(orderItemId),
       details: {
@@ -882,14 +903,20 @@ export const orderService = {
       overriddenById: userId,
     };
 
-    await orderRepository.overrideLoss(lossId, overrideData);
+    const overridden = await orderRepository.overrideLoss(lossId, overrideData);
 
     auditLogService.logAction({
       userId,
-      action: "loss_overridden",
+      action: ACTIONS.LOSS_OVERRIDDEN,
       targetType: "loss_record",
       targetId: String(lossId),
-      details: { reason: overrideReason, note: overrideNote },
+      details: {
+        reason: overrideReason,
+        note: overrideNote,
+        ingredient_id: overridden?.ingredientId ?? null,
+        related_order_id: overridden?.relatedOrderId ?? null,
+        quantity_lost: overridden?.quantityLost != null ? Number(overridden.quantityLost) : null,
+      },
     }).catch(() => {});
 
     return { lossId, overrideReason };
@@ -1062,7 +1089,13 @@ export const orderService = {
       const ing = await orderRepository.getIngredientBasic(ingredientId);
       if (!ing) continue;
 
+      // Crossing-only: skip ingredients that were already out/low before this
+      // deduction, so repeated orders don't spam duplicate alerts.
+      const stockBefore = stockAfter + (needs.get(ingredientId) ?? 0);
+      const threshold = Number(ing.minimumThreshold);
+
       if (stockAfter <= 0) {
+        if (stockBefore <= 0) continue;
         notificationService.create({
           type: "stock_out",
           title: "Out of Stock",
@@ -1070,7 +1103,8 @@ export const orderService = {
           referenceType: "ingredient",
           referenceId: ingredientId,
         }).catch(() => {});
-      } else if (stockAfter <= Number(ing.minimumThreshold)) {
+      } else if (stockAfter <= threshold) {
+        if (stockBefore <= threshold) continue;
         notificationService.create({
           type: "stock_low",
           title: "Low Stock Alert",

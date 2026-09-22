@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatPeso } from "../utils/dashboardUtils";
 
 const WASTE_TYPES = [
-  { key: "cancellation", label: "Cancellations", icon: "xCircle", color: "text-red-500" },
+  { key: "cancellation", label: "Cancellations", icon: "x", color: "text-red-500" },
   { key: "spoilage", label: "Spoilage", icon: "alertTriangle", color: "text-orange-500" },
   { key: "spillage", label: "Spillage", icon: "droplets", color: "text-blue-500" },
   { key: "expiry", label: "Expiry", icon: "clock", color: "text-yellow-500" },

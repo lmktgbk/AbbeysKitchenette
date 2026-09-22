@@ -1,6 +1,8 @@
 import { wasteReductionService } from "./wasteReduction.service.js";
 import { successResponse, errorResponse } from "../../utils/response.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
+import { auditLogService } from "../auditLogs/auditLog.service.js";
+import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
 /**
  * Waste Reduction Controller
@@ -43,6 +45,12 @@ export const wasteReductionController = {
   async generateInsights(req, res) {
     try {
       const insights = await wasteReductionService.generate();
+      auditLogService.logAction({
+        userId: req.user.id,
+        action: ACTIONS.WASTE_RUN,
+        targetType: "waste",
+        details: { source: "manual", count: insights.length },
+      }).catch(() => {});
       return successResponse(res, "Waste reduction insights generated", {
         insights,
       });
@@ -57,7 +65,7 @@ export const wasteReductionController = {
    */
   async acceptInsight(req, res) {
     try {
-      const insight = await wasteReductionService.accept(req.params.id);
+      const insight = await wasteReductionService.accept(req.params.id, req.user.id);
       return successResponse(res, "Insight accepted", { insight });
     } catch (error) {
       return handleError(res, error, "ACCEPT_WASTE_INSIGHT_ERROR");
@@ -70,7 +78,7 @@ export const wasteReductionController = {
    */
   async rejectInsight(req, res) {
     try {
-      const insight = await wasteReductionService.reject(req.params.id);
+      const insight = await wasteReductionService.reject(req.params.id, req.user.id);
       return successResponse(res, "Insight rejected", { insight });
     } catch (error) {
       return handleError(res, error, "REJECT_WASTE_INSIGHT_ERROR");

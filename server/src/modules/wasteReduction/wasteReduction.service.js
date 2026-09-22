@@ -2,6 +2,8 @@ import { ai, GEMINI_MODEL } from "../../config/gemini.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { wasteReductionRepository as repo } from "./wasteReduction.repository.js";
 import { buildWastePrompt } from "./wasteReduction.prompts.js";
+import { auditLogService } from "../auditLogs/auditLog.service.js";
+import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
 /**
  * Waste Reduction Service
@@ -118,14 +120,34 @@ export const wasteReductionService = {
   /**
    * Accept a waste reduction insight.
    */
-  async accept(id) {
-    return repo.updateStatus(id, "accepted");
+  async accept(id, userId) {
+    const pending = await repo.getPendingInsights();
+    const found = pending.find((i) => String(i.id) === String(id));
+    const insight = await repo.updateStatus(id, "accepted");
+    auditLogService.logAction({
+      userId,
+      action: ACTIONS.WASTE_ACCEPTED,
+      targetType: "ingredient",
+      targetId: found?.ingredient_id ?? null,
+      details: { name: found?.ingredient_name ?? null },
+    }).catch(() => {});
+    return insight;
   },
 
   /**
    * Reject a waste reduction insight.
    */
-  async reject(id) {
-    return repo.updateStatus(id, "rejected");
+  async reject(id, userId) {
+    const pending = await repo.getPendingInsights();
+    const found = pending.find((i) => String(i.id) === String(id));
+    const insight = await repo.updateStatus(id, "rejected");
+    auditLogService.logAction({
+      userId,
+      action: ACTIONS.WASTE_REJECTED,
+      targetType: "ingredient",
+      targetId: found?.ingredient_id ?? null,
+      details: { name: found?.ingredient_name ?? null },
+    }).catch(() => {});
+    return insight;
   },
 };

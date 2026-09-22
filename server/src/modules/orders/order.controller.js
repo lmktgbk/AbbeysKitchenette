@@ -138,7 +138,7 @@ export const orderController = {
    */
   async updateOrder(req, res) {
     try {
-      const order = await orderService.editPending(req.params.id, req.body);
+      const order = await orderService.editPending(req.params.id, req.body, req.user.id);
       return successResponse(res, "Order updated", { order });
     } catch (error) {
       return handleError(res, error, "UPDATE_ORDER_ERROR");
@@ -199,7 +199,7 @@ export const orderController = {
       const { reason, custom_reason, loss_option, refund_option, refund_amount, item_losses } = req.body || {};
       const finalReason = reason === "other" ? custom_reason : reason;
       const result = await orderService.cancelOrDelete(req.params.id, req.user.id, finalReason, { loss_option, refund_option, refund_amount, item_losses });
-      return successResponse(res, result.action === "deleted" ? "Order deleted" : "Order cancelled", result);
+      return successResponse(res, "Order cancelled", result);
     } catch (error) {
       return handleError(res, error, "CANCEL_ORDER_ERROR");
     }

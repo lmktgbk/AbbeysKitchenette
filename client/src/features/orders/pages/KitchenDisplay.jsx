@@ -35,8 +35,23 @@ export default function KitchenDisplay({ embedded = false }) {
   const [pendingAction, setPendingAction] = useState(null);
   const [animatingOut, setAnimatingOut] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [preparingId, setPreparingId] = useState(null);
-  const [togglingItem, setTogglingItem] = useState(null);
+  // In-flight IDs (Sets, not scalars) so concurrent actions on different
+  // orders/items each keep their own spinner instead of stealing one slot.
+  const [preparingIds, setPreparingIds] = useState(() => new Set());
+  const [togglingIds, setTogglingIds] = useState(() => new Set());
+  const [readyIds, setReadyIds] = useState(() => new Set());
+
+  function addId(setter, id) {
+    setter((prev) => new Set(prev).add(id));
+  }
+
+  function deleteId(setter, id) {
+    setter((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }
 
   // Role-based filtering: cashier sees beverages, kitchen sees food, admin sees all
   // Items are NOT filtered out — they're passed to OrderCard which greys out non-checkable ones
@@ -64,13 +79,13 @@ export default function KitchenDisplay({ embedded = false }) {
   async function handleAction(orderId, action) {
     if (action === "prepare") {
       try {
-        setPreparingId(orderId);
+        addId(setPreparingIds, orderId);
         await mutations.prepare.mutateAsync(orderId);
         toast.success("Order is now preparing");
       } catch (err) {
         toast.error(err.response?.data?.message || "Failed to prepare order");
       } finally {
-        setPreparingId(null);
+        deleteId(setPreparingIds, orderId);
       }
     } else if (action === "markReady") {
       setPendingAction({ orderId, type: "ready" });
@@ -79,27 +94,35 @@ export default function KitchenDisplay({ embedded = false }) {
 
   async function handleToggleItem(orderId, itemId, isPrepared) {
     try {
-      setTogglingItem(itemId);
+      addId(setTogglingIds, itemId);
       await mutations.checkItem.mutateAsync({ orderId, itemId, data: { is_prepared: isPrepared } });
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to update item");
     } finally {
-      setTogglingItem(null);
+      deleteId(setTogglingIds, itemId);
     }
   }
 
   async function handleConfirmReady() {
     if (!pendingAction) return;
+    const orderId = pendingAction.orderId;
     try {
       setAnimatingOut(true);
-      await new Promise((r) => setTimeout(r, 550));
-      await markReady(pendingAction.orderId);
+      addId(setReadyIds, orderId);
+      // Animation + API concurrently: "Saving…" shows on the same tick as
+      // the click, and total wait is max(550ms, API) instead of the sum.
+      await Promise.all([
+        new Promise((r) => setTimeout(r, 550)),
+        markReady(orderId),
+      ]);
       toast.success("Order completed");
       setPendingAction(null);
       setAnimatingOut(false);
     } catch (err) {
       setAnimatingOut(false);
       toast.error(err.response?.data?.message || "Could not complete order");
+    } finally {
+      deleteId(setReadyIds, orderId);
     }
   }
 
@@ -184,9 +207,9 @@ export default function KitchenDisplay({ embedded = false }) {
                   order={order}
                   onToggleItem={handleToggleItem}
                   onMarkReady={(id) => handleAction(id, order.status === "accepted" ? "prepare" : "markReady")}
-                  disabled={markingReady || animatingOut}
-                  preparing={preparingId === order.order_id}
-                  togglingItem={togglingItem}
+                  disabled={readyIds.has(order.order_id) || animatingOut}
+                  preparing={preparingIds.has(order.order_id)}
+                  togglingIds={togglingIds}
                   roleCategory={categoryFilter}
                 />
               ))}

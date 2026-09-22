@@ -2,6 +2,8 @@ import { ai, GEMINI_MODEL } from "../../config/gemini.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { reorderSuggestionsRepository as repo } from "./reorderSuggestions.repository.js";
 import { buildReorderPrompt } from "./reorderSuggestions.prompts.js";
+import { auditLogService } from "../auditLogs/auditLog.service.js";
+import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
 /**
  * Round suggested quantity to nice order increments based on unit.
@@ -177,16 +179,38 @@ export const reorderSuggestionsService = {
   /**
    * Accept a reorder suggestion.
    */
-  async accept(id) {
+  async accept(id, userId) {
+    const pending = await repo.getPendingSuggestions();
+    const found = pending.find((s) => String(s.id) === String(id));
     const suggestion = await repo.updateStatus(id, "accepted");
+    auditLogService.logAction({
+      userId,
+      action: ACTIONS.REORDER_ACCEPTED,
+      targetType: "ingredient",
+      targetId: found?.ingredient_id ?? null,
+      details: {
+        name: found?.ingredient_name ?? null,
+        suggested_quantity: found?.suggested_quantity ?? null,
+        unit: found?.unit ?? null,
+      },
+    }).catch(() => {});
     return suggestion;
   },
 
   /**
    * Reject a reorder suggestion.
    */
-  async reject(id) {
+  async reject(id, userId) {
+    const pending = await repo.getPendingSuggestions();
+    const found = pending.find((s) => String(s.id) === String(id));
     const suggestion = await repo.updateStatus(id, "rejected");
+    auditLogService.logAction({
+      userId,
+      action: ACTIONS.REORDER_REJECTED,
+      targetType: "ingredient",
+      targetId: found?.ingredient_id ?? null,
+      details: { name: found?.ingredient_name ?? null },
+    }).catch(() => {});
     return suggestion;
   },
 };

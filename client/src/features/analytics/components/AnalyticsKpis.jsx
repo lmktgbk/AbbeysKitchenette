@@ -61,9 +61,6 @@ export default function AnalyticsKpis({ kpis, isLoading }) {
     );
   }
 
-  // Auto-collapse: Discounts card only matters when discounts were actually given.
-  // When ₱0, Gross == Net and the extra card is pure noise.
-  const hasDiscounts = Number(kpis?.discounts || 0) > 0;
   const hasLosses = Number(kpis?.totalLosses || 0) > 0;
 
   const cards = [
@@ -71,29 +68,25 @@ export default function AnalyticsKpis({ kpis, isLoading }) {
       icon: "dollarSign",
       label: "Gross Sales",
       value: formatPeso(kpis?.grossSales),
-      sub: hasDiscounts ? "Before discounts" : "No discounts given",
+      sub: "Before discounts",
       delta: kpis?.deltas?.grossSales,
       iconBg: "bg-emerald-500/10",
       iconColor: "text-emerald-600 dark:text-emerald-400",
     },
-    ...(hasDiscounts
-      ? [
-          {
-            icon: "wallet",
-            label: "Discounts",
-            value: formatPeso(kpis?.discounts),
-            sub: "Total given",
-            delta: null,
-            iconBg: "bg-orange-500/10",
-            iconColor: "text-orange-600 dark:text-orange-400",
-          },
-        ]
-      : []),
+    {
+      icon: "wallet",
+      label: "Discounts",
+      value: formatPeso(kpis?.discounts),
+      sub: "Total given",
+      delta: null,
+      iconBg: "bg-orange-500/10",
+      iconColor: "text-orange-600 dark:text-orange-400",
+    },
     {
       icon: "trendingUp",
       label: "Net Sales",
       value: formatPeso(kpis?.netSales),
-      sub: hasDiscounts ? "After discounts" : "Equals gross (no discounts)",
+      sub: "After discounts",
       delta: kpis?.deltas?.netSales,
       iconBg: "bg-emerald-500/10",
       iconColor: "text-emerald-600 dark:text-emerald-400",

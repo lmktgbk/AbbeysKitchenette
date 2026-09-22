@@ -33,8 +33,8 @@ export const notificationService = {
   /**
    * Get paginated notifications.
    */
-  async getAll({ page = 1, limit = 20 }) {
-    const result = await notificationRepository.findMany({ page, limit });
+  async getAll({ page = 1, limit = 20, types } = {}) {
+    const result = await notificationRepository.findMany({ page, limit, types });
     return {
       notifications: result.notifications.map((n) => ({
         id: n.id,

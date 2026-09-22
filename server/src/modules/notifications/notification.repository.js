@@ -13,15 +13,19 @@ export const notificationRepository = {
     });
   },
 
-  async findMany({ page = 1, limit = 20 }) {
+  async findMany({ page = 1, limit = 20, types } = {}) {
     const skip = (page - 1) * limit;
+    const where = {};
+    if (Array.isArray(types) && types.length === 1) where.type = types[0];
+    else if (Array.isArray(types) && types.length > 1) where.type = { in: types };
     const [notifications, totalItems] = await Promise.all([
       prisma.notification.findMany({
+        where,
         orderBy: { createdAt: "desc" },
         skip,
         take: limit,
       }),
-      prisma.notification.count(),
+      prisma.notification.count({ where }),
     ]);
     return { notifications, totalItems };
   },

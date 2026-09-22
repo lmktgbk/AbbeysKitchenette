@@ -2,6 +2,7 @@ import Icon from "@/components/ui/icon";
 
 const TYPE_ICONS = {
   order_new: "cart",
+  order_accepted: "check",
   order_completed: "checkCircle",
   order_cancelled: "alertCircle",
   stock_low: "alertTriangle",
@@ -13,6 +14,7 @@ const TYPE_ICONS = {
 
 const TYPE_COLORS = {
   order_new: "text-blue-500",
+  order_accepted: "text-blue-500",
   order_completed: "text-green-500",
   order_cancelled: "text-red-500",
   stock_low: "text-amber-500",

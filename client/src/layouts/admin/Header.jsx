@@ -2,6 +2,7 @@ import { useLocation } from "react-router-dom";
 import Icon from "@/components/ui/icon";
 import ModeToggle from "@/components/ModeToggle";
 import useLayoutStore from "@/stores/layoutStore";
+import useAuthStore from "@/features/auth/authStore";
 import NotificationBell from "@/features/notifications/components/NotificationBell";
 
 const PAGE_TITLES = {
@@ -28,6 +29,7 @@ export default function Header() {
     const closeMobile = useLayoutStore((s) => s.closeMobile);
     const setMobileOpen = useLayoutStore((s) => s.setMobileOpen);
     const toggleCollapsed = useLayoutStore((s) => s.toggleCollapsed);
+    const user = useAuthStore((s) => s.user);
     const title = PAGE_TITLES[location.pathname] || "Abbey's Kitchenette";
 
     function handleToggle() {
@@ -59,7 +61,7 @@ export default function Header() {
 
             <div className="ml-auto flex items-center gap-1">
                 <ModeToggle />
-                <NotificationBell />
+                {user?.role === "admin" && <NotificationBell />}
             </div>
         </header>
     );

@@ -91,12 +91,12 @@ export default function MarketBasketRunButton({ compact = false }) {
         disabled={showSpinner}
         className={cn(
           "inline-flex items-center gap-1 text-xs font-medium transition-colors",
-          showSpinner ? "text-muted-foreground cursor-not-allowed" : "text-amber-700 hover:underline"
+          showSpinner ? "text-muted-foreground cursor-not-allowed" : "text-primary hover:underline"
         )}
       >
         {showSpinner ? (
           <>
-            <span className="h-3 w-3 animate-spin rounded-full border-2 border-amber-700 border-t-transparent" />
+            <span className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             {isRunning ? "Running..." : "Updating..."}
           </>
         ) : (

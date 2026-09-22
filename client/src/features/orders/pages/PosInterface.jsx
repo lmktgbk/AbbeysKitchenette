@@ -59,7 +59,8 @@ export default function PosInterface() {
 
   // ── Online order fulfillment ────────
   const [fulfillingOrderId, setFulfillingOrderId] = useState(null);
-  const [acceptingOrderId, setAcceptingOrderId] = useState(null);
+  // In-flight accepts (Set) so concurrent accepts each keep their own spinner.
+  const [acceptingOrderIds, setAcceptingOrderIds] = useState(() => new Set());
 
   // ── Online orders sidebar ──────────
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -108,7 +109,7 @@ export default function PosInterface() {
       if (!yes) return;
     }
 
-    setAcceptingOrderId(order.order_id);
+    setAcceptingOrderIds((prev) => new Set(prev).add(order.order_id));
     try {
       const res = await getOrderDetailRequest(order.order_id);
       const orderData = res.data.order;
@@ -131,7 +132,11 @@ export default function PosInterface() {
     } catch {
       toast.error("Failed to load order details");
     } finally {
-      setAcceptingOrderId(null);
+      setAcceptingOrderIds((prev) => {
+        const next = new Set(prev);
+        next.delete(order.order_id);
+        return next;
+      });
     }
   }
 
@@ -297,7 +302,7 @@ export default function PosInterface() {
           onClose={() => setSidebarOpen(false)}
           onAcceptOrder={handleAcceptOnlineOrder}
           onRejectOrder={handleRejectOnlineOrder}
-          loadingOrderId={acceptingOrderId}
+          loadingOrderIds={acceptingOrderIds}
         />
       </div>
 

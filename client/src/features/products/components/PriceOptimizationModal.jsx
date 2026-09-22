@@ -50,13 +50,17 @@ export default function PriceOptimizationModal({ open, onOpenChange, product }) 
 
   async function handleApply(suggestion) {
     const change = Number(suggestion.recommendedPrice) - Number(suggestion.currentPrice);
-    const direction = change > 0 ? "increase" : "decrease";
-    const arrow = direction === "increase" ? "↑" : "↓";
+    const direction = change > 0 ? "increase" : change < 0 ? "decrease" : "keep";
+
+    const note =
+      direction === "keep"
+        ? `Keep price at ₱${Number(suggestion.currentPrice).toLocaleString()} (no change recommended)?`
+        : `${direction === "increase" ? "Increase" : "Decrease"} price from ₱${Number(suggestion.currentPrice).toLocaleString()} ${direction === "increase" ? "↑" : "↓"} ₱${Number(suggestion.recommendedPrice).toLocaleString()}?`;
 
     const ok = await confirm({
       title: "Apply Price Change?",
       message: `${suggestion.productName} (${suggestion.sizeName})`,
-      note: `${direction === "increase" ? "Increase" : "Decrease"} price from ₱${Number(suggestion.currentPrice).toLocaleString()} ${arrow} ₱${Number(suggestion.recommendedPrice).toLocaleString()}?`,
+      note,
       confirmLabel: "Apply",
       variant: "warning",
     });
@@ -159,6 +163,7 @@ export default function PriceOptimizationModal({ open, onOpenChange, product }) 
               const direction = s.direction || (change > 0 ? "increase" : change < 0 ? "decrease" : "keep");
               const isIncrease = direction === "increase";
               const isDecrease = direction === "decrease";
+              const isKeep = direction === "keep";
 
               return (
                 <div
@@ -240,7 +245,8 @@ export default function PriceOptimizationModal({ open, onOpenChange, product }) 
                       variant="primary"
                       className="h-7 text-xs"
                       onClick={() => handleApply(s)}
-                      disabled={mutations.apply.isPending}
+                      disabled={mutations.apply.isPending || isKeep}
+                      title={isKeep ? "No price change recommended" : undefined}
                     >
                       Apply Price
                     </Button>

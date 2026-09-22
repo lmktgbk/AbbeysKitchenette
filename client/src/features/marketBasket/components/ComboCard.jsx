@@ -13,9 +13,9 @@ import Icon from "@/components/ui/icon";
 function ComboCard({ rule, onCreateCombo, isTop, totalOrders }) {
 
   return (
-    <div className={`flex h-full flex-col rounded-xl border bg-card p-4 transition-all hover:shadow-sm ${isTop ? "border-amber-300 bg-amber-50/30 hover:border-amber-400 hover:shadow" : "border-border hover:border-primary/30"}`}>
+    <div className={`flex h-full flex-col rounded-xl border bg-card p-4 transition-all hover:shadow-sm ${isTop ? "border-primary/40 bg-primary/5 hover:border-primary/60 hover:shadow" : "border-border hover:border-primary/30"}`}>
       {isTop && (
-        <span className="mb-2 inline-flex w-fit items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700 border border-amber-200">
+        <span className="mb-2 inline-flex w-fit items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary border border-primary/30">
           ★ Top Promotion
         </span>
       )}
@@ -39,7 +39,7 @@ function ComboCard({ rule, onCreateCombo, isTop, totalOrders }) {
             rule.lift >= 2
               ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
               : rule.lift >= 1.5
-                ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                ? "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary"
                 : "bg-muted text-muted-foreground"
           }`}
         >

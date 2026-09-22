@@ -708,16 +708,19 @@ export const ingredientService = {
     await productService.recomputeVariantAvailability([id]);
 
     // Threshold notifications on the corrected stock (same language as deductions).
+    // Crossing-only: skip when the count merely confirms an already out/low state.
     const threshold = Number(existing.minimumThreshold);
     if (stockQuantity <= 0) {
-      notificationService.create({
-        type: "stock_out",
-        title: "Out of Stock",
-        message: `${existing.ingredientName} counted out — 0 ${existing.unit} remaining`,
-        referenceType: "ingredient",
-        referenceId: id,
-      }).catch(() => {});
-    } else if (stockQuantity <= threshold) {
+      if (systemStock > 0) {
+        notificationService.create({
+          type: "stock_out",
+          title: "Out of Stock",
+          message: `${existing.ingredientName} counted out — 0 ${existing.unit} remaining`,
+          referenceType: "ingredient",
+          referenceId: id,
+        }).catch(() => {});
+      }
+    } else if (stockQuantity <= threshold && systemStock > threshold) {
       notificationService.create({
         type: "stock_low",
         title: "Low Stock Alert",

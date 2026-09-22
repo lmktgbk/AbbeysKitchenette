@@ -1,6 +1,8 @@
 import { reorderSuggestionsService } from "./reorderSuggestions.service.js";
 import { successResponse, errorResponse } from "../../utils/response.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
+import { auditLogService } from "../auditLogs/auditLog.service.js";
+import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
 /**
  * Reorder Suggestions Controller
@@ -45,6 +47,12 @@ export const reorderSuggestionsController = {
   async generateSuggestions(req, res) {
     try {
       const suggestions = await reorderSuggestionsService.generate();
+      auditLogService.logAction({
+        userId: req.user.id,
+        action: ACTIONS.REORDER_RUN,
+        targetType: "reorder",
+        details: { source: "manual", count: suggestions.length },
+      }).catch(() => {});
       return successResponse(res, "Reorder suggestions generated", {
         suggestions,
       });
@@ -59,7 +67,7 @@ export const reorderSuggestionsController = {
    */
   async acceptSuggestion(req, res) {
     try {
-      const suggestion = await reorderSuggestionsService.accept(req.params.id);
+      const suggestion = await reorderSuggestionsService.accept(req.params.id, req.user.id);
       return successResponse(res, "Suggestion accepted", { suggestion });
     } catch (error) {
       return handleError(res, error, "ACCEPT_REORDER_SUGGESTION_ERROR");
@@ -72,7 +80,7 @@ export const reorderSuggestionsController = {
    */
   async rejectSuggestion(req, res) {
     try {
-      const suggestion = await reorderSuggestionsService.reject(req.params.id);
+      const suggestion = await reorderSuggestionsService.reject(req.params.id, req.user.id);
       return successResponse(res, "Suggestion rejected", { suggestion });
     } catch (error) {
       return handleError(res, error, "REJECT_REORDER_SUGGESTION_ERROR");

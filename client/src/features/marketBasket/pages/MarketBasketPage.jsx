@@ -42,10 +42,10 @@ export default function MarketBasketPage() {
     <div className="flex flex-col gap-4">
       {/* Top Promotion — merged header (no separate Promotions card) */}
       {hasResults || isLoading ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50/30 px-6 py-5">
+        <div className="rounded-xl border border-primary/30 bg-primary/5 px-6 py-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-amber-700">Top Promotion to Try</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-primary">Top Promotion to Try</p>
               <p className="mt-1 text-lg font-bold text-foreground">{isLoading ? <Skeleton className="h-6 w-48" /> : topPromotion}</p>
               <p className="mt-1 text-xs text-muted-foreground">{isLoading ? <Skeleton className="h-4 w-32" /> : `${combosFound} promotions found — this one is the best to start with`}</p>
             </div>

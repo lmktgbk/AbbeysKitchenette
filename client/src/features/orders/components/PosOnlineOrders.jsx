@@ -12,7 +12,7 @@ import { orderNumberLabel } from "@/lib/orderNumber";
  * Auto-refreshes every 15 seconds.
  * Cashier can accept (view + process) or reject (cancel) online orders.
  */
-export default function PosOnlineOrders({ open, onClose, onAcceptOrder, onRejectOrder, loadingOrderId }) {
+export default function PosOnlineOrders({ open, onClose, onAcceptOrder, onRejectOrder, loadingOrderIds }) {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const debounceRef = useRef(null);
@@ -111,10 +111,10 @@ export default function PosOnlineOrders({ open, onClose, onAcceptOrder, onReject
                   <Button
                     size="sm"
                     className="flex-1 h-7 text-xs"
-                    disabled={loadingOrderId === order.order_id}
+                    disabled={loadingOrderIds?.has(order.order_id)}
                     onClick={() => onAcceptOrder?.(order)}
                   >
-                    {loadingOrderId === order.order_id ? (
+                    {loadingOrderIds?.has(order.order_id) ? (
                       <span className="flex items-center gap-1.5">
                         <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
                         Loading...

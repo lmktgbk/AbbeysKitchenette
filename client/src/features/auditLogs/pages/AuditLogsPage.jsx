@@ -25,12 +25,12 @@ const ACTION_GROUPS = [
 const ACTION_GROUP_MAP = {
   "group:Product": ["PRODUCT_CREATED", "PRODUCT_UPDATED", "PRODUCT_DELETED", "PRODUCT_ACTIVATED", "PRODUCT_DEACTIVATED", "PRODUCT_VARIANTS_UPDATED", "VARIANT_ACTIVATED", "VARIANT_DEACTIVATED"],
   "group:Category": ["CATEGORY_CREATED", "CATEGORY_UPDATED", "CATEGORY_DELETED"],
-  "group:Inventory": ["INGREDIENT_CREATED", "INGREDIENT_UPDATED", "INGREDIENT_ARCHIVED", "INGREDIENT_RESTORED", "INGREDIENT_DELETED", "STOCK_RESTOCKED", "STOCK_LOSS_DECLARED", "STOCK_COUNT_RECORDED"],
+  "group:Inventory": ["INGREDIENT_CREATED", "INGREDIENT_UPDATED", "INGREDIENT_ARCHIVED", "INGREDIENT_RESTORED", "INGREDIENT_DELETED", "STOCK_RESTOCKED", "STOCK_LOSS_DECLARED", "STOCK_COUNT_RECORDED", "LOSS_OVERRIDDEN"],
   "group:Staff": ["STAFF_CREATED", "STAFF_UPDATED", "STAFF_DEACTIVATED", "STAFF_ACTIVATED", "STAFF_PASSWORD_RESET", "STAFF_DELETED"],
-  "group:Auth": ["LOGIN_SUCCESS", "LOGIN_FAILED", "LOGOUT", "PASSWORD_CHANGED", "OTP_VERIFIED"],
-  "group:Order": ["ORDER_CREATED", "ORDER_ACCEPTED", "ORDER_COMPLETED", "ORDER_CANCELLED", "ORDER_DELETED"],
+  "group:Auth": ["LOGIN_SUCCESS", "LOGIN_FAILED", "LOGOUT", "PASSWORD_CHANGED", "PROFILE_UPDATED", "OTP_VERIFIED"],
+  "group:Order": ["ORDER_CREATED", "ORDER_ACCEPTED", "ORDER_PREPARING", "ORDER_UPDATED", "ORDER_COMPLETED", "ORDER_CANCELLED", "ORDER_ITEM_REMOVED"],
   "group:Shift": ["SHIFT_OPENED", "SHIFT_CLOSED", "SHIFT_FORCE_CLOSED"],
-  "group:System": ["SETTINGS_UPDATED", "FORECAST_RUN", "MBA_RUN", "REORDER_RUN", "WASTE_RUN", "ANOMALY_SCAN"],
+  "group:System": ["SETTINGS_UPDATED", "FORECAST_RUN", "MBA_RUN", "MBA_COMBO_CREATED", "PRICE_RUN", "PRICE_APPLIED", "PRICE_DISMISSED", "REORDER_RUN", "REORDER_ACCEPTED", "REORDER_REJECTED", "WASTE_RUN", "WASTE_ACCEPTED", "WASTE_REJECTED", "ANOMALY_SCAN", "ANOMALY_ACKNOWLEDGED"],
 };
 
 const BADGE_STYLES = {
@@ -51,7 +51,6 @@ const BADGE_STYLES = {
   STAFF_DELETED: "bg-red-50 text-red-700 border-red-200",
   LOGIN_FAILED: "bg-red-50 text-red-700 border-red-200",
   ORDER_CANCELLED: "bg-red-50 text-red-700 border-red-200",
-  ORDER_DELETED: "bg-red-50 text-red-700 border-red-200",
 
   PRODUCT_UPDATED: "bg-blue-50 text-blue-700 border-blue-200",
   CATEGORY_UPDATED: "bg-blue-50 text-blue-700 border-blue-200",
@@ -61,13 +60,26 @@ const BADGE_STYLES = {
   PRODUCT_DEACTIVATED: "bg-blue-50 text-blue-700 border-blue-200",
   INGREDIENT_ARCHIVED: "bg-blue-50 text-blue-700 border-blue-200",
   ORDER_ACCEPTED: "bg-blue-50 text-blue-700 border-blue-200",
+  ORDER_PREPARING: "bg-blue-50 text-blue-700 border-blue-200",
+  ORDER_UPDATED: "bg-blue-50 text-blue-700 border-blue-200",
+  ORDER_ITEM_REMOVED: "bg-amber-50 text-amber-700 border-amber-200",
+  LOSS_OVERRIDDEN: "bg-amber-50 text-amber-700 border-amber-200",
   ORDER_COMPLETED: "bg-blue-50 text-blue-700 border-blue-200",
   SETTINGS_UPDATED: "bg-blue-50 text-blue-700 border-blue-200",
   FORECAST_RUN: "bg-blue-50 text-blue-700 border-blue-200",
   MBA_RUN: "bg-blue-50 text-blue-700 border-blue-200",
   REORDER_RUN: "bg-blue-50 text-blue-700 border-blue-200",
+  REORDER_ACCEPTED: "bg-green-50 text-green-700 border-green-200",
+  REORDER_REJECTED: "bg-amber-50 text-amber-700 border-amber-200",
   WASTE_RUN: "bg-blue-50 text-blue-700 border-blue-200",
+  WASTE_ACCEPTED: "bg-green-50 text-green-700 border-green-200",
+  WASTE_REJECTED: "bg-amber-50 text-amber-700 border-amber-200",
+  PRICE_RUN: "bg-blue-50 text-blue-700 border-blue-200",
+  PRICE_APPLIED: "bg-green-50 text-green-700 border-green-200",
+  PRICE_DISMISSED: "bg-amber-50 text-amber-700 border-amber-200",
+  MBA_COMBO_CREATED: "bg-blue-50 text-blue-700 border-blue-200",
   ANOMALY_SCAN: "bg-blue-50 text-blue-700 border-blue-200",
+  ANOMALY_ACKNOWLEDGED: "bg-amber-50 text-amber-700 border-amber-200",
   SHIFT_OPENED: "bg-blue-50 text-blue-700 border-blue-200",
   VARIANT_ACTIVATED: "bg-green-50 text-green-700 border-green-200",
   VARIANT_DEACTIVATED: "bg-blue-50 text-blue-700 border-blue-200",
@@ -75,13 +87,12 @@ const BADGE_STYLES = {
   SHIFT_CLOSED: "bg-amber-50 text-amber-700 border-amber-200",
   SHIFT_FORCE_CLOSED: "bg-red-50 text-red-700 border-red-200",
 
-  STAFF_PIN_RESET: "bg-amber-50 text-amber-700 border-amber-200",
   STAFF_PASSWORD_RESET: "bg-amber-50 text-amber-700 border-amber-200",
   STOCK_RESTOCKED: "bg-amber-50 text-amber-700 border-amber-200",
   STOCK_LOSS_DECLARED: "bg-amber-50 text-amber-700 border-amber-200",
   LOGOUT: "bg-amber-50 text-amber-700 border-amber-200",
   PASSWORD_CHANGED: "bg-amber-50 text-amber-700 border-amber-200",
-  PIN_CHANGED: "bg-amber-50 text-amber-700 border-amber-200",
+  PROFILE_UPDATED: "bg-blue-50 text-blue-700 border-blue-200",
 };
 
 const ROW_BORDER_COLORS = {
@@ -102,7 +113,6 @@ const ROW_BORDER_COLORS = {
   STAFF_DELETED: "border-l-red-500",
   LOGIN_FAILED: "border-l-red-500",
   ORDER_CANCELLED: "border-l-red-500",
-  ORDER_DELETED: "border-l-red-500",
 
   PRODUCT_UPDATED: "border-l-blue-500",
   CATEGORY_UPDATED: "border-l-blue-500",
@@ -112,13 +122,26 @@ const ROW_BORDER_COLORS = {
   PRODUCT_DEACTIVATED: "border-l-blue-500",
   INGREDIENT_ARCHIVED: "border-l-blue-500",
   ORDER_ACCEPTED: "border-l-blue-500",
+  ORDER_PREPARING: "border-l-blue-500",
+  ORDER_UPDATED: "border-l-blue-500",
+  ORDER_ITEM_REMOVED: "border-l-amber-500",
+  LOSS_OVERRIDDEN: "border-l-amber-500",
   ORDER_COMPLETED: "border-l-blue-500",
   SETTINGS_UPDATED: "border-l-blue-500",
   FORECAST_RUN: "border-l-blue-500",
   MBA_RUN: "border-l-blue-500",
   REORDER_RUN: "border-l-blue-500",
+  REORDER_ACCEPTED: "border-l-green-500",
+  REORDER_REJECTED: "border-l-amber-500",
   WASTE_RUN: "border-l-blue-500",
+  WASTE_ACCEPTED: "border-l-green-500",
+  WASTE_REJECTED: "border-l-amber-500",
+  PRICE_RUN: "border-l-blue-500",
+  PRICE_APPLIED: "border-l-green-500",
+  PRICE_DISMISSED: "border-l-amber-500",
+  MBA_COMBO_CREATED: "border-l-blue-500",
   ANOMALY_SCAN: "border-l-blue-500",
+  ANOMALY_ACKNOWLEDGED: "border-l-amber-500",
   SHIFT_OPENED: "border-l-blue-500",
   VARIANT_ACTIVATED: "border-l-green-500",
   VARIANT_DEACTIVATED: "border-l-blue-500",
@@ -126,13 +149,12 @@ const ROW_BORDER_COLORS = {
   SHIFT_CLOSED: "border-l-amber-500",
   SHIFT_FORCE_CLOSED: "border-l-red-500",
 
-  STAFF_PIN_RESET: "border-l-amber-500",
   STAFF_PASSWORD_RESET: "border-l-amber-500",
   STOCK_RESTOCKED: "border-l-amber-500",
   STOCK_LOSS_DECLARED: "border-l-amber-500",
   LOGOUT: "border-l-amber-500",
   PASSWORD_CHANGED: "border-l-amber-500",
-  PIN_CHANGED: "border-l-amber-500",
+  PROFILE_UPDATED: "border-l-blue-500",
 };
 
 function formatAction(action) {
@@ -188,7 +210,6 @@ function formatDescription(log) {
     case "STAFF_UPDATED": return `Updated ${name}${fields.length ? ` (${fields.join(", ")})` : ""}`;
     case "STAFF_ACTIVATED": return `Activated ${name}`;
     case "STAFF_DEACTIVATED": return `Deactivated ${name}`;
-    case "STAFF_PIN_RESET": return `Reset PIN for ${name}`;
     case "STAFF_PASSWORD_RESET": return `Reset password for ${name}`;
     case "STAFF_DELETED": return `Deleted ${name}`;
 
@@ -196,21 +217,33 @@ function formatDescription(log) {
     case "LOGIN_FAILED": return `Failed login attempt${email ? ` — ${email}` : ""}${userId ? ` — User ${userId.slice(0, 8)}` : ""}${reason ? ` (${reason})` : ""}`;
     case "LOGOUT": return "Logged out";
     case "OTP_VERIFIED": return "OTP verified";
-    case "PIN_CHANGED": return "PIN changed";
     case "PASSWORD_CHANGED": return "Password changed";
+    case "PROFILE_UPDATED": return `Updated profile${fields.length ? ` (${fields.join(", ")})` : ""}`;
 
     case "ORDER_CREATED": return `Created order ${orderRef()}${total ? ` · ${total}` : ""}${source ? ` · ${source}` : ""}`;
     case "ORDER_ACCEPTED": return `Accepted order ${orderRef()}${total ? ` · ${total}` : ""}${source ? ` · ${source}` : ""}`;
+    case "ORDER_PREPARING": return `Preparing order ${orderRef()}`;
+    case "ORDER_UPDATED": return `Updated order ${orderRef()}${fields.length ? ` (${fields.join(", ")})` : ""}`;
     case "ORDER_COMPLETED": return `Completed order ${orderRef()}${total ? ` · ${total}` : ""}`;
     case "ORDER_CANCELLED": return `Cancelled order ${orderRef()}${reason ? ` — ${reason}` : ""}`;
-    case "ORDER_DELETED": return `Deleted order ${orderRef()}${total ? ` · ${total}` : ""}`;
+    case "ORDER_ITEM_REMOVED": return `Removed item from order ${orderRef()}${d.product_name ? ` — ${d.product_name}` : ""}${d.refund_amount != null ? ` · refunded ₱${d.refund_amount}` : ""}`;
+    case "LOSS_OVERRIDDEN": return `Overrode loss${d.quantity_lost != null ? ` (${d.quantity_lost})` : ""}${reason ? ` — ${reason}` : ""}`;
 
     case "SETTINGS_UPDATED": return `Updated settings${fields.length ? ` (${fields.join(", ")})` : ""}`;
     case "FORECAST_RUN": return "Ran demand forecast";
     case "MBA_RUN": return "Ran market basket analysis";
-    case "REORDER_RUN": return "Ran reorder suggestions";
-    case "WASTE_RUN": return "Ran waste analysis";
+    case "MBA_COMBO_CREATED": return `Marked combo as created${name ? ` — "${name}"` : ""}`;
+    case "PRICE_RUN": return `Ran price analysis${d.count != null ? ` (${d.count} suggestions)` : ""}`;
+    case "PRICE_APPLIED": return `Applied price for "${name}"${sizeName ? ` (${sizeName})` : ""}${d.current_price != null && d.recommended_price != null ? ` — ₱${d.current_price} → ₱${d.recommended_price}` : ""}`;
+    case "PRICE_DISMISSED": return `Dismissed price suggestion for "${name}"${sizeName ? ` (${sizeName})` : ""}`;
+    case "REORDER_RUN": return `Ran reorder suggestions${d.count != null ? ` (${d.count} suggestions)` : ""}`;
+    case "REORDER_ACCEPTED": return `Accepted reorder for "${name}"${d.suggested_quantity != null ? ` — ${d.suggested_quantity}${unit ? ` ${unit}` : ""}` : ""}`;
+    case "REORDER_REJECTED": return `Rejected reorder for "${name}"`;
+    case "WASTE_RUN": return `Ran waste analysis${d.count != null ? ` (${d.count} insights)` : ""}`;
+    case "WASTE_ACCEPTED": return `Accepted waste insight for "${name}"`;
+    case "WASTE_REJECTED": return `Rejected waste insight for "${name}"`;
     case "ANOMALY_SCAN": return "Ran anomaly scan";
+    case "ANOMALY_ACKNOWLEDGED": return `Acknowledged anomaly${log.targetId ? ` #${String(log.targetId).slice(0, 8)}` : ""}`;
     case "SHIFT_OPENED": return "Opened shift";
     case "SHIFT_CLOSED": return "Closed shift";
     case "SHIFT_FORCE_CLOSED": return "Force-closed shift";

@@ -17,9 +17,9 @@ export default function DashboardAnomalyBanner() {
   if (highCount > 0) parts.push(`${highCount} high`);
 
   return (
-    <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 flex items-center justify-between gap-3">
+    <div className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 flex items-center justify-between gap-3">
       <div className="flex items-center gap-2">
-        <Icon name="alertTriangle" size={16} className="text-amber-500 shrink-0" />
+        <Icon name="alertTriangle" size={16} className="text-primary shrink-0" />
         <p className="text-sm text-foreground">
           <span className="font-medium">{anomalies.length} anomal{anomalies.length === 1 ? "y" : "ies"} detected</span>
           {" — "}

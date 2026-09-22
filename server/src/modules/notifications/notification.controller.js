@@ -4,10 +4,31 @@ import { successResponse, errorResponse } from "../../utils/response.js";
 export const notificationController = {
   async getNotifications(req, res) {
     try {
-      const { page, limit } = req.validatedQuery || {};
+      const { page, limit, type } = req.validatedQuery || {};
+      // Comma-separated types (e.g. order_new,order_completed) for group chips.
+      // Unknown tokens are dropped so a typo narrows instead of emptying the list.
+      const KNOWN_TYPES = new Set([
+        "order_new",
+        "order_accepted",
+        "order_completed",
+        "order_cancelled",
+        "stock_low",
+        "stock_out",
+        "stock_restocked",
+        "system",
+      ]);
+      const types = [
+        ...new Set(
+          String(type || "")
+            .split(",")
+            .map((t) => t.trim())
+            .filter((t) => KNOWN_TYPES.has(t)),
+        ),
+      ];
       const result = await notificationService.getAll({
         page: Number(page) || 1,
         limit: Number(limit) || 20,
+        types: types.length > 0 ? types : undefined,
       });
       return successResponse(res, "Notifications retrieved", result);
     } catch (error) {

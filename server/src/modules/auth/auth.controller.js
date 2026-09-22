@@ -115,6 +115,13 @@ export const authController = {
     try {
       const { name, email } = req.body;
       const user = await authService.updateProfile(req.user.id, name, email);
+      auditLogService.logAction({
+        userId: req.user.id,
+        action: ACTIONS.PROFILE_UPDATED,
+        targetType: "staff",
+        targetId: req.user.id,
+        details: { name: user.name, fields: [name !== undefined ? "name" : null, email !== undefined ? "email" : null].filter(Boolean) },
+      }).catch(() => {});
       return successResponse(res, "Profile updated", { user });
     } catch (error) {
       return handleError(res, error, "UPDATE_PROFILE_ERROR");

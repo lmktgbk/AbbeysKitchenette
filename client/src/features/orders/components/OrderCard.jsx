@@ -11,7 +11,7 @@ export default function OrderCard({
   onMarkReady,
   disabled,
   preparing,
-  togglingItem,
+  togglingIds,
   roleCategory,
 }) {
   const [elapsed, setElapsed] = useState(0);
@@ -33,19 +33,16 @@ export default function OrderCard({
   const isAccepted = order.status === "accepted";
   const isCompleted = order.status === "completed";
 
-  // Items this role can actually check (admin sees all)
-  const checkableItems = roleCategory
-    ? (order.items ?? []).filter((item) => !item.category_name || item.category_name === roleCategory)
-    : (order.items ?? []);
-
-  const totalItems = checkableItems.length;
-  const preparedCount = checkableItems.filter((i) => i.is_prepared).length;
-  const progressPct = totalItems ? Math.round((preparedCount / totalItems) * 100) : 0;
-
   // ALL items must be checked before either role can mark ready
   const allItems = order.items ?? [];
   const allItemsChecked = allItems.length > 0 && allItems.every((i) => i.is_prepared);
   const canMarkReady = allItemsChecked;
+
+  // Progress is global (all items) so both roles see the same counter and it
+  // always agrees with the Mark Ready gate above.
+  const totalItems = allItems.length;
+  const preparedCount = allItems.filter((i) => i.is_prepared).length;
+  const progressPct = totalItems ? Math.round((preparedCount / totalItems) * 100) : 0;
 
   const m = Math.floor(elapsed / 60000);
   const s = Math.floor((elapsed % 60000) / 1000);
@@ -119,7 +116,7 @@ export default function OrderCard({
             : item.product_name;
 
           if (isPreparing) {
-            const isToggling = togglingItem === item.order_item_id;
+            const isToggling = togglingIds?.has(item.order_item_id) ?? false;
             return (
               <button
                 key={item.order_item_id}
@@ -148,7 +145,14 @@ export default function OrderCard({
                     ) : null}
                   </div>
                 ) : (
-                  <div className="w-3.5 h-3.5 rounded border border-border/40 bg-muted/30 shrink-0" />
+                  <div className={cn(
+                    "w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0",
+                    done
+                      ? "bg-primary/10 border-primary/25"
+                      : "border-border/40 bg-muted/30",
+                  )}>
+                    {done && <Icon name="check" size={9} className="text-primary" />}
+                  </div>
                 )}
                 <div className="flex-1 min-w-0">
                   <span className={cn(

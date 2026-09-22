@@ -127,6 +127,15 @@ router.post(
   authenticate,
   authorize("admin"),
   (req, res) => {
+    auditLogService.logAction({
+      userId: req.user.id,
+      action: ACTIONS.MBA_COMBO_CREATED,
+      targetType: "product",
+      targetId: req.body?.product_id ?? null,
+      details: {
+        name: [req.body?.product_name_a, req.body?.product_name_b].filter(Boolean).join(" + ") || null,
+      },
+    }).catch(() => {});
     proxyPost(res, "/mba/mark-combo-created", req.body, "MBA_MARK_COMBO_ERROR");
   },
 );
