@@ -17,8 +17,8 @@ export const discountSpike = {
     `, cutoff);
     if (rows.length < 7) return { shouldDetect: false };
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split("T")[0];
-    const find = (r) => (r.day instanceof Date ? r.day.toISOString().split("T")[0] : String(r.day).split("T")[0]) === todayStr;
+    const todayStr = today.toLocaleDateString("en-CA");
+    const find = (r) => (r.day instanceof Date ? r.day.toLocaleDateString("en-CA") : String(r.day).split("T")[0]) === todayStr;
     const todayRow = rows.find(find);
     const rate = (r) => (Number(r.sub) > 0 ? Number(r.disc) / Number(r.sub) * 100 : 0);
     const todayRate = todayRow ? rate(todayRow) : 0;

@@ -10,23 +10,26 @@ export const deadHours = {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 30);
     cutoff.setHours(0, 0, 0, 0);
+    // Day + hour bucketed in Asia/Manila: the DB session tz is UTC, and plain
+    // DATE()/EXTRACT() would score Manila 8:00-20:00 trade against UTC slots.
     const rows = await prisma.$queryRawUnsafe(`
       WITH hours AS (
-        SELECT DATE(o."created_at") AS day, EXTRACT(HOUR FROM o."created_at")::int AS hr, COUNT(*)::int AS cnt
+        SELECT DATE(o."created_at" AT TIME ZONE 'Asia/Manila') AS day,
+               EXTRACT(HOUR FROM o."created_at" AT TIME ZONE 'Asia/Manila')::int AS hr
         FROM orders o WHERE o."status" = 'completed' AND o."created_at" >= $1
-        GROUP BY DATE(o."created_at"), EXTRACT(HOUR FROM o."created_at")
+        GROUP BY 1, 2
       ),
       days AS (
-        SELECT day, COUNT(*) FILTER (WHERE hr BETWEEN 8 AND 20) AS open_hours,
-          COUNT(*) FILTER (WHERE hr BETWEEN 8 AND 20 AND cnt > 0) AS busy_hours
+        SELECT day, COUNT(DISTINCT hr) FILTER (WHERE hr BETWEEN 8 AND 20)::int AS busy_hours
         FROM hours GROUP BY day
       )
-      SELECT day, (open_hours - busy_hours)::int AS dead FROM days ORDER BY day ASC
+      -- Open window is 8:00-20:00 (13 hourly slots); dead = slots with zero orders.
+      SELECT day, (13 - busy_hours)::int AS dead FROM days ORDER BY day ASC
     `, cutoff);
     if (rows.length < 7) return { shouldDetect: false };
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split("T")[0];
-    const find = (r) => (r.day instanceof Date ? r.day.toISOString().split("T")[0] : String(r.day).split("T")[0]) === todayStr;
+    const todayStr = today.toLocaleDateString("en-CA");
+    const find = (r) => (r.day instanceof Date ? r.day.toLocaleDateString("en-CA") : String(r.day).split("T")[0]) === todayStr;
     const todayRow = rows.find(find);
     const todayTotal = todayRow ? Number(todayRow.dead) : 0;
     const historical = rows.filter((r) => !find(r)).map((r) => Number(r.dead));

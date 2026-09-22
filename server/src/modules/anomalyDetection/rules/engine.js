@@ -10,7 +10,11 @@ function computeZScore(values, current) {
   const sorted = [...values].sort((a, b) => a - b);
   const median = sorted[Math.floor(sorted.length / 2)];
   const mad = sorted.reduce((sum, v) => sum + Math.abs(v - median), 0) / sorted.length;
-  const zScore = mad === 0 ? 0 : (current - median) / (1.4826 * mad);
+  // Flat history (mad === 0): any deviation from the flat line is maximally
+  // anomalous — otherwise a spike against all-zero history scores z = 0 forever.
+  const zScore = mad === 0
+    ? (current === median ? 0 : 10 * Math.sign(current - median))
+    : (current - median) / (1.4826 * mad);
   const mean = values.reduce((a, b) => a + b, 0) / values.length;
 
   return { zScore, mean, mad };

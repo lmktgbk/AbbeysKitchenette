@@ -43,17 +43,17 @@ export const cancellationSpike = {
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split("T")[0];
+    const todayStr = today.toLocaleDateString("en-CA");
 
     const todayRow = rows.find((r) => r.day instanceof Date
-      ? r.day.toISOString().split("T")[0] === todayStr
+      ? r.day.toLocaleDateString("en-CA") === todayStr
       : String(r.day).split("T")[0] === todayStr);
 
     const todayRate = todayRow ? Number(todayRow.cancel_rate) : 0;
     const todayTotal = todayRow ? todayRow.total_orders : 0;
     const todayCancelled = todayRow ? todayRow.cancelled_orders : 0;
     const historicalRates = rows.filter((r) => {
-      const d = r.day instanceof Date ? r.day.toISOString().split("T")[0] : String(r.day).split("T")[0];
+      const d = r.day instanceof Date ? r.day.toLocaleDateString("en-CA") : String(r.day).split("T")[0];
       return d !== todayStr && r.total_orders > 0;
     }).map((r) => Number(r.cancel_rate));
 

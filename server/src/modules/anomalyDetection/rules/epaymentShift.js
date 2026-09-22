@@ -18,8 +18,8 @@ export const epaymentShift = {
     `, cutoff);
     if (rows.length < 7) return { shouldDetect: false };
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split("T")[0];
-    const find = (r) => (r.day instanceof Date ? r.day.toISOString().split("T")[0] : String(r.day).split("T")[0]) === todayStr;
+    const todayStr = today.toLocaleDateString("en-CA");
+    const find = (r) => (r.day instanceof Date ? r.day.toLocaleDateString("en-CA") : String(r.day).split("T")[0]) === todayStr;
     const todayRow = rows.find(find);
     const todayTotal = todayRow ? Number(todayRow.share) : 0;
     const historical = rows.filter((r) => !find(r)).map((r) => Number(r.share));

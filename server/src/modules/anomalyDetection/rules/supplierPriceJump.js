@@ -21,7 +21,7 @@ export const supplierPriceJump = {
       if (jump >= 0.3 && (!worst || jump > worst.jump)) worst = { ...r, latest, avg, jump };
     }
     if (!worst) return { shouldDetect: false };
-    return { shouldDetect: true, worst, todayStr: new Date().toISOString().split("T")[0] };
+    return { shouldDetect: true, worst, todayStr: new Date().toLocaleDateString("en-CA") };
   },
   condition() {
     const { worst } = this._lastData || {};
