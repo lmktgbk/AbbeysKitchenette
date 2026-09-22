@@ -57,7 +57,7 @@ export const engine = {
       const result = await rule.evaluateOverride(computeZScore, classifySeverity);
       rule._lastData = null;
       if (!result || !result.triggered) return null;
-      const geminiInsight = await generateInsight(rule, { ...data, ...result });
+      const geminiInsight = await generateInsight(rule, { ...data, ...result, mean: result.expectedValue });
       return {
         ruleId: rule.id,
         category: rule.category,
@@ -82,7 +82,10 @@ export const engine = {
     rule._lastData = null;
     if (!result || !result.triggered) return null;
 
-    const geminiInsight = await generateInsight(rule, { ...data, ...result });
+    // condition() results carry expectedValue (= mean) but never a bare mean
+    // key — prompts destructuring `mean` would throw (cancellation) or print
+    // NaN (fulfillment/loss/revenue). Merge it once here for all rules.
+    const geminiInsight = await generateInsight(rule, { ...data, ...result, mean: result.expectedValue });
 
     return {
       ruleId: rule.id,

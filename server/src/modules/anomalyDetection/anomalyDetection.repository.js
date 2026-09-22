@@ -80,10 +80,12 @@ export const anomalyRepository = {
     });
   },
 
+  // Reviewed-today also blocks re-fire: marking reviewed means "I know, stop
+  // telling me today". A still-abnormal condition fires fresh again tomorrow.
   async existsActiveToday(ruleId, ingredientId = null) {
     const start = new Date();
     start.setHours(0, 0, 0, 0);
-    const where = { ruleId, isAcknowledged: false, detectedAt: { gte: start } };
+    const where = { ruleId, detectedAt: { gte: start } };
     const found = await prisma.anomalyResult.findFirst({ where, select: { id: true } });
     return !!found;
   },
