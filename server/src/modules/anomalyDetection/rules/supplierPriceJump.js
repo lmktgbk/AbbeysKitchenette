@@ -4,7 +4,8 @@ export const supplierPriceJump = {
   id: "supplier_price_jump",
   name: "Supplier Price Jump Detection",
   category: "supplier",
-  enabled: true,
+  // Disabled per owner cut — low signal. Re-enable to restore.
+  enabled: false,
   config: { lookbackDays: 90, zScoreThresholds: { medium: 2.0, high: 2.5, critical: 3.0 } },
   async dataFetcher() {
     const rows = await prisma.$queryRawUnsafe(`

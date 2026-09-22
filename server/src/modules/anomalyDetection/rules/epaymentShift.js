@@ -4,7 +4,8 @@ export const epaymentShift = {
   id: "epayment_shift",
   name: "E-Payment Share Shift Detection",
   category: "payment",
-  enabled: true,
+  // Disabled per owner cut — low signal. Re-enable to restore.
+  enabled: false,
   config: { lookbackDays: 30, zScoreThresholds: { medium: 2.0, high: 2.5, critical: 3.0 } },
   async dataFetcher() {
     const cutoff = new Date();

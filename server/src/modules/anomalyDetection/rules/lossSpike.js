@@ -4,7 +4,8 @@ export const lossSpike = {
   id: "loss_spike",
   name: "Loss Spike Detection",
   category: "loss",
-  enabled: true,
+  // Disabled per owner cut — low signal. Re-enable to restore.
+  enabled: false,
 
   config: {
     lookbackDays: 30,

@@ -8,20 +8,17 @@ const SEVERITY_OPTIONS = [
   { value: "low", label: "Low" },
 ];
 
+// Only the 7 active rules are listed. The server validation still accepts the
+// 5 disabled categories so their historical cards remain viewable.
 const CATEGORY_OPTIONS = [
   { value: "", label: "All Categories" },
   { value: "revenue", label: "Sales" },
-  { value: "loss", label: "Waste" },
   { value: "cancellation", label: "Cancelled" },
   { value: "fulfillment", label: "Service" },
   { value: "refund", label: "Refunds" },
   { value: "discount", label: "Discounts" },
   { value: "cash", label: "Cash" },
   { value: "restock", label: "Restock" },
-  { value: "stockout", label: "Stock" },
-  { value: "supplier", label: "Supplier" },
-  { value: "payment", label: "Payments" },
-  { value: "sales_hours", label: "Hours" },
 ];
 
 export default function AnomalyFilters({ severity, category, onSeverityChange, onCategoryChange }) {

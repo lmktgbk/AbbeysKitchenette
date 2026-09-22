@@ -4,7 +4,8 @@ export const deadHours = {
   id: "dead_hours",
   name: "Dead Hours Detection",
   category: "sales_hours",
-  enabled: true,
+  // Disabled per owner cut — low signal. Re-enable to restore.
+  enabled: false,
   config: { lookbackDays: 30, zScoreThresholds: { medium: 2.0, high: 2.5, critical: 3.0 } },
   async dataFetcher() {
     const cutoff = new Date();
