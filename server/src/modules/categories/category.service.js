@@ -86,7 +86,7 @@ export const categoryService = {
       userId,
       action: ACTIONS.CATEGORY_CREATED,
       targetType: "subcategory",
-      targetId: sub.subcategoryId,
+      targetId: String(sub.subcategoryId),
       details: { name: sub.subcategoryName, parent_id: categoryId },
     });
 
@@ -130,7 +130,7 @@ export const categoryService = {
       userId,
       action: ACTIONS.CATEGORY_UPDATED,
       targetType: "subcategory",
-      targetId: id,
+      targetId: String(id),
       details: { name: sub.subcategoryName, is_active: sub.isActive },
     });
 
@@ -165,7 +165,7 @@ export const categoryService = {
       userId,
       action: ACTIONS.CATEGORY_DELETED,
       targetType: "subcategory",
-      targetId: id,
+      targetId: String(id),
       details: { name: existing.subcategoryName },
     });
   },
