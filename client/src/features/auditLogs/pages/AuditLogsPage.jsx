@@ -5,6 +5,7 @@ import DateRangeFilter from "@/components/filters/DateRangeFilter";
 import { Pagination } from "@/components/filters/Pagination";
 import { useAuditLogs } from "../query";
 import { formatTime } from "@/lib/date";
+import { orderNumberLabel } from "@/lib/orderNumber";
 import Icon from "@/components/ui/icon";
 
 // Mirrors server ACTION_GROUPS (auditLog.constants.js) — filtering happens
@@ -157,6 +158,11 @@ function formatDescription(log) {
   const sizeName = d.sizeName || d.size_name || "";
   const costPerUnit = d.cost_per_unit != null ? `₱${d.cost_per_unit}` : "";
   const userId = d.userId || "";
+  // Human-readable order ref: new rows carry order_number; old rows fall back
+  // to the short UUID stored as targetId.
+  const orderRef = () => d.order_number != null
+    ? orderNumberLabel(d.order_number)
+    : (log.targetId ? `#${String(log.targetId).slice(0, 8)}` : "");
 
   switch (log.action) {
     case "CATEGORY_CREATED": return `Created "${name}"`;
@@ -193,11 +199,11 @@ function formatDescription(log) {
     case "PIN_CHANGED": return "PIN changed";
     case "PASSWORD_CHANGED": return "Password changed";
 
-    case "ORDER_CREATED": return `Created order${total ? ` · ${total}` : ""}${source ? ` · ${source}` : ""}`;
-    case "ORDER_ACCEPTED": return `Accepted order${total ? ` · ${total}` : ""}${source ? ` · ${source}` : ""}`;
-    case "ORDER_COMPLETED": return `Completed order${total ? ` · ${total}` : ""}`;
-    case "ORDER_CANCELLED": return `Cancelled order${reason ? ` — ${reason}` : ""}`;
-    case "ORDER_DELETED": return `Deleted order${total ? ` · ${total}` : ""}`;
+    case "ORDER_CREATED": return `Created order ${orderRef()}${total ? ` · ${total}` : ""}${source ? ` · ${source}` : ""}`;
+    case "ORDER_ACCEPTED": return `Accepted order ${orderRef()}${total ? ` · ${total}` : ""}${source ? ` · ${source}` : ""}`;
+    case "ORDER_COMPLETED": return `Completed order ${orderRef()}${total ? ` · ${total}` : ""}`;
+    case "ORDER_CANCELLED": return `Cancelled order ${orderRef()}${reason ? ` — ${reason}` : ""}`;
+    case "ORDER_DELETED": return `Deleted order ${orderRef()}${total ? ` · ${total}` : ""}`;
 
     case "SETTINGS_UPDATED": return `Updated settings${fields.length ? ` (${fields.join(", ")})` : ""}`;
     case "FORECAST_RUN": return "Ran demand forecast";

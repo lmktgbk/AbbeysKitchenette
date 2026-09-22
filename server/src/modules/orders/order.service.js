@@ -234,7 +234,7 @@ export const orderService = {
       action: ACTIONS.ORDER_CREATED,
       targetType: "order",
       targetId: order.order.orderId,
-      details: { subtotal, discount: discountResult.discountAmount, total, source: "walk_in", paymentMethod },
+      details: { order_number: order.order.orderNumber, subtotal, discount: discountResult.discountAmount, total, source: "walk_in", paymentMethod },
     }).catch(() => {});
 
     notificationService.create({
@@ -432,7 +432,7 @@ export const orderService = {
       action: ACTIONS.ORDER_ACCEPTED,
       targetType: "order",
       targetId: id,
-      details: { subtotal, discount: discountResult.discountAmount, total, source: "online", paymentMethod },
+      details: { order_number: existing.orderNumber, subtotal, discount: discountResult.discountAmount, total, source: "online", paymentMethod },
     }).catch(() => {});
 
     return this.getById(id);
@@ -463,7 +463,7 @@ export const orderService = {
         action: ACTIONS.ORDER_COMPLETED,
         targetType: "order",
         targetId: id,
-        details: { total: Number(order.totalAmount), fulfillmentMinutes },
+        details: { order_number: order.orderNumber, total: Number(order.totalAmount), fulfillmentMinutes },
       }).catch(() => {});
 
       notificationService.create({
@@ -487,7 +487,7 @@ export const orderService = {
         action: ACTIONS.ORDER_ACCEPTED,
         targetType: "order",
         targetId: id,
-        details: { total: Number(order.totalAmount), source: order.orderSource },
+        details: { order_number: order.orderNumber, total: Number(order.totalAmount), source: order.orderSource },
       }).catch(() => {});
 
       notificationService.create({
@@ -679,7 +679,7 @@ export const orderService = {
       action: ACTIONS.ORDER_CANCELLED,
       targetType: "order",
       targetId: id,
-      details: { reason: reason || null, loss_option: lossOption },
+      details: { order_number: order.orderNumber, reason: reason || null, loss_option: lossOption },
     }).catch(() => {});
 
     notificationService.create({
@@ -851,6 +851,7 @@ export const orderService = {
       targetId: String(orderItemId),
       details: {
         order_id: orderId,
+        order_number: order.orderNumber,
         product_name: orderItem.product?.productName,
         reason,
         loss_option: lossOption,
