@@ -29,7 +29,7 @@ export const settingsController = {
 
       const settings = await settingsService.updateSettings(req.body, req.user.id);
       // Automation schedules may have changed — reload without blocking the response.
-      automationScheduler.reschedule().catch(() => {});
+      automationScheduler.reschedule().catch((err) => console.warn("[automation] reschedule dropped:", err?.message));
       return successResponse(res, "Settings updated", { settings });
     } catch (error) {
       return handleError(res, error, "UPDATE_SETTINGS_ERROR");

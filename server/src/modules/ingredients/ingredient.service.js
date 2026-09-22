@@ -714,7 +714,7 @@ export const ingredientService = {
 
       // Hand the in-tx snapshot to the post-commit tail (notify/audit/return).
       result = { systemStock, variance, isShort, lossId: lossRecord ? lossRecord.lossId : null };
-    });
+    }, { timeout: 15000 });
 
     if (result?.outcome === "balanced") return result;
     const { systemStock, variance, isShort } = result;

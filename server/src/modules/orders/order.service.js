@@ -231,7 +231,7 @@ export const orderService = {
 
     const affectedIngredientIds = [...aggregatedIngredients.keys()];
     productService.recomputeVariantAvailability(affectedIngredientIds).catch((err) => console.warn("[menu] availability recompute dropped:", err?.message));
-    this._checkStockLevels(order.needs).catch(() => {});
+    this._checkStockLevels(order.needs).catch((err) => console.warn("[stock] level check dropped:", err?.message));
 
     auditLogService.logAction({
       userId: createdBy,
@@ -474,7 +474,7 @@ export const orderService = {
 
     const affectedIngredientIds = [...aggregatedIngredients.keys()];
     productService.recomputeVariantAvailability(affectedIngredientIds).catch((err) => console.warn("[menu] availability recompute dropped:", err?.message));
-    this._checkStockLevels(transactionNeeds).catch(() => {});
+    this._checkStockLevels(transactionNeeds).catch((err) => console.warn("[stock] level check dropped:", err?.message));
 
     auditLogService.logAction({
       userId,
@@ -1725,7 +1725,7 @@ export const orderService = {
 
     const affectedIngredientIds = [...ingredientNeeds.keys()];
     productService.recomputeVariantAvailability(affectedIngredientIds).catch((err) => console.warn("[menu] availability recompute dropped:", err?.message));
-    this._checkStockLevels(transactionNeeds).catch(() => {});
+    this._checkStockLevels(transactionNeeds).catch((err) => console.warn("[stock] level check dropped:", err?.message));
 
     return this.getById(id);
   },
