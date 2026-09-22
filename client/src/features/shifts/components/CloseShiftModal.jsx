@@ -33,8 +33,11 @@ export default function CloseShiftModal({ open, onOpenChange, shift, forced, onC
   const variance = actual != null && expected != null ? Math.round((actual - expected + Number.EPSILON) * 100) / 100 : null;
   // Admin force-close always needs a note; otherwise only on mismatch.
   const needsNote = forced || (variance != null && variance !== 0);
+  // Close lock: kitchen must be clear first (admin force-close bypasses with its note).
+  const openOrders = summary?.open_orders ?? 0;
+  const blockedByKitchen = !forced && openOrders > 0;
   const isValid =
-    summary && actual != null && Number.isFinite(actual) && actual >= 0 && (!needsNote || closeNote.trim().length > 0);
+    summary && !blockedByKitchen && actual != null && Number.isFinite(actual) && actual >= 0 && (!needsNote || closeNote.trim().length > 0);
 
   function handleConfirm() {
     if (!isValid) return;
@@ -88,9 +91,10 @@ export default function CloseShiftModal({ open, onOpenChange, shift, forced, onC
             </div>
 
             {(summary.open_orders ?? 0) > 0 && (
-              <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-                {summary.open_orders} order{summary.open_orders === 1 ? "" : "s"} still in the kitchen
-                (₱{Number(summary.open_orders_total ?? 0).toLocaleString()} already counted as drawer cash).
+              <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
+                {forced
+                  ? `Warning: ${summary.open_orders} order${summary.open_orders === 1 ? "" : "s"} still in the kitchen — force-closing will strand ${summary.open_orders === 1 ? "it" : "them"}. A note is required.`
+                  : `${summary.open_orders} order${summary.open_orders === 1 ? "" : "s"} still in the kitchen — complete or cancel ${summary.open_orders === 1 ? "it" : "them"} before closing.`}
               </p>
             )}
 

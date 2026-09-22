@@ -294,6 +294,25 @@ export const shiftService = {
       throw new AppError(400, "Actual cash count is required and must be non-negative", "INVALID_ACTUAL_CASH");
     }
 
+    // Close lock: the kitchen must be clear before the drawer can close.
+    // With zero accepted/preparing orders left, every order is completed
+    // (uncancellable) or cancelled (settled) — so no post-close cancel or
+    // item removal can ever strand a refund outside the books. Pending
+    // online orders are unpaid and never block. Admin force-close bypasses
+    // with its mandatory note.
+    if (!forced) {
+      const openOrders = await shiftRepository.getShiftOpenOrders(
+        id, shift.openedAt ?? shift.opened_at, shift.closedAt ?? shift.closed_at ?? null
+      );
+      if (openOrders.openCount > 0) {
+        throw new AppError(
+          400,
+          `Kitchen still has ${openOrders.openCount} order${openOrders.openCount === 1 ? "" : "s"} — complete or cancel ${openOrders.openCount === 1 ? "it" : "them"} before closing`,
+          "OPEN_ORDERS_PENDING"
+        );
+      }
+    }
+
     const summary = await this.buildSummary(shift);
     const expected = summary.expected_cash;
     const actual = roundMoney(actualCash);
