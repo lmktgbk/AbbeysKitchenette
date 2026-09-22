@@ -207,11 +207,6 @@ export default function OrderDetailModal({
                       Refunded ₱{Number(order.refund.amount).toLocaleString()}
                     </p>
                   )}
-                  {(Number(order?.refund?.amount || 0) > 0 && order?.amount_paid != null) && (
-                    <p className="border-t border-border px-4 py-1.5 text-right text-xs text-muted-foreground">
-                      Balance kept: ₱{(Number(order.amount_paid) - Number(order.change || 0) - Number(order.refund.amount)).toLocaleString()} (paid − change − refunded)
-                    </p>
-                  )}
                   {discountDetail(order) && (
                     <p className="border-t border-border px-4 py-1.5 text-xs text-muted-foreground">
                       <span className="font-semibold text-foreground">Discount:</span> {discountDetail(order)}
@@ -343,11 +338,7 @@ export default function OrderDetailModal({
                                           <p className="text-muted-foreground">No Loss</p>
                                         )}
                                         <p className="text-muted-foreground font-medium">
-                                          Refunded share: ₱{(() => {
-                                            const refundAmt = Number(order?.refund?.amount || 0);
-                                            const itemAmt = Number(item.subtotal || 0);
-                                            return removedTotal > 0 ? Math.round((itemAmt / removedTotal) * refundAmt).toLocaleString() : "0";
-                                          })()}
+                                          Refund: ₱{Number(item.subtotal || 0).toLocaleString()}
                                         </p>
                                       </div>
                                     ) : done ? (
@@ -381,10 +372,11 @@ export default function OrderDetailModal({
                                           <p className="text-muted-foreground">No Loss</p>
                                         )}
                                         <p className="text-muted-foreground font-medium">
-                                          Refunded share: ₱{(() => {
+                                          Refund: ₱{(() => {
                                             const refundAmt = Number(order?.refund?.amount || 0);
+                                            const totalAmt = Number(order?.total_amount || 0);
                                             const itemAmt = Number(item.subtotal || 0);
-                                            return removedTotal > 0 ? Math.round((itemAmt / removedTotal) * refundAmt).toLocaleString() : "0";
+                                            return totalAmt > 0 ? Math.round((itemAmt / totalAmt) * refundAmt).toLocaleString() : "0";
                                           })()}
                                         </p>
                                       </div>
@@ -397,7 +389,7 @@ export default function OrderDetailModal({
                         })}
 
                         <TableRow className="bg-muted/50 hover:bg-muted/50">
-                          <TableCell className="text-[11px] font-medium text-muted-foreground">Remaining</TableCell>
+                          <TableCell className="text-[11px] font-medium text-muted-foreground">Total</TableCell>
                           <TableCell />
                           <TableCell className="text-right text-xs font-bold">
                             ₱{total.toLocaleString()}
@@ -405,7 +397,7 @@ export default function OrderDetailModal({
                         </TableRow>
                         {removedTotal > 0 && (
                           <TableRow className="bg-destructive/5 hover:bg-destructive/5">
-                            <TableCell className="text-[11px] font-medium text-destructive">Removed (gross)</TableCell>
+                            <TableCell className="text-[11px] font-medium text-destructive">Removed</TableCell>
                             <TableCell />
                             <TableCell className="text-right text-[11px] font-semibold text-destructive line-through">
                               ₱{removedTotal.toLocaleString()}
