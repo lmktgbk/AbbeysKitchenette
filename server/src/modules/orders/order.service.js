@@ -1140,11 +1140,14 @@ export const orderService = {
    */
   async _checkStockLevels(needs) {
     const ingredientIds = [...needs.keys()];
-    const stockMap = await orderRepository.getIngredientsTotalStocks(ingredientIds);
+    const [stockMap, infoMap] = await Promise.all([
+      orderRepository.getIngredientsTotalStocks(ingredientIds),
+      orderRepository.getIngredientsBasic(ingredientIds),
+    ]);
 
     for (const ingredientId of ingredientIds) {
       const stockAfter = stockMap.get(ingredientId) ?? 0;
-      const ing = await orderRepository.getIngredientBasic(ingredientId);
+      const ing = infoMap.get(ingredientId);
       if (!ing) continue;
 
       // Crossing-only: skip ingredients that were already out/low before this

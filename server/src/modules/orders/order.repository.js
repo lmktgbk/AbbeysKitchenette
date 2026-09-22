@@ -857,6 +857,25 @@ export const orderRepository = {
   },
 
   /**
+   * Get basic ingredient info for many ingredients in one query.
+   * @param {string[]} ingredientIds - ingredient UUIDs
+   * @returns {Map<string, object>} - ingredientId → { ingredientName, unit, minimumThreshold }
+   */
+  async getIngredientsBasic(ingredientIds) {
+    if (ingredientIds.length === 0) return new Map();
+    const rows = await prisma.ingredient.findMany({
+      where: { ingredientId: { in: ingredientIds } },
+      select: {
+        ingredientId: true,
+        ingredientName: true,
+        unit: true,
+        minimumThreshold: true,
+      },
+    });
+    return new Map(rows.map((r) => [r.ingredientId, r]));
+  },
+
+  /**
    * Get kitchen display orders with items in a single query.
    * Uses json_agg to nest order_items under each order.
    * Filters for active + today's completed orders only.
