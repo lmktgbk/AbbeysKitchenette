@@ -8,6 +8,7 @@ import { fileURLToPath } from "url";
 
 // Imports
 import { env } from "./config/env.js";
+import prisma from "./config/prisma.js";
 import errorHandler from "./middleware/errorHandler.middleware.js";
 import { generalLimiter } from "./middleware/rateLimitin.middleware.js";
 
@@ -105,6 +106,32 @@ app.get("/api/health", (req, res) => {
     status: "ok",
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
+  });
+});
+
+// Readiness probe — verifies dependencies, not just the process.
+// Hosting should gate traffic on this: 200 only when DB + ML are reachable.
+app.get("/api/ready", async (req, res) => {
+  const checks = { database: false, mlService: false };
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    checks.database = true;
+  } catch {
+    // reported below
+  }
+  try {
+    const mlUrl = process.env.FORECAST_URL || "http://localhost:8000";
+    const response = await fetch(`${mlUrl}/health`, { signal: AbortSignal.timeout(3000) });
+    checks.mlService = response.ok;
+  } catch {
+    // reported below
+  }
+  const ready = checks.database && checks.mlService;
+  return res.status(ready ? 200 : 503).json({
+    success: ready,
+    message: ready ? "Ready" : "Dependency check failed",
+    error: ready ? null : "NOT_READY",
+    data: { ready, checks, timestamp: new Date().toISOString() },
   });
 });
 
