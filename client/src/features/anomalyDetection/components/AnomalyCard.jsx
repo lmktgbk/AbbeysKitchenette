@@ -2,10 +2,34 @@ import { useState } from "react";
 import Icon from "@/components/ui/icon";
 
 const SEVERITY_CONFIG = {
-  critical: { color: "border-l-red-500", badge: "destructive", icon: "alertTriangle" },
-  high: { color: "border-l-amber-500", badge: "warning", icon: "alertCircle" },
-  medium: { color: "border-l-orange-400", badge: "orange", icon: "info" },
-  low: { color: "border-l-blue-400", badge: "info", icon: "info" },
+  critical: {
+    color: "border-l-red-500",
+    badge: "bg-red-500/10 text-red-600 dark:text-red-400",
+    iconBg: "bg-red-500/10",
+    iconColor: "text-red-600 dark:text-red-400",
+    icon: "alertTriangle",
+  },
+  high: {
+    color: "border-l-amber-500",
+    badge: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
+    iconBg: "bg-amber-500/10",
+    iconColor: "text-amber-600 dark:text-amber-400",
+    icon: "alertCircle",
+  },
+  medium: {
+    color: "border-l-orange-400",
+    badge: "bg-orange-400/10 text-orange-600 dark:text-orange-400",
+    iconBg: "bg-orange-400/10",
+    iconColor: "text-orange-600 dark:text-orange-400",
+    icon: "info",
+  },
+  low: {
+    color: "border-l-blue-400",
+    badge: "bg-blue-400/10 text-blue-600 dark:text-blue-400",
+    iconBg: "bg-blue-400/10",
+    iconColor: "text-blue-600 dark:text-blue-400",
+    icon: "info",
+  },
 };
 
 const CATEGORY_ICONS = {
@@ -54,39 +78,37 @@ export default function AnomalyCard({ anomaly, onAcknowledge }) {
   const config = SEVERITY_CONFIG[anomaly.severity] || SEVERITY_CONFIG.low;
 
   return (
-    <div className={`rounded-xl border border-border bg-card border-l-4 ${config.color} transition-colors`}>
+    <div className={`rounded-xl border border-border bg-card border-l-4 ${config.color} transition-colors hover:shadow-sm`}>
       <div className="px-4 py-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3 min-w-0">
-            <div className={`mt-0.5 shrink-0`}>
-              <Icon name={CATEGORY_ICONS[anomaly.category] || "info"} size={16} />
+            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${config.iconBg}`}>
+              <Icon name={CATEGORY_ICONS[anomaly.category] || "info"} size={17} className={config.iconColor} />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-sm font-semibold text-foreground">{anomaly.title}</h3>
-                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-${config.badge === "destructive" ? "destructive" : config.badge === "warning" ? "amber-500" : config.badge === "orange" ? "orange-400" : "blue-400"}/10 text-${config.badge === "destructive" ? "destructive" : config.badge === "warning" ? "amber-600" : config.badge === "orange" ? "orange-600" : "blue-600"}`}>
+                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ${config.badge}`}>
                   {anomaly.severity}
                 </span>
-                <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                   {CATEGORY_LABELS[anomaly.category]}
                 </span>
               </div>
-              <p className="text-sm text-muted-foreground mt-1">{anomaly.description}</p>
+              <p className="text-sm text-foreground/80 mt-1">{anomaly.description}</p>
+              <p className="text-[11px] text-muted-foreground/70 mt-0.5">
+                {formatTimeAgo(anomaly.detectedAt)}
+              </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-[11px] text-muted-foreground/70 whitespace-nowrap">
-              {formatTimeAgo(anomaly.detectedAt)}
-            </span>
-            {!anomaly.isAcknowledged && (
-              <button
-                onClick={() => onAcknowledge(anomaly.id)}
-                className="text-xs text-primary hover:underline whitespace-nowrap"
-              >
-                Mark Reviewed
-              </button>
-            )}
-          </div>
+          {!anomaly.isAcknowledged && (
+            <button
+              onClick={() => onAcknowledge(anomaly.id)}
+              className="shrink-0 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground whitespace-nowrap"
+            >
+              Mark reviewed
+            </button>
+          )}
         </div>
 
         {/* What to do — collapsed */}

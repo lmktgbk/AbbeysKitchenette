@@ -48,7 +48,7 @@ export default function AnomalyPage() {
             )}
           </div>
           <div className="shrink-0">
-            <Button size="sm" variant="outline" onClick={() => scanMutation.mutate()} disabled={scanMutation.isPending}>
+            <Button size="sm" variant="primary" onClick={() => scanMutation.mutate()} disabled={scanMutation.isPending}>
               {scanMutation.isPending ? "Checking..." : "Check now"}
             </Button>
           </div>
@@ -64,9 +64,27 @@ export default function AnomalyPage() {
             <p className="text-xs text-muted-foreground">Nothing unusual found</p>
           </div>
         ) : (
-          <div className="rounded-xl border border-amber-200 bg-amber-50/30 px-6 py-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-amber-700">{total} need attention</p>
-            <p className="mt-1 text-sm text-muted-foreground">{critical > 0 ? `${critical} urgent` : "Review below when you have time"}</p>
+          <div className={`rounded-xl border border-border border-l-4 bg-card px-6 py-4 ${critical > 0 ? "border-l-red-500" : "border-l-amber-500"}`}>
+            <div className="flex items-center gap-3">
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md ${critical > 0 ? "bg-red-500/10" : "bg-amber-500/10"}`}>
+                <Icon name="alertTriangle" size={18} className={critical > 0 ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-base font-semibold text-foreground">{total} need attention</p>
+                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                  {critical > 0 && (
+                    <span className="inline-flex items-center rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-600 dark:text-red-400">
+                      {critical} urgent
+                    </span>
+                  )}
+                  {(total - critical) > 0 && (
+                    <span className="inline-flex items-center rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+                      {total - critical} to watch
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         )
       )}
