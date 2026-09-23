@@ -1,6 +1,14 @@
 import { analyticsService } from "./analytics.service.js";
 import { successResponse, errorResponse, controllerError } from "../../utils/response.js";
 
+/**
+ * Analytics Controller (admin-only — enforced in routes)
+ *
+ * Thin HTTP layer. The Excel export imports exceljs lazily and degrades to
+ * 503 EXPORT_UNAVAILABLE when the optional dependency is absent, so a
+ * missing export library never reads as a server crash.
+ */
+
 function handleError(res, error, fallbackCode) {
   return controllerError(res, error, fallbackCode);
 }

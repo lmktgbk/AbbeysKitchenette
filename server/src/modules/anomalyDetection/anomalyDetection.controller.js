@@ -3,6 +3,14 @@ import { successResponse, controllerError } from "../../utils/response.js";
 import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
+/**
+ * Anomaly Controller (admin-only — enforced in routes)
+ *
+ * Thin HTTP layer. Acknowledge emits ANOMALY_ACKNOWLEDGED; scans and stats
+ * are read-only. Service-thrown 4xx (e.g. unknown rule) passes through
+ * controllerError instead of flattening to 500.
+ */
+
 export const anomalyController = {
   async getResults(req, res) {
     try {

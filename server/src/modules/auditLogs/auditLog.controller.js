@@ -2,6 +2,11 @@ import { auditLogService } from "./auditLog.service.js";
 import { successResponse, controllerError } from "../../utils/response.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 
+/**
+ * Audit Log Controller (admin-only — router guard plus an in-handler role
+ * re-check, since the trail itself is sensitive: it names who did what).
+ */
+
 function handleError(res, error, fallbackCode) {
   return controllerError(res, error, fallbackCode);
 }

@@ -3,6 +3,13 @@ import { automationScheduler } from "../automation/automation.scheduler.js";
 import { successResponse, controllerError } from "../../utils/response.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 
+/**
+ * Settings Controller (admin-only — router guard plus in-handler re-check)
+ *
+ * After a successful update, automation schedules reload without blocking
+ * the response — cron changes take effect on the next tick, not instantly.
+ */
+
 function handleError(res, error, fallbackCode) {
   return controllerError(res, error, fallbackCode);
 }

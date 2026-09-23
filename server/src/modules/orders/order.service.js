@@ -1016,6 +1016,8 @@ export const orderService = {
       if (livePrice == null) {
         throw new AppError(400, `Variant ${item.variant_id} not found`, "VARIANT_NOT_FOUND");
       }
+      // Cent-tolerance, not exact equality: float serialization across the
+      // wire can drift by fractions of a centavo without any real price change.
       if (Math.abs(Number(item.unit_price) - livePrice) > 0.01) {
         throw new AppError(409, "Menu price changed — please refresh and try again", "PRICE_CHANGED");
       }
