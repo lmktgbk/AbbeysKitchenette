@@ -651,7 +651,7 @@ export const orderRepository = {
     const result = await client.$executeRawUnsafe(`
       UPDATE restock_batches
       SET
-        quantity_left = quantity_left + CASE restock_id ${items.map((d, i) => `WHEN $${i * 3 + 1} THEN $${i * 3 + 2}`).join(" ")} ELSE 0 END,
+        quantity_left = quantity_left + CASE restock_id ${items.map((d, i) => `WHEN $${i * 3 + 1} THEN $${i * 3 + 2}`).join(" ")} ELSE 0.0 END,
         version = version + 1
       WHERE (${items.map((d, i) => `(restock_id = $${i * 3 + 1} AND version = $${i * 3 + 3})`).join(" OR ")})
     `, ...items.flatMap((d) => [d.restockId, d.quantity, d.version]));
@@ -727,7 +727,7 @@ export const orderRepository = {
     const result = await client.$executeRawUnsafe(`
       UPDATE restock_batches
       SET
-        quantity_left = quantity_left - CASE restock_id ${deductions.map((d, i) => `WHEN $${i * 3 + 1} THEN $${i * 3 + 2}`).join(" ")} ELSE 0 END,
+        quantity_left = quantity_left - CASE restock_id ${deductions.map((d, i) => `WHEN $${i * 3 + 1} THEN $${i * 3 + 2}`).join(" ")} ELSE 0.0 END,
         version = version + 1
       WHERE (${deductions.map((d, i) => `(restock_id = $${i * 3 + 1} AND version = $${i * 3 + 3} AND quantity_left >= $${i * 3 + 2})`).join(" OR ")})
     `, ...deductions.flatMap((d) => [d.restockId, d.quantity, d.version]));
