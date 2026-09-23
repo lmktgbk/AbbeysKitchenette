@@ -78,6 +78,47 @@ function requireVariant(product, variantId) {
 }
 
 export const productService = {
+  /**
+   * Reject ambiguous variant payloads before any write, with named errors
+   * instead of cryptic P2002s:
+   * - same ingredient twice on one variant (Butter 5g + Butter 3g) →
+   *   400 DUPLICATE_RECIPE_INGREDIENT (DB: @@unique([variantId, ingredientId]))
+   * - same size twice on one product (Medium + Medium) →
+   *   400 DUPLICATE_VARIANT_SIZE (DB: @@unique([productId, sizeName]))
+   * No auto-merge: summing would guess intent on data that drives deductions.
+   * @param {Array<object>} variantsData - variants with size_name + recipes
+   * @throws {AppError} 400 on either duplication
+   */
+  async _assertNoDuplicateRecipeLines(variantsData) {
+    const dupIds = new Set();
+    const seenSizes = new Set();
+    let dupSize = null;
+    for (const v of variantsData || []) {
+      const size = (v.size_name || "").trim().toLowerCase();
+      if (size && seenSizes.has(size)) dupSize = dupSize ?? v.size_name;
+      seenSizes.add(size);
+      const seen = new Set();
+      for (const r of v.recipes || []) {
+        if (seen.has(r.ingredient_id)) dupIds.add(r.ingredient_id);
+        seen.add(r.ingredient_id);
+      }
+    }
+    if (dupSize != null) {
+      throw new AppError(
+        400,
+        `Size "${dupSize}" appears twice — variant sizes must be unique per product`,
+        "DUPLICATE_VARIANT_SIZE",
+      );
+    }
+    if (dupIds.size === 0) return;
+    const names = await productRepository.getIngredientNames([...dupIds]);
+    const label = [...dupIds].map((id) => names.get(id) ?? "An ingredient").join(", ");
+    throw new AppError(
+      400,
+      `${label} appears twice in the recipe — combine it into one line`,
+      "DUPLICATE_RECIPE_INGREDIENT",
+    );
+  },
   /* ── Queries ─────────────────────────── */
 
   /**
@@ -212,8 +253,13 @@ export const productService = {
       throw new AppError(409, "A product with that name already exists", "PRODUCT_EXISTS");
     }
 
+    // Step 1b: Reject doubled recipe lines with a named error (not P2002).
+    await this._assertNoDuplicateRecipeLines(data.variants);
+
     // Step 2: Create product + variants + recipes in a transaction
-    const product = await prisma.$transaction(async (tx) => {
+    let product;
+    try {
+      product = await prisma.$transaction(async (tx) => {
       const newProduct = await productRepository.create(
         {
           productName: data.product_name.trim(),
@@ -236,7 +282,15 @@ export const productService = {
       }
 
       return newProduct;
-    });
+      });
+    } catch (err) {
+      // Millisecond race: two creates with the same (case-insensitive) name
+      // slipped past the pre-check together — the SEC03 index caught it.
+      if (err?.code === "P2002") {
+        throw new AppError(409, "A product with that name already exists", "PRODUCT_EXISTS");
+      }
+      throw err;
+    }
 
     auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_CREATED, targetType: "product", targetId: product.productId, details: { name: product.productName } });
 
@@ -306,6 +360,9 @@ export const productService = {
   async updateVariants(id, variantsData, userId) {
     // Step 1: Validate product exists
     const existing = await requireProduct(id);
+
+    // Step 1b: Reject doubled recipe lines with a named error (not P2002).
+    await this._assertNoDuplicateRecipeLines(variantsData);
 
     // Step 2: Get current variants for diff
     const currentVariants = await productRepository.findVariantsByProductId(id);

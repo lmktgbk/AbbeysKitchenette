@@ -24,15 +24,30 @@ export const productRepository = {
   /* ── Lookups ─────────────────────────── */
 
   /**
-   * Find a product by name.
-   * Used to check for duplicate names before creating.
-   * @param {string} name - product name
+   * Find a product by name (case-insensitive).
+   * "Spanish Latte" and "spAnish Latte" are the same product — the shop
+   * must never hold both. Used by create/update/rename duplicate checks.
+   * @param {string} name - product name (already trimmed by callers)
    * @returns {object|null} - product or null if not found
    */
   async findByName(name) {
     return prisma.product.findFirst({
-      where: { productName: name },
+      where: { productName: { equals: name, mode: "insensitive" } },
     });
+  },
+
+  /**
+   * Batch ingredient names for error messages.
+   * @param {string[]} ingredientIds - ingredient UUIDs
+   * @returns {Map<string, string>} - ingredientId → ingredientName
+   */
+  async getIngredientNames(ingredientIds) {
+    if (ingredientIds.length === 0) return new Map();
+    const rows = await prisma.ingredient.findMany({
+      where: { ingredientId: { in: ingredientIds } },
+      select: { ingredientId: true, ingredientName: true },
+    });
+    return new Map(rows.map((r) => [r.ingredientId, r.ingredientName]));
   },
 
   /**

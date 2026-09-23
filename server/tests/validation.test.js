@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { notificationQuerySchema } from "../src/modules/notifications/notification.validation.js";
 import { anomalyIdParamSchema } from "../src/modules/anomalyDetection/anomalyDetection.validation.js";
 import { forecastJobQuerySchema } from "../src/modules/forecasting/forecasting.validation.js";
+import { productService } from "../src/modules/products/product.service.js";
 
 describe("query/param validation", () => {
   it("accepts the 56-char Orders chip CSV", () => {
@@ -25,5 +26,21 @@ describe("query/param validation", () => {
     expect(forecastJobQuerySchema.safeParse({ jobId: "12" }).data.jobId).toBe(12);
     expect(forecastJobQuerySchema.safeParse({ jobId: "../../etc" }).success).toBe(false);
     expect(forecastJobQuerySchema.safeParse({ jobId: "-3" }).success).toBe(false);
+  });
+});
+
+describe("variant payload guard (DB-free paths)", () => {
+  it("passes clean payloads without touching the DB", async () => {
+    await expect(productService._assertNoDuplicateRecipeLines([
+      { size_name: "Medium", recipes: [{ ingredient_id: "a" }, { ingredient_id: "b" }] },
+      { size_name: "Large", recipes: [{ ingredient_id: "a" }] },
+    ])).resolves.toBeUndefined();
+  });
+
+  it("rejects a doubled size name", async () => {
+    await expect(productService._assertNoDuplicateRecipeLines([
+      { size_name: "Medium", recipes: [] },
+      { size_name: "medium", recipes: [] },
+    ])).rejects.toMatchObject({ code: "DUPLICATE_VARIANT_SIZE" });
   });
 });
