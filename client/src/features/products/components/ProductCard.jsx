@@ -73,9 +73,9 @@ const ProductCard = memo(function ProductCard({ product, onViewDetail, onOptimiz
           />
         </div>
 
-        {product.category_name && (
+        {(product.subcategory_name ?? product.category_name) && (
           <Badge variant="outline" className="mb-1.5 text-xs">
-            {product.category_name}
+            {product.subcategory_name ?? product.category_name}
           </Badge>
         )}
 

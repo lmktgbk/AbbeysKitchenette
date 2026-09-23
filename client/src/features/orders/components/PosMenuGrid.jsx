@@ -13,38 +13,37 @@ import {
 /**
  * PosMenuGrid — product selection grid for the POS.
  *
-  * Cashiers only see Beverages (category_name filter).
- * All other roles see everything.
+ * Chips are flat subcategories (Coffee, Pastries, … — no root grouping).
+ * Filtering is server-side via GET /api/guest/menu?category=<subcategoryId>;
+ * a second search-only query feeds the chip list so chips stay complete
+ * while the grid shows the filtered page.
  */
 export default function PosMenuGrid({ onAddItem, sidebarOpen, onToggleSidebar }) {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
   const { data: menuData, isPending, isFetching } = useGuestMenu({
     search: search || undefined,
+    category: activeCategory === "all" ? undefined : activeCategory,
   });
+  // Chip source: same search, no category — shares cache with the grid
+  // query when "All" is active, costs one extra request only while filtered.
+  const { data: chipData } = useGuestMenu({ search: search || undefined });
 
   const { data: ordersData } = usePendingOnlineOrders();
   const pendingCount = ordersData?.data?.orders?.length ?? 0;
 
-  const allProducts = menuData?.data?.menu ?? [];
-
-  // All roles see all products in POS
-  const visibleProducts = allProducts;
+  const products = menuData?.data?.menu ?? [];
 
   const categories = [
     { id: "all", name: "All" },
     ...Array.from(
       new Map(
-        visibleProducts
-          .filter((p) => p.category_name)
-          .map((p) => [p.category_name, p.category_name])
+        (chipData?.data?.menu ?? [])
+          .filter((p) => p.subcategory_id)
+          .map((p) => [p.subcategory_id, p.subcategory_name ?? "Other"])
       ).entries()
-    ).map(([, name]) => ({ id: name, name })),
+    ).map(([id, name]) => ({ id, name })),
   ];
-
-  const products = activeCategory === "all"
-    ? visibleProducts
-    : visibleProducts.filter((p) => p.category_name === activeCategory);
 
   return (
     <div className="flex flex-col gap-3">
@@ -177,7 +176,7 @@ function ProductCard({ product, onAddItem }) {
           className={`flex w-full flex-col p-3 text-left ${isFullyUnavailable ? "cursor-not-allowed" : ""}`}
         >
           <p className="truncate text-sm font-semibold">{product.product_name}</p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">{product.category_name}</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">{product.subcategory_name ?? product.category_name}</p>
           {singleVariant && (
             <p className={`mt-1 text-sm font-bold ${singleAvailable ? "text-primary" : "text-muted-foreground line-through"}`}>
               ₱{Number(singleVariant.price).toLocaleString()}
