@@ -13,12 +13,14 @@ import {
 import { env } from "../../config/env.js";
 import { deleteImage } from "../../utils/cloudinary.js";
 
-// Constants
+// Brute-force budget: 5 strikes per account, then a 15-minute lockout.
+// Mirrored by the route-level accountLimiter (10/15m) as the outer net.
 const LOGIN_MAX_ATTEMPTS = 5;
 const LOGIN_LOCKOUT_MINUTES = 15;
-const OTP_EXPIRY_MINUTES = 10;
 
 export const authService = {
+  // Separate portals, identical failure shape: staff portal is cashier +
+  // kitchen only, admin portal is OTP-gated — but neither reveals the other.
   // Staff portal: cashier + kitchen only. Admins are redirected to /admin-login.
   async login(email, password, clientIP) {
     return this._loginCore(email, password, clientIP, "staff");

@@ -7,7 +7,10 @@ import crypto from "crypto";
 /**
  * Guest Service
  *
- * Public API business logic for customer-facing operations.
+ * Public, unauthenticated customer surface (menu, order placement, tracking).
+ * Trust boundary: guests can only ever read their own order via its random
+ * token — prices are re-computed server-side, edits/cancels happen at the
+ * counter. Rate limiters (not validation) are the anti-spam layer here.
  */
 
 export const guestService = {

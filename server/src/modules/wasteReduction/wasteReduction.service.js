@@ -8,7 +8,10 @@ import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 /**
  * Waste Reduction Service
  *
- * Orchestrates context gathering, Gemini API calls, and result storage.
+ * Advisory overstock insights from Gemini (loss history + stock-vs-forecast +
+ * restock cadence + costs). Same contract as pricing/reorder: insights never
+ * move stock by themselves — accept/reject only flips a status row, and the
+ * peso savings shown are deterministic overstock × unit cost, not AI output.
  */
 
 export const wasteReductionService = {

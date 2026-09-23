@@ -1,14 +1,16 @@
 import { notificationRepository } from "./notification.repository.js";
 
 /**
- * Notification Service
+ * Notification Service (admin-only readers — enforced in routes + header)
  *
- * Centralized notification creation and management.
- * Other modules call notificationService.create() to push notifications.
+ * Centralized creation for the bell stream. Producers never await create():
+ * a dead notifications table must not fail an order or a login, so failures
+ * are logged with the type here and swallowed by design.
  */
 export const notificationService = {
   /**
-   * Create a notification. Fire-and-forget — failures are silently caught.
+   * Create a notification. Fire-and-forget — failures are logged with the
+   * type (never thrown, never silent).
    * @param {object} params
    * @param {string} params.type - notification type (order_new, stock_low, etc.)
    * @param {string} params.title - short title

@@ -5,6 +5,9 @@ import { generatePriceSuggestions, getCompetitorAverage } from "./priceOptimizat
  * Price Optimization Service
  *
  * Orchestrates: gather context → build prompt → call Gemini → parse → save.
+ * Suggestions are advisory only and land as pending rows — applying a price
+ * moves real money, so a human always clicks apply; nothing here writes to
+ * product_variants directly (see applyPrice, which does exactly one update).
  */
 const priceOptimizationService = {
   /**

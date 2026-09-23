@@ -20,7 +20,11 @@ function roundToNiceQty(qty, unit) {
 /**
  * Reorder Suggestions Service
  *
- * Orchestrates context gathering, Gemini API calls, and result storage.
+ * Advisory restock quantities from Gemini (stock + forecast + usage +
+ * suppliers). Like pricing, suggestions never order anything by themselves —
+ * accept/reject only flips a status row; purchasing happens outside the
+ * system. Expiry-aware: FEFO buckets keep soon-to-expire stock out of the
+ * suggested quantities.
  */
 
 export const reorderSuggestionsService = {
