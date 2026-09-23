@@ -5,6 +5,8 @@
  * @returns {{ isOpen: boolean, opensAt: string|null, closesAt: string|null }}
  */
 export function isStoreOpen(storeHours) {
+  // No hours configured (fresh DB) = fail open. Blocking all sales because
+  // an admin hasn't set hours yet would be worse than serving after close.
   if (!storeHours) return { isOpen: true, opensAt: null, closesAt: null };
 
   const now = new Date();
