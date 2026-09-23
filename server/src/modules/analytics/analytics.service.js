@@ -1,6 +1,18 @@
 import { analyticsRepository } from "./analytics.repository.js";
 import { dashboardRepository } from "../dashboard/dashboard.repository.js";
 
+/**
+ * Analytics Service
+ *
+ * Read-only reporting over orders/inventory. All heavy lifting lives in the
+ * repositories (SQL aggregations); this layer only joins period-vs-period
+ * results and shapes the dashboard payload. No writes, no transactions.
+ */
+
+/**
+ * Period-over-period change in percent (1 decimal). Null when there is no
+ * baseline — the UI renders "—" instead of a misleading ±100%.
+ */
 function calcDelta(current, previous) {
   if (previous == null || previous === 0) return null;
   if (current == null) return null;
@@ -8,6 +20,10 @@ function calcDelta(current, previous) {
 }
 
 export const analyticsService = {
+  /**
+   * Financial KPIs for a window plus deltas against the previous equal-length
+   * window (computed from the same repository shape so figures always agree).
+   */
   async getKpis(dateFrom, dateTo) {
     const [kpis, previous] = await Promise.all([
       analyticsRepository.getFinancialKpis(dateFrom, dateTo),
