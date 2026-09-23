@@ -261,12 +261,16 @@ export const orderService = {
     // Server re-price so guests can't tamper with totals (no discount at placement).
     const { pricedItems, total } = await this._priceItemsAndTotals(items, { discount_type: "none" });
 
+    let orderNumber;
+
     const result = await prisma.$transaction(async (tx) => {
       const now = new Date();
       const orderDate = orderDateStr
         ? new Date(orderDateStr + "T00:00:00Z")
         : new Date(now.toISOString().split("T")[0]);
-      const orderNumber = composeOrderNumber(orderDate, await orderRepository.getNextOrderNumber(orderDate, tx));
+      // Assigned to the outer binding below — the light response tail
+      // needs the number without a getById refetch.
+      orderNumber = composeOrderNumber(orderDate, await orderRepository.getNextOrderNumber(orderDate, tx));
 
       return orderRepository.createOnlineOrder({
         orderNumber,
