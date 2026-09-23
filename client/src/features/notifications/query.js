@@ -1,3 +1,8 @@
+/**
+ * Notifications Queries — owns paginated / infinite / unread-count hooks + read mutations.
+ * WHY: centralizes bell polling and list invalidation. Keys: ["notifications", ...] (list(params) refetchInterval 30s, infinite list with getNextPageParam on totalItems, unread-count refetchInterval 15s); all mutations invalidate ["notifications"].
+ * State: TanStack Query hooks only, no local state; invalidation via useQueryClient.
+ */
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as api from "./api";
 

@@ -10,10 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
-/**
- * OtpForm — Reusable OTP verification form.
- * Used by EmailForm (admin 2FA) and can be used anywhere OTP is needed.
- */
+/** OtpForm — 6-digit email code verification. WHY it exists: completes admin 2FA after EmailForm and establishes session; consumed by login flow. State: local [serverError, resending]; writes authStore.user. */
 export default function OtpForm({ userId }) {
     const [serverError, setServerError] = useState("");
     const [resending, setResending] = useState(false);

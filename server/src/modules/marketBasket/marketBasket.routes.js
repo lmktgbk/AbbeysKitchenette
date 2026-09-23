@@ -14,7 +14,8 @@ const PYTHON_URL = process.env.FORECAST_URL || "http://localhost:8000";
  * Market Basket Proxy Routes
  *
  * Forwards authenticated requests to the Python/FastAPI MBA service.
- * Combo product creation uses the existing POST /api/products endpoint.
+ * Combo product creation uses POST /api/products with is_bundle:true —
+ * the server auto-assigns the system-owned Bundles/Bundle subcategory.
  */
 
 async function proxyGet(res, path, fallbackCode) {

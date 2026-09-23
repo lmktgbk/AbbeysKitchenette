@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo, useCallback } from "react";
+﻿import { useState, useMemo, useCallback } from "react";
 import { useDemandHistory, useDemandResults, useDemandIngredients, forecastKeys } from "../query";
 import { useQueryClient } from "@tanstack/react-query";
 import ForecastRunButton from "../components/ForecastRunButton";
@@ -12,6 +12,12 @@ import Icon from "@/components/ui/icon";
  * ForecastingPage — friendly redesign.
  * Answers only 3 questions: Demand (To Prepare), Revenue (Expected Sales), Inventory (What to Order)
  * Plain language, 3 KPI cards + combined chart + tabbed details. Tech behind Details flap.
+ *
+ * State (Rule of Thumb):
+ * - API data via TanStack Query: jobs history, demand results + ingredients keyed by activeJobId.
+ * - Browser-only via useState: selectedJobId override, activeTab, selectedVariant, showDetails.
+ * - activeJobId is DERIVED (selected ?? first job) — never mirrored back into state via effect,
+ *   so first paint selects without a null-first fetch or double skeleton.
  */
 export default function ForecastingPage() {
   const queryClient = useQueryClient();
@@ -21,18 +27,18 @@ export default function ForecastingPage() {
   const [showDetails, setShowDetails] = useState(false);
 
   const { data: historyData, isLoading: historyLoading } = useDemandHistory();
-  const { data: resultsData, isLoading: resultsLoading } = useDemandResults(selectedJobId);
-  const { data: ingredientsData, isLoading: ingredientsLoading } = useDemandIngredients(selectedJobId);
-
   const jobs = historyData?.data?.jobs || [];
-  const activeJobId = selectedJobId || jobs[0]?.id || null;
+  const activeJobId = selectedJobId ?? jobs[0]?.id ?? null;
 
-  useEffect(() => {
-    if (jobs.length && !selectedJobId) setSelectedJobId(jobs[0].id);
-  }, [jobs, selectedJobId]);
+  const { data: resultsData, isLoading: resultsLoading } = useDemandResults(activeJobId);
+  const { data: ingredientsData, isLoading: ingredientsLoading } = useDemandIngredients(activeJobId);
+
+  // Job switching clears the chart selection explicitly in handleJobComplete below —
+  // no useEffect mirror needed (derived activeJobId never writes back to state).
 
   const handleJobComplete = useCallback((jobId) => {
     setSelectedJobId(jobId);
+    setSelectedVariant(null);
     queryClient.invalidateQueries({ queryKey: forecastKeys.demandResults(jobId) });
     queryClient.invalidateQueries({ queryKey: forecastKeys.demandIngredients(jobId) });
     queryClient.invalidateQueries({ queryKey: forecastKeys.demandHistory });
@@ -63,7 +69,8 @@ export default function ForecastingPage() {
     return v ? `${v.product_name} (${v.size_name})` : null;
   }, [selectedVariant, forecasted]);
 
-  useEffect(() => { setSelectedVariant(null); }, [selectedJobId]);
+  // selectedVariant clears on explicit job switch via handleSelectJob/handleJobComplete —
+  // no useEffect mirror needed (derived activeJobId never writes back to state).
 
   const lastUpdated = job?.completed_at ? new Date(job.completed_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : null;
 

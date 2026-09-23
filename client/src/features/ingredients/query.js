@@ -1,18 +1,7 @@
 /**
- * Ingredient Query Layer
- *
- * Centralized query + mutation hooks for the ingredients feature.
- * Follows SmartCafe's pattern: components import hooks, not API functions or query keys.
- *
- * Structure:
- * - ingredientKeys: internal key factory (not exported)
- * - Query hooks: useIngredientList, useIngredientArchived, etc.
- * - Mutation hook: useIngredientMutations — returns all CRUD + batch mutations
- *
- * Design:
- * - Hook onSuccess handles cache invalidation only
- * - Components pass their own onSuccess/onError via .mutate() for toast + UI state
- * - Both callbacks run: hook's first (invalidation), then mutate's (toast + modal close)
+ * Ingredients Queries — owns inventory list / batches / history / AI-suggestion hooks + mutations (BR-05, BR-07).
+ * WHY: single cache owner for stock so tables, alerts, and KPIs update together. Keys: ["ingredients", ...] (list/archived(params), summary, alerts, stockValue, batches(id), history(id, params)) + ["reorderSuggestions"] + ["wasteReductions"]; mutations invalidate by scope (all vs batches vs reorder vs waste); otherwise global staleTime 5m.
+ * State: TanStack Query hooks only, no local state; invalidation via useQueryClient.
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";

@@ -1,3 +1,8 @@
+/**
+ * Orders API — owns order + kitchen + guest order transport.
+ * WHY: single contract owner for POS, kitchen display, and public tracking. Contract: GET /orders, GET /orders/kitchen, GET /orders/kitchen/batches, GET /orders/stats, GET /orders/:id, POST /orders, PUT /orders/:id/status, POST /orders/:id/fulfill|cancel|prepare, PATCH /orders/:orderId/items/:itemId, POST .../remove, guest GET /guest/menu, POST /guest/orders, GET /guest/orders/:token; returns res.data envelope.
+ * State: axios wrappers, no state.
+ */
 import api from "@/config/axios";
 
 /**
@@ -27,9 +32,9 @@ export async function getKitchenBatchGroupsRequest() {
   return res.data;
 }
 
-// GET /api/orders/stats — status counts for KPI cards
-export async function getOrderStatsRequest() {
-  const res = await api.get("/orders/stats");
+// GET /api/orders/stats — status counts for KPI cards, optionally scoped by date range
+export async function getOrderStatsRequest(params = {}) {
+  const res = await api.get("/orders/stats", { params });
   return res.data;
 }
 

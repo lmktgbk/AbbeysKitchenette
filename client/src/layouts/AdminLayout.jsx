@@ -1,3 +1,9 @@
+/**
+ * AdminLayout — sidebar + header shell for protected admin routes.
+ * WHY: single place for responsive chrome; mobile uses an overlay drawer, desktop a
+ * collapsible sidebar. Viewport comes from useIsMobile (browser-only), drawer/collapse
+ * flags from layoutStore (global UI). Includes ReceiptPrintHost for thermal printing.
+ */
 import { useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "./admin/Sidebar";
@@ -5,23 +11,18 @@ import Header from "./admin/Header";
 import Icon from "@/components/ui/icon";
 import ReceiptPrintHost from "@/features/receipts/ReceiptPrintHost";
 import useLayoutStore from "@/stores/layoutStore";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 export default function AdminLayout() {
     const mobileOpen = useLayoutStore((s) => s.mobileOpen);
-    const isMobile = useLayoutStore((s) => s.isMobile);
     const setMobileOpen = useLayoutStore((s) => s.setMobileOpen);
     const closeMobile = useLayoutStore((s) => s.closeMobile);
-    const setIsMobile = useLayoutStore((s) => s.setIsMobile);
+    const isMobile = useIsMobile(768);
 
+    // Auto-close the overlay drawer when returning to desktop — drawer is mobile-only.
     useEffect(() => {
-        function handleResize() {
-            const mobile = window.innerWidth < 768;
-            setIsMobile(mobile);
-            if (!mobile) setMobileOpen(false);
-        }
-        window.addEventListener("resize", handleResize);
-        return () => window.removeEventListener("resize", handleResize);
-    }, [setIsMobile, setMobileOpen]);
+        if (!isMobile) setMobileOpen(false);
+    }, [isMobile, setMobileOpen]);
 
     return (
         <div className="flex h-screen overflow-hidden bg-background">

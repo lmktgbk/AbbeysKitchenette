@@ -1,3 +1,8 @@
+/**
+ * Shifts API — owns drawer-session transport (BR-02).
+ * WHY: single contract owner for open/close and shift reads so query hooks stay thin. Contract: POST /shifts/open, GET /shifts/mine, GET /shifts/mine/history, GET /shifts/stats, GET /shifts, GET /shifts/:id, GET /shifts/:id/summary, GET /shifts/:id/orders, GET /shifts/:id/ingredient-usage, POST /shifts/:id/close, POST /shifts/:id/force-close; returns res.data envelope.
+ * State: axios wrappers, no state.
+ */
 import api from "@/config/axios";
 
 /**

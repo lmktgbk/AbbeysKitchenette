@@ -10,11 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DropDown } from "@/components/filters/DropDown";
 
-/**
- * FilterModal — global reusable sort + filter dialog.
- *
- * Renders a dialog with radio buttons for sort and dropdowns for filters.
- * Fully dynamic — accepts all config via props. No feature-specific logic.
+/** FilterModal — dynamic sort + filter dialog. WHY it exists: config-driven dialog lets each list declare options without feature logic; consumed via SearchBar filter button. State: local [selectedSort, selectedFilters] synced on open.
  *
  * Props:
  * - open: boolean

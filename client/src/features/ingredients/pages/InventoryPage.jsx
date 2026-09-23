@@ -1,3 +1,11 @@
+/**
+ * InventoryPage — inventory orchestrator (KPIs + table + form/restock/loss/count/batch modals).
+ * WHY it exists: owns modal/selection state and mutation wiring; tables/sidebars fetch their
+ * own data. Query keys consumed: none directly (children own ["ingredients","list"/"summary"/
+ * "alerts"/"stockValue"], ["reorderSuggestions"], ["wasteReductions"]); mutations invalidate
+ * ["ingredients"]. Guards: staff route guard; no BR-02 shift gate, no per-role branching.
+ * State: Query [] | local [showFormModal, showRestockModal, showLossModal, showCountModal, showBatchModal, batchModalIngredient, selectedIngredient, isEditMode, restockDraftQuantity, acceptedSuggestionId] | Zustand [].
+ */
 import { useState } from "react";
 import { toast } from "sonner";
 import { useIngredientMutations } from "../query";
@@ -13,18 +21,6 @@ import StockAlerts from "../components/sidebar/StockAlerts";
 import ReorderSuggestions from "../components/sidebar/ReorderSuggestions";
 import WasteInsights from "../components/sidebar/WasteInsights";
 
-/**
- * InventoryPage
- *
- * Main orchestrator for the Inventory module.
- * Manages state and mutations only — all UI is delegated to child components.
- *
- * Layout:
- * - KpiCards (summary stats)
- * - IngredientTable (data table with filters and actions)
- * - Modals (form, restock, loss, batch list)
- * - Confirmations via ConfirmDialog (archive, restore, delete)
- */
 export default function InventoryPage() {
   const mutations = useIngredientMutations();
 

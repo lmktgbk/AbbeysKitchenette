@@ -1,3 +1,10 @@
+/**
+ * SettingsPage — store settings editor (profile, hours, payments, automation schedules).
+ * WHY it exists: single admin form syncing public storefront + POS + automation config.
+ * Query keys consumed: ["settings"] via useSettings (update via useUpdateSettings).
+ * Guards: admin-only route; no BR-02 shift gate, no per-role branching.
+ * State: Query [settings] | local [] (react-hook-form only) | Zustand [].
+ */
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";

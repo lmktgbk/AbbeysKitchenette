@@ -1,3 +1,10 @@
+/**
+ * ChangePasswordPage — forced first-login password change (authenticated).
+ * WHY it exists: clears user.mustChangePwd via POST /auth/change-password, then
+ * role-redirects. Query keys consumed: none (direct changePasswordRequest). Guards:
+ * authenticated + mustChangePwd gate; role redirect admin→/dashboard, kitchen→/kitchen, else /pos.
+ * State: Query [] | local [serverError] | Zustand [user, setUser via useAuthStore].
+ */
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -12,11 +19,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
-/**
- * ChangePasswordPage — forced first-login change (authenticated).
- * Rendered at /change-password when user.mustChangePwd is true.
- * Uses POST /auth/change-password which clears mustChangePwd.
- */
 export default function ChangePasswordPage() {
     const navigate = useNavigate();
     const [serverError, setServerError] = useState("");

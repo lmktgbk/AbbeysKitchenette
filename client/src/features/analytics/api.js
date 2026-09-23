@@ -1,3 +1,8 @@
+/**
+ * Analytics API — owns KPI fetch + Excel export transport.
+ * WHY: centralizes date-param normalization (camelCase to snake_case) and blob download. Contract: GET /analytics/kpis, GET /analytics/export (blob, parses content-disposition filename, triggers download); KPI calls return res.data envelope.
+ * State: axios wrappers, no state.
+ */
 import api from "@/config/axios";
 
 function toSnakeParams(params = {}) {

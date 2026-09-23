@@ -1,3 +1,11 @@
+/**
+ * DashboardPage — admin analytics overview (KPIs, revenue, operations, waste + anomaly banner).
+ * WHY it exists: single date-scoped overview composing dashboard + analytics + anomaly
+ * modules. Query keys consumed: ["dashboard","data",params] via useDashboardData,
+ * ["dashboard","revenueTrend",params] via useRevenueTrend, ["analytics","kpis",params] via
+ * useAnalyticsKpis. Guards: admin-only route; no BR-02 shift gate, no per-role branching.
+ * State: Query [data, trendData, analyticsData] | local [dateFrom, dateTo, granularity, wasteOpen, exportOpen] | Zustand [].
+ */
 import { useState, useCallback, useMemo } from "react";
 import { useDashboardData, useRevenueTrend } from "../query";
 import DashboardHeader from "../components/DashboardHeader";

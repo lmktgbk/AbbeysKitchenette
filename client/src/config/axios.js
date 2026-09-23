@@ -1,3 +1,8 @@
+/**
+ * Axios — owns shared HTTP transport (baseURL from VITE_API_URL + cookie auth).
+ * WHY: centralizes VITE_API_URL baseURL and withCredentials cookie auth so features never configure axios directly; response interceptor passes through errors (redirects live in Router guards, not here).
+ * State: axios instance only, no app state; values unchanged.
+ */
 import axios from "axios";
 
 const api = axios.create({

@@ -30,14 +30,17 @@ const variantEntrySchema = z.object({
 
 // ── Product Schemas ───────────────────────────────
 
-// Used by POST /api/products — create product with variants and recipes
+// Used by POST /api/products — create product with variants and recipes.
+// Bundle promotions (is_bundle:true) skip subcategory_id — the server auto-assigns
+// the system-owned Bundles/Bundle subcategory via categoryService.ensureBundleSubcategory.
 export const createProductSchema = z.object({
   product_name: z
     .string()
     .trim()
     .min(1, "Product name is required")
     .max(150, "Product name must not exceed 150 characters"),
-  subcategory_id: z.number().int().positive("Subcategory is required"),
+  subcategory_id: z.number().int().positive("Subcategory is required").optional(),
+  is_bundle: z.boolean().optional().default(false),
   description: z
     .string()
     .trim()
@@ -49,6 +52,14 @@ export const createProductSchema = z.object({
   variants: z
     .array(variantEntrySchema)
     .min(1, "At least one variant is required"),
+}).superRefine((data, ctx) => {
+  if (!data.is_bundle && data.subcategory_id === undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["subcategory_id"],
+      message: "Subcategory is required",
+    });
+  }
 });
 
 // Used by PATCH /api/products/:id — update product info only

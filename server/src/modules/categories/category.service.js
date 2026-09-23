@@ -63,6 +63,59 @@ export const categoryService = {
   /* ── Subcategory Mutations ──────────── */
 
   /**
+   * System-owned Bundle location for promotion-created combo products.
+   * Root "Bundles" is SQL-managed like Food/Beverages; sub "Bundle" is auto-created.
+   * Race-safe: unique constraints (Category.categoryName, Subcategory[categoryId, subcategoryName])
+   * turn concurrent ensures into a refetch instead of duplicates.
+   */
+  BUNDLE_ROOT_NAME: "Bundles",
+  BUNDLE_SUB_NAME: "Bundle",
+
+  /**
+   * Find-or-create the Bundles/Bundle subcategory for promotion combos.
+   * Creates the root too when missing (fresh DBs where roots were never seeded via SQL).
+   * WHY upserts: find-then-create races under concurrent submits (create hits P2002
+   * while the winner's row is still uncommitted, then the refetch misses it and the
+   * caller crashes on null). Upsert resolves the conflict atomically server-side.
+   * @param {string|null} [userId] - admin attributed in the audit log on auto-create
+   * @returns {Promise<object>} - subcategory response with subcategory_id
+   * @throws {AppError} 500 BUNDLE_ENSURE_FAILED if the location cannot be resolved
+   */
+  async ensureBundleSubcategory(userId = null) {
+    let root;
+    let sub;
+    try {
+      root = await categoryRepository.upsertRootByName(
+        categoryService.BUNDLE_ROOT_NAME,
+        "System-owned root for promotion bundle products",
+      );
+      sub = await categoryRepository.upsertSub(
+        root.categoryId,
+        categoryService.BUNDLE_SUB_NAME,
+        "Auto-created for promotion bundle products",
+      );
+    } catch (err) {
+      console.error("[bundle] Failed to ensure Bundles/Bundle location:", err?.message ?? err);
+      throw new AppError(500, "Could not resolve Bundle category. Please try again.", "BUNDLE_ENSURE_FAILED");
+    }
+    if (!root || !sub) {
+      console.error("[bundle] Bundle location resolved to null after upsert.");
+      throw new AppError(500, "Could not resolve Bundle category. Please try again.", "BUNDLE_ENSURE_FAILED");
+    }
+
+    // Best-effort audit trail for the auto-created row (never blocks creation).
+    auditLogService.logAction({
+      userId,
+      action: ACTIONS.CATEGORY_CREATED,
+      targetType: "subcategory",
+      targetId: String(sub.subcategoryId),
+      details: { name: sub.subcategoryName, parent_id: root.categoryId, auto: "bundle-ensure" },
+    }).catch(() => {});
+
+    return toSubcategoryResponse(sub);
+  },
+
+  /**
    * Create a subcategory under a root category.
    * @param {number} categoryId - parent category_id
    * @param {object} data - { subcategory_name, description? }

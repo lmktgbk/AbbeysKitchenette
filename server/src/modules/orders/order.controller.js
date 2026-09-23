@@ -39,11 +39,12 @@ export const orderController = {
 
   /**
    * GET /api/orders/stats
-   * Status counts for KPI cards.
+   * Status counts for KPI cards, optionally scoped to a date range.
    */
   async getStats(req, res) {
     try {
-      const stats = await orderService.getStats();
+      const { date_from, date_to } = req.validatedQuery ?? {};
+      const stats = await orderService.getStats({ dateFrom: date_from, dateTo: date_to });
       return successResponse(res, "Stats retrieved", { stats });
     } catch (error) {
       return handleError(res, error, "GET_STATS_ERROR");

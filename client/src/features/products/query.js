@@ -1,13 +1,7 @@
 /**
- * Product Query Layer
- *
- * Centralized query + mutation hooks for the products feature.
- * Follows the ingredients pattern: components import hooks, not API functions.
- *
- * Structure:
- * - productKeys / categoryKeys: internal key factories (not exported)
- * - Query hooks: useProductList, useProductSummary, useProductDetail, useCategoryList
- * - Mutation hooks: useProductMutations, useCategoryMutations
+ * Products Queries — owns product / category / price-optimization hooks + mutations.
+ * WHY: keeps menu data consistent across POS and admin after CRUD. Keys: ["products", ...] (list(params), summary, detail(id)), ["categories"], ["priceOptimization", "suggestions", productId]; mutations invalidate product/category/price keys by scope; otherwise global staleTime 5m.
+ * State: TanStack Query hooks only, no local state; invalidation via useQueryClient.
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";

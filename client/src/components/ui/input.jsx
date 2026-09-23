@@ -1,3 +1,4 @@
+/** Input — text field with inline error line. WHY it exists: pairs field + validation message so forms share focus/error styling; consumed by auth/profile/feature forms. State: none (forwardRef). */
 import { forwardRef } from "react";
 import { cn } from "@/lib/utils";
 

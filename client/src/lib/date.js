@@ -1,3 +1,4 @@
+/** date — locale presets + formatters. WHY it exists: one en-US date/time vocabulary so tables and history read consistently; consumed by batch lists and audit views. State: none. */
 const LOCALE = "en-US";
 
 const formats = {

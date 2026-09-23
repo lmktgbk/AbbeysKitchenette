@@ -1,3 +1,8 @@
+/**
+ * Auth API — owns login / OTP 2FA / password-reset / session transport.
+ * WHY: single contract owner for cookie-session auth so stores and guards stay thin. Contract: POST /auth/login, POST /auth/admin-login, POST /auth/verify-otp, POST /auth/resend-otp, POST /auth/forgot-password, POST /auth/reset-password, GET /auth/me, POST /auth/logout, POST /auth/change-password; returns res.data envelope.
+ * State: axios wrappers, no state.
+ */
 import api from "@/config/axios";
 
 /* ── Login  */

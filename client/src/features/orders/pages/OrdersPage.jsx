@@ -1,3 +1,11 @@
+/**
+ * OrdersPage — live order queue + detail / accept-payment / cancel / remove-item flows (embedded mode under /pos).
+ * WHY it exists: central cashier queue; BR-02 open-shift gate on accept-payment prompts
+ * OpenShiftModal when no shift is open. Query keys consumed: ["orders","list",params] via
+ * useOrderList, ["orders","detail",id] via useOrderDetail (detail + cancel), ["landing","storeSettings"]
+ * via useStoreSettings. Guards: BR-02 shift gate on payment; role guard user.role==="admin" for ledger view.
+ * State: Query [ordersData, detailData, cancelDetailData, storeSettingsData] | local [view, showOpenShift, page, search, statusFilter, dateFrom, dateTo, pageSize, showDetailModal, selectedOrderId, acceptingOrder, cancellingOrderId, removingItem] | Zustand [user via useAuthStore].
+ */
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { useOrderList, useOrderDetail, useOrderMutations } from "../query";
@@ -30,12 +38,6 @@ const CANCEL_REASONS = [
   { value: "other", label: "Other" },
 ];
 
-/**
- * OrdersPage
- *
- * Main orchestrator for order management.
- * Live queue only — shifts live in the Staff module (POS handles open/close).
- */
 export default function OrdersPage({ embedded = false }) {
   const mutations = useOrderMutations();
   const shiftMutations = useShiftMutations();
@@ -334,8 +336,8 @@ export default function OrdersPage({ embedded = false }) {
       <div key={view} className="flex flex-col gap-4 kds-fade-in">
         {(!showViews || view === "orders") && (
           <>
-            {/* KPI Stats */}
-            <OrderStats activeStatus={statusFilter} onStatusClick={setStatusFilter} />
+            {/* KPI Stats — scoped to the same date range as the table */}
+            <OrderStats activeStatus={statusFilter} onStatusClick={setStatusFilter} dateFrom={dateFrom} dateTo={dateTo} />
           </>
         )}
 

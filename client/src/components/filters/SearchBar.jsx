@@ -3,8 +3,7 @@ import { Input } from "@/components/ui/input";
 import Icon from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 
-/**
- * SearchBar — reusable search input with icon and optional filter button.
+/** SearchBar — search field with optional filter button. WHY it exists: one search + filter entry point keeping list pages consistent; consumed by ingredient/order/staff tables with FilterModal. State: none (controlled value).
  *
  * @param {Object} props
  * @param {string} props.value - Controlled value

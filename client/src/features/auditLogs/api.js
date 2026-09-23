@@ -1,3 +1,8 @@
+/**
+ * AuditLogs API — owns compliance audit-trail transport.
+ * WHY: centralizes filter-to-querystring mapping so tables pass plain objects. Contract: GET /audit-logs?page=&limit=&userId=&action=&actions=&targetType=&startDate=&endDate=&search=; returns res.data envelope.
+ * State: axios wrappers, no state.
+ */
 import api from "@/config/axios";
 
 /** Get audit logs with filters and pagination */

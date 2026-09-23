@@ -306,12 +306,21 @@ export const orderRepository = {
   },
 
   /**
-   * Get status counts for KPI cards.
-   * @returns {object} - { pending, accepted, next_in_line, processing, completed, cancelled }
+   * Get status counts for KPI cards, optionally scoped to order_date range.
+   * Same date semantics as the list filter (order_date >= dateFrom, <= dateTo).
+   * @param {object} [filters] - { dateFrom?: "YYYY-MM-DD", dateTo?: "YYYY-MM-DD" }
+   * @returns {object} - { pending, accepted, preparing, completed, cancelled }
    */
-  async countByStatus() {
+  async countByStatus({ dateFrom, dateTo } = {}) {
+    const where = {};
+    if (dateFrom || dateTo) {
+      where.orderDate = {};
+      if (dateFrom) where.orderDate.gte = new Date(`${dateFrom}T00:00:00`);
+      if (dateTo) where.orderDate.lte = new Date(`${dateTo}T00:00:00`);
+    }
     const result = await prisma.order.groupBy({
       by: ["status"],
+      where,
       _count: { _all: true },
     });
 

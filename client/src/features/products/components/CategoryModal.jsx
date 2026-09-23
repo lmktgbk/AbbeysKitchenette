@@ -25,11 +25,20 @@ function handleMutationError(err, action) {
 }
 
 /**
- * CategoryModal
- *
- * Subcategory management modal.
- * Root categories (Food, Beverages) are read-only section headers.
- * Users add/edit/delete subcategories under each root.
+ * isBundleSub — the system-owned promotion subcategory is locked.
+ * WHY: Create Promotion auto-assigns Bundles/Bundle server-side; renaming or
+ * deleting it would break bundle creation, so the UI hides edit/delete for it.
+ */
+function isBundleSub(sub) {
+  return sub?.subcategory_name === "Bundle";
+}
+
+/**
+ * CategoryModal — subcategory management modal.
+ * Root categories (Food, Beverages, Bundles) are read-only section headers.
+ * The system-owned "Bundle" subcategory (auto-assigned to promotions) is locked:
+ * no rename, no delete — it must always exist for Create Promotion.
+ * Other subcategories can be added/edited/deleted under each root.
  *
  * Props:
  * - open: boolean
@@ -62,6 +71,10 @@ export default function CategoryModal({
   }
 
   function handleOpenEdit(sub) {
+    if (isBundleSub(sub)) {
+      toast.error('The "Bundle" category is system-owned and cannot be renamed.');
+      return;
+    }
     setMode("edit");
     setEditingId(sub.subcategory_id);
     setEditData(sub);
@@ -105,6 +118,10 @@ export default function CategoryModal({
   }
 
   async function handleDelete(sub) {
+    if (isBundleSub(sub)) {
+      toast.error('The "Bundle" category is system-owned and cannot be deleted.');
+      return;
+    }
     if (sub.product_count > 0) {
       toast.error(`Cannot delete "${sub.subcategory_name}" — it has ${sub.product_count} product(s).`);
       return;
@@ -240,10 +257,16 @@ function ListMode({
                         <span className="truncate text-sm text-foreground">
                           {sub.subcategory_name}
                         </span>
+                        {isBundleSub(sub) && (
+                          <span className="ml-2 rounded-full border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                            Auto
+                          </span>
+                        )}
                         <span className="ml-2 text-xs text-muted-foreground">
                           {sub.product_count} {sub.product_count === 1 ? "product" : "products"}
                         </span>
                       </div>
+                      {!isBundleSub(sub) && (
                       <div className="ml-2 flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                         <button
                           type="button"
@@ -263,6 +286,7 @@ function ListMode({
                           <Icon name="trash2" size={14} />
                         </button>
                       </div>
+                      )}
                     </div>
                   ))}
                 </div>

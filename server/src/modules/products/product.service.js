@@ -1,4 +1,5 @@
 import { productRepository } from "./product.repository.js";
+import { categoryService } from "../categories/category.service.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import prisma from "../../config/prisma.js";
 import { deleteImage } from "../../utils/cloudinary.js";
@@ -253,7 +254,15 @@ export const productService = {
       throw new AppError(409, "A product with that name already exists", "PRODUCT_EXISTS");
     }
 
-    // Step 1b: Reject doubled recipe lines with a named error (not P2002).
+    // Step 1b: Bundle promotions carry is_bundle:true instead of a subcategory —
+    // auto-assign the system-owned Bundles/Bundle subcategory (find-or-create).
+    let subcategoryId = data.subcategory_id;
+    if (data.is_bundle && subcategoryId === undefined) {
+      const bundleSub = await categoryService.ensureBundleSubcategory(userId);
+      subcategoryId = bundleSub.subcategory_id;
+    }
+
+    // Step 1c: Reject doubled recipe lines with a named error (not P2002).
     await this._assertNoDuplicateRecipeLines(data.variants);
 
     // Step 2: Create product + variants + recipes in a transaction
@@ -263,7 +272,7 @@ export const productService = {
       const newProduct = await productRepository.create(
         {
           productName: data.product_name.trim(),
-          subcategoryId: data.subcategory_id,
+          subcategoryId,
           description: data.description || null,
           imageUrl: data.image_url || null,
           isAvailable: data.is_available ?? true,

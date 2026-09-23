@@ -53,7 +53,6 @@ export default function ProfileForm({ mutation }) {
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
-      {/* Avatar */}
       <div className="flex flex-col items-center gap-3">
         <button
           type="button"
@@ -92,7 +91,6 @@ export default function ProfileForm({ mutation }) {
         />
       </div>
 
-      {/* Name */}
       <div>
         <label className="mb-1.5 block text-sm font-semibold text-foreground">
           Name
@@ -104,7 +102,6 @@ export default function ProfileForm({ mutation }) {
         />
       </div>
 
-      {/* Email */}
       <div>
         <label className="mb-1.5 block text-sm font-semibold text-foreground">
           Email

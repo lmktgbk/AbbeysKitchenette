@@ -1,3 +1,8 @@
+/**
+ * Dashboard API — owns dashboard analytics transport.
+ * WHY: keeps consolidated + trend endpoints together so query split stays consistent. Contract: GET /dashboard, GET /dashboard/revenue-trend; returns res.data envelope.
+ * State: axios wrappers, no state.
+ */
 import api from "@/config/axios";
 
 /**

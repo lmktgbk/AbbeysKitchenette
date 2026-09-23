@@ -1,3 +1,4 @@
+/** Sidebar — admin nav shell with grouped links + account footer. WHY it exists: single place owning nav structure and collapse behavior; consumed by AdminLayout. State: local [profileOpen]; global layoutStore.collapsed, authStore.user. */
 import { useState } from "react";
 import useAuthStore from "@/features/auth/authStore";
 import useLayoutStore from "@/stores/layoutStore";

@@ -67,8 +67,12 @@ export const orderService = {
     }));
   },
 
-  async getStats() {
-    return orderRepository.countByStatus();
+  /**
+   * Status counts for KPI cards, optionally scoped to order_date range.
+   * @param {object} [filters] - { dateFrom?: "YYYY-MM-DD", dateTo?: "YYYY-MM-DD" }
+   */
+  async getStats({ dateFrom, dateTo } = {}) {
+    return orderRepository.countByStatus({ dateFrom, dateTo });
   },
 
   async getById(id) {

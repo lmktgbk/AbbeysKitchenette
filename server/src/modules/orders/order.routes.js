@@ -17,6 +17,7 @@ import {
   orderItemParamSchema,
   lossIdParamSchema,
   getOrdersQuerySchema,
+  getStatsQuerySchema,
 } from "./order.validation.js";
 
 const router = Router();
@@ -38,6 +39,7 @@ router.get(
   "/stats",
   authenticate,
   authorize("admin", "cashier"),
+  validateQuery(getStatsQuerySchema),
   orderController.getStats,
 );
 

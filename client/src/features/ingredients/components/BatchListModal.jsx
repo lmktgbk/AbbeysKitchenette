@@ -179,7 +179,6 @@ export default function BatchListModal({ open, onOpenChange, ingredient }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col p-0">
-        {/* Header */}
         <div className="flex items-start justify-between border-b border-border px-6 py-4">
           <div>
             <h3 className="text-base font-semibold text-foreground">
@@ -248,7 +247,6 @@ export default function BatchListModal({ open, onOpenChange, ingredient }) {
           </div>
         </div>
 
-        {/* Filter Modal */}
         <FilterModal
           open={filterOpen}
           onOpenChange={setFilterOpen}
@@ -268,7 +266,6 @@ export default function BatchListModal({ open, onOpenChange, ingredient }) {
           currentFilters={activeTab === "history" ? activeHistoryFilters : {}}
         />
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto min-h-0">
           {activeTab === "batches" ? (
             <BatchesTab
@@ -385,7 +382,6 @@ function BatchRow({ batch, ingredient, onTogglePriority, isPriorityLoading }) {
         `${batch.is_priority ? "bg-primary/5" : ""} ${isDepleted ? "opacity-50" : ""}`
       }
     >
-      {/* Star */}
       <TableCell className="w-12 px-3">
         <button
           onClick={() => onTogglePriority(batch.batch_id, !batch.is_priority)}
@@ -400,22 +396,18 @@ function BatchRow({ batch, ingredient, onTogglePriority, isPriorityLoading }) {
         </button>
       </TableCell>
 
-      {/* ID */}
       <TableCell className="w-20 font-mono text-muted-foreground text-xs text-center">
         B-{batch.batch_id}
       </TableCell>
 
-      {/* Date */}
       <TableCell className="w-24 text-muted-foreground text-center">
         {dateStr}
       </TableCell>
 
-      {/* Added */}
       <TableCell className="w-24 text-center font-mono whitespace-nowrap">
         {batch.quantity_added.toLocaleString()} {unit}
       </TableCell>
 
-      {/* Remaining */}
       <TableCell className={`w-28 text-center font-mono font-medium whitespace-nowrap ${isDepleted
         ? "text-muted-foreground"
         : "text-green-600 dark:text-green-400"
@@ -432,22 +424,18 @@ function BatchRow({ batch, ingredient, onTogglePriority, isPriorityLoading }) {
         />
       </TableCell>
 
-      {/* Cost per Unit */}
       <TableCell className="w-28 text-center font-mono text-muted-foreground whitespace-nowrap">
         ₱{batch.cost_per_unit.toFixed(2)}/{unit}
       </TableCell>
 
-      {/* Total Cost */}
       <TableCell className="w-28 text-center font-mono whitespace-nowrap">
         ₱{batch.total_cost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
       </TableCell>
 
-      {/* Supplier */}
       <TableCell className="truncate max-w-[120px]" title={batch.supplier_name || undefined}>
         {batch.supplier_name || "—"}
       </TableCell>
 
-      {/* Notes icon */}
       <TableCell className="w-10 px-3 text-center">
         {batch.notes ? (
           <span className="group relative inline-flex items-center justify-center">
@@ -612,12 +600,10 @@ function HistoryRow({ entry, unit }) {
 
   return (
     <div className="relative flex items-start gap-4 py-3 pl-0">
-      {/* Timeline dot */}
       <div className="relative z-10 mt-1.5 flex h-[10px] w-[10px] shrink-0 items-center justify-center">
         <span className={`block h-2.5 w-2.5 rounded-full ${config.dot}`} />
       </div>
 
-      {/* Content */}
       <div className="flex-1 min-w-0">
         {/* Top row: Badge + quantity (left) | who + when (right) */}
         <div className="flex items-center justify-between gap-4">

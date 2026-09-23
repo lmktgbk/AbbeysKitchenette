@@ -1,3 +1,10 @@
+/**
+ * StaffPage — staff list + shifts views with create/edit/toggle/reset-password flows.
+ * WHY it exists: single orchestrator for staff CRUD and shift history/KPIs (ShiftsView).
+ * Query keys consumed: staff/shift data via child hooks (["staff",...], ["shifts",...]);
+ * page owns date-range params for shift KPIs. Guards: admin-only route; no BR-02 shift gate.
+ * State: Query [] | local [view, showFormModal, selectedStaff, isEditMode, showResetPasswordModal, createdPassword, createdStaffName, dateFrom, dateTo] | Zustand [].
+ */
 import { useState } from "react";
 import { toast } from "sonner";
 import { useStaffMutations } from "../query";
@@ -10,12 +17,6 @@ import ShiftKpis from "@/features/shifts/components/ShiftKpis";
 import ResetPasswordModal from "../components/ResetPasswordModal";
 import { FilterPill } from "@/components/filters/FilterPill";
 
-/**
- * StaffPage
- *
- * Main orchestrator for staff management.
- * Two views: Staff List (default) and Shifts (drawer sessions).
- */
 export default function StaffPage() {
   const [view, setView] = useState("list");
   const [showFormModal, setShowFormModal] = useState(false);

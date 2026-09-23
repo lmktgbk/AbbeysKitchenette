@@ -1,3 +1,10 @@
+/**
+ * ResetPasswordPage — completes password reset via ?token link.
+ * WHY it exists: token-gated new-password form ending the forgot-password flow.
+ * Query keys consumed: none (direct resetPasswordRequest, not react-query). Guards:
+ * public route; invalid/missing token shows error state; no BR-02 shift gate.
+ * State: Query [] | local [submitted, serverError] | Zustand [].
+ */
 import { useState } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";

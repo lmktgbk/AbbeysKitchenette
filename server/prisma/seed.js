@@ -181,6 +181,10 @@ const SUBCATEGORY_DATA = {
     { subcategoryName: "Tea", description: "Tea-based drinks" },
     { subcategoryName: "Cold Drinks", description: "Non-coffee and non-tea beverages" },
   ],
+  // System-owned promotion bundles — auto-assigned by Create Promotion, never picked manually.
+  Bundles: [
+    { subcategoryName: "Bundle", description: "Auto-created for promotion bundle products" },
+  ],
 };
 
 const CUSTOMER_NAMES = [
@@ -262,6 +266,14 @@ async function main() {
 
   // ── Phase 1: Categories & Subcategories ──
   console.log("Phase 1: Categories & Subcategories");
+
+  // Ensure system-owned roots exist (roots are SQL-managed in prod; seed covers fresh DBs).
+  // "Bundles" owns the auto-created "Bundle" subcategory used by Create Promotion.
+  await prisma.category.upsert({
+    where: { categoryName: "Bundles" },
+    update: {},
+    create: { categoryName: "Bundles", description: "System-owned root for promotion bundle products" },
+  }).catch(() => {});
 
   // Use existing root categories
   const rootCategories = await prisma.category.findMany();

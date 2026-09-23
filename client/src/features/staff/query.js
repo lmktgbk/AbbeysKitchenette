@@ -1,3 +1,8 @@
+/**
+ * Staff Queries — owns staff list / detail / summary hooks + CRUD mutations.
+ * WHY: centralizes staff cache so admin tables stay consistent after edits. Keys: ["staff", ...] (list(params) with keepPreviousData, detail(id) enabled !!id, summary); all mutations invalidate ["staff"]; otherwise global staleTime 5m.
+ * State: TanStack Query hooks only, no local state; invalidation via useQueryClient.
+ */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as api from "./api";
 

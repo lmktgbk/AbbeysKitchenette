@@ -2,11 +2,7 @@ import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 
-/**
- * ImagePlaceholder
- *
- * Reusable image wrapper with graceful fallback.
- * Shows placeholder when src is null/empty or when the image fails to load.
+/** ImagePlaceholder — image with icon/text fallback. WHY it exists: avoids broken-img holes when src is missing or load fails; consumed by product/menu cards. State: local [errored, loaded].
  *
  * Props:
  * - src: string | null — image URL

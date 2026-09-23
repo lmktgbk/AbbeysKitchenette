@@ -1,3 +1,10 @@
+/**
+ * AdminLoginPage — standalone admin login (email + password + OTP).
+ * WHY it exists: separate from staff login; only entry with forgot-password link, reached
+ * directly via /admin-login. Query keys consumed: none (direct auth API via EmailForm).
+ * Guards: public admin-only route; no BR-02 shift gate.
+ * State: Query [] | local [] | Zustand [user/token via useAuthStore inside EmailForm].
+ */
 import { Link } from "react-router-dom";
 import AuthBranding from "../components/AuthBranding";
 import EmailForm from "../components/EmailForm";
@@ -5,11 +12,6 @@ import ModeToggle from "@/components/ModeToggle";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-/**
- * AdminLoginPage — standalone admin login.
- * Separate from staff login. Email + password + OTP.
- * No link from staff login — must be accessed directly via /admin-login.
- */
 export default function AdminLoginPage() {
     return (
         <Card className="relative p-8">

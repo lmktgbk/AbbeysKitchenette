@@ -1,3 +1,8 @@
+/**
+ * AnomalyDetection API — owns anomaly detection transport.
+ * WHY: isolates Python-service anomaly endpoints from dashboard polling logic. Contract: GET /anomaly/results, GET /anomaly/active?severity=, GET /anomaly/stats, PATCH /anomaly/:id/acknowledge, POST /anomaly/scan; returns res.data envelope.
+ * State: axios wrappers, no state.
+ */
 import api from "@/config/axios";
 
 export async function getAnomalyResults(params = {}) {

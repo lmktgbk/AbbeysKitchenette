@@ -1,3 +1,10 @@
+/**
+ * LoginPage — staff login card (branding + EmailForm in staff mode).
+ * WHY it exists: dedicated staff entry point with no forgot-password link (admin-only
+ * flow). Query keys consumed: none (auth uses direct API + EmailForm mutation).
+ * Guards: public route with authenticated-redirect; mustChangePwd → /change-password.
+ * State: Query [] | local [] | Zustand [user/token via useAuthStore inside EmailForm].
+ */
 import AuthBranding from "../components/AuthBranding";
 import EmailForm from "../components/EmailForm";
 import ModeToggle from "@/components/ModeToggle";

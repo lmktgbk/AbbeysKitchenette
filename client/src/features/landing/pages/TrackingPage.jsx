@@ -1,17 +1,16 @@
+/**
+ * TrackingPage — public live order tracking at /track/:token (BR-04).
+ * WHY it exists: read-only guest status view polling the same cadence as the POS feed;
+ * changes/cancels happen at the counter. Query keys consumed: ["guest","order",token] via
+ * useGuestOrder (15s poll). Guards: public token gate; read-only by design; no BR-02 shift gate.
+ * State: Query [data/order] | local [] | Zustand [].
+ */
 import { Link, useParams } from "react-router-dom";
 import "../ordering.css";
 import { useGuestOrder } from "@/features/orders/query";
 import { orderNumberLabel } from "@/lib/orderNumber";
 import OrderStatusStepper from "../components/OrderStatusStepper";
 import Icon from "@/components/ui/icon";
-
-/**
- * TrackingPage (BR-04)
- *
- * Public live order tracking at /track/:token (full token only).
- * Polls every 15s (same cadence as the POS feed). Read-only by
- * design — changes and cancels happen at the counter.
- */
 
 export default function TrackingPage() {
     const { token } = useParams();

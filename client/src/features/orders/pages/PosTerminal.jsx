@@ -1,3 +1,11 @@
+/**
+ * PosTerminal — full-screen terminal shell (header + Outlet for /pos, /pos/orders, /pos/kitchen).
+ * WHY it exists: gives cashiers/kitchen a chromeless workspace separate from the admin
+ * sidebar; owns view-switch, receipt auto-print toggle, and logout. Query keys consumed:
+ * none (no useQuery; receipts use localStorage via shouldAutoPrint). Guards: router-level
+ * staff roles; no BR-02 shift gate here (lives in OrdersPage/POS).
+ * State: Query [] | local [autoPrint] | Zustand [user, logout via useAuthStore].
+ */
 import { useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import useAuthStore from "@/features/auth/authStore";
@@ -15,20 +23,6 @@ const VIEW_OPTIONS = [
   { value: "kitchen", label: "Kitchen" },
 ];
 
-/**
- * PosTerminal — full-screen terminal layout for cashiers.
- *
- * Shared header with:
- * - SmartCafe brand
- * - FilterPill to toggle POS / Orders views
- * - Dark/light mode toggle
- * - User profile (name + role)
- * - Sign out button
- *
- * Child routes render via <Outlet />:
- * - /pos          → PosInterface (product menu + order summary)
- * - /pos/orders   → OrdersPage (embedded, no sidebar)
- */
 export default function PosTerminal() {
   const navigate = useNavigate();
   const location = useLocation();

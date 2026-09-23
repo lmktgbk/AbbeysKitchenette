@@ -1,3 +1,8 @@
+/**
+ * MarketBasket API — owns MBA analysis job transport.
+ * WHY: isolates promotions-service query-string building from combo UI. Contract: POST /promotions/analyze?minSupport=&minConfidence=&topN=, GET /promotions/jobs?limit=, GET /promotions/jobs/:jobId, POST /promotions/mark-combo-created; returns res.data envelope.
+ * State: axios wrappers, no state.
+ */
 import api from "@/config/axios";
 
 export async function analyzeMarketBasketRequest(params = {}) {

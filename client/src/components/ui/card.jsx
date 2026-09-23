@@ -1,3 +1,4 @@
+/** Card — bordered surface + Header/Title/Description/Content/Footer slots. WHY it exists: consistent panel rhythm without re-declaring Tailwind; consumed by dashboards and detail views. State: none. */
 import { cn } from "@/lib/utils";
 
 export function Card({ className, ...props }) {
