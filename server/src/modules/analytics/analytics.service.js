@@ -65,20 +65,21 @@ export const analyticsService = {
       dashboardRepository.getWasteByType(dateFrom, dateTo),
       dashboardRepository.getStockValue(),
     ]);
+    // rest[] follows the Promise.all order above starting at getOrdersByStatus.
     return {
       kpis,
       trend,
-      ordersByStatus: rest[1],
-      topProducts: rest[2],
-      leastProducts: rest[3],
-      salesByCategory: rest[4],
-      ordersByHour: rest[5],
-      ordersByDayOfWeek: rest[6],
-      cancellationReasons: rest[7],
-      fulfillmentTime: rest[8],
-      ingredientStatus: rest[9],
-      wasteByType: rest[10],
-      stockValue: rest[11],
+      ordersByStatus: rest[0],
+      topProducts: rest[1],
+      leastProducts: rest[2],
+      salesByCategory: rest[3],
+      ordersByHour: rest[4],
+      ordersByDayOfWeek: rest[5],
+      cancellationReasons: rest[6],
+      fulfillmentTime: rest[7],
+      ingredientStatus: rest[8],
+      wasteByType: rest[9],
+      stockValue: rest[10],
     };
   },
 };

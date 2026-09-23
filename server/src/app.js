@@ -3,8 +3,6 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
-import path from "path";
-import { fileURLToPath } from "url";
 
 // Imports
 import { env } from "./config/env.js";
@@ -33,9 +31,6 @@ import anomalyDetectionRoutes from "./modules/anomalyDetection/anomalyDetection.
 import shiftRoutes from "./modules/shifts/shift.routes.js";
 import transactionRoutes from "./modules/transactions/transaction.routes.js";
 import analyticsRoutes from "./modules/analytics/analytics.routes.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 app.disable("etag");
@@ -73,9 +68,6 @@ app.use(cookieParser());
 // 500 req / 15 min per IP globally; tighter limiters guard auth,
 // checkout, and other sensitive endpoints individually.
 app.use(generalLimiter);
-
-// Serve uploaded files statically
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // Routes endpoints
 app.use("/api/auth", authRoutes);
