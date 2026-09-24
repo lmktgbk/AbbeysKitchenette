@@ -5,9 +5,8 @@
  *   /                → Landing page (public)
  *   /login           → Staff login (cashier + kitchen, public, redirect if logged in)
  *   /admin-login     → Hidden admin login (admin only + OTP, public, never linked)
- *   /forgot-password → Forgot password (public, admin-only enforced server-side)
- *   /reset-password  → Reset password from link (public, admin-only enforced server-side)
- *   /change-password → Forced first-login change (authenticated, mustChangePwd)
+ *   /forgot-password → Forgot password (public, all roles, emailed reset link)
+ *   /reset-password  → Reset password from link (public, all roles)
  *   /dashboard       → Dashboard (protected, admin layout)
  *   /products        → Products (protected, admin layout)
  *   /inventory       → Inventory (protected, admin layout)
@@ -36,7 +35,6 @@ import LoginPage from "@/features/auth/pages/LoginPage";
 import AdminLoginPage from "@/features/auth/pages/AdminLoginPage";
 import ForgotPasswordPage from "@/features/auth/pages/ForgotPasswordPage";
 import ResetPasswordPage from "@/features/auth/pages/ResetPasswordPage";
-import ChangePasswordPage from "@/features/auth/pages/ChangePasswordPage";
 import IngredientsPage from "@/features/ingredients/pages/InventoryPage";
 import ProductsPage from "@/features/products/pages/ProductsPage";
 import OrdersPage from "@/features/orders/pages/OrdersPage";
@@ -105,14 +103,6 @@ const router = createBrowserRouter([
             },
             { path: "/forgot-password", element: <ForgotPasswordPage /> },
             { path: "/reset-password", element: <ResetPasswordPage /> },
-            {
-                path: "/change-password",
-                element: (
-                    <ProtectedRoute>
-                        <ChangePasswordPage />
-                    </ProtectedRoute>
-                ),
-            },
         ],
     },
 

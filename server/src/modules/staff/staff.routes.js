@@ -10,7 +10,6 @@ import {
 import {
   createStaffSchema,
   updateStaffSchema,
-  resetPasswordSchema,
   idParamSchema,
   getStaffQuerySchema,
 } from "./staff.validation.js";
@@ -50,14 +49,6 @@ router.patch(
   "/:id/toggle-active",
   validateParams(idParamSchema),
   staffController.toggleActive,
-);
-
-// POST /api/staff/:id/reset-password — reset password
-router.post(
-  "/:id/reset-password",
-  validateParams(idParamSchema),
-  validate(resetPasswordSchema),
-  staffController.resetPassword,
 );
 
 // DELETE /api/staff/:id — hard delete

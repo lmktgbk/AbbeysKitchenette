@@ -17,48 +17,110 @@ export async function sendEmail({ to, subject, html }) {
   return transporter.sendMail(mailOptions);
 }
 
+// ── Shared theme ─────────────────────────────────────────────
+// Warm amber-orange palette mirroring the app UI primary
+// (--primary oklch(0.6688 0.1174 50.1276) → #ce7e4f, as used by
+// bg-primary buttons, pills, and active states app-wide). Flat hex +
+// table layout + inline styles for Outlook/Gmail safety. No oklch,
+// CSS vars, or dark-mode switching — email clients can't do those.
+const THEME = {
+  pageBg: "#fef9f0",
+  cardBg: "#ffffff",
+  tintBg: "#fbf0ea",
+  accent: "#ce7e4f",
+  ink: "#1c1008",
+  muted: "#7c5c3e",
+  border: "#e8d5c4",
+};
+
+/**
+ * Shared professional base layout for all transactional emails.
+ * @param {object} opts - { heading, introHtml, actionHtml, footNote }
+ */
+function baseEmailLayout({ heading, introHtml, actionHtml = "", footNote }) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${heading} — Abbey's Kitchenette</title>
+</head>
+<body style="margin:0;padding:0;background-color:${THEME.pageBg};font-family:Inter,Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${THEME.pageBg};margin:0;padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:560px;max-width:100%;background-color:${THEME.cardBg};border:1px solid ${THEME.border};border-radius:12px;overflow:hidden;">
+          <tr>
+            <td bgcolor="${THEME.accent}" style="background-color:${THEME.accent};height:6px;font-size:0;line-height:0;">&nbsp;</td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:28px 32px 8px;">
+              <div style="font-family:'Space Grotesk',Arial,Helvetica,sans-serif;font-size:22px;font-weight:bold;color:${THEME.accent};margin:0;">Abbey's Kitchenette</div>
+              <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:${THEME.muted};margin:6px 0 0;">POS &amp; Inventory System</div>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:20px 32px 8px;">
+              <h1 style="font-family:'Space Grotesk',Arial,Helvetica,sans-serif;font-size:20px;font-weight:bold;color:${THEME.ink};margin:0 0 12px;">${heading}</h1>
+              <div style="font-size:14px;line-height:1.7;color:${THEME.muted};margin:0;">${introHtml}</div>
+            </td>
+          </tr>
+          ${actionHtml ? `<tr><td align="center" style="padding:16px 32px 8px;">${actionHtml}</td></tr>` : ""}
+          <tr>
+            <td align="center" style="padding:20px 32px 28px;border-top:1px solid ${THEME.border};">
+              <p style="font-size:12px;line-height:1.6;color:${THEME.muted};margin:0;">${footNote}</p>
+            </td>
+          </tr>
+        </table>
+        <p style="font-size:11px;color:${THEME.muted};margin:16px 0 0;">Abbey's Kitchenette · Intelligent POS &amp; Inventory Management</p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+/**
+ * Primary CTA button — exact app bg-primary amber-orange (#ce7e4f),
+ * white text, bgcolor fallback for Outlook, plus a plain-text URL
+ * fallback for clients that strip buttons.
+ */
+function ctaButton(url, label) {
+  return `<a href="${url}" style="display:inline-block;background-color:${THEME.accent};color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;padding:13px 36px;border-radius:8px;">${label}</a>
+  <p style="font-size:12px;line-height:1.6;color:${THEME.muted};margin:16px 0 0;word-break:break-all;">If the button doesn't work, copy and paste this link:<br /><a href="${url}" style="color:${THEME.accent};text-decoration:underline;">${url}</a></p>`;
+}
+
 /**
  * Generate reset password email HTML
  * @param {string} resetUrl - URL with token (e.g., https://app.com/reset-password?token=xxx)
  * @returns {string} - HTML string
  */
 export function generateResetPasswordEmail(resetUrl) {
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
-        .container { max-width: 500px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .header { background-color: #1a1a1a; padding: 24px; text-align: center; }
-        .header h1 { color: #f5a623; margin: 0; font-size: 20px; }
-        .header p { color: #999999; margin: 4px 0 0; font-size: 12px; }
-        .body { padding: 32px 24px; text-align: center; }
-        .body h2 { color: #333333; font-size: 18px; margin-bottom: 16px; }
-        .body p { color: #666666; font-size: 14px; line-height: 1.6; margin-bottom: 24px; }
-        .btn { display: inline-block; background-color: #f5a623; color: #1a1a1a; text-decoration: none; padding: 12px 32px; border-radius: 6px; font-weight: bold; font-size: 14px; }
-        .footer { padding: 16px 24px; text-align: center; border-top: 1px solid #eeeeee; }
-        .footer p { color: #999999; font-size: 12px; margin: 0; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1>Abbey's Kitchenette</h1>
-          <p>POS & Inventory System</p>
-        </div>
-        <div class="body">
-          <h2>Reset Your Password</h2>
-          <p>Click the button below to reset your password. This link expires in 15 minutes.</p>
-          <a href="${resetUrl}" class="btn">Reset Password</a>
-        </div>
-        <div class="footer">
-          <p>If you didn't request this, you can safely ignore this email.</p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
+  return baseEmailLayout({
+    heading: "Reset Your Password",
+    introHtml:
+      "We received a request to reset your password. Click the button below to choose a new one.<br />This link expires in <strong>15 minutes</strong>.",
+    actionHtml: ctaButton(resetUrl, "Reset Password"),
+    footNote: "If you didn't request this, you can safely ignore this email.",
+  });
+}
+
+/**
+ * Generate staff invite (set-password) email HTML for new accounts.
+ * @param {string} resetUrl - set-password URL with token
+ * @param {string} [name] - staff first name for a personal greeting
+ * @returns {string} - HTML string
+ */
+export function generateStaffInviteEmail(resetUrl, name = "") {
+  const greeting = name ? `Hi ${name},<br />` : "";
+  return baseEmailLayout({
+    heading: "Set Your Password",
+    introHtml:
+      `${greeting}An account was created for you at Abbey's Kitchenette. Click the button below to set your own password and get started.<br />This link expires in <strong>15 minutes</strong>.`,
+    actionHtml: ctaButton(resetUrl, "Set Password"),
+    footNote:
+      "If you weren't expecting this account, please contact your administrator.",
+  });
 }
 
 /**
@@ -67,87 +129,11 @@ export function generateResetPasswordEmail(resetUrl) {
  * @returns {string} - HTML string
  */
 export function generateOtpEmail(code) {
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
-        .container { max-width: 500px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .header { background-color: #1a1a1a; padding: 24px; text-align: center; }
-        .header h1 { color: #f5a623; margin: 0; font-size: 20px; }
-        .header p { color: #999999; margin: 4px 0 0; font-size: 12px; }
-        .body { padding: 32px 24px; text-align: center; }
-        .body h2 { color: #333333; font-size: 18px; margin-bottom: 16px; }
-        .body p { color: #666666; font-size: 14px; line-height: 1.6; margin-bottom: 24px; }
-        .code { display: inline-block; background-color: #f4f4f4; color: #1a1a1a; font-size: 32px; font-weight: bold; letter-spacing: 8px; padding: 16px 32px; border-radius: 6px; margin-bottom: 24px; }
-        .footer { padding: 16px 24px; text-align: center; border-top: 1px solid #eeeeee; }
-        .footer p { color: #999999; font-size: 12px; margin: 0; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1>Abbey's Kitchenette</h1>
-          <p>POS & Inventory System</p>
-        </div>
-        <div class="body">
-          <h2>Your Verification Code</h2>
-          <p>Enter this 6-digit code to complete your login:</p>
-          <div class="code">${code}</div>
-          <p>This code expires in 10 minutes.</p>
-        </div>
-        <div class="footer">
-          <p>If you didn't request this, you can safely ignore this email.</p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-}
-
-/**
- * Generate new temporary password email HTML (admin reset for staff).
- * Staff must change it on first login (mustChangePwd flow).
- * @param {string} newPassword - The temporary password
- * @returns {string} - HTML string
- */
-export function generateNewPasswordEmail(newPassword) {
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
-        .container { max-width: 500px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .header { background-color: #1a1a1a; padding: 24px; text-align: center; }
-        .header h1 { color: #f5a623; margin: 0; font-size: 20px; }
-        .header p { color: #999999; margin: 4px 0 0; font-size: 12px; }
-        .body { padding: 32px 24px; text-align: center; }
-        .body h2 { color: #333333; font-size: 18px; margin-bottom: 16px; }
-        .body p { color: #666666; font-size: 14px; line-height: 1.6; margin-bottom: 24px; }
-        .pin { display: inline-block; background-color: #f4f4f4; color: #1a1a1a; font-size: 20px; font-weight: bold; padding: 16px 32px; border-radius: 6px; margin-bottom: 24px; }
-        .footer { padding: 16px 24px; text-align: center; border-top: 1px solid #eeeeee; }
-        .footer p { color: #999999; font-size: 12px; margin: 0; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1>Abbey's Kitchenette</h1>
-          <p>POS & Inventory System</p>
-        </div>
-        <div class="body">
-          <h2>Your Password Was Reset</h2>
-          <p>Your admin has reset your password. Use this temporary password to log in:</p>
-          <div class="pin">${newPassword}</div>
-          <p>You will be asked to set a new password after logging in.</p>
-        </div>
-        <div class="footer">
-          <p>If you didn't expect this, please contact your administrator.</p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
+  return baseEmailLayout({
+    heading: "Your Verification Code",
+    introHtml: "Enter this 6-digit code to complete your login:",
+    actionHtml: `<div style="display:inline-block;background-color:${THEME.tintBg};border:1px solid ${THEME.border};border-radius:8px;padding:16px 36px;font-size:32px;font-weight:bold;letter-spacing:8px;color:${THEME.ink};font-family:'Space Grotesk',Arial,Helvetica,sans-serif;">${code}</div>
+      <p style="font-size:13px;color:${THEME.muted};margin:16px 0 0;">This code expires in <strong>10 minutes</strong>.</p>`,
+    footNote: "If you didn't request this, you can safely ignore this email.",
+  });
 }

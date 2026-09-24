@@ -1,5 +1,13 @@
 import { randomUUID } from "crypto";
 import prisma from "../../config/prisma.js";
+import { MANILA_TODAY_SQL, BUSINESS_TZ } from "../../config/time.js";
+
+/**
+ * Live-queue statuses — still-open orders that stay visible regardless of
+ * any date filter, so carryover (e.g. yesterday's preparing order) can never
+ * be forgotten under a date range.
+ */
+const OPEN_STATUSES = ["pending", "accepted", "preparing"];
 
 /**
  * Order Repository
@@ -61,6 +69,8 @@ export const orderRepository = {
         discountPercent: data.discountPercent ?? 0,
         discountLabel: data.discountLabel ?? null,
         discountIdNo: data.discountIdNo ?? null,
+        seniorIdNo: data.seniorIdNo ?? null,
+        pwdIdNo: data.pwdIdNo ?? null,
         discountAmount: data.discountAmount ?? 0,
         discountBy: data.discountBy ?? null,
         paymentMethod: data.paymentMethod ?? "cash",
@@ -80,6 +90,10 @@ export const orderRepository = {
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             subtotal: item.unitPrice * item.quantity,
+            discountType: item.discountType ?? item.discount_type ?? "none",
+            discountPercent: item.discountPercent ?? 0,
+            discountAmount: item.discountAmount ?? 0,
+            discountLabel: item.discountLabel ?? item.discount_label ?? null,
           })),
         },
       },
@@ -203,6 +217,8 @@ export const orderRepository = {
         discountPercent: true,
         discountLabel: true,
         discountIdNo: true,
+        seniorIdNo: true,
+        pwdIdNo: true,
         discountAmount: true,
         discountBy: true,
         shiftId: true,
@@ -264,15 +280,15 @@ export const orderRepository = {
    * @param {object} params - { skip, take, search, status, dateFrom, dateTo, sortBy, sortDir }
    * @returns {Array} - rows with order + item_count
    */
-  async findManyPaginated({ skip, take, search, status, dateFrom, dateTo, sortBy, sortDir, staffId }) {
-    const { where, values } = this._buildOrderWhereClause(search, status, dateFrom, dateTo, staffId);
+  async findManyPaginated({ skip, take, search, status, dateFrom, dateTo, sortBy, sortDir, staffId, scope }) {
+    const { where, values } = this._buildOrderWhereClause(search, status, dateFrom, dateTo, staffId, scope);
     const orderClause = this._buildOrderOrderByClause(sortBy, sortDir);
 
     const sql = `
       SELECT
         o.order_id, o.order_number, o.customer_name, o.table_number,
         o.order_source, o.status, o.subtotal_amount, o.discount_type, o.discount_percent,
-        o.discount_label, o.discount_id_no, o.discount_amount, o.discount_by,
+        o.discount_label, o.discount_id_no, o.senior_id_no, o.pwd_id_no, o.discount_amount, o.discount_by,
         o.payment_method, o.reference_no, o.total_amount, o.amount_paid, o.change,
         o.shift_id,
         o.guest_token,
@@ -298,35 +314,44 @@ export const orderRepository = {
    * @param {object} params - { search, status, dateFrom, dateTo }
    * @returns {number} - total count
    */
-  async countFiltered({ search, status, dateFrom, dateTo, staffId }) {
-    const { where, values } = this._buildOrderWhereClause(search, status, dateFrom, dateTo, staffId);
+  async countFiltered({ search, status, dateFrom, dateTo, staffId, scope }) {
+    const { where, values } = this._buildOrderWhereClause(search, status, dateFrom, dateTo, staffId, scope);
     const sql = `SELECT COUNT(*)::int AS count FROM orders o ${where}`;
     const result = await prisma.$queryRawUnsafe(sql, ...values);
     return result[0]?.count ?? 0;
   },
 
   /**
-   * Get status counts for KPI cards, optionally scoped to order_date range.
-   * Same date semantics as the list filter (order_date >= dateFrom, <= dateTo).
-   * @param {object} [filters] - { dateFrom?: "YYYY-MM-DD", dateTo?: "YYYY-MM-DD" }
+   * Get status counts for KPI cards.
+   * scope "all" (default): date-scoped day-volume counts.
+   * scope "active": live-queue counts (open trio, dates ignored) — mirrors
+   * the Active table so KPIs and rows can never disagree.
+   * @param {object} [filters] - { dateFrom?, dateTo?, scope? }
    * @returns {object} - { pending, accepted, preparing, completed, cancelled }
    */
-  async countByStatus({ dateFrom, dateTo } = {}) {
-    const where = {};
-    if (dateFrom || dateTo) {
-      where.orderDate = {};
-      if (dateFrom) where.orderDate.gte = new Date(`${dateFrom}T00:00:00`);
-      if (dateTo) where.orderDate.lte = new Date(`${dateTo}T00:00:00`);
+  async countByStatus({ dateFrom, dateTo, scope } = {}) {
+    const clauses = [];
+    const values = [];
+    let idx = 1;
+
+    if (scope === "active") {
+      const placeholders = OPEN_STATUSES.map(() => `$${idx++}`).join(", ");
+      clauses.push(`o.status IN (${placeholders})`);
+      values.push(...OPEN_STATUSES);
+    } else {
+      const { clauses: dateClauses, values: dateValues } = this._buildOrderDateClauses(dateFrom, dateTo, idx);
+      clauses.push(...dateClauses);
+      values.push(...dateValues);
     }
-    const result = await prisma.order.groupBy({
-      by: ["status"],
-      where,
-      _count: { _all: true },
-    });
+    const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
+    const rows = await prisma.$queryRawUnsafe(
+      `SELECT o.status, COUNT(*)::int AS count FROM orders o ${where} GROUP BY o.status`,
+      ...values,
+    );
 
     const counts = { pending: 0, accepted: 0, preparing: 0, completed: 0, cancelled: 0 };
-    for (const row of result) {
-      counts[row.status] = row._count._all;
+    for (const row of rows) {
+      if (row.status in counts) counts[row.status] = row.count;
     }
     return counts;
   },
@@ -374,6 +399,8 @@ export const orderRepository = {
       if (meta.discountPercent !== undefined) data.discountPercent = meta.discountPercent;
       if (meta.discountLabel !== undefined) data.discountLabel = meta.discountLabel;
       if (meta.discountIdNo !== undefined) data.discountIdNo = meta.discountIdNo;
+      if (meta.seniorIdNo !== undefined) data.seniorIdNo = meta.seniorIdNo;
+      if (meta.pwdIdNo !== undefined) data.pwdIdNo = meta.pwdIdNo;
       if (meta.discountAmount !== undefined) data.discountAmount = meta.discountAmount;
       if (meta.discountBy !== undefined) data.discountBy = meta.discountBy;
       if (meta.paymentMethod !== undefined) data.paymentMethod = meta.paymentMethod;
@@ -429,6 +456,10 @@ export const orderRepository = {
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         subtotal: item.unitPrice * item.quantity,
+        discountType: item.discountType ?? item.discount_type ?? "none",
+        discountPercent: item.discountPercent ?? 0,
+        discountAmount: item.discountAmount ?? 0,
+        discountLabel: item.discountLabel ?? item.discount_label ?? null,
       })),
     });
   },
@@ -507,6 +538,25 @@ export const orderRepository = {
         removedBy: userId,
         removedReason: reason || null,
         removedLossOption: lossOption || null,
+      },
+    });
+  },
+
+  /**
+   * Persist per-item discount onto a stored order line (accept-payment flow).
+   * @param {number} orderItemId - order item integer ID
+   * @param {object} discount - { discountType, discountPercent, discountAmount, discountLabel }
+   * @param {object} [tx] - transaction client
+   */
+  async updateOrderItemDiscount(orderItemId, discount, tx) {
+    const client = tx || prisma;
+    return client.orderItem.update({
+      where: { orderItemId },
+      data: {
+        discountType: discount.discountType ?? "none",
+        discountPercent: discount.discountPercent ?? 0,
+        discountAmount: discount.discountAmount ?? 0,
+        discountLabel: discount.discountLabel ?? null,
       },
     });
   },
@@ -931,7 +981,8 @@ export const orderRepository = {
       LEFT JOIN "User" u_prep ON u_prep.id = oi.prepared_by
       WHERE (
             o.status IN ('accepted','preparing')
-            OR (o.status = 'completed' AND o.completed_at >= (CURRENT_DATE - INTERVAL '1 day'))
+            -- Recently completed stay visible: since start of yesterday (Manila).
+            OR (o.status = 'completed' AND o.completed_at >= ((${MANILA_TODAY_SQL} - INTERVAL '1 day') AT TIME ZONE '${BUSINESS_TZ}'))
           )
       GROUP BY o.order_id
       ORDER BY
@@ -983,14 +1034,45 @@ export const orderRepository = {
   /* ── SQL Builder Helpers ───────────────── */
 
   /**
+   * Shared order_date range predicates (YYYY-MM-DD ::date, tz-proof).
+   * WHY shared: list, list-count, and KPI stats must never drift apart —
+   * the Sep-24 KPI mismatch was a stats-only JS-midnight bound.
+   * @param {string} dateFrom - start date (YYYY-MM-DD)
+   * @param {string} dateTo - end date (YYYY-MM-DD)
+   * @param {number} startIdx - first $ placeholder index
+   * @returns {{ clauses: string[], values: Array, nextIdx: number }}
+   */
+  _buildOrderDateClauses(dateFrom, dateTo, startIdx = 1) {
+    const clauses = [];
+    const values = [];
+    let idx = startIdx;
+
+    if (dateFrom) {
+      clauses.push(`o.order_date >= $${idx++}::date`);
+      values.push(dateFrom);
+    }
+
+    if (dateTo) {
+      clauses.push(`o.order_date <= $${idx++}::date`);
+      values.push(dateTo);
+    }
+
+    return { clauses, values, nextIdx: idx };
+  },
+
+  /**
    * Build WHERE clause for order queries.
+   * scope "active": live queue — open trio (or the explicit status filter
+   * when one is given), dates ignored so carryover stays visible.
+   * scope "all" (default): date range + optional status, unchanged.
    * @param {string} search - search term
    * @param {string} status - status filter
    * @param {string} dateFrom - start date (YYYY-MM-DD)
    * @param {string} dateTo - end date (YYYY-MM-DD)
+   * @param {string} [scope] - "active" | "all"
    * @returns {{ where: string, values: Array }}
    */
-  _buildOrderWhereClause(search, status, dateFrom, dateTo, staffId) {
+  _buildOrderWhereClause(search, status, dateFrom, dateTo, staffId, scope) {
     const clauses = [];
     const values = [];
     let idx = 1;
@@ -1001,8 +1083,13 @@ export const orderRepository = {
       idx++;
     }
 
-    if (status && status !== "all") {
-      const statuses = status.split(",").map((s) => s.trim()).filter(Boolean);
+    const isActive = scope === "active";
+    const effectiveStatus = isActive && (!status || status === "all")
+      ? OPEN_STATUSES.join(",")
+      : status;
+
+    if (effectiveStatus && effectiveStatus !== "all") {
+      const statuses = effectiveStatus.split(",").map((s) => s.trim()).filter(Boolean);
       if (statuses.length === 1) {
         clauses.push(`o.status = $${idx++}`);
         values.push(statuses[0]);
@@ -1013,14 +1100,11 @@ export const orderRepository = {
       }
     }
 
-    if (dateFrom) {
-      clauses.push(`o.order_date >= $${idx++}::date`);
-      values.push(dateFrom);
-    }
-
-    if (dateTo) {
-      clauses.push(`o.order_date <= $${idx++}::date`);
-      values.push(dateTo);
+    if (!isActive && (dateFrom || dateTo)) {
+      const date = this._buildOrderDateClauses(dateFrom, dateTo, idx);
+      clauses.push(...date.clauses);
+      values.push(...date.values);
+      idx = date.nextIdx;
     }
 
     if (staffId) {

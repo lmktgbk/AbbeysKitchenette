@@ -1,14 +1,16 @@
 /**
  * LoginPage — staff login card (branding + EmailForm in staff mode).
- * WHY it exists: dedicated staff entry point with no forgot-password link (admin-only
- * flow). Query keys consumed: none (auth uses direct API + EmailForm mutation).
- * Guards: public route with authenticated-redirect; mustChangePwd → /change-password.
+ * WHY it exists: dedicated staff entry point with forgot-password self-service.
+ * Query keys consumed: none (auth uses direct API + EmailForm mutation).
+ * Guards: public route with authenticated-redirect.
  * State: Query [] | local [] | Zustand [user/token via useAuthStore inside EmailForm].
  */
+import { Link } from "react-router-dom";
 import AuthBranding from "../components/AuthBranding";
 import EmailForm from "../components/EmailForm";
 import ModeToggle from "@/components/ModeToggle";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 export default function LoginPage() {
     return (
@@ -24,8 +26,13 @@ export default function LoginPage() {
                     </span>
                 </div>
                 <div className="mt-8">
-                    {/* Staff portal: no forgot-password link (admin-only). */}
                     <EmailForm mode="staff" />
+
+                    <div className="mt-4 text-center">
+                        <Button variant="ghost" size="sm" asChild>
+                            <Link to="/forgot-password">Forgot password?</Link>
+                        </Button>
+                    </div>
                 </div>
             </div>
         </Card>

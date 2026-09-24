@@ -88,22 +88,6 @@ export const staffController = {
   },
 
   /**
-   * POST /api/staff/:id/reset-password — reset password
-   */
-  async resetPassword(req, res) {
-    try {
-      const result = await staffService.resetPassword(
-        req.params.id,
-        req.body.new_password,
-        req.user.id,
-      );
-      return successResponse(res, "Password reset successfully", result);
-    } catch (error) {
-      return handleError(res, error, "STAFF_RESET_PWD_ERROR");
-    }
-  },
-
-  /**
    * DELETE /api/staff/:id — hard delete
    */
   async deleteStaff(req, res) {

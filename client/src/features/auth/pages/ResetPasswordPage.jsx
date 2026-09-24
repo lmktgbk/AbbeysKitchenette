@@ -15,7 +15,7 @@ import AuthBranding from "../components/AuthBranding";
 import ModeToggle from "@/components/ModeToggle";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import Icon from "@/components/ui/icon";
 import { toast } from "sonner";
 
@@ -100,10 +100,11 @@ export default function ResetPasswordPage() {
                                 <label htmlFor="password" className="text-sm font-medium">
                                     New Password
                                 </label>
-                                <Input
+                                <PasswordInput
                                     id="password"
-                                    type="password"
                                     placeholder="Min 8 characters"
+                                    autoComplete="new-password"
+                                    ariaLabel="new password"
                                     error={errors.password?.message}
                                     {...register("password")}
                                 />
@@ -113,10 +114,11 @@ export default function ResetPasswordPage() {
                                 <label htmlFor="confirmPassword" className="text-sm font-medium">
                                     Confirm Password
                                 </label>
-                                <Input
+                                <PasswordInput
                                     id="confirmPassword"
-                                    type="password"
                                     placeholder="Re-enter password"
+                                    autoComplete="new-password"
+                                    ariaLabel="confirm password"
                                     error={errors.confirmPassword?.message}
                                     {...register("confirmPassword")}
                                 />

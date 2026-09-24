@@ -8,6 +8,7 @@ import { loginSchema } from "../authValidation";
 import Icon from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import OtpForm from "./OtpForm";
 import { toast } from "sonner";
 
@@ -88,10 +89,11 @@ export default function EmailForm({ onBack, mode = "staff" }) {
                 <label htmlFor="password" className="text-sm font-medium">
                     Password
                 </label>
-                <Input
+                <PasswordInput
                     id="password"
-                    type="password"
                     placeholder="Enter your password"
+                    autoComplete="current-password"
+                    ariaLabel="password"
                     error={errors.password?.message}
                     {...register("password")}
                 />

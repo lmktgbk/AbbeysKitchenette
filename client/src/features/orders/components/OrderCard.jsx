@@ -109,7 +109,10 @@ export default function OrderCard({
       {/* Items */}
       <div className="px-2.5 py-1 space-y-0.5 flex-1 min-h-0 overflow-y-auto modal-scroll">
         {order.items?.map((item) => {
-          const canCheck = !roleCategory || !item.category_name || item.category_name === roleCategory;
+          const isBundle = item.category_name === "Bundles";
+          // Bundles are shared work: either role may check them (whoever assembles
+          // it taps it). Without this they match no role and strand the order.
+          const canCheck = !roleCategory || !item.category_name || item.category_name === roleCategory || isBundle;
           const done = item.is_prepared;
           const label = item.size_name
             ? `${item.product_name} (${item.size_name})`
@@ -160,6 +163,11 @@ export default function OrderCard({
                     done && "line-through text-muted-foreground",
                   )}>
                     {label}
+                    {isBundle && (
+                      <span className="ml-1 rounded-full border border-amber-500/25 bg-amber-500/10 px-1 py-px align-middle text-[9px] font-bold text-amber-600 dark:text-amber-400">
+                        Bundle
+                      </span>
+                    )}
                   </span>
                   {done && item.prepared_by_name && (
                     <span className="text-[9px] text-muted-foreground leading-tight">
@@ -181,6 +189,11 @@ export default function OrderCard({
             >
               <span className="text-[11px] font-medium flex-1 min-w-0 truncate text-foreground/80">
                 {label}
+                {isBundle && (
+                  <span className="ml-1 rounded-full border border-amber-500/25 bg-amber-500/10 px-1 py-px align-middle text-[9px] font-bold text-amber-600 dark:text-amber-400">
+                    Bundle
+                  </span>
+                )}
               </span>
               <span className="text-[10px] font-bold text-muted-foreground shrink-0">
                 ×{item.quantity}

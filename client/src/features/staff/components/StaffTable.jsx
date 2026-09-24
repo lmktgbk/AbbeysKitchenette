@@ -37,12 +37,11 @@ export default function StaffTable({
   onAdd,
   onEdit,
   onToggleActive,
-  onResetPassword,
   onDelete,
 }) {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(20);
   const [activeSort, setActiveSort] = useState("name_asc");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -171,14 +170,6 @@ export default function StaffTable({
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => onResetPassword(s)}
-                        title="Reset Password"
-                      >
-                        <Icon name="key" size={14} />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
                         onClick={() => onDelete(s)}
                         title="Delete"
                         className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
@@ -201,6 +192,7 @@ export default function StaffTable({
         pageSize={pageSize}
         onPageChange={setCurrentPage}
         onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
+        pageSizeOptions={[20, 50, 100]}
         itemLabel="staff"
       />
     </div>

@@ -55,10 +55,6 @@ export function useStaffMutations() {
       mutationFn: api.toggleActiveStaffRequest,
       onSuccess: invalidateAll,
     }),
-    resetPassword: useMutation({
-      mutationFn: ({ id, data }) => api.resetPasswordStaffRequest(id, data),
-      onSuccess: invalidateAll,
-    }),
     remove: useMutation({
       mutationFn: api.deleteStaffRequest,
       onSuccess: invalidateAll,

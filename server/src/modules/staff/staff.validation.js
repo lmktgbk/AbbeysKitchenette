@@ -7,7 +7,8 @@ import { z } from "zod";
  * If validation fails → error response, controller never executes.
  */
 
-// Used by POST /api/staff — create staff
+// Used by POST /api/staff — create staff (admin enters name/email/role only;
+// password is set by staff via emailed set-password link)
 export const createStaffSchema = z.object({
   name: z
     .string()
@@ -22,11 +23,6 @@ export const createStaffSchema = z.object({
   role: z.enum(["cashier", "kitchen"], {
     message: "Role is required",
   }),
-  password: z
-    .string()
-    .min(8, "Password must be at least 8 characters")
-    .max(128, "Password must not exceed 128 characters")
-    .optional(),
 });
 
 // Used by PATCH /api/staff/:id — update staff
@@ -44,18 +40,6 @@ export const updateStaffSchema = z.object({
     .max(255, "Email must not exceed 255 characters")
     .optional(),
   role: z.enum(["cashier", "kitchen"]).optional(),
-});
-
-// Used by POST /api/staff/:id/reset-password — blank = auto-generate + email
-export const resetPasswordSchema = z.object({
-  new_password: z
-    .string()
-    .max(128, "Password must not exceed 128 characters")
-    .optional()
-    .default(""),
-}).refine((data) => !data.new_password || data.new_password.length >= 8, {
-  message: "Password must be at least 8 characters",
-  path: ["new_password"],
 });
 
 // Used by PATCH /api/staff/:id/toggle-active, DELETE /api/staff/:id

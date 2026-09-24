@@ -19,7 +19,6 @@ export const authRepository = {
         passwordHash: true,
         imageUrl: true,
         isActive: true,
-        mustChangePwd: true,
         failedLoginAttempts: true,
         lockedUntil: true,
         lastLoginAt: true,
@@ -44,7 +43,6 @@ export const authRepository = {
         role: true,
         imageUrl: true,
         isActive: true,
-        mustChangePwd: true,
         lastLoginAt: true,
         createdAt: true,
       },
@@ -83,17 +81,13 @@ export const authRepository = {
     return prisma.user.update({ where: { id: userId }, data: { passwordHash } });
   },
 
-  async setMustChangePwd(userId, value) {
-    return prisma.user.update({ where: { id: userId }, data: { mustChangePwd: value } });
-  },
-
   async updateProfile(userId, data) {
     return prisma.user.update({
       where: { id: userId },
       data,
       select: {
         id: true, name: true, email: true, role: true, imageUrl: true,
-        isActive: true, mustChangePwd: true, lastLoginAt: true, createdAt: true,
+        isActive: true, lastLoginAt: true, createdAt: true,
       },
     });
   },
@@ -104,7 +98,7 @@ export const authRepository = {
       data: { imageUrl },
       select: {
         id: true, name: true, email: true, role: true, imageUrl: true,
-        isActive: true, mustChangePwd: true, lastLoginAt: true, createdAt: true,
+        isActive: true, lastLoginAt: true, createdAt: true,
       },
     });
   },

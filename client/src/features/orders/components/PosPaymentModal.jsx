@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Icon from "@/components/ui/icon";
@@ -22,6 +22,14 @@ const DISCOUNT_OPTIONS = [
   { value: "promo", label: "Promo" },
 ];
 
+// Per-item picker — compact labels to fit inside each order-line card.
+const ITEM_DISCOUNT_OPTIONS = [
+  { value: "none", label: "None" },
+  { value: "senior", label: "SNR 20%" },
+  { value: "pwd", label: "PWD 20%" },
+  { value: "promo", label: "Promo" },
+];
+
 const PAYMENT_METHODS = [
   { value: "cash", label: "Cash", hint: "Bills & coins", icon: "banknote" },
   { value: "gcash", label: "GCash", hint: "E-wallet", logo: gcashLogo },
@@ -34,6 +42,30 @@ function roundMoney(n) {
 
 function hideBrokenImage(e) {
   e.currentTarget.style.display = "none";
+}
+
+function blankLineState() {
+  return { type: "none", promoMode: "percent", promoValue: "", promoLabel: "" };
+}
+
+function lineSubtotalOf(item) {
+  return roundMoney(Number(item.unit_price) * item.quantity);
+}
+
+function lineDiscountOf(lineSubtotal, line) {
+  if (line.type === "senior" || line.type === "pwd") {
+    const amt = roundMoney((lineSubtotal * 20) / 100);
+    return { amount: amt, percent: 20 };
+  }
+  if (line.type === "promo") {
+    const v = Number(line.promoValue) || 0;
+    if (line.promoMode === "percent") {
+      const pct = Math.min(Math.max(v, 0), 100);
+      return { amount: roundMoney((lineSubtotal * pct) / 100), percent: pct };
+    }
+    return { amount: Math.min(Math.max(v, 0), lineSubtotal), percent: 0 };
+  }
+  return { amount: 0, percent: 0 };
 }
 
 /**
@@ -96,15 +128,13 @@ function MethodCard({ active, onClick, method }) {
 /**
  * PosPaymentModal — cashier tender screen.
  *
- * BR-01: single discount (Senior 20% / PWD 20% / manual promo % or ₱)
- * and record-only payment methods (cash / gcash / maya, no gateway).
- *
- * Layout: slim header strip. Left column holds the variable-height
- * content (order lines absorb slack via internal scroll + discount).
- * Right column holds the fixed tender flow (methods, tender, receipt,
- * actions) so both columns bottom-align in every discount state.
- * Server re-prices and re-computes everything — this modal only
- * collects intent.
+ * Per-item discounts: each order line carries at most ONE discount
+ * (None / Senior 20% / PWD 20% / manual Promo % or ₱). Different lines may
+ * carry different types (e.g. pwd lines + regular lines in one order), but a
+ * line that already has one discount locks out the other two for that line.
+ * Senior/PWD are fixed 20% of their own line; promo is manual per line.
+ * Order total = Σ net lines. Server re-prices and re-computes everything —
+ * this modal only collects intent.
  */
 export default function PosPaymentModal({
   open,
@@ -118,13 +148,23 @@ export default function PosPaymentModal({
   acceptedPayments,
 }) {
   const subtotal = Number(subtotalAmount ?? totalAmount ?? 0);
-  const summaryItems = orderSummary?.items ?? [];
+  const summaryItems = useMemo(() => orderSummary?.items ?? [], [orderSummary]);
+  const hasLines = summaryItems.length > 0;
 
+  // ── Per-item discount state (primary when order lines are present) ──
+  const [lineDiscounts, setLineDiscounts] = useState([]);
+  // Accordion: which line's picker is open (null = all collapsed, the tidy default).
+  const [expandedIdx, setExpandedIdx] = useState(null);
+  const [seniorIdNo, setSeniorIdNo] = useState("");
+  const [pwdIdNo, setPwdIdNo] = useState("");
+
+  // ── Legacy whole-order discount state (fallback when no lines) ──
   const [discountType, setDiscountType] = useState("none");
   const [promoMode, setPromoMode] = useState("percent");
   const [promoValue, setPromoValue] = useState("");
   const [discountIdNo, setDiscountIdNo] = useState("");
   const [discountLabel, setDiscountLabel] = useState("");
+
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [referenceNo, setReferenceNo] = useState("");
   const [amountPaid, setAmountPaid] = useState("");
@@ -142,6 +182,10 @@ export default function PosPaymentModal({
   if (open !== prevOpen) {
     setPrevOpen(open);
     if (open) {
+      setLineDiscounts(summaryItems.map(() => blankLineState()));
+      setExpandedIdx(null);
+      setSeniorIdNo("");
+      setPwdIdNo("");
       setDiscountType("none");
       setPromoMode("percent");
       setPromoValue("");
@@ -160,7 +204,32 @@ export default function PosPaymentModal({
     setPaymentMethod(visibleMethods[0]?.value ?? "cash");
   }
 
-  const { discountAmount, total } = useMemo(() => {
+  // Keep per-line state aligned if the cart changes while open.
+  if (open && hasLines && lineDiscounts.length !== summaryItems.length) {
+    setLineDiscounts((prev) =>
+      summaryItems.map((_, i) => prev[i] ?? blankLineState()),
+    );
+  }
+  if (open && expandedIdx != null && expandedIdx >= summaryItems.length) {
+    setExpandedIdx(null);
+  }
+
+  function setLineField(idx, patch) {
+    setLineDiscounts((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
+  }
+
+  // ── Totals: per-item mode sums net lines; legacy mode discounts the bill ──
+  const perLine = useMemo(() => {
+    if (!hasLines) return [];
+    return summaryItems.map((item, idx) => {
+      const base = lineSubtotalOf(item);
+      const line = lineDiscounts[idx] ?? blankLineState();
+      const d = lineDiscountOf(base, line);
+      return { base, amount: d.amount, percent: d.percent, net: roundMoney(base - d.amount) };
+    });
+  }, [hasLines, summaryItems, lineDiscounts]);
+
+  const legacy = useMemo(() => {
     if (discountType === "senior" || discountType === "pwd") {
       const amt = roundMoney((subtotal * 20) / 100);
       return { discountAmount: amt, total: roundMoney(subtotal - amt) };
@@ -178,13 +247,40 @@ export default function PosPaymentModal({
     return { discountAmount: 0, total: roundMoney(subtotal) };
   }, [subtotal, discountType, promoMode, promoValue]);
 
+  const discountAmount = hasLines
+    ? roundMoney(perLine.reduce((s, l) => s + l.amount, 0))
+    : legacy.discountAmount;
+  const total = hasLines
+    ? roundMoney(perLine.reduce((s, l) => s + l.net, 0))
+    : legacy.total;
+  const usesSenior = hasLines
+    ? (lineDiscounts.some((l) => l?.type === "senior"))
+    : discountType === "senior";
+  const usesPwd = hasLines
+    ? (lineDiscounts.some((l) => l?.type === "pwd"))
+    : discountType === "pwd";
+
   const rawPaid = Number(amountPaid);
   const paid = paymentMethod === "cash" ? (Number.isFinite(rawPaid) ? rawPaid : 0) : total;
   const change = paymentMethod === "cash" ? Math.max(0, roundMoney(paid - total)) : 0;
   const tenderOk = amountPaid !== "" && paid >= 0 && paid >= total;
 
-  const discountValid =
-    discountType === "promo"
+  const perItemValid = hasLines
+    ? perLine.every((l, idx) => {
+        const line = lineDiscounts[idx] ?? blankLineState();
+        if (line.type !== "promo") return true;
+        if (line.promoValue === "" || Number(line.promoValue) < 0) return false;
+        return line.promoMode === "percent"
+          ? Number(line.promoValue) <= 100
+          : Number(line.promoValue) <= l.base;
+      }) &&
+      (!usesSenior || seniorIdNo.trim().length > 0) &&
+      (!usesPwd || pwdIdNo.trim().length > 0)
+    : true;
+
+  const discountValid = hasLines
+    ? perItemValid
+    : discountType === "promo"
       ? promoValue !== "" && Number(promoValue) >= 0 && (promoMode === "amount" ? Number(promoValue) <= subtotal : Number(promoValue) <= 100)
       : true;
   const paymentValid =
@@ -193,6 +289,33 @@ export default function PosPaymentModal({
 
   function handleConfirm() {
     if (!isValid) return;
+    if (hasLines) {
+      // Per-item payload: one discount per line + audit IDs. Legacy
+      // whole-order fields stay "none" so old servers/clients ignore them.
+      const itemDiscounts = summaryItems.map((item, idx) => {
+        const line = lineDiscounts[idx] ?? blankLineState();
+        const patch = { discount_type: line.type };
+        if (item.order_item_id != null) patch.order_item_id = item.order_item_id;
+        if (line.type === "promo") {
+          patch.promo_mode = line.promoMode;
+          patch.promo_value = Number(line.promoValue);
+          if (line.promoLabel.trim()) patch.discount_label = line.promoLabel.trim();
+        }
+        return patch;
+      });
+      onConfirm?.({
+        amount_paid: roundMoney(paid),
+        change,
+        discount_type: "none",
+        senior_id_no: seniorIdNo.trim() || undefined,
+        pwd_id_no: pwdIdNo.trim() || undefined,
+        discount_id_no: seniorIdNo.trim() || pwdIdNo.trim() || undefined,
+        item_discounts: itemDiscounts,
+        payment_method: paymentMethod,
+        reference_no: paymentMethod === "cash" ? undefined : referenceNo.trim(),
+      });
+      return;
+    }
     onConfirm?.({
       amount_paid: roundMoney(paid),
       change,
@@ -209,8 +332,9 @@ export default function PosPaymentModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90dvh] overflow-y-auto modal-scroll p-5">
+        <DialogClose onClick={() => onOpenChange?.(false)} />
         {/* Slim single-row header */}
-        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <div className="mb-3 pr-12">
           <div className="min-w-0 truncate text-sm">
             <DialogTitle className="mr-2 inline text-lg">Payment</DialogTitle>
             <span className="text-xs text-muted-foreground">
@@ -219,123 +343,236 @@ export default function PosPaymentModal({
               {orderSummary?.tableName && <> · Table {orderSummary.tableName}</>}
             </span>
           </div>
-          <p className="shrink-0 text-right">
-            <span className="mr-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Total due</span>
-            <span className="text-2xl font-bold">₱{total.toLocaleString()}</span>
-          </p>
         </div>
 
         <div className="grid items-start gap-4 sm:grid-cols-2">
           {/* Left — what is being charged, hugs its content */}
           <div className="flex flex-col space-y-2.5">
-            {summaryItems.length > 0 && (
-              <div className="max-h-52 overflow-y-auto modal-scroll rounded-lg border border-border">
-                {summaryItems.map((item, idx) => (
-                  <div
-                    key={`${item.variant_id ?? idx}-${idx}`}
-                    className="flex items-baseline justify-between gap-2 border-b border-border/50 px-3 py-1.5 text-xs last:border-0"
-                  >
-                    <span className="min-w-0 truncate font-medium">
-                      {item.product_name}
-                      {item.size_name && <span className="text-muted-foreground"> ({item.size_name})</span>}
-                      <span className="text-muted-foreground"> ×{item.quantity}</span>
-                    </span>
-                    <span className="shrink-0 font-semibold">
-                      ₱{(Number(item.unit_price) * item.quantity).toLocaleString()}
-                    </span>
+            {hasLines ? (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Items & discounts</label>
+                <p className="text-xs text-muted-foreground">
+                  Tap a line to add its discount — one per item.
+                </p>
+                <div className="max-h-64 overflow-y-auto modal-scroll rounded-lg border border-border">
+                  {summaryItems.map((item, idx) => {
+                    const line = lineDiscounts[idx] ?? blankLineState();
+                    const calc = perLine[idx] ?? { base: lineSubtotalOf(item), amount: 0, net: lineSubtotalOf(item) };
+                    const expanded = expandedIdx === idx;
+                    const badge =
+                      line.type === "senior" ? "SNR 20%" : line.type === "pwd" ? "PWD 20%" : line.type === "promo" ? "Promo" : null;
+                    return (
+                      <div
+                        key={`${item.order_item_id ?? item.variant_id ?? idx}-${idx}`}
+                        className="border-b border-border/50 px-3 py-2 last:border-0"
+                      >
+                        <div className="flex items-center justify-between gap-2 text-xs">
+                          <span className="min-w-0 truncate font-medium">
+                            {item.product_name}
+                            {item.size_name && <span className="text-muted-foreground"> ({item.size_name})</span>}
+                            <span className="text-muted-foreground"> ×{item.quantity}</span>
+                          </span>
+                          <span className="flex shrink-0 items-center gap-1.5 font-semibold">
+                            {!expanded && badge && (
+                              <span className="rounded-full bg-green-600/10 px-1.5 py-0.5 text-[10px] font-semibold text-green-600 dark:text-green-400">
+                                {badge} −₱{calc.amount.toLocaleString()}
+                              </span>
+                            )}
+                            <span>
+                              ₱{calc.base.toLocaleString()}
+                              {(expanded || !badge) && calc.amount > 0 && (
+                                <span className="ml-1 font-medium text-green-600 dark:text-green-400">
+                                  −₱{calc.amount.toLocaleString()}
+                                </span>
+                              )}
+                            </span>
+                            <button
+                              type="button"
+                              aria-expanded={expanded}
+                              aria-label={expanded ? `Hide discount options for ${item.product_name}` : `Add discount for ${item.product_name}`}
+                              onClick={() => setExpandedIdx(expanded ? null : idx)}
+                              className={cn(
+                                "flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                                expanded && "bg-muted text-foreground",
+                              )}
+                            >
+                              <Icon name="chevronDown" size={14} className={cn("transition-transform", expanded && "rotate-180")} />
+                            </button>
+                          </span>
+                        </div>
+                        {expanded && (
+                          <>
+                        <div className="mt-1.5 grid grid-cols-4 gap-1 rounded-lg bg-muted p-1">
+                          {ITEM_DISCOUNT_OPTIONS.map((opt) => (
+                            <SegButton
+                              key={opt.value}
+                              active={line.type === opt.value}
+                              onClick={() => {
+                                setLineField(idx, { type: opt.value });
+                                if (opt.value === "none") setExpandedIdx(null);
+                              }}
+                              className="h-7 whitespace-nowrap px-1 text-[11px]"
+                            >
+                              {opt.label}
+                            </SegButton>
+                          ))}
+                        </div>
+                        {line.type === "senior" || line.type === "pwd" ? (
+                          <p className="mt-1 text-[11px] text-muted-foreground">
+                            {line.type === "senior" ? "Senior" : "PWD"} 20% on this item only — locked for this line.
+                          </p>
+                        ) : null}
+                        {line.type === "promo" && (
+                          <div className="mt-1.5 space-y-1.5">
+                            <div className="flex gap-1 rounded-lg bg-muted p-1">
+                              <SegButton
+                                active={line.promoMode === "percent"}
+                                onClick={() => setLineField(idx, { promoMode: "percent" })}
+                                className="h-6 text-[11px]"
+                              >
+                                % off
+                              </SegButton>
+                              <SegButton
+                                active={line.promoMode === "amount"}
+                                onClick={() => setLineField(idx, { promoMode: "amount" })}
+                                className="h-6 text-[11px]"
+                              >
+                                ₱ off
+                              </SegButton>
+                            </div>
+                            <Input
+                              type="number"
+                              min="0"
+                              value={line.promoValue}
+                              onChange={(e) => setLineField(idx, { promoValue: e.target.value })}
+                              placeholder={line.promoMode === "percent" ? "Percent (0–100)" : `Peso amount (max ₱${calc.base.toLocaleString()})`}
+                              className="h-8 text-xs"
+                            />
+                            <Input
+                              value={line.promoLabel}
+                              onChange={(e) => setLineField(idx, { promoLabel: e.target.value })}
+                              placeholder="Promo label (optional)"
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                        )}
+                        </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {(usesSenior || usesPwd) && (
+                  <div className="space-y-1.5">
+                    {usesSenior && (
+                      <Input
+                        value={seniorIdNo}
+                        onChange={(e) => setSeniorIdNo(e.target.value)}
+                        placeholder="Senior ID number (required for audit)"
+                        className="h-9 text-sm"
+                      />
+                    )}
+                    {usesPwd && (
+                      <Input
+                        value={pwdIdNo}
+                        onChange={(e) => setPwdIdNo(e.target.value)}
+                        placeholder="PWD ID number (required for audit)"
+                        className="h-9 text-sm"
+                      />
+                    )}
                   </div>
-                ))}
+                )}
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Discount</label>
+                <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+                  {DISCOUNT_OPTIONS.map((opt) => (
+                    <SegButton
+                      key={opt.value}
+                      active={discountType === opt.value}
+                      onClick={() => setDiscountType(opt.value)}
+                      className="h-8 whitespace-nowrap"
+                    >
+                      {opt.label}
+                    </SegButton>
+                  ))}
+                </div>
+                {/* PH rule: Senior/PWD 20% can't combine with promos — show best value */}
+                {(() => {
+                  const seniorAmt = roundMoney((subtotal * 20) / 100);
+                  if (discountType === "promo" && promoValue !== "" && Number(promoValue) >= 0) {
+                    const better = seniorAmt > discountAmount ? "senior" : "promo";
+                    return (
+                      <div className="rounded-md border border-border bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground">
+                        Senior/PWD 20% saves ₱{seniorAmt.toLocaleString()} vs promo ₱{discountAmount.toLocaleString()} — only one can apply{better === "senior" ? ", Senior/PWD wins" : ", promo wins"}.
+                        {better === "senior" && (
+                          <button
+                            type="button"
+                            onClick={() => setDiscountType("senior")}
+                            className="ml-1 font-medium text-primary hover:underline"
+                          >
+                            Use Senior/PWD instead
+                          </button>
+                        )}
+                      </div>
+                    );
+                  }
+                  if (discountType === "senior" || discountType === "pwd") {
+                    return (
+                      <p className="text-xs text-muted-foreground">
+                        Saves ₱{seniorAmt.toLocaleString()} (statutory 20% — can't combine with promos).
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
+
+                {(discountType === "senior" || discountType === "pwd") && (
+                  <Input
+                    value={discountIdNo}
+                    onChange={(e) => setDiscountIdNo(e.target.value)}
+                    placeholder="Senior/PWD ID number (optional, for audit)"
+                    className="h-9 text-sm"
+                  />
+                )}
+
+                {discountType === "promo" && (
+                  <div className="space-y-1.5">
+                    <div className="flex gap-1 rounded-lg bg-muted p-1">
+                      <SegButton
+                        active={promoMode === "percent"}
+                        onClick={() => setPromoMode("percent")}
+                        className="h-7"
+                      >
+                        % off
+                      </SegButton>
+                      <SegButton
+                        active={promoMode === "amount"}
+                        onClick={() => setPromoMode("amount")}
+                        className="h-7"
+                      >
+                        ₱ off
+                      </SegButton>
+                    </div>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={promoValue}
+                      onChange={(e) => setPromoValue(e.target.value)}
+                      placeholder={promoMode === "percent" ? "Percent (0–100)" : "Peso amount"}
+                      className="h-9 text-sm"
+                    />
+                    <Input
+                      value={discountLabel}
+                      onChange={(e) => setDiscountLabel(e.target.value)}
+                      placeholder="Promo label (optional)"
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                )}
               </div>
             )}
-
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Discount</label>
-              <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
-                {DISCOUNT_OPTIONS.map((opt) => (
-                  <SegButton
-                    key={opt.value}
-                    active={discountType === opt.value}
-                    onClick={() => setDiscountType(opt.value)}
-                    className="h-8 whitespace-nowrap"
-                  >
-                    {opt.label}
-                  </SegButton>
-                ))}
-              </div>
-              {/* PH rule: Senior/PWD 20% can't combine with promos — show best value */}
-              {(() => {
-                const seniorAmt = roundMoney((subtotal * 20) / 100);
-                if (discountType === "promo" && promoValue !== "" && Number(promoValue) >= 0) {
-                  const better = seniorAmt > discountAmount ? "senior" : "promo";
-                  return (
-                    <div className="rounded-md border border-border bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground">
-                      Senior/PWD 20% saves ₱{seniorAmt.toLocaleString()} vs promo ₱{discountAmount.toLocaleString()} — only one can apply{better === "senior" ? ", Senior/PWD wins" : ", promo wins"}.
-                      {better === "senior" && (
-                        <button
-                          type="button"
-                          onClick={() => setDiscountType("senior")}
-                          className="ml-1 font-medium text-primary hover:underline"
-                        >
-                          Use Senior/PWD instead
-                        </button>
-                      )}
-                    </div>
-                  );
-                }
-                if (discountType === "senior" || discountType === "pwd") {
-                  return (
-                    <p className="text-xs text-muted-foreground">
-                      Saves ₱{seniorAmt.toLocaleString()} (statutory 20% — can't combine with promos).
-                    </p>
-                  );
-                }
-                return null;
-              })()}
-
-              {(discountType === "senior" || discountType === "pwd") && (
-                <Input
-                  value={discountIdNo}
-                  onChange={(e) => setDiscountIdNo(e.target.value)}
-                  placeholder="Senior/PWD ID number (optional, for audit)"
-                  className="h-9 text-sm"
-                />
-              )}
-
-              {discountType === "promo" && (
-                <div className="space-y-1.5">
-                  <div className="flex gap-1 rounded-lg bg-muted p-1">
-                    <SegButton
-                      active={promoMode === "percent"}
-                      onClick={() => setPromoMode("percent")}
-                      className="h-7"
-                    >
-                      % off
-                    </SegButton>
-                    <SegButton
-                      active={promoMode === "amount"}
-                      onClick={() => setPromoMode("amount")}
-                      className="h-7"
-                    >
-                      ₱ off
-                    </SegButton>
-                  </div>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={promoValue}
-                    onChange={(e) => setPromoValue(e.target.value)}
-                    placeholder={promoMode === "percent" ? "Percent (0–100)" : "Peso amount"}
-                    className="h-9 text-sm"
-                  />
-                  <Input
-                    value={discountLabel}
-                    onChange={(e) => setDiscountLabel(e.target.value)}
-                    placeholder="Promo label (optional)"
-                    className="h-9 text-sm"
-                  />
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Right — tender flow (fixed height, always full) */}
@@ -418,6 +655,10 @@ export default function PosPaymentModal({
                 <span className="font-medium text-green-600 dark:text-green-400">
                   −₱{discountAmount.toLocaleString()}
                 </span>
+              </div>
+              <div className="flex items-center justify-between border-t border-border pt-1">
+                <span className="font-semibold">Total</span>
+                <span className="text-base font-bold">₱{total.toLocaleString()}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Paid</span>

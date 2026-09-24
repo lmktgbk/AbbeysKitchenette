@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { changePasswordSchema } from "../validation";
 
 /**
@@ -40,9 +40,10 @@ export default function ChangePasswordForm({ mutation }) {
         <label className="mb-1.5 block text-sm font-semibold text-foreground">
           Current Password
         </label>
-        <Input
-          type="password"
+        <PasswordInput
           placeholder="Enter current password"
+          autoComplete="current-password"
+          ariaLabel="current password"
           error={errors.currentPassword?.message}
           {...register("currentPassword")}
         />
@@ -52,9 +53,10 @@ export default function ChangePasswordForm({ mutation }) {
         <label className="mb-1.5 block text-sm font-semibold text-foreground">
           New Password
         </label>
-        <Input
-          type="password"
+        <PasswordInput
           placeholder="Min. 8 characters"
+          autoComplete="new-password"
+          ariaLabel="new password"
           error={errors.newPassword?.message}
           {...register("newPassword")}
         />
@@ -64,9 +66,10 @@ export default function ChangePasswordForm({ mutation }) {
         <label className="mb-1.5 block text-sm font-semibold text-foreground">
           Confirm New Password
         </label>
-        <Input
-          type="password"
+        <PasswordInput
           placeholder="Re-enter new password"
+          autoComplete="new-password"
+          ariaLabel="confirm password"
           error={errors.confirmPassword?.message}
           {...register("confirmPassword")}
         />

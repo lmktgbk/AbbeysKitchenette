@@ -34,7 +34,6 @@ const authenticate = async (req, res, next) => {
         role: true,
         imageUrl: true,
         isActive: true,
-        mustChangePwd: true,
       },
     });
 
@@ -53,7 +52,6 @@ const authenticate = async (req, res, next) => {
       email: user.email,
       role: user.role,
       imageUrl: user.imageUrl,
-      mustChangePwd: user.mustChangePwd,
     };
 
     next();

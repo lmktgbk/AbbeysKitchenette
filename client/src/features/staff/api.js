@@ -1,6 +1,6 @@
 /**
  * Staff API — owns staff CRUD transport.
- * WHY: single contract owner for staff admin so query invalidation stays aligned. Contract: GET /staff, GET /staff/:id, POST /staff, PATCH /staff/:id, PATCH /staff/:id/toggle-active, POST /staff/:id/reset-password, DELETE /staff/:id, GET /staff/summary; returns res.data envelope.
+ * WHY: single contract owner for staff admin so query invalidation stays aligned. Contract: GET /staff, GET /staff/:id, POST /staff, PATCH /staff/:id, PATCH /staff/:id/toggle-active, DELETE /staff/:id, GET /staff/summary; returns res.data envelope.
  * State: axios wrappers, no state.
  */
 import api from "@/config/axios";
@@ -29,10 +29,6 @@ export function updateStaffRequest(id, data) {
 
 export function toggleActiveStaffRequest(id) {
   return api.patch(`/staff/${id}/toggle-active`).then((res) => res.data);
-}
-
-export function resetPasswordStaffRequest(id, data) {
-  return api.post(`/staff/${id}/reset-password`, data).then((res) => res.data);
 }
 
 export function deleteStaffRequest(id) {

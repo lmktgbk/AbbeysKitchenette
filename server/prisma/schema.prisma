@@ -20,7 +20,6 @@ model User {
   passwordHash      String
   imageUrl          String?   @map("image_url")
   isActive          Boolean   @default(true)
-  mustChangePwd     Boolean   @default(false)
   failedLoginAttempts Int     @default(0) @map("failed_login_attempts")
   lockedUntil       DateTime?
   lastLoginAt       DateTime?
@@ -354,11 +353,15 @@ model Order {
   fulfillmentMinutes Int?    @map("fulfillment_minutes")
 
   // Pricing (BR-01: subtotal -> discount -> total)
+  // Order-level columns are aggregates of per-item discounts:
+  // discountType "mixed" = lines carry different types (e.g. pwd + regular).
   subtotalAmount  Decimal  @default(0) @map("subtotal_amount") @db.Decimal(10, 2)
-  discountType    String   @default("none") @map("discount_type") @db.VarChar(20) // none | senior | pwd | promo
+  discountType    String   @default("none") @map("discount_type") @db.VarChar(20) // none | senior | pwd | promo | mixed
   discountPercent Float    @default(0) @map("discount_percent")
   discountLabel   String?  @map("discount_label") @db.VarChar(200)
   discountIdNo    String?  @map("discount_id_no") @db.VarChar(50)
+  seniorIdNo      String?  @map("senior_id_no") @db.VarChar(50)
+  pwdIdNo         String?  @map("pwd_id_no") @db.VarChar(50)
   discountAmount  Decimal  @default(0) @map("discount_amount") @db.Decimal(10, 2)
   discountBy      String?  @map("discount_by") @db.Uuid
 
@@ -411,6 +414,12 @@ model OrderItem {
   quantity     Int
   unitPrice    Decimal  @map("unit_price") @db.Decimal(10, 2)
   subtotal     Decimal? @db.Decimal(10, 2)
+  // Per-item discount: at most one type per line (none | senior | pwd | promo).
+  // Senior/PWD = fixed 20% of this line; promo = manual % or ₱ capped at line subtotal.
+  discountType    String   @default("none") @map("discount_type") @db.VarChar(20)
+  discountPercent Float    @default(0) @map("discount_percent")
+  discountAmount  Decimal  @default(0) @map("discount_amount") @db.Decimal(10, 2)
+  discountLabel   String?  @map("discount_label") @db.VarChar(200)
   isPrepared   Boolean  @default(false) @map("is_prepared")
   preparedBy   String?  @map("prepared_by") @db.Uuid
   preparedAt   DateTime? @map("prepared_at") @db.Timestamptz

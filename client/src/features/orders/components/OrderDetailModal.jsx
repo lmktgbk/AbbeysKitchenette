@@ -1,5 +1,5 @@
 import { useState, Fragment } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
@@ -99,8 +99,9 @@ export default function OrderDetailModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl p-0 flex flex-col max-h-[85vh]">
-        <DialogHeader className="px-5 pt-5 pb-0">
+        <DialogContent className="max-w-3xl p-0 flex flex-col max-h-[85vh]">
+        <DialogClose onClick={() => onOpenChange(false)} />
+        <DialogHeader className="pl-5 pr-10 pt-5 pb-0">
           <DialogTitle className="flex items-center gap-2">
             {loading ? (
               <div className="h-5 w-32 animate-pulse rounded bg-muted" />
@@ -233,7 +234,9 @@ export default function OrderDetailModal({
                         <TableRow className="hover:bg-muted/50">
                           <TableHead>Item</TableHead>
                           <TableHead className="text-center w-12">Qty</TableHead>
-                          <TableHead className="text-right w-20">Subtotal</TableHead>
+                          <TableHead className="text-right w-28">Discount</TableHead>
+                          <TableHead className="text-right w-24">Subtotal</TableHead>
+                          <TableHead className="text-right w-24">Net</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -287,7 +290,19 @@ export default function OrderDetailModal({
                                 )}>
                                   ×{item.quantity}
                                 </TableCell>
-                                <TableCell className="text-right">
+                                <TableCell className="text-right whitespace-nowrap">
+                                  {item.discount_type && item.discount_type !== "none" && Number(item.discount_amount || 0) > 0 ? (
+                                    <span
+                                      className="font-medium text-green-600 dark:text-green-400"
+                                      title={item.discount_type === "senior" ? "Senior 20%" : item.discount_type === "pwd" ? "PWD 20%" : `Promo${Number(item.discount_percent) > 0 ? ` ${item.discount_percent}%` : ""}${item.discount_label ? ` · ${item.discount_label}` : ""}`}
+                                    >
+                                      −₱{Number(item.discount_amount).toLocaleString()}
+                                    </span>
+                                  ) : (
+                                    <span className="text-muted-foreground">—</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right whitespace-nowrap">
                                   <div className="flex items-center justify-end gap-2">
                                     <span className={cn(
                                       "text-right font-medium",
@@ -307,11 +322,19 @@ export default function OrderDetailModal({
                                     )}
                                   </div>
                                 </TableCell>
+                                <TableCell className="text-right whitespace-nowrap">
+                                  <span className={cn(
+                                    "font-semibold",
+                                    removed && "text-muted-foreground line-through",
+                                  )}>
+                                    ₱{(Number(item.subtotal || 0) - Number(item.discount_amount || 0)).toLocaleString()}
+                                  </span>
+                                </TableCell>
                               </TableRow>
 
                               {isExpanded && expandable && (
                                 <TableRow className="bg-muted/20 hover:bg-muted/20">
-                                  <TableCell colSpan={3} className="py-2 pl-8">
+                                  <TableCell colSpan={5} className="py-2 pl-8">
                                     {removed ? (
                                       <div className="space-y-0.5 text-[10px]">
                                         <p className="text-destructive font-semibold">Removed</p>
@@ -389,16 +412,28 @@ export default function OrderDetailModal({
                         })}
 
                         <TableRow className="bg-muted/50 hover:bg-muted/50">
-                          <TableCell className="text-[11px] font-medium text-muted-foreground">Total</TableCell>
-                          <TableCell />
+                          <TableCell colSpan={4} className="text-[11px] font-medium text-muted-foreground">Subtotal</TableCell>
+                          <TableCell className="text-right text-xs font-semibold">
+                            ₱{Number(order?.subtotal_amount ?? total).toLocaleString()}
+                          </TableCell>
+                        </TableRow>
+                        {Number(order?.discount_amount || 0) > 0 && (
+                          <TableRow className="bg-muted/50 hover:bg-muted/50">
+                            <TableCell colSpan={4} className="text-[11px] font-medium text-green-600 dark:text-green-400">Discount</TableCell>
+                            <TableCell className="text-right text-xs font-semibold text-green-600 dark:text-green-400">
+                              −₱{Number(order.discount_amount).toLocaleString()}
+                            </TableCell>
+                          </TableRow>
+                        )}
+                        <TableRow className="bg-muted/50 hover:bg-muted/50">
+                          <TableCell colSpan={4} className="text-[11px] font-bold">Total</TableCell>
                           <TableCell className="text-right text-xs font-bold">
-                            ₱{total.toLocaleString()}
+                            ₱{Number(order?.total_amount ?? total).toLocaleString()}
                           </TableCell>
                         </TableRow>
                         {removedTotal > 0 && (
                           <TableRow className="bg-destructive/5 hover:bg-destructive/5">
-                            <TableCell className="text-[11px] font-medium text-destructive">Removed</TableCell>
-                            <TableCell />
+                            <TableCell colSpan={4} className="text-[11px] font-medium text-destructive">Removed</TableCell>
                             <TableCell className="text-right text-[11px] font-semibold text-destructive line-through">
                               ₱{removedTotal.toLocaleString()}
                             </TableCell>
@@ -577,11 +612,13 @@ function StatusStepper({ order }) {
 /**
  * Short tag for the discount stat cell (fits the narrow column).
  * Senior/PWD show the ID number, promo shows mode + label.
+ * "mixed" = per-item discounts differ across lines (see items table).
  */
 function discountTag(order) {
   if (!order?.discount_type || order.discount_type === "none") return null;
   if (order.discount_type === "senior") return "Senior";
   if (order.discount_type === "pwd") return "PWD";
+  if (order.discount_type === "mixed") return null;
   const mode = Number(order.discount_percent) > 0 ? `${order.discount_percent}%` : "fixed";
   return `Promo ${mode}`;
 }
@@ -592,9 +629,14 @@ function discountTag(order) {
  */
 function discountDetail(order) {
   if (!order?.discount_type || order.discount_type === "none") return null;
+  const ids = [order.senior_id_no ? `Senior ID ${order.senior_id_no}` : null, order.pwd_id_no ? `PWD ID ${order.pwd_id_no}` : null].filter(Boolean).join(" · ");
+  if (order.discount_type === "mixed") {
+    return ids ? ids : "Per-item discounts (see lines)";
+  }
   if (order.discount_type === "senior" || order.discount_type === "pwd") {
     const tag = order.discount_type === "senior" ? "Senior" : "PWD";
-    return order.discount_id_no ? `${tag} · ID ${order.discount_id_no}` : tag;
+    const id = order.senior_id_no || order.pwd_id_no || order.discount_id_no;
+    return id ? `${tag} · ID ${id}` : tag;
   }
   const mode = Number(order.discount_percent) > 0 ? `${order.discount_percent}%` : "fixed amount";
   return order.discount_label ? `Promo ${mode} · ${order.discount_label}` : `Promo ${mode}`;

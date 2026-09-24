@@ -59,9 +59,12 @@ export default function OrdersPage({ embedded = false }) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  // Queue scope: "active" (default) = live queue, dates ignored so carryover
+  // stays visible; "all" = range lookup. Drives table + KPI cards together.
+  const [scope, setScope] = useState("active");
   const [dateFrom, setDateFrom] = useState(null);
   const [dateTo, setDateTo] = useState(null);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(20);
 
   const queryParams = useMemo(() => ({
     page: String(page),
@@ -70,7 +73,8 @@ export default function OrdersPage({ embedded = false }) {
     status: statusFilter !== "all" ? statusFilter : undefined,
     date_from: dateFrom || undefined,
     date_to: dateTo || undefined,
-  }), [page, search, statusFilter, dateFrom, dateTo, pageSize]);
+    scope,
+  }), [page, search, statusFilter, dateFrom, dateTo, pageSize, scope]);
 
   // ── Data ───────────────────────────
   const { data: ordersData, isLoading } = useOrderList(queryParams);
@@ -86,6 +90,8 @@ export default function OrdersPage({ embedded = false }) {
 
   // ── Accept payment modal ───────────
   const [acceptingOrder, setAcceptingOrder] = useState(null);
+  const { data: acceptingDetailData } = useOrderDetail(acceptingOrder?.order_id);
+  const acceptingDetail = acceptingDetailData?.data?.order ?? null;
 
   // ── Cancel dialog ──────────────────
   const [cancellingOrderId, setCancellingOrderId] = useState(null);
@@ -265,7 +271,7 @@ export default function OrdersPage({ embedded = false }) {
     }
   }
 
-  async function handleAcceptPaymentConfirm({ amount_paid, discount_type, promo_mode, promo_value, discount_id_no, discount_label, payment_method, reference_no }) {
+  async function handleAcceptPaymentConfirm({ amount_paid, discount_type, promo_mode, promo_value, discount_id_no, senior_id_no, pwd_id_no, discount_label, item_discounts, payment_method, reference_no }) {
     if (!acceptingOrder) return;
     try {
       await mutations.advanceStatus.mutateAsync({
@@ -277,7 +283,25 @@ export default function OrdersPage({ embedded = false }) {
           promo_mode,
           promo_value,
           discount_id_no,
+          senior_id_no,
+          pwd_id_no,
           discount_label,
+          // Per-item discounts keyed by stored order_item_id (one type per line).
+          item_discounts: (acceptingDetail?.items ?? []).map((item) => {
+            const match = (item_discounts ?? []).find(
+              (d) => Number(d.order_item_id) === Number(item.order_item_id),
+            );
+            const fallbackIdx = (acceptingDetail?.items ?? []).indexOf(item);
+            const fallback = item_discounts?.[fallbackIdx];
+            const d = match ?? fallback;
+            const patch = { order_item_id: item.order_item_id, discount_type: d?.discount_type ?? "none" };
+            if (d?.discount_type === "promo") {
+              patch.promo_mode = d.promo_mode;
+              patch.promo_value = d.promo_value;
+              if (d.discount_label) patch.discount_label = d.discount_label;
+            }
+            return patch;
+          }),
           payment_method,
           reference_no,
         },
@@ -308,6 +332,31 @@ export default function OrdersPage({ embedded = false }) {
     />
   ) : null;
 
+  // Queue scope switcher — Active (live queue, dates ignored) vs All
+  // (range lookup). Drives the table and the KPI cards together.
+  const scopeSwitcher = (
+    <FilterPill
+      options={[
+        { value: "active", label: "Active" },
+        { value: "all", label: "All" },
+      ]}
+      value={scope}
+      onChange={(val) => {
+        setScope(val);
+        setStatusFilter("all");
+        setPage(1);
+      }}
+    />
+  );
+
+  // KPI status drill-down: picking a card jumps to All scope with that
+  // status (lookup action); toggling off stays in All unfiltered.
+  function handleStatusClick(status) {
+    setStatusFilter(status);
+    if (status !== "all") setScope("all");
+    setPage(1);
+  }
+
   // Pairing buttons — rendered beside the view pill inside each
   // table toolbar (no separate row).
   const pairButtons = !embedded ? (
@@ -336,8 +385,8 @@ export default function OrdersPage({ embedded = false }) {
       <div key={view} className="flex flex-col gap-4 kds-fade-in">
         {(!showViews || view === "orders") && (
           <>
-            {/* KPI Stats — scoped to the same date range as the table */}
-            <OrderStats activeStatus={statusFilter} onStatusClick={setStatusFilter} dateFrom={dateFrom} dateTo={dateTo} />
+            {/* KPI Stats — same scope as the table (Active queue vs All range) */}
+            <OrderStats activeStatus={statusFilter} onStatusClick={handleStatusClick} dateFrom={dateFrom} dateTo={dateTo} scope={scope} />
           </>
         )}
 
@@ -363,6 +412,7 @@ export default function OrdersPage({ embedded = false }) {
         />
         <div className="ml-auto flex flex-wrap items-center gap-3">
           {pairButtons}
+          {scopeSwitcher}
           {viewSwitcher}
         </div>
       </div>
@@ -371,7 +421,6 @@ export default function OrdersPage({ embedded = false }) {
               orders={orders}
               isLoading={isLoading}
               onView={handleView}
-              onAdvance={handleAdvance}
             />
 
             {/* Pagination */}
@@ -384,6 +433,7 @@ export default function OrdersPage({ embedded = false }) {
                 setPageSize(size);
                 setPage(1);
               }}
+              pageSizeOptions={[20, 50, 100]}
               itemLabel="orders"
             />
           </div>
@@ -418,6 +468,20 @@ export default function OrdersPage({ embedded = false }) {
         onOpenChange={(open) => { if (!open) setAcceptingOrder(null); }}
         acceptedPayments={acceptedPayments}
         totalAmount={acceptingOrder ? Number(acceptingOrder.total_amount) : 0}
+        orderSummary={acceptingOrder ? {
+          itemCount: acceptingDetail?.items
+            ? acceptingDetail.items.reduce((s, i) => s + Number(i.quantity ?? 0), 0)
+            : Number(acceptingOrder.item_count ?? 0) || 0,
+          customerName: acceptingDetail?.customer_name ?? acceptingOrder.customer_name,
+          tableName: acceptingDetail?.table_number ?? acceptingOrder.table_number,
+          items: (acceptingDetail?.items ?? []).filter((i) => !i.is_removed).map((i) => ({
+            order_item_id: i.order_item_id,
+            product_name: i.product_name,
+            size_name: i.size_name,
+            quantity: i.quantity,
+            unit_price: i.unit_price,
+          })),
+        } : undefined}
         onConfirm={handleAcceptPaymentConfirm}
         isLoading={mutations.advanceStatus.isPending}
       />

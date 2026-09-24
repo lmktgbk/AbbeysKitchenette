@@ -19,7 +19,7 @@ export const orderController = {
    */
   async getOrders(req, res) {
     try {
-      const { page, limit, search, status, date_from, date_to, sortBy, sortDir, staff_id } = req.validatedQuery;
+      const { page, limit, search, status, date_from, date_to, sortBy, sortDir, staff_id, scope } = req.validatedQuery;
       const result = await orderService.getAll({
         page: Number(page),
         limit: Number(limit),
@@ -30,6 +30,7 @@ export const orderController = {
         sortBy,
         sortDir,
         staffId: staff_id,
+        scope,
       });
       return successResponse(res, "Orders retrieved", result);
     } catch (error) {
@@ -43,8 +44,8 @@ export const orderController = {
    */
   async getStats(req, res) {
     try {
-      const { date_from, date_to } = req.validatedQuery ?? {};
-      const stats = await orderService.getStats({ dateFrom: date_from, dateTo: date_to });
+      const { date_from, date_to, scope } = req.validatedQuery ?? {};
+      const stats = await orderService.getStats({ dateFrom: date_from, dateTo: date_to, scope });
       return successResponse(res, "Stats retrieved", { stats });
     } catch (error) {
       return handleError(res, error, "GET_STATS_ERROR");
@@ -96,8 +97,8 @@ export const orderController = {
    */
   async createOrder(req, res) {
     try {
-      const { customer_name, table_number, items, amount_paid, order_date,
-        discount_type, promo_mode, promo_value, discount_id_no, discount_label,
+      const { customer_name, table_number, items, amount_paid,
+        discount_type, promo_mode, promo_value, discount_id_no, senior_id_no, pwd_id_no, discount_label,
         payment_method, reference_no } = req.body;
       const order = await orderService.createWalkIn({
         customerName: customer_name,
@@ -105,8 +106,9 @@ export const orderController = {
         items,
         amountPaid: amount_paid,
         createdBy: req.user.id,
-        orderDate: order_date,
-        discount: { discount_type, promo_mode, promo_value, discount_id_no, discount_label },
+        // NOTE: req.body.order_date is accepted by validation but deliberately
+        // ignored — business date is stamped from the DB clock (config/time.js).
+        discount: { discount_type, promo_mode, promo_value, discount_id_no, senior_id_no, pwd_id_no, discount_label },
         payment: { payment_method, reference_no },
       });
       return successResponse(res, "Order created", { order }, 201);
@@ -148,12 +150,12 @@ export const orderController = {
   async updateStatus(req, res) {
     try {
       const { status, amount_paid, discount_type, promo_mode, promo_value,
-        discount_id_no, discount_label, payment_method, reference_no } = req.body;
+        discount_id_no, senior_id_no, pwd_id_no, discount_label, item_discounts, payment_method, reference_no } = req.body;
       const order = await orderService.advanceStatus(req.params.id, status, {
         userId: req.user.id,
         amountPaid: amount_paid,
         discount_type, promo_mode, promo_value,
-        discount_id_no, discount_label, payment_method, reference_no,
+        discount_id_no, senior_id_no, pwd_id_no, discount_label, item_discounts, payment_method, reference_no,
       });
       return successResponse(res, "Order status updated", { order });
     } catch (error) {
@@ -168,7 +170,7 @@ export const orderController = {
   async fulfillOrder(req, res) {
     try {
       const { customer_name, table_number, items, amount_paid,
-        discount_type, promo_mode, promo_value, discount_id_no, discount_label,
+        discount_type, promo_mode, promo_value, discount_id_no, senior_id_no, pwd_id_no, discount_label,
         payment_method, reference_no } = req.body;
       const order = await orderService.fulfillPendingOrder({
         id: req.params.id,
@@ -177,7 +179,7 @@ export const orderController = {
         items,
         amountPaid: amount_paid,
         userId: req.user.id,
-        discount: { discount_type, promo_mode, promo_value, discount_id_no, discount_label },
+        discount: { discount_type, promo_mode, promo_value, discount_id_no, senior_id_no, pwd_id_no, discount_label },
         payment: { payment_method, reference_no },
       });
       return successResponse(res, "Order fulfilled", { order });

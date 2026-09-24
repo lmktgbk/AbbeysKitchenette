@@ -27,7 +27,7 @@ export const resendOtpSchema = z.object({
   userId: z.string().uuid("Invalid user ID"),
 });
 
-// Used by POST /auth/forgot-password — admin requests password reset link
+// Used by POST /auth/forgot-password — any role requests password reset link
 export const forgotPasswordSchema = z.object({
   email: z.string().email("Invalid email format").min(1, "Email is required"),
 });

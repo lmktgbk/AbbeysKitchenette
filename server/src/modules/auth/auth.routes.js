@@ -35,7 +35,7 @@ router.post("/verify-otp", authLimiter, validate(verifyOtpSchema), authControlle
 // POST /api/auth/resend-otp — resend OTP to email
 router.post("/resend-otp", authLimiter, validate(resendOtpSchema), authController.resendOtp);
 
-// POST /api/auth/forgot-password — admin-only (staff silently skipped, same response)
+// POST /api/auth/forgot-password — self-service for all roles (same generic response)
 router.post(
   "/forgot-password",
   authLimiter,
@@ -44,7 +44,7 @@ router.post(
   authController.forgotPassword,
 );
 
-// POST /api/auth/reset-password — admin-only (staff tokens rejected in service)
+// POST /api/auth/reset-password — set new password from email link (all roles)
 router.post(
   "/reset-password",
   authLimiter,

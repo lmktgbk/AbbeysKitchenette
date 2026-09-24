@@ -1,5 +1,5 @@
 import { orderRepository } from "./order.repository.js";
-import { isValidTransition, formatOrderResponse, formatOrderItemResponse, computeDiscountedTotal, roundMoney, composeOrderNumber, formatOrderNumber } from "./order.utils.js";
+import { isValidTransition, formatOrderResponse, formatOrderItemResponse, computeDiscountedTotal, computeLineDiscount, aggregateLineDiscounts, roundMoney, composeOrderNumber, formatOrderNumber } from "./order.utils.js";
 import { shiftService } from "../shifts/shift.service.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { productService } from "../products/product.service.js";
@@ -9,16 +9,17 @@ import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { notificationService } from "../notifications/notification.service.js";
 import { settingsService } from "../settings/settings.service.js";
 import { anomalyService } from "../anomalyDetection/anomalyDetection.service.js";
+import { getBusinessDate } from "../../config/time.js";
 
 export const orderService = {
   /* ── Queries ─────────────────────────── */
 
-  async getAll({ page = 1, limit = 50, search, status, dateFrom, dateTo, sortBy, sortDir, staffId }) {
+  async getAll({ page = 1, limit = 50, search, status, dateFrom, dateTo, sortBy, sortDir, staffId, scope }) {
     const skip = (page - 1) * limit;
 
     const [rows, totalItems] = await Promise.all([
-      orderRepository.findManyPaginated({ skip, take: limit, search, status, dateFrom, dateTo, sortBy, sortDir, staffId }),
-      orderRepository.countFiltered({ search, status, dateFrom, dateTo, staffId }),
+      orderRepository.findManyPaginated({ skip, take: limit, search, status, dateFrom, dateTo, sortBy, sortDir, staffId, scope }),
+      orderRepository.countFiltered({ search, status, dateFrom, dateTo, staffId, scope }),
     ]);
 
     const orders = rows.map((row) => formatOrderResponse(row, {
@@ -69,10 +70,10 @@ export const orderService = {
 
   /**
    * Status counts for KPI cards, optionally scoped to order_date range.
-   * @param {object} [filters] - { dateFrom?: "YYYY-MM-DD", dateTo?: "YYYY-MM-DD" }
+   * @param {object} [filters] - { dateFrom?: "YYYY-MM-DD", dateTo?: "YYYY-MM-DD", scope?: "active" | "all" }
    */
-  async getStats({ dateFrom, dateTo } = {}) {
-    return orderRepository.countByStatus({ dateFrom, dateTo });
+  async getStats({ dateFrom, dateTo, scope } = {}) {
+    return orderRepository.countByStatus({ dateFrom, dateTo, scope });
   },
 
   async getById(id) {
@@ -171,7 +172,7 @@ export const orderService = {
 
   /* ── Walk-In Order Creation ──────────── */
 
-  async createWalkIn({ customerName, tableNumber, items, amountPaid, createdBy, orderDate: orderDateStr, discount = {}, payment = {} }) {
+  async createWalkIn({ customerName, tableNumber, items, amountPaid, createdBy, discount = {}, payment = {} }) {
     // BR-02: payment requires an open drawer session.
     // Independent reads — one round instead of three sequential ones.
     const [{ shiftId }, { pricedItems, subtotal, discount: discountResult, total }] = await Promise.all([
@@ -183,14 +184,16 @@ export const orderService = {
 
     const paymentMethod = payment.payment_method ?? "cash";
     const change = paymentMethod === "cash" ? roundMoney(amountPaid - total) : 0;
+    const identity = this._resolveDiscountIdentity(discount, pricedItems, discountResult.discountType);
 
     const aggregatedIngredients = await this._aggregateIngredientNeeds(pricedItems);
 
     const order = await prisma.$transaction(async (tx) => {
       const now = new Date();
-      const orderDate = orderDateStr
-        ? new Date(orderDateStr + "T00:00:00Z")
-        : new Date(now.toISOString().split("T")[0]);
+      // Business date is DB-clock Manila — client-supplied order_date is
+      // never trusted (device clocks lie). See config/time.js.
+      const businessDay = await getBusinessDate(tx);
+      const orderDate = new Date(businessDay + "T00:00:00Z");
       const orderNumber = composeOrderNumber(orderDate, await orderRepository.getNextOrderNumber(orderDate, tx));
 
       const newOrder = await orderRepository.createOrder({
@@ -203,8 +206,10 @@ export const orderService = {
         subtotalAmount: subtotal,
         discountType: discountResult.discountType,
         discountPercent: discountResult.discountPercent,
-        discountLabel: discount.discount_label ?? null,
-        discountIdNo: discount.discount_id_no ?? null,
+        discountLabel: identity.discountLabel,
+        discountIdNo: identity.discountIdNo,
+        seniorIdNo: identity.seniorIdNo,
+        pwdIdNo: identity.pwdIdNo,
         discountAmount: discountResult.discountAmount,
         discountBy: discountResult.discountType === "none" ? null : createdBy,
         paymentMethod,
@@ -221,6 +226,10 @@ export const orderService = {
         variantId: item.variant_id,
         quantity: item.quantity,
         unitPrice: item.unit_price,
+        discountType: item.discountType ?? "none",
+        discountPercent: item.discountPercent ?? 0,
+        discountAmount: item.discountAmount ?? 0,
+        discountLabel: item.discountLabel ?? null,
       })), tx);
 
       const { deductions, needs } = await this._deductIngredients(newOrder.orderId, aggregatedIngredients, tx, createdBy);
@@ -261,17 +270,16 @@ export const orderService = {
 
   /* ── Online Order Creation (Guest) ──── */
 
-  async createOnline({ customerName, tableNumber, items, guestToken, orderDate: orderDateStr }) {
+  async createOnline({ customerName, tableNumber, items, guestToken }) {
     // Server re-price so guests can't tamper with totals (no discount at placement).
     const { pricedItems, total } = await this._priceItemsAndTotals(items, { discount_type: "none" });
 
     let orderNumber;
 
     const result = await prisma.$transaction(async (tx) => {
-      const now = new Date();
-      const orderDate = orderDateStr
-        ? new Date(orderDateStr + "T00:00:00Z")
-        : new Date(now.toISOString().split("T")[0]);
+      // DB-clock Manila business date — never client-supplied.
+      const businessDay = await getBusinessDate(tx);
+      const orderDate = new Date(businessDay + "T00:00:00Z");
       // Assigned to the outer binding below — the light response tail
       // needs the number without a getById refetch.
       orderNumber = composeOrderNumber(orderDate, await orderRepository.getNextOrderNumber(orderDate, tx));
@@ -427,6 +435,7 @@ export const orderService = {
     const paymentMethod = payment.payment_method ?? "cash";
     const change = paymentMethod === "cash" ? roundMoney(amountPaid - total) : 0;
     const paidToStore = paymentMethod === "cash" ? amountPaid : total;
+    const identity = this._resolveDiscountIdentity(discount, pricedItems, discountResult.discountType);
 
     const aggregatedIngredients = await this._aggregateIngredientNeeds(pricedItems);
 
@@ -451,6 +460,10 @@ export const orderService = {
         variantId: item.variant_id,
         quantity: item.quantity,
         unitPrice: item.unit_price,
+        discountType: item.discountType ?? "none",
+        discountPercent: item.discountPercent ?? 0,
+        discountAmount: item.discountAmount ?? 0,
+        discountLabel: item.discountLabel ?? null,
       })), tx);
 
       const { needs } = await this._deductIngredients(id, aggregatedIngredients, tx, userId);
@@ -467,8 +480,10 @@ export const orderService = {
         subtotalAmount: subtotal,
         discountType: discountResult.discountType,
         discountPercent: discountResult.discountPercent,
-        discountLabel: discount.discount_label ?? null,
-        discountIdNo: discount.discount_id_no ?? null,
+        discountLabel: identity.discountLabel,
+        discountIdNo: identity.discountIdNo,
+        seniorIdNo: identity.seniorIdNo,
+        pwdIdNo: identity.pwdIdNo,
         discountAmount: discountResult.discountAmount,
         discountBy: discountResult.discountType === "none" ? null : userId,
         paymentMethod,
@@ -869,29 +884,57 @@ export const orderService = {
       // Soft-delete the order item
       await orderRepository.removeOrderItem(orderItemId, { userId, reason, lossOption }, tx);
 
-      // Recompute totals from remaining items (net of discount) — never
-      // subtract a gross refund from a net total.
+      // Recompute totals from remaining items, preserving each line's own
+      // discount (one discount per item — a removal never re-discounts or
+      // stacks anything). Falls back to the legacy whole-bill discount for
+      // orders created before per-item discounts existed.
       const remainingItems = await tx.orderItem.findMany({
         where: { orderId, removedAt: null },
-        select: { subtotal: true },
+        select: { subtotal: true, unitPrice: true, quantity: true, discountType: true, discountPercent: true, discountAmount: true },
       });
       const remainingSubtotal = roundMoney(
-        remainingItems.reduce((sum, i) => sum + Number(i.subtotal || 0), 0)
+        remainingItems.reduce((sum, i) => sum + Number(i.subtotal ?? Number(i.unitPrice || 0) * Number(i.quantity || 0)), 0)
       );
-      const discountInput = { discount_type: order.discountType ?? "none" };
-      if (discountInput.discount_type === "promo") {
-        if (Number(order.discountPercent) > 0) {
-          discountInput.promo_mode = "percent";
-          discountInput.promo_value = Number(order.discountPercent);
-        } else {
-          discountInput.promo_mode = "peso";
-          discountInput.promo_value = Number(order.discountAmount) || 0;
+      let priced;
+      if (remainingItems.some((i) => (i.discountType ?? "none") !== "none")) {
+        const agg = aggregateLineDiscounts(
+          remainingItems.map((i) => {
+            const lineSubtotal = roundMoney(Number(i.subtotal ?? Number(i.unitPrice || 0) * Number(i.quantity || 0)));
+            // Stored per-line amount is authoritative; recompute only when missing.
+            let dAmount = Number(i.discountAmount || 0);
+            let dPercent = Number(i.discountPercent || 0);
+            const dType = i.discountType ?? "none";
+            if (!dAmount && dType !== "none") {
+              const d = computeLineDiscount(lineSubtotal, {
+                discount_type: dType,
+                promo_mode: dPercent > 0 ? "percent" : "amount",
+                promo_value: dPercent > 0 ? dPercent : dAmount,
+              });
+              dAmount = d.discountAmount;
+              dPercent = d.discountPercent;
+            }
+            return { lineSubtotal, discount: { discountType: dType, discountPercent: dPercent, discountAmount: dAmount } };
+          }),
+        );
+        priced = { discountType: agg.discountType, discountPercent: agg.discountPercent, discountAmount: agg.discountAmount, total: agg.total };
+      } else {
+        const discountInput = { discount_type: order.discountType ?? "none" };
+        if (discountInput.discount_type === "promo") {
+          if (Number(order.discountPercent) > 0) {
+            discountInput.promo_mode = "percent";
+            discountInput.promo_value = Number(order.discountPercent);
+          } else {
+            discountInput.promo_mode = "peso";
+            discountInput.promo_value = Number(order.discountAmount) || 0;
+          }
         }
+        const legacy = computeDiscountedTotal(remainingSubtotal, discountInput);
+        priced = { discountType: legacy.discountType, discountPercent: legacy.discountPercent, discountAmount: legacy.discountAmount, total: legacy.total };
       }
-      const priced = computeDiscountedTotal(remainingSubtotal, discountInput);
       const oldTotal = roundMoney(Number(order.totalAmount) || 0);
       await orderRepository.updateOrder(orderId, {
         subtotalAmount: remainingSubtotal,
+        discountType: priced.discountType,
         discountAmount: priced.discountAmount,
         discountPercent: priced.discountPercent,
         totalAmount: priced.total,
@@ -1011,7 +1054,12 @@ export const orderService = {
   /**
    * Re-price items from live variant prices (server authoritative) and
    * compute subtotal -> discount -> net total.
-   * @param {Array} items - [{ product_id, variant_id, quantity, unit_price }]
+   * Supports two modes (backward compatible):
+   * - Per-item mode: any item carries discount_type != "none" → each line is
+   *   priced with computeLineDiscount (one discount per item, never stacked)
+   *   and order totals are the Σ of lines (discountType "mixed" when lines differ).
+   * - Legacy mode: no per-item discounts → whole-bill computeDiscountedTotal.
+   * @param {Array} items - [{ product_id, variant_id, quantity, unit_price, discount_type?, promo_mode?, promo_value?, discount_label? }]
    * @param {object} discount - { discount_type, promo_mode, promo_value }
    * @returns {{ pricedItems, subtotal, discount, total }}
    */
@@ -1032,11 +1080,84 @@ export const orderService = {
       return { ...item, unit_price: livePrice };
     });
 
+    const perItemMode = pricedItems.some(
+      (i) => (i.discount_type ?? "none") !== "none",
+    );
+
+    if (perItemMode) {
+      const lines = pricedItems.map((item) => {
+        const lineSubtotal = roundMoney(item.unit_price * item.quantity);
+        const d = computeLineDiscount(lineSubtotal, {
+          discount_type: item.discount_type ?? "none",
+          promo_mode: item.promo_mode,
+          promo_value: item.promo_value,
+        });
+        return {
+          ...item,
+          discountType: d.discountType,
+          discountPercent: d.discountPercent,
+          discountAmount: d.discountAmount,
+          discountLabel: d.discountType === "promo" ? (item.discount_label ?? null) : null,
+          _lineSubtotal: lineSubtotal,
+          _lineTotal: d.total,
+        };
+      });
+      const agg = aggregateLineDiscounts(
+        lines.map((l) => ({ lineSubtotal: l._lineSubtotal, discount: { discountType: l.discountType, discountPercent: l.discountPercent, discountAmount: l.discountAmount } })),
+      );
+      return {
+        pricedItems: lines,
+        subtotal: agg.subtotal,
+        discount: { discountType: agg.discountType, discountPercent: agg.discountPercent, discountAmount: agg.discountAmount },
+        total: agg.total,
+      };
+    }
+
     const subtotal = roundMoney(
       pricedItems.reduce((sum, item) => sum + item.unit_price * item.quantity, 0)
     );
     const result = computeDiscountedTotal(subtotal, discount);
-    return { pricedItems, subtotal, discount: result, total: result.total };
+    return {
+      pricedItems: pricedItems.map((item) => ({
+        ...item,
+        discountType: "none",
+        discountPercent: 0,
+        discountAmount: 0,
+        discountLabel: null,
+      })),
+      subtotal,
+      discount: result,
+      total: result.total,
+    };
+  },
+
+  /**
+   * Resolve audit IDs + label for storage.
+   * senior/pwd IDs are required by validation whenever their lines exist;
+   * discount_id_no mirrors the legacy single-ID column for old receipts.
+   */
+  _resolveDiscountIdentity(discount = {}, pricedItems = [], aggregateType = "none") {
+    const seniorIdNo = (discount.senior_id_no ?? "").trim?.()
+      ? discount.senior_id_no.trim()
+      : (aggregateType === "senior" || pricedItems.some((i) => (i.discountType ?? i.discount_type) === "senior"))
+        ? (discount.discount_id_no?.trim?.() || null)
+        : null;
+    const pwdIdNo = (discount.pwd_id_no ?? "").trim?.()
+      ? discount.pwd_id_no.trim()
+      : (aggregateType === "pwd" || pricedItems.some((i) => (i.discountType ?? i.discount_type) === "pwd"))
+        ? (discount.discount_id_no?.trim?.() || null)
+        : null;
+    const discountIdNo = (discount.discount_id_no?.trim?.() || null) ?? seniorIdNo ?? pwdIdNo;
+    let discountLabel = discount.discount_label ?? null;
+    if (discountLabel == null) {
+      const promoLabels = pricedItems
+        .filter((i) => (i.discountType ?? i.discount_type) === "promo")
+        .map((i) => i.discountLabel ?? i.discount_label ?? null)
+        .filter(Boolean);
+      if (promoLabels.length === 1) discountLabel = promoLabels[0];
+      else if (promoLabels.length > 1) discountLabel = promoLabels.join("; ");
+    }
+    return { discountIdNo, seniorIdNo, pwdIdNo, discountLabel };
   },
 
   /**
@@ -1677,18 +1798,41 @@ export const orderService = {
     const { shiftId } = await shiftService.resolveShiftForUser(meta.userId);
 
     // Re-price from live variant prices so acceptance can't use stale totals.
-    const orderItems = order.items.map((item) => ({
-      product_id: item.productId,
-      variant_id: item.variantId,
-      quantity: item.quantity,
-      unit_price: Number(item.unitPrice),
-    }));
-    const { subtotal, discount: discountResult, total } =
-      await this._priceItemsAndTotals(orderItems, {
-        discount_type: meta.discount_type,
-        promo_mode: meta.promo_mode,
-        promo_value: meta.promo_value,
-      });
+    // Per-item mode: item_discounts (from the accept-payment modal, keyed by
+    // order_item_id) attach a single discount to each stored line. Legacy
+    // mode: whole-bill meta.discount_type applies to the subtotal.
+    const patchByItemId = new Map(
+      (meta.item_discounts ?? []).map((d) => [Number(d.order_item_id), d]),
+    );
+    const orderItems = order.items.map((item) => {
+      const patch = patchByItemId.get(Number(item.orderItemId ?? item.order_item_id));
+      return {
+        product_id: item.productId,
+        variant_id: item.variantId,
+        quantity: item.quantity,
+        unit_price: Number(item.unitPrice),
+        discount_type: patch?.discount_type ?? item.discountType ?? item.discount_type ?? "none",
+        promo_mode: patch?.promo_mode,
+        promo_value: patch?.promo_value,
+        discount_label: patch?.discount_label ?? item.discountLabel ?? item.discount_label ?? undefined,
+      };
+    });
+    const discountInput = {
+      discount_type: meta.discount_type,
+      promo_mode: meta.promo_mode,
+      promo_value: meta.promo_value,
+      senior_id_no: meta.senior_id_no,
+      pwd_id_no: meta.pwd_id_no,
+      discount_id_no: meta.discount_id_no,
+      discount_label: meta.discount_label,
+    };
+    const { subtotal, discount: discountResult, total, pricedItems } =
+      await this._priceItemsAndTotals(orderItems, discountInput);
+    const identity = this._resolveDiscountIdentity(
+      { ...discountInput, discount_label: discountInput.discount_label ?? undefined },
+      pricedItems,
+      discountResult.discountType,
+    );
 
     await this._assertPaymentValid({ amountPaid: meta.amountPaid, total, paymentMethod: meta.payment_method });
 
@@ -1720,8 +1864,10 @@ export const orderService = {
         subtotalAmount: subtotal,
         discountType: discountResult.discountType,
         discountPercent: discountResult.discountPercent,
-        discountLabel: meta.discount_label ?? null,
-        discountIdNo: meta.discount_id_no ?? null,
+        discountLabel: identity.discountLabel,
+        discountIdNo: identity.discountIdNo,
+        seniorIdNo: identity.seniorIdNo,
+        pwdIdNo: identity.pwdIdNo,
         discountAmount: discountResult.discountAmount,
         discountBy: discountResult.discountType === "none" ? null : meta.userId,
         paymentMethod,
@@ -1732,6 +1878,31 @@ export const orderService = {
         change,
       }, tx);
     }, { timeout: 15000 });
+
+    // Persist per-line discounts onto the stored lines so receipts, detail
+    // views, and later item-removal math see the same single-discount-per-item.
+    if (pricedItems.some((i) => (i.discountType ?? "none") !== "none")) {
+      const stored = await orderRepository.getOrderItems(id);
+      const byKey = new Map();
+      for (const p of pricedItems) {
+        const key = `${p.variant_id}x${p.quantity}x${p.unit_price}`;
+        if (!byKey.has(key)) byKey.set(key, []);
+        byKey.get(key).push(p);
+      }
+      for (const s of stored) {
+        const key = `${s.variantId}x${s.quantity}x${Number(s.unitPrice)}`;
+        const queue = byKey.get(key);
+        if (queue?.length) {
+          const p = queue.shift();
+          await orderRepository.updateOrderItemDiscount(s.orderItemId, {
+            discountType: p.discountType,
+            discountPercent: p.discountPercent,
+            discountAmount: p.discountAmount,
+            discountLabel: p.discountLabel ?? null,
+          });
+        }
+      }
+    }
 
     const affectedIngredientIds = [...ingredientNeeds.keys()];
     productService.recomputeVariantAvailability(affectedIngredientIds).catch((err) => console.warn("[menu] availability recompute dropped:", err?.message));

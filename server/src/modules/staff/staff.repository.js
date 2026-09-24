@@ -13,7 +13,6 @@ const SAFE_SELECT = {
   email: true,
   role: true,
   isActive: true,
-  mustChangePwd: true,
   lastLoginAt: true,
   createdAt: true,
   updatedAt: true,
@@ -67,14 +66,13 @@ export const staffRepository = {
   /**
    * Create a new staff member.
    */
-  async create({ name, email, role, passwordHash, mustChangePwd }) {
+  async create({ name, email, role, passwordHash }) {
     return prisma.user.create({
       data: {
         name,
         email,
         role,
         passwordHash: passwordHash || "",
-        mustChangePwd: mustChangePwd || false,
         isActive: true,
       },
       select: SAFE_SELECT,
@@ -100,22 +98,6 @@ export const staffRepository = {
       where: { id },
       data: { isActive },
       select: { id: true, isActive: true },
-    });
-  },
-
-  /**
-   * Reset password hash + force change on next login + clear lockout.
-   */
-  async resetPassword(id, passwordHash) {
-    return prisma.user.update({
-      where: { id },
-      data: {
-        passwordHash,
-        mustChangePwd: true,
-        failedLoginAttempts: 0,
-        lockedUntil: null,
-      },
-      select: { id: true },
     });
   },
 

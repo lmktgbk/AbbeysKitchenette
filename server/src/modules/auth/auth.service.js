@@ -126,9 +126,9 @@ export const authService = {
 
   async forgotPassword(email) {
     const user = await authRepository.findByEmail(email);
-    // Admin-only self-service. Staff accounts cannot use forgot-password:
-    // silently skip (same generic response) to avoid account enumeration.
-    if (!user || user.role !== "admin") {
+    // Self-service for all roles (admin + staff). Silently skip unknown or
+    // inactive accounts with the same generic response to avoid enumeration.
+    if (!user || !user.isActive) {
       return;
     }
     const resetToken = signToken({ sub: user.id, purpose: "password-reset" }, "15m");
@@ -155,13 +155,8 @@ export const authService = {
     if (!user) {
       throw new AppError(401, "User not found", "USER_NOT_FOUND");
     }
-    // Reset links are only ever issued to admins (see forgotPassword).
-    if (user.role !== "admin") {
-      throw new AppError(403, "Password reset is for admins only", "FORBIDDEN");
-    }
     const passwordHash = await bcrypt.hash(newPassword, 10);
     await authRepository.updatePassword(user.id, passwordHash);
-    await authRepository.setMustChangePwd(user.id, false);
     await authRepository.resetFailedLoginAttempts(user.id);
   },
 
@@ -184,8 +179,6 @@ export const authService = {
     }
     const newHash = await bcrypt.hash(newPassword, 10);
     await authRepository.updatePassword(userId, newHash);
-    // First-login / admin-reset flow completes here.
-    await authRepository.setMustChangePwd(userId, false);
   },
 
   async uploadProfileImage(userId, imageUrl) {

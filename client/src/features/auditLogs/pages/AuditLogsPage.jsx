@@ -33,7 +33,7 @@ const ACTION_GROUP_MAP = {
   "group:Product": ["PRODUCT_CREATED", "PRODUCT_UPDATED", "PRODUCT_DELETED", "PRODUCT_ACTIVATED", "PRODUCT_DEACTIVATED", "PRODUCT_VARIANTS_UPDATED", "VARIANT_ACTIVATED", "VARIANT_DEACTIVATED"],
   "group:Category": ["CATEGORY_CREATED", "CATEGORY_UPDATED", "CATEGORY_DELETED"],
   "group:Inventory": ["INGREDIENT_CREATED", "INGREDIENT_UPDATED", "INGREDIENT_ARCHIVED", "INGREDIENT_RESTORED", "INGREDIENT_DELETED", "STOCK_RESTOCKED", "STOCK_LOSS_DECLARED", "STOCK_COUNT_RECORDED", "LOSS_OVERRIDDEN"],
-  "group:Staff": ["STAFF_CREATED", "STAFF_UPDATED", "STAFF_DEACTIVATED", "STAFF_ACTIVATED", "STAFF_PASSWORD_RESET", "STAFF_DELETED"],
+  "group:Staff": ["STAFF_CREATED", "STAFF_UPDATED", "STAFF_DEACTIVATED", "STAFF_ACTIVATED", "STAFF_DELETED"],
   "group:Auth": ["LOGIN_SUCCESS", "LOGIN_FAILED", "LOGOUT", "PASSWORD_CHANGED", "PROFILE_UPDATED", "OTP_VERIFIED"],
   "group:Order": ["ORDER_CREATED", "ORDER_ACCEPTED", "ORDER_PREPARING", "ORDER_UPDATED", "ORDER_COMPLETED", "ORDER_CANCELLED", "ORDER_ITEM_REMOVED"],
   "group:Shift": ["SHIFT_OPENED", "SHIFT_CLOSED", "SHIFT_FORCE_CLOSED"],
@@ -94,7 +94,6 @@ const BADGE_STYLES = {
   SHIFT_CLOSED: "bg-amber-50 text-amber-700 border-amber-200",
   SHIFT_FORCE_CLOSED: "bg-red-50 text-red-700 border-red-200",
 
-  STAFF_PASSWORD_RESET: "bg-amber-50 text-amber-700 border-amber-200",
   STOCK_RESTOCKED: "bg-amber-50 text-amber-700 border-amber-200",
   STOCK_LOSS_DECLARED: "bg-amber-50 text-amber-700 border-amber-200",
   LOGOUT: "bg-amber-50 text-amber-700 border-amber-200",
@@ -156,7 +155,6 @@ const ROW_BORDER_COLORS = {
   SHIFT_CLOSED: "border-l-amber-500",
   SHIFT_FORCE_CLOSED: "border-l-red-500",
 
-  STAFF_PASSWORD_RESET: "border-l-amber-500",
   STOCK_RESTOCKED: "border-l-amber-500",
   STOCK_LOSS_DECLARED: "border-l-amber-500",
   LOGOUT: "border-l-amber-500",
@@ -217,7 +215,6 @@ function formatDescription(log) {
     case "STAFF_UPDATED": return `Updated ${name}${fields.length ? ` (${fields.join(", ")})` : ""}`;
     case "STAFF_ACTIVATED": return `Activated ${name}`;
     case "STAFF_DEACTIVATED": return `Deactivated ${name}`;
-    case "STAFF_PASSWORD_RESET": return `Reset password for ${name}`;
     case "STAFF_DELETED": return `Deleted ${name}`;
 
     case "LOGIN_SUCCESS": return `Logged in${role ? ` (${role})` : ""}`;
@@ -264,7 +261,7 @@ function formatDescription(log) {
 
 export default function AuditLogsPage() {
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(50);
+  const [limit, setLimit] = useState(20);
   const [search, setSearch] = useState("");
   const [actionFilter, setActionFilter] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -414,7 +411,7 @@ export default function AuditLogsPage() {
           pageSize={pagination.limit}
           onPageChange={setPage}
           onPageSizeChange={(newLimit) => { setLimit(newLimit); setPage(1); }}
-          pageSizeOptions={[50, 75, 100]}
+          pageSizeOptions={[20, 50, 100]}
           itemLabel="logs"
         />
       </div>

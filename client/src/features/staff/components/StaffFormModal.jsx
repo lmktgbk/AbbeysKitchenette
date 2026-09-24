@@ -19,7 +19,8 @@ import { createStaffSchema, editStaffSchema, ROLE_OPTIONS } from "../staffValida
  * StaffFormModal
  *
  * Create new staff or edit existing staff.
- * Create mode: name, email, role (cashier/kitchen). PIN auto-generated.
+ * Create mode: name, email, role (cashier/kitchen). A set-password link is
+ * emailed to the new staff member — admins never handle passwords.
  * Edit mode: name, email, role.
  */
 export default function StaffFormModal({
@@ -66,7 +67,7 @@ export default function StaffFormModal({
           <DialogDescription>
             {isEditMode
               ? "Update staff member details."
-              : "Create a new staff account with email and password."}
+              : "Create a new staff account. A set-password link will be emailed to them."}
           </DialogDescription>
         </DialogHeader>
 
@@ -111,21 +112,6 @@ export default function StaffFormModal({
               <p className="mt-1.5 text-xs text-destructive">{errors.role.message}</p>
             )}
           </div>
-
-          {/* Password — create only */}
-          {!isEditMode && (
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-foreground">
-                Password <span className="font-normal text-muted-foreground">(leave blank to auto-generate)</span>
-              </label>
-              <Input
-                type="password"
-                placeholder="Min 8 characters"
-                error={errors.password?.message}
-                {...register("password")}
-              />
-            </div>
-          )}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleClose}>

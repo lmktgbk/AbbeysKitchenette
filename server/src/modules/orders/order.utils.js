@@ -43,7 +43,8 @@ export function getNextStatus(current) {
 
 // ── BR-01: Discount / Payment ─────────────────────────────
 
-export const DISCOUNT_TYPES = ["none", "senior", "pwd", "promo"];
+export const DISCOUNT_TYPES = ["none", "senior", "pwd", "promo", "mixed"];
+export const ITEM_DISCOUNT_TYPES = ["none", "senior", "pwd", "promo"];
 export const PAYMENT_METHODS = ["cash", "gcash", "maya"];
 
 // Senior/PWD fixed discount under PH law.
@@ -87,6 +88,66 @@ export function computeDiscountedTotal(subtotal, input = {}) {
   return { discountType: "none", discountPercent: 0, discountAmount: 0, total: base };
 }
 
+/**
+ * Compute discount for a SINGLE order line.
+ * Enforces the one-discount-per-item rule by construction: a line carries
+ * exactly one discount_type, so senior/pwd/promo can never stack on one line.
+ * @param {number} lineSubtotal - unit_price × quantity for this line
+ * @param {object} input - { discount_type, promo_mode, promo_value }
+ * @returns {{ discountType, discountPercent, discountAmount, total }}
+ */
+export function computeLineDiscount(lineSubtotal, input = {}) {
+  const base = roundMoney(lineSubtotal);
+  const type = ITEM_DISCOUNT_TYPES.includes(input.discount_type) ? input.discount_type : "none";
+
+  if (type === "senior" || type === "pwd") {
+    const amount = roundMoney((base * SENIOR_PWD_DISCOUNT_PERCENT) / 100);
+    return {
+      discountType: type,
+      discountPercent: SENIOR_PWD_DISCOUNT_PERCENT,
+      discountAmount: amount,
+      total: roundMoney(base - amount),
+    };
+  }
+
+  if (type === "promo") {
+    if (input.promo_mode === "percent") {
+      const pct = Math.min(Math.max(Number(input.promo_value ?? 0), 0), 100);
+      const amount = roundMoney((base * pct) / 100);
+      return { discountType: type, discountPercent: pct, discountAmount: amount, total: roundMoney(base - amount) };
+    }
+    const amount = Math.min(Math.max(roundMoney(Number(input.promo_value ?? 0)), 0), base);
+    return { discountType: type, discountPercent: 0, discountAmount: amount, total: roundMoney(base - amount) };
+  }
+
+  return { discountType: "none", discountPercent: 0, discountAmount: 0, total: base };
+}
+
+/**
+ * Aggregate per-line discounts into order-level totals.
+ * discountType: "none" (no lines discounted) | single type (all discounted
+ * lines share it) | "mixed" (lines differ — e.g. pwd lines + regular lines).
+ * discountPercent is meaningful only when every discounted line is a uniform
+ * percent (senior/pwd 20% or a uniform promo %); otherwise 0 and clients
+ * should read per-line percents.
+ * @param {Array<{ lineSubtotal: number, discount: { discountType, discountPercent, discountAmount } }>} lines
+ * @returns {{ subtotal, discountType, discountPercent, discountAmount, total }}
+ */
+export function aggregateLineDiscounts(lines = []) {
+  const subtotal = roundMoney(lines.reduce((s, l) => s + Number(l.lineSubtotal || 0), 0));
+  const discountAmount = roundMoney(lines.reduce((s, l) => s + Number(l.discount?.discountAmount || 0), 0));
+  const used = [...new Set(lines.map((l) => l.discount?.discountType).filter((t) => t && t !== "none"))];
+  const discountType = used.length === 0 ? "none" : used.length === 1 ? used[0] : "mixed";
+  let discountPercent = 0;
+  if (discountType === "senior" || discountType === "pwd") {
+    discountPercent = SENIOR_PWD_DISCOUNT_PERCENT;
+  } else if (discountType === "promo") {
+    const pcts = [...new Set(lines.filter((l) => l.discount?.discountType === "promo").map((l) => Number(l.discount?.discountPercent || 0)))];
+    discountPercent = pcts.length === 1 ? pcts[0] : 0;
+  }
+  return { subtotal, discountType, discountPercent, discountAmount, total: roundMoney(subtotal - discountAmount) };
+}
+
 // ── Order Number (BR-04: padded YYMMDDNNN) ────────────────
 // Stored as Int (always < 2^31), displayed with a dash: 260918-001.
 // Legacy short counters (pre-migration) fall back to #0001 style.
@@ -121,6 +182,8 @@ export function formatOrderResponse(row, extra = {}) {
     discount_amount: Number(row.discount_amount ?? row.discountAmount ?? 0),
     discount_label: row.discount_label ?? row.discountLabel ?? null,
     discount_id_no: row.discount_id_no ?? row.discountIdNo ?? null,
+    senior_id_no: row.senior_id_no ?? row.seniorIdNo ?? null,
+    pwd_id_no: row.pwd_id_no ?? row.pwdIdNo ?? null,
     discount_by: row.discount_by ?? row.discountBy ?? null,
     payment_method: row.payment_method ?? row.paymentMethod ?? "cash",
     reference_no: row.reference_no ?? row.referenceNo ?? null,
@@ -153,6 +216,10 @@ export function formatOrderItemResponse(row) {
     quantity: row.quantity,
     unit_price: Number(row.unit_price ?? row.unitPrice),
     subtotal: row.subtotal != null ? Number(row.subtotal) : null,
+    discount_type: row.discount_type ?? row.discountType ?? "none",
+    discount_percent: Number(row.discount_percent ?? row.discountPercent ?? 0),
+    discount_amount: Number(row.discount_amount ?? row.discountAmount ?? 0),
+    discount_label: row.discount_label ?? row.discountLabel ?? null,
     is_prepared: row.is_prepared ?? row.isPrepared ?? false,
     prepared_by: row.prepared_by ?? row.preparedBy ?? null,
     prepared_by_name: row.prepared_by_name ?? row.preparedByUser?.name ?? null,

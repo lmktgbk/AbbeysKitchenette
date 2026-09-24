@@ -152,21 +152,31 @@ export default function PosInterface() {
     }
   }
 
-  async function handlePaymentConfirm({ amount_paid, discount_type, promo_mode, promo_value, discount_id_no, discount_label, payment_method, reference_no }) {
+  async function handlePaymentConfirm({ amount_paid, discount_type, promo_mode, promo_value, discount_id_no, senior_id_no, pwd_id_no, discount_label, item_discounts, payment_method, reference_no }) {
     const payload = {
       customer_name: customerName,
       table_number: tableName,
-      items: items.map((i) => ({
-        product_id: i.product_id,
-        variant_id: i.variant_id,
-        quantity: i.quantity,
-        unit_price: i.unit_price,
-      })),
+      items: items.map((i, idx) => {
+        const d = item_discounts?.[idx];
+        return {
+          product_id: i.product_id,
+          variant_id: i.variant_id,
+          quantity: i.quantity,
+          unit_price: i.unit_price,
+          // Per-item discount: one type per line (none | senior | pwd | promo).
+          discount_type: d?.discount_type ?? "none",
+          ...(d?.discount_type === "promo"
+            ? { promo_mode: d.promo_mode, promo_value: d.promo_value, discount_label: d.discount_label }
+            : {}),
+        };
+      }),
       amount_paid,
       discount_type,
       promo_mode,
       promo_value,
       discount_id_no,
+      senior_id_no,
+      pwd_id_no,
       discount_label,
       payment_method,
       reference_no,

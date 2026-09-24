@@ -20,8 +20,17 @@ function discountTag(order) {
   if (!order?.discount_type || order.discount_type === "none") return null;
   if (order.discount_type === "senior") return "Senior 20%";
   if (order.discount_type === "pwd") return "PWD 20%";
+  if (order.discount_type === "mixed") return "Mixed (per-item)";
   const mode = Number(order.discount_percent) > 0 ? `${order.discount_percent}%` : "fixed";
   return `Promo ${mode}${order?.discount_label ? ` ${order.discount_label}` : ""}`;
+}
+
+function itemDiscountTag(item) {
+  if (!item?.discount_type || item.discount_type === "none") return null;
+  if (item.discount_type === "senior") return "SNR 20%";
+  if (item.discount_type === "pwd") return "PWD 20%";
+  const mode = Number(item.discount_percent) > 0 ? `${item.discount_percent}%` : "fixed";
+  return `Promo ${mode}`;
 }
 
 export default function ReceiptPrint({ payload }) {
@@ -77,6 +86,12 @@ export default function ReceiptPrint({ payload }) {
           <div className="rc-row rc-item-sub">
             <span>@ {peso(item.unit_price)}</span>
           </div>
+          {itemDiscountTag(item) && Number(item.discount_amount || 0) > 0 && (
+            <div className="rc-row rc-item-sub">
+              <span>{itemDiscountTag(item)}</span>
+              <span className="rc-right">-{peso(item.discount_amount)}</span>
+            </div>
+          )}
         </div>
       ))}
       <div className="rc-divider" />
@@ -86,8 +101,8 @@ export default function ReceiptPrint({ payload }) {
       {tag && (
         <>
           <div className="rc-row"><span>Discount {tag}</span><span className="rc-right">-{peso(order.discount_amount)}</span></div>
-          {order.discount_id_no && (
-            <div className="rc-row"><span>ID {order.discount_id_no}</span></div>
+          {(order.senior_id_no || order.pwd_id_no || order.discount_id_no) && (
+            <div className="rc-row"><span>ID {[order.senior_id_no, order.pwd_id_no].filter(Boolean).join(" / ") || order.discount_id_no}</span></div>
           )}
         </>
       )}

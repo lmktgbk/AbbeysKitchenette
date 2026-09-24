@@ -34,7 +34,7 @@ export default function PosOrderSummary({
             value={customerName}
             onChange={(e) => onCustomerNameChange?.(e.target.value)}
             placeholder="Customer name"
-            className="h-8 text-sm"
+            className="h-8 text-sm placeholder:text-muted-foreground/60"
           />
         </div>
         <div className="space-y-1">
@@ -43,7 +43,7 @@ export default function PosOrderSummary({
             value={tableName}
             onChange={(e) => onTableNameChange?.(e.target.value)}
             placeholder="Table number"
-            className="h-8 text-sm"
+            className="h-8 text-sm placeholder:text-muted-foreground/60"
           />
         </div>
       </div>

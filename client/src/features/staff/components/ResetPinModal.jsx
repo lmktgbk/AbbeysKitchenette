@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -11,8 +11,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import Icon from "@/components/ui/icon";
+import { PasswordInput } from "@/components/ui/password-input";
 import { resetPinSchema } from "../staffValidation";
 
 /**
@@ -28,8 +27,6 @@ export default function ResetPinModal({
   onSubmit,
   isLoading,
 }) {
-  const [showPin, setShowPin] = useState(false);
-
   const {
     register,
     handleSubmit,
@@ -43,7 +40,6 @@ export default function ResetPinModal({
   useEffect(() => {
     if (open) {
       reset({ new_pin: "" });
-      setShowPin(false);
     }
   }, [open, reset]);
 
@@ -69,21 +65,14 @@ export default function ResetPinModal({
             <label className="mb-1.5 block text-sm font-semibold text-foreground">
               New PIN
             </label>
-            <div className="relative">
-              <Input
-                type={showPin ? "text" : "password"}
-                placeholder="4-6 digits"
-                error={errors.new_pin?.message}
-                {...register("new_pin")}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPin(!showPin)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                <Icon name={showPin ? "eyeOff" : "eye"} size={16} />
-              </button>
-            </div>
+            <PasswordInput
+              key={`reset-pin-${open}-${staff?.id ?? "new"}`}
+              placeholder="4-6 digits"
+              autoComplete="new-password"
+              ariaLabel="new PIN"
+              error={errors.new_pin?.message}
+              {...register("new_pin")}
+            />
           </div>
 
           <DialogFooter>
