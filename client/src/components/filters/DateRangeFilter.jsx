@@ -155,65 +155,83 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
   }
 
   // ── Preset handlers ──────────────────
+  // Each preset resolves to a { start, end } ISO range; go* applies it to the
+  // draft, isPresetActive highlights the preset matching the current draft.
+
+  function presetRange(kind) {
+    const now = new Date();
+    if (kind === "today") return { start: toISO(now), end: toISO(now) };
+    if (kind === "thisWeek") {
+      const day = now.getDay();
+      const mondayOffset = day === 0 ? 6 : day - 1;
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - mondayOffset);
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      return { start: toISO(monday), end: toISO(sunday) };
+    }
+    if (kind === "thisMonth") {
+      const first = new Date(now.getFullYear(), now.getMonth(), 1);
+      const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      return { start: toISO(first), end: toISO(last) };
+    }
+    if (kind === "lastWeek") {
+      const day = now.getDay();
+      const mondayOffset = day === 0 ? 6 : day - 1;
+      const thisMonday = new Date(now);
+      thisMonday.setDate(now.getDate() - mondayOffset);
+      const lastMonday = new Date(thisMonday);
+      lastMonday.setDate(thisMonday.getDate() - 7);
+      const lastSunday = new Date(lastMonday);
+      lastSunday.setDate(lastMonday.getDate() + 6);
+      return { start: toISO(lastMonday), end: toISO(lastSunday) };
+    }
+    if (kind === "lastMonth") {
+      const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const last = new Date(now.getFullYear(), now.getMonth(), 0);
+      return { start: toISO(first), end: toISO(last) };
+    }
+    return { start: null, end: null };
+  }
+
+  function applyRange(start, end, viewDate = new Date()) {
+    setStartDate(start);
+    setEndDate(end);
+    setViewMonth(viewDate.getMonth());
+    setViewYear(viewDate.getFullYear());
+  }
+
+  function isPresetActive(kind) {
+    if (!startDate || !endDate) return false;
+    const { start, end } = presetRange(kind);
+    return startDate === start && endDate === end;
+  }
 
   function goToday() {
-    const now = new Date();
-    setStartDate(toISO(now));
-    setEndDate(toISO(now));
-    setViewMonth(now.getMonth());
-    setViewYear(now.getFullYear());
+    const { start, end } = presetRange("today");
+    applyRange(start, end);
   }
 
   function goThisWeek() {
-    const now = new Date();
-    const day = now.getDay();
-    const mondayOffset = day === 0 ? 6 : day - 1;
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - mondayOffset);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-
-    setStartDate(toISO(monday));
-    setEndDate(toISO(sunday));
-    setViewMonth(now.getMonth());
-    setViewYear(now.getFullYear());
+    const { start, end } = presetRange("thisWeek");
+    applyRange(start, end);
   }
 
   function goThisMonth() {
-    const now = new Date();
-    const first = new Date(now.getFullYear(), now.getMonth(), 1);
-    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    setStartDate(toISO(first));
-    setEndDate(toISO(last));
-    setViewMonth(now.getMonth());
-    setViewYear(now.getFullYear());
+    const { start, end } = presetRange("thisMonth");
+    applyRange(start, end);
   }
 
   function goLastWeek() {
-    const now = new Date();
-    const day = now.getDay();
-    const mondayOffset = day === 0 ? 6 : day - 1;
-    const thisMonday = new Date(now);
-    thisMonday.setDate(now.getDate() - mondayOffset);
-    const lastMonday = new Date(thisMonday);
-    lastMonday.setDate(thisMonday.getDate() - 7);
-    const lastSunday = new Date(lastMonday);
-    lastSunday.setDate(lastMonday.getDate() + 6);
-
-    setStartDate(toISO(lastMonday));
-    setEndDate(toISO(lastSunday));
-    setViewMonth(lastMonday.getMonth());
-    setViewYear(lastMonday.getFullYear());
+    const { start, end } = presetRange("lastWeek");
+    const view = start ? parseISO(start) : new Date();
+    applyRange(start, end, view);
   }
 
   function goLastMonth() {
-    const now = new Date();
-    const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const last = new Date(now.getFullYear(), now.getMonth(), 0);
-    setStartDate(toISO(first));
-    setEndDate(toISO(last));
-    setViewMonth(first.getMonth());
-    setViewYear(first.getFullYear());
+    const { start, end } = presetRange("lastMonth");
+    const view = start ? parseISO(start) : new Date();
+    applyRange(start, end, view);
   }
 
   // ── Apply / Clear ────────────────────
@@ -315,14 +333,14 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
           "absolute z-50 mt-1 w-72 rounded-lg border border-border bg-card shadow-lg p-3",
           align === "left" ? "left-0" : "right-0",
         )}>
-          {/* Presets */}
+          {/* Presets — highlight follows the draft range (applied on Apply) */}
           <div className="grid grid-cols-3 gap-1 mb-3">
-            <PresetButton label="All Time" onClick={handleClear} active={!isActive} />
-            <PresetButton label="Today" onClick={goToday} />
-            <PresetButton label="This Week" onClick={goThisWeek} />
-            <PresetButton label="Last Week" onClick={goLastWeek} />
-            <PresetButton label="This Month" onClick={goThisMonth} />
-            <PresetButton label="Last Month" onClick={goLastMonth} />
+            <PresetButton label="All Time" onClick={handleClear} active={!startDate && !endDate} />
+            <PresetButton label="Today" onClick={goToday} active={isPresetActive("today")} />
+            <PresetButton label="This Week" onClick={goThisWeek} active={isPresetActive("thisWeek")} />
+            <PresetButton label="Last Week" onClick={goLastWeek} active={isPresetActive("lastWeek")} />
+            <PresetButton label="This Month" onClick={goThisMonth} active={isPresetActive("thisMonth")} />
+            <PresetButton label="Last Month" onClick={goLastMonth} active={isPresetActive("lastMonth")} />
           </div>
 
           {/* Month navigation */}

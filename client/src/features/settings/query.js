@@ -1,3 +1,8 @@
+/**
+ * Settings Queries — owns system-settings read + update hooks.
+ * WHY: single cached source for global settings with toast feedback on save. Keys: ["settings"]; select unwraps res.data.settings; update mutation invalidates ["settings"]; otherwise global staleTime 5m.
+ * State: TanStack Query hook + mutation only, no local state; invalidation via useQueryClient.
+ */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getSettingsRequest, updateSettingsRequest } from "./api";

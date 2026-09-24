@@ -1,9 +1,10 @@
+/**
+ * QueryClient — owns global TanStack Query defaults.
+ * WHY: single place for global staleTime 5m + retry 1 + refetchOnWindowFocus false; per-query overrides (e.g. 30s KPIs, 15s/5s live feeds, 2s job polling) live in feature query modules and take precedence.
+ * State: TanStack Query client shared via QueryClientProvider in App.jsx.
+ */
 import { QueryClient } from "@tanstack/react-query";
 
-/**
- * QueryClient configuration
- * Shared across the app via QueryClientProvider in App.jsx.
- */
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

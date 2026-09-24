@@ -1,3 +1,8 @@
+/**
+ * MarketBasket Queries — owns MBA job history / job polling / combo-creation hooks.
+ * WHY: hides async analysis polling and product-creation chaining from promo UI. Keys: ["marketBasket", ...] (jobs, job(id) with refetchInterval 2s while running); analyze invalidates jobs/job(jobId); create-combo invalidates ["products"] + ["marketBasket"].
+ * State: TanStack Query hooks only, no local state; invalidation via useQueryClient.
+ */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as api from "./api";
 import { createProductRequest } from "@/features/products/api";
@@ -76,6 +81,8 @@ export function useCreateComboProduct() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: marketBasketKeys.all });
+      // Bundle auto-creates the Bundles/Bundle subcategory — refresh category lists too.
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
   });
 }

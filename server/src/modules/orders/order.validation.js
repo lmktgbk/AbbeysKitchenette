@@ -269,6 +269,12 @@ export const lossIdParamSchema = z.object({
 
 // ── Query Schemas ───────────────────────────────────────
 
+// GET /api/orders/stats — status counts with optional date filter (same YYYY-MM-DD contract as list)
+export const getStatsQuerySchema = z.object({
+  date_from: z.string().optional(), // YYYY-MM-DD
+  date_to: z.string().optional(),   // YYYY-MM-DD
+});
+
 // GET /api/orders — paginated list with filters
 export const getOrdersQuerySchema = z.object({
   page: z.string().optional().default("1"),

@@ -1,5 +1,12 @@
 import prisma from "../../config/prisma.js";
 
+/**
+ * Anomaly Repository
+ *
+ * Plain CRUD plus the two dedup guards that keep scans quiet:
+ * existsActiveToday (one live card per rule per day) and
+ * existsReviewedSupplier (an acknowledged price is never re-flagged).
+ */
 export const anomalyRepository = {
   async create(data) {
     return prisma.anomalyResult.create({ data });

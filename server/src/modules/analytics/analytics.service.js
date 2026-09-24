@@ -1,6 +1,18 @@
 import { analyticsRepository } from "./analytics.repository.js";
 import { dashboardRepository } from "../dashboard/dashboard.repository.js";
 
+/**
+ * Analytics Service
+ *
+ * Read-only reporting over orders/inventory. All heavy lifting lives in the
+ * repositories (SQL aggregations); this layer only joins period-vs-period
+ * results and shapes the dashboard payload. No writes, no transactions.
+ */
+
+/**
+ * Period-over-period change in percent (1 decimal). Null when there is no
+ * baseline — the UI renders "—" instead of a misleading ±100%.
+ */
 function calcDelta(current, previous) {
   if (previous == null || previous === 0) return null;
   if (current == null) return null;
@@ -8,6 +20,10 @@ function calcDelta(current, previous) {
 }
 
 export const analyticsService = {
+  /**
+   * Financial KPIs for a window plus deltas against the previous equal-length
+   * window (computed from the same repository shape so figures always agree).
+   */
   async getKpis(dateFrom, dateTo) {
     const [kpis, previous] = await Promise.all([
       analyticsRepository.getFinancialKpis(dateFrom, dateTo),
@@ -65,20 +81,21 @@ export const analyticsService = {
       dashboardRepository.getWasteByType(dateFrom, dateTo),
       dashboardRepository.getStockValue(),
     ]);
+    // rest[] follows the Promise.all order above starting at getOrdersByStatus.
     return {
       kpis,
       trend,
-      ordersByStatus: rest[1],
-      topProducts: rest[2],
-      leastProducts: rest[3],
-      salesByCategory: rest[4],
-      ordersByHour: rest[5],
-      ordersByDayOfWeek: rest[6],
-      cancellationReasons: rest[7],
-      fulfillmentTime: rest[8],
-      ingredientStatus: rest[9],
-      wasteByType: rest[10],
-      stockValue: rest[11],
+      ordersByStatus: rest[0],
+      topProducts: rest[1],
+      leastProducts: rest[2],
+      salesByCategory: rest[3],
+      ordersByHour: rest[4],
+      ordersByDayOfWeek: rest[5],
+      cancellationReasons: rest[6],
+      fulfillmentTime: rest[7],
+      ingredientStatus: rest[8],
+      wasteByType: rest[9],
+      stockValue: rest[10],
     };
   },
 };

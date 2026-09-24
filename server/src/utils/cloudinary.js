@@ -39,7 +39,8 @@ function extractPublicId(imageUrl) {
     }
 
     return publicIdParts.join("/");
-  } catch {
+  } catch (err) {
+    console.warn("[cloudinary] Could not parse public ID from URL:", err?.message);
     return null;
   }
 }

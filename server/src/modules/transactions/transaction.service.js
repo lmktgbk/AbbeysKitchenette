@@ -3,11 +3,15 @@ import { transactionRepository } from "./transaction.repository.js";
 /**
  * Transaction Service (BR-03)
  *
- * Shapes ledger rows for the admin money view. Read-only —
- * all figures derive from orders, refunds, and shift snapshots.
+ * Read-only money ledger for admins. Nothing here writes — every figure
+ * derives from orders, refunds, and shift snapshots, so the ledger can
+ * never disagree with the underlying books; it only re-presents them.
+ * Page rows and footer totals use the SAME filters, otherwise the totals
+ * row describes a different dataset than the visible page.
  */
 export const transactionService = {
   async getLedger({ page = 1, limit = 20, dateFrom, dateTo, method, type, staffId }) {
+    // Clamp-then-offset: page/limit are user input, never trusted for skip math.
     const take = Math.min(Math.max(Number(limit) || 20, 1), 100);
     const pageNum = Math.max(Number(page) || 1, 1);
     const skip = (pageNum - 1) * take;
@@ -18,6 +22,8 @@ export const transactionService = {
       transactionRepository.sumFiltered(filters),
     ]);
 
+    // total_count rides on every row via window function — read it once,
+    // then strip it so it never leaks into a transaction object.
     const totalItems = rows.length > 0 ? Number(rows[0].total_count ?? 0) : 0;
     const transactions = rows.map(({ total_count, ...r }) => ({
       id: r.id,

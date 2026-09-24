@@ -1,3 +1,8 @@
+/**
+ * Forecasting API — owns demand-forecast transport via Express proxy to Python FastAPI.
+ * WHY: hides proxy path and jobId param shape from polling hooks. Contract: POST /forecasting/demand/run, GET /forecasting/demand/status?jobId=, GET /forecasting/demand/results?jobId=, GET /forecasting/demand/history, GET /forecasting/demand/ingredients?jobId=; returns res.data envelope.
+ * State: axios wrappers, no state.
+ */
 import api from "@/config/axios";
 
 /**

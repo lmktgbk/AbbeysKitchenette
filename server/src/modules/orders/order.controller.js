@@ -1,6 +1,5 @@
 import { orderService } from "./order.service.js";
-import { successResponse, errorResponse } from "../../utils/response.js";
-import { AppError } from "../../middleware/errorHandler.middleware.js";
+import { successResponse, controllerError } from "../../utils/response.js";
 
 /**
  * Order Controller
@@ -10,11 +9,7 @@ import { AppError } from "../../middleware/errorHandler.middleware.js";
  */
 
 function handleError(res, error, fallbackCode) {
-  if (error instanceof AppError) {
-    return errorResponse(res, error.message, null, error.statusCode, error.code);
-  }
-  console.error(`[${fallbackCode}]`, error);
-  return errorResponse(res, "Something went wrong", null, 500, fallbackCode);
+  return controllerError(res, error, fallbackCode);
 }
 
 export const orderController = {
@@ -44,11 +39,12 @@ export const orderController = {
 
   /**
    * GET /api/orders/stats
-   * Status counts for KPI cards.
+   * Status counts for KPI cards, optionally scoped to a date range.
    */
   async getStats(req, res) {
     try {
-      const stats = await orderService.getStats();
+      const { date_from, date_to } = req.validatedQuery ?? {};
+      const stats = await orderService.getStats({ dateFrom: date_from, dateTo: date_to });
       return successResponse(res, "Stats retrieved", { stats });
     } catch (error) {
       return handleError(res, error, "GET_STATS_ERROR");

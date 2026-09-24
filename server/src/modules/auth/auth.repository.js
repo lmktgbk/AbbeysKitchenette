@@ -1,5 +1,12 @@
 import prisma from "../../config/prisma.js";
 
+/**
+ * Auth Repository
+ *
+ * findByEmailWithCredentials is the ONLY query in the codebase that selects
+ * passwordHash — it exists solely for bcrypt.compare at login and the hash
+ * is stripped (safeUser) before anything leaves the service layer.
+ */
 export const authRepository = {
   async findByEmailWithCredentials(email) {
     return prisma.user.findUnique({

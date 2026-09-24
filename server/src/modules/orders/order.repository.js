@@ -176,6 +176,51 @@ export const orderRepository = {
   },
 
   /**
+   * Guard-only order read: scalars + cumulative refund, no actor joins,
+   * no items. For status/total checks on write paths (cancel, remove-item,
+   * prepare). Response shaping still uses findById.
+   */
+  async findByIdGuard(id) {
+    return prisma.order.findUnique({
+      where: { orderId: id },
+      select: {
+        orderId: true,
+        orderNumber: true,
+        orderDate: true,
+        customerName: true,
+        tableNumber: true,
+        orderSource: true,
+        status: true,
+        acceptedAt: true,
+        acceptedBy: true,
+        preparingAt: true,
+        preparingBy: true,
+        completedAt: true,
+        completedBy: true,
+        fulfillmentMinutes: true,
+        subtotalAmount: true,
+        discountType: true,
+        discountPercent: true,
+        discountLabel: true,
+        discountIdNo: true,
+        discountAmount: true,
+        discountBy: true,
+        shiftId: true,
+        paymentMethod: true,
+        referenceNo: true,
+        totalAmount: true,
+        amountPaid: true,
+        change: true,
+        guestToken: true,
+        createdAt: true,
+        updatedAt: true,
+        createdBy: true,
+        refund: { select: { amount: true } },
+      },
+    });
+  },
+
+  /**
    * Find order by guest token (public API).
    * @param {string} token - guest UUID
    * @returns {object|null} - order or null
@@ -261,12 +306,21 @@ export const orderRepository = {
   },
 
   /**
-   * Get status counts for KPI cards.
-   * @returns {object} - { pending, accepted, next_in_line, processing, completed, cancelled }
+   * Get status counts for KPI cards, optionally scoped to order_date range.
+   * Same date semantics as the list filter (order_date >= dateFrom, <= dateTo).
+   * @param {object} [filters] - { dateFrom?: "YYYY-MM-DD", dateTo?: "YYYY-MM-DD" }
+   * @returns {object} - { pending, accepted, preparing, completed, cancelled }
    */
-  async countByStatus() {
+  async countByStatus({ dateFrom, dateTo } = {}) {
+    const where = {};
+    if (dateFrom || dateTo) {
+      where.orderDate = {};
+      if (dateFrom) where.orderDate.gte = new Date(`${dateFrom}T00:00:00`);
+      if (dateTo) where.orderDate.lte = new Date(`${dateTo}T00:00:00`);
+    }
     const result = await prisma.order.groupBy({
       by: ["status"],
+      where,
       _count: { _all: true },
     });
 
@@ -278,6 +332,25 @@ export const orderRepository = {
   },
 
   /* ── Status Management ─────────────────── */
+
+  /**
+   * Atomically claim an order for a status transition.
+   * Only flips status when the current status is one of `from` — the
+   * affected-row count tells the caller whether it won the race.
+   * @param {string} id - order UUID
+   * @param {string|string[]} from - allowed current statuses
+   * @param {string} toStatus - new status
+   * @param {object} [tx] - transaction client
+   * @returns {number} - rows claimed (0 = lost race / wrong status)
+   */
+  async claimStatus(id, from, toStatus, tx) {
+    const client = tx || prisma;
+    const result = await client.order.updateMany({
+      where: { orderId: id, status: Array.isArray(from) ? { in: from } : from },
+      data: { status: toStatus },
+    });
+    return result.count;
+  },
 
   /**
    * Update order status with timestamp and actor.
@@ -377,16 +450,6 @@ export const orderRepository = {
     });
   },
 
-  /**
-   * Hard delete order (cascade removes items).
-   * @param {string} id - order UUID
-   * @param {object} [tx] - transaction client
-   */
-  async delete(id, tx) {
-    const client = tx || prisma;
-    return client.order.delete({ where: { orderId: id } });
-  },
-
   /* ── Order Item Preparation ───────────── */
 
   async setOrderItemPrepared(orderItemId, isPrepared, userId, tx) {
@@ -401,8 +464,9 @@ export const orderRepository = {
     });
   },
 
-  async getOrderItems(orderId) {
-    return prisma.orderItem.findMany({
+  async getOrderItems(orderId, tx) {
+    const client = tx || prisma;
+    return client.orderItem.findMany({
       where: { orderId, removedAt: null },
       include: {
         product: { select: { productName: true } },
@@ -466,9 +530,10 @@ export const orderRepository = {
     });
   },
 
-  async createOrderItemLoss(data, tx) {
+  async createOrderItemLosses(rows, tx) {
+    if (rows.length === 0) return { count: 0 };
     const client = tx || prisma;
-    return client.lossRecord.create({ data });
+    return client.lossRecord.createMany({ data: rows });
   },
 
   async overrideLoss(lossId, { overrideReason, overrideNote, overriddenById }, tx) {
@@ -580,20 +645,27 @@ export const orderRepository = {
   },
 
   /**
-   * Restore stock to a restock batch.
-   * @param {number} batchId - restock batch ID
-   * @param {number} quantity - amount to restore
+   * Bulk restore quantities to multiple batches in a single SQL query.
+   * Uses optimistic locking (version check) via CASE/WHEN — mirrors
+   * bulkDeductBatches. Returns rows updated; caller must verify it matches
+   * items.length and throw 409 CONCURRENT_STOCK otherwise.
+   * @param {Array<{restockId: number, quantity: number, version: number}>} items
    * @param {object} tx - transaction client
+   * @returns {number} - number of rows updated (should match items.length)
    */
-  async restoreBatch(batchId, quantity, tx) {
+  async bulkRestoreBatches(items, tx) {
+    if (items.length === 0) return 0;
     const client = tx || prisma;
-    return client.restockBatch.update({
-      where: { restockId: batchId },
-      data: {
-        quantityLeft: { increment: quantity },
-        version: { increment: 1 },
-      },
-    });
+
+    const result = await client.$executeRawUnsafe(`
+      UPDATE restock_batches
+      SET
+        quantity_left = quantity_left + CASE restock_id ${items.map((d, i) => `WHEN $${i * 3 + 1} THEN $${i * 3 + 2}`).join(" ")} ELSE 0.0 END,
+        version = version + 1
+      WHERE (${items.map((d, i) => `(restock_id = $${i * 3 + 1} AND version = $${i * 3 + 3})`).join(" OR ")})
+    `, ...items.flatMap((d) => [d.restockId, d.quantity, d.version]));
+
+    return result;
   },
 
   /**
@@ -664,7 +736,7 @@ export const orderRepository = {
     const result = await client.$executeRawUnsafe(`
       UPDATE restock_batches
       SET
-        quantity_left = quantity_left - CASE restock_id ${deductions.map((d, i) => `WHEN $${i * 3 + 1} THEN $${i * 3 + 2}`).join(" ")} ELSE 0 END,
+        quantity_left = quantity_left - CASE restock_id ${deductions.map((d, i) => `WHEN $${i * 3 + 1} THEN $${i * 3 + 2}`).join(" ")} ELSE 0.0 END,
         version = version + 1
       WHERE (${deductions.map((d, i) => `(restock_id = $${i * 3 + 1} AND version = $${i * 3 + 3} AND quantity_left >= $${i * 3 + 2})`).join(" OR ")})
     `, ...deductions.flatMap((d) => [d.restockId, d.quantity, d.version]));
@@ -791,6 +863,25 @@ export const orderRepository = {
         minimumThreshold: true,
       },
     });
+  },
+
+  /**
+   * Get basic ingredient info for many ingredients in one query.
+   * @param {string[]} ingredientIds - ingredient UUIDs
+   * @returns {Map<string, object>} - ingredientId → { ingredientName, unit, minimumThreshold }
+   */
+  async getIngredientsBasic(ingredientIds) {
+    if (ingredientIds.length === 0) return new Map();
+    const rows = await prisma.ingredient.findMany({
+      where: { ingredientId: { in: ingredientIds } },
+      select: {
+        ingredientId: true,
+        ingredientName: true,
+        unit: true,
+        minimumThreshold: true,
+      },
+    });
+    return new Map(rows.map((r) => [r.ingredientId, r]));
   },
 
   /**

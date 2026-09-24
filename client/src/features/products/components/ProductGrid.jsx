@@ -79,15 +79,16 @@ export default function ProductGrid({
   const products = data?.data?.products ?? [];
   const totalItems = data?.data?.totalItems ?? 0;
 
+  // Category filter lists subcategories only — roots are grouping headers in
+  // CategoryModal, never filter targets (server accepts `sub:<id>`).
   const categoryOptions = [
     { value: "all", label: "All Categories" },
-    ...categories.flatMap((cat) => [
-      { value: `root:${cat.category_id}`, label: cat.category_name },
-      ...(cat.subcategories || []).map((sub) => ({
+    ...categories.flatMap((cat) =>
+      (cat.subcategories || []).map((sub) => ({
         value: `sub:${sub.subcategory_id}`,
-        label: `  ${sub.subcategory_name}`,
+        label: sub.subcategory_name,
       })),
-    ]),
+    ),
   ];
 
   const filterOptions = [

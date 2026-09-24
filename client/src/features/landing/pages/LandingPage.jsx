@@ -1,3 +1,10 @@
+/**
+ * LandingPage — public storefront (nav, hero, menu, location, contact, footer).
+ * WHY it exists: marketing entry point hydrated with public store settings + scroll
+ * reveals. Query keys consumed: ["landing","storeSettings"] via useStoreSettings.
+ * Guards: public route; no BR-02 shift gate, no role guards.
+ * State: Query [settingsData] | local [] | Zustand [].
+ */
 import { useEffect } from "react";
 import "../landing.css";
 import { useStoreSettings } from "../query";
@@ -10,11 +17,6 @@ import Testimonials from "../components/Testimonials";
 import Contact from "../components/Contact";
 import Footer from "../components/Footer";
 
-/**
- * LandingPage
- * Public-facing landing page for Abbey's Kitchenette restaurant.
- * Fetches store settings and passes them as props to child components.
- */
 export default function LandingPage() {
     const { data: settingsData } = useStoreSettings();
     const settings = settingsData?.data || {};

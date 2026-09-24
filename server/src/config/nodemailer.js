@@ -35,15 +35,12 @@ function createTransport() {
     });
   }
 
-  // 3. Dev fallback — log to console
+  // 3. Dev fallback — metadata only. Never print the HTML body: it can
+  // contain OTP codes and password-reset links.
   console.warn("[Mailer] No email transport configured. Emails will be logged.");
   return {
-    sendMail: async ({ to, subject, html }) => {
-      console.log("\n--- EMAIL (not sent — no transport configured) ---");
-      console.log(`To: ${to}`);
-      console.log(`Subject: ${subject}`);
-      console.log(`HTML preview: ${html.substring(0, 200)}...`);
-      console.log("--- END EMAIL ---\n");
+    sendMail: async ({ to, subject }) => {
+      console.log(`[Mailer] Suppressed email to ${to} — "${subject}"`);
     },
   };
 }

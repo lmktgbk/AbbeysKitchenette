@@ -1,3 +1,4 @@
+/** money — peso/variance formatters. WHY it exists: single ₱ + sign convention (U+2212 minus) so POS and reports never drift; consumed by order summaries and forecasts. State: none. */
 /**
  * Money formatting helpers.
  */

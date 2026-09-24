@@ -1,14 +1,17 @@
 import { settingsService } from "./settings.service.js";
 import { automationScheduler } from "../automation/automation.scheduler.js";
-import { successResponse, errorResponse } from "../../utils/response.js";
+import { successResponse, controllerError } from "../../utils/response.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 
+/**
+ * Settings Controller (admin-only — router guard plus in-handler re-check)
+ *
+ * After a successful update, automation schedules reload without blocking
+ * the response — cron changes take effect on the next tick, not instantly.
+ */
+
 function handleError(res, error, fallbackCode) {
-  if (error instanceof AppError) {
-    return errorResponse(res, error.message, null, error.statusCode, error.code);
-  }
-  console.error(`[${fallbackCode}]`, error);
-  return errorResponse(res, "Something went wrong", null, 500, fallbackCode);
+  return controllerError(res, error, fallbackCode);
 }
 
 export const settingsController = {
@@ -33,7 +36,7 @@ export const settingsController = {
 
       const settings = await settingsService.updateSettings(req.body, req.user.id);
       // Automation schedules may have changed — reload without blocking the response.
-      automationScheduler.reschedule().catch(() => {});
+      automationScheduler.reschedule().catch((err) => console.warn("[automation] reschedule dropped:", err?.message));
       return successResponse(res, "Settings updated", { settings });
     } catch (error) {
       return handleError(res, error, "UPDATE_SETTINGS_ERROR");

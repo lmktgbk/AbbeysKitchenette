@@ -7,6 +7,14 @@ import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { notificationService } from "../notifications/notification.service.js";
 import { env } from "../../config/env.js";
 
+/**
+ * Anomaly Detection Service (BR-12)
+ *
+ * Two entry modes share runScan: the 6am cron + manual "Check now" pass
+ * ruleIds=null (every active rule, always audited), while POS event hooks
+ * pass explicit rule ids (deduped, cooldown-guarded, audited only on hits).
+ * Only critical/high findings notify — medium/low stay on the page.
+ */
 export const anomalyService = {
   _cronTask: null,
 

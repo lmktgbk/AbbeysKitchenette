@@ -1,3 +1,8 @@
+/**
+ * Profile API — owns self-profile / password / avatar transport.
+ * WHY: groups own-user writes separately from admin staff CRUD. Contract: PATCH /auth/me, POST /auth/change-password, POST /auth/profile-image (multipart FormData with image); returns res.data envelope.
+ * State: axios wrappers, no state.
+ */
 import api from "@/config/axios";
 
 /* ── Profile */

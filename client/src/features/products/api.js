@@ -1,3 +1,8 @@
+/**
+ * Products API — owns product / category / price-optimization transport.
+ * WHY: single contract owner for menu data including variants and images. Contract: GET /products, GET /products/summary, GET /products/:id, POST /products, PATCH /products/:id, PUT /products/:id/variants, POST .../deactivate|activate (product + variant), DELETE /products/:id, POST /products/upload-image (multipart), category CRUD under /categories, price-optimization under /price-optimization; returns res.data envelope.
+ * State: axios wrappers, no state.
+ */
 import api from "@/config/axios";
 
 /**

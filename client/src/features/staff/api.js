@@ -1,3 +1,8 @@
+/**
+ * Staff API — owns staff CRUD transport.
+ * WHY: single contract owner for staff admin so query invalidation stays aligned. Contract: GET /staff, GET /staff/:id, POST /staff, PATCH /staff/:id, PATCH /staff/:id/toggle-active, POST /staff/:id/reset-password, DELETE /staff/:id, GET /staff/summary; returns res.data envelope.
+ * State: axios wrappers, no state.
+ */
 import api from "@/config/axios";
 
 /**

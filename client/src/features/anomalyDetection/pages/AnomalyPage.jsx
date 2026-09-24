@@ -1,3 +1,10 @@
+/**
+ * AnomalyPage — anomaly inbox with severity/category filters + acknowledge/scan actions.
+ * WHY it exists: surfaces unusual sales/waste/ops findings for admin triage.
+ * Query keys consumed: ["anomalies","results",params] via useAnomalyResults,
+ * ["anomalies","stats"] via useAnomalyStats. Guards: admin-only route; no BR-02 shift gate.
+ * State: Query [resultsData, statsData] | local [severity, category, page, pageSize] | Zustand [].
+ */
 import { useState, useMemo } from "react";
 import { useAnomalyResults, useAnomalyStats, useAcknowledgeAnomaly, useTriggerScan } from "../query";
 import AnomalyFilters from "../components/AnomalyFilters";

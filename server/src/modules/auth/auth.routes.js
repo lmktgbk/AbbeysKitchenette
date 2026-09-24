@@ -3,6 +3,7 @@ import { Router } from "express";
 import { authController } from "./auth.controller.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import authenticate from "../../middleware/authenticate.middleware.js";
+import { authLimiter, accountLimiter } from "../../middleware/rateLimitin.middleware.js";
 import { uploadAvatar } from "../../middleware/upload.middleware.js";
 import {
   loginSchema,
@@ -17,10 +18,10 @@ import {
 const router = Router();
 
 // POST /api/auth/login — staff portal (cashier + kitchen). Admins get USE_ADMIN_PORTAL.
-router.post("/login", validate(loginSchema), authController.login);
+router.post("/login", authLimiter, accountLimiter, validate(loginSchema), authController.login);
 
 // POST /api/auth/admin-login — hidden admin portal (admin only, OTP 2FA). Not linked in UI.
-router.post("/admin-login", validate(loginSchema), authController.adminLogin);
+router.post("/admin-login", authLimiter, accountLimiter, validate(loginSchema), authController.adminLogin);
 
 // GET /api/auth/me — current user (protected)
 router.get("/me", authenticate, authController.getMe);
@@ -29,14 +30,16 @@ router.get("/me", authenticate, authController.getMe);
 router.post("/logout", authenticate, authController.logout);
 
 // POST /api/auth/verify-otp — verify OTP code, returns JWT
-router.post("/verify-otp", validate(verifyOtpSchema), authController.verifyOtp);
+router.post("/verify-otp", authLimiter, validate(verifyOtpSchema), authController.verifyOtp);
 
 // POST /api/auth/resend-otp — resend OTP to email
-router.post("/resend-otp", validate(resendOtpSchema), authController.resendOtp);
+router.post("/resend-otp", authLimiter, validate(resendOtpSchema), authController.resendOtp);
 
 // POST /api/auth/forgot-password — admin-only (staff silently skipped, same response)
 router.post(
   "/forgot-password",
+  authLimiter,
+  accountLimiter,
   validate(forgotPasswordSchema),
   authController.forgotPassword,
 );
@@ -44,6 +47,7 @@ router.post(
 // POST /api/auth/reset-password — admin-only (staff tokens rejected in service)
 router.post(
   "/reset-password",
+  authLimiter,
   validate(resetPasswordSchema),
   authController.resetPassword,
 );

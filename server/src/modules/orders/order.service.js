@@ -67,8 +67,12 @@ export const orderService = {
     }));
   },
 
-  async getStats() {
-    return orderRepository.countByStatus();
+  /**
+   * Status counts for KPI cards, optionally scoped to order_date range.
+   * @param {object} [filters] - { dateFrom?: "YYYY-MM-DD", dateTo?: "YYYY-MM-DD" }
+   */
+  async getStats({ dateFrom, dateTo } = {}) {
+    return orderRepository.countByStatus({ dateFrom, dateTo });
   },
 
   async getById(id) {
@@ -87,14 +91,17 @@ export const orderService = {
     }
 
     // Get actual weighted costs from deduction records
-    const deductionCosts = await orderRepository.getDeductionIngredientCosts(id);
+    // Independent of the recipe lookup above — one round instead of two.
+    const [deductionCosts, lossRecords] = await Promise.all([
+      orderRepository.getDeductionIngredientCosts(id),
+      orderRepository.getOrderItemLosses(id),
+    ]);
     const deductionCostMap = new Map();
     for (const dc of deductionCosts) {
       deductionCostMap.set(dc.ingredient_id, Number(dc.weighted_cost_per_unit));
     }
 
     // Query loss records and group by order item
-    const lossRecords = await orderRepository.getOrderItemLosses(id);
     const lossCostMap = new Map();
     for (const record of lossRecords) {
       const itemId = record.relatedOrderItemId;
@@ -166,10 +173,11 @@ export const orderService = {
 
   async createWalkIn({ customerName, tableNumber, items, amountPaid, createdBy, orderDate: orderDateStr, discount = {}, payment = {} }) {
     // BR-02: payment requires an open drawer session.
-    const { shiftId } = await shiftService.resolveShiftForUser(createdBy);
-
-    const { pricedItems, subtotal, discount: discountResult, total } =
-      await this._priceItemsAndTotals(items, discount);
+    // Independent reads — one round instead of three sequential ones.
+    const [{ shiftId }, { pricedItems, subtotal, discount: discountResult, total }] = await Promise.all([
+      shiftService.resolveShiftForUser(createdBy),
+      this._priceItemsAndTotals(items, discount),
+    ]);
 
     await this._assertPaymentValid({ amountPaid, total, paymentMethod: payment.payment_method });
 
@@ -226,8 +234,8 @@ export const orderService = {
     }, { timeout: 15000 });
 
     const affectedIngredientIds = [...aggregatedIngredients.keys()];
-    productService.recomputeVariantAvailability(affectedIngredientIds).catch(() => {});
-    this._checkStockLevels(order.needs).catch(() => {});
+    productService.recomputeVariantAvailability(affectedIngredientIds).catch((err) => console.warn("[menu] availability recompute dropped:", err?.message));
+    this._checkStockLevels(order.needs).catch((err) => console.warn("[stock] level check dropped:", err?.message));
 
     auditLogService.logAction({
       userId: createdBy,
@@ -245,7 +253,10 @@ export const orderService = {
       referenceId: order.order.orderId,
     }).catch(() => {});
 
-    return this.getById(order.order.orderId);
+    // Light response: POS only needs the id for receipt printing (the full
+    // detail reloads via GET /:id and list invalidation). Skips the 4-query
+    // getById tail on the hot path.
+    return { order_id: order.order.orderId, order_number: order.order.orderNumber };
   },
 
   /* ── Online Order Creation (Guest) ──── */
@@ -254,12 +265,16 @@ export const orderService = {
     // Server re-price so guests can't tamper with totals (no discount at placement).
     const { pricedItems, total } = await this._priceItemsAndTotals(items, { discount_type: "none" });
 
+    let orderNumber;
+
     const result = await prisma.$transaction(async (tx) => {
       const now = new Date();
       const orderDate = orderDateStr
         ? new Date(orderDateStr + "T00:00:00Z")
         : new Date(now.toISOString().split("T")[0]);
-      const orderNumber = composeOrderNumber(orderDate, await orderRepository.getNextOrderNumber(orderDate, tx));
+      // Assigned to the outer binding below — the light response tail
+      // needs the number without a getById refetch.
+      orderNumber = composeOrderNumber(orderDate, await orderRepository.getNextOrderNumber(orderDate, tx));
 
       return orderRepository.createOnlineOrder({
         orderNumber,
@@ -274,14 +289,23 @@ export const orderService = {
         quantity: item.quantity,
         unitPrice: item.unit_price,
       })), tx);
-    });
+    }, { timeout: 15000 });
 
-    const fullOrder = await this.getById(result.orderId);
+    // Light response: POS only needs the id for receipt printing (the full
+    // detail reloads via GET /:id and list invalidation). Skips the 4-query
+    // getById tail on the hot path.
+    const created = {
+      order_id: result.orderId,
+      order_number: orderNumber,
+      guest_token: guestToken,
+      total_amount: total,
+      created_at: new Date().toISOString(),
+    };
 
     notificationService.create({
       type: "order_new",
       title: "New Online Order",
-      message: `Order ${formatOrderNumber(fullOrder.order_number)} from ${customerName} — ₱${total.toFixed(2)}`,
+      message: `Order ${formatOrderNumber(created.order_number)} from ${customerName} — ₱${total.toFixed(2)}`,
       referenceType: "order",
       referenceId: result.orderId,
     }).catch(() => {});
@@ -290,10 +314,10 @@ export const orderService = {
       action: ACTIONS.ORDER_CREATED,
       targetType: "order",
       targetId: result.orderId,
-      details: { order_number: fullOrder.order_number, total, source: "online" },
+      details: { order_number: created.order_number, total, source: "online" },
     }).catch(() => {});
 
-    return fullOrder;
+    return created;
   },
 
   /* ── Receipt Payload (BR-03) ─────────── */
@@ -345,7 +369,13 @@ export const orderService = {
       ...(data.items !== undefined ? ["items"] : []),
     ];
 
-    const result = await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx) => {
+      // Claim first: a concurrent fulfill loses here instead of racing the edit.
+      const claimed = await orderRepository.claimStatus(id, "pending", "pending", tx);
+      if (claimed === 0) {
+        throw new AppError(409, "Order is no longer pending — it was settled concurrently", "ORDER_ALREADY_SETTLED");
+      }
+
       const updateData = {};
       if (data.customer_name !== undefined) updateData.customerName = data.customer_name;
       if (data.table_number !== undefined) updateData.tableNumber = data.table_number;
@@ -363,9 +393,9 @@ export const orderService = {
         })), tx);
         await orderRepository.recalculateTotal(id, tx);
       }
-
-      return this.getById(id);
-    });
+    }, { timeout: 15000 });
+    // Read AFTER commit via the global client so the response reflects the edit.
+    const result = await this.getById(id);
     auditLogService.logAction({
       userId,
       action: ACTIONS.ORDER_UPDATED,
@@ -386,10 +416,11 @@ export const orderService = {
     }
 
     // BR-02: payment requires an open drawer session.
-    const { shiftId } = await shiftService.resolveShiftForUser(userId);
-
-    const { pricedItems, subtotal, discount: discountResult, total } =
-      await this._priceItemsAndTotals(items, discount);
+    // Independent reads — shift lookup and pricing run together.
+    const [{ shiftId }, { pricedItems, subtotal, discount: discountResult, total }] = await Promise.all([
+      shiftService.resolveShiftForUser(userId),
+      this._priceItemsAndTotals(items, discount),
+    ]);
 
     await this._assertPaymentValid({ amountPaid, total, paymentMethod: payment.payment_method });
 
@@ -402,6 +433,12 @@ export const orderService = {
     let transactionNeeds;
 
     await prisma.$transaction(async (tx) => {
+      // Claim first: a concurrent fulfill loses here instead of double-deducting.
+      const claimed = await orderRepository.claimStatus(id, "pending", "accepted", tx);
+      if (claimed === 0) {
+        throw new AppError(409, "Order is no longer pending — it was fulfilled concurrently", "ORDER_ALREADY_SETTLED");
+      }
+
       const updateData = {};
       if (customerName !== undefined) updateData.customerName = customerName;
       if (tableNumber !== undefined) updateData.tableNumber = tableNumber;
@@ -444,8 +481,8 @@ export const orderService = {
     }, { timeout: 15000 });
 
     const affectedIngredientIds = [...aggregatedIngredients.keys()];
-    productService.recomputeVariantAvailability(affectedIngredientIds).catch(() => {});
-    this._checkStockLevels(transactionNeeds).catch(() => {});
+    productService.recomputeVariantAvailability(affectedIngredientIds).catch((err) => console.warn("[menu] availability recompute dropped:", err?.message));
+    this._checkStockLevels(transactionNeeds).catch((err) => console.warn("[stock] level check dropped:", err?.message));
 
     auditLogService.logAction({
       userId,
@@ -455,7 +492,8 @@ export const orderService = {
       details: { order_number: existing.orderNumber, subtotal, discount: discountResult.discountAmount, total, source: "online", paymentMethod },
     }).catch(() => {});
 
-    return this.getById(id);
+    // Light response (same rationale as createWalkIn above).
+    return { order_id: id, order_number: existing.orderNumber };
   },
 
   /* ── Status Transitions ──────────────── */
@@ -469,14 +507,22 @@ export const orderService = {
     }
 
     if (targetStatus === "completed") {
-      const items = await orderRepository.getOrderItems(id);
-      if (items.length === 0 || !items.every((i) => i.isPrepared)) {
-        throw new AppError(400, "All items must be marked as prepared before completing", "NOT_ALL_PREPARED");
-      }
       const createdAt = new Date(order.createdAt).getTime();
       const fulfillmentMinutes = Math.round((Date.now() - createdAt) / 60000);
 
-      await orderRepository.updateStatus(id, "completed", { userId: meta.userId, fulfillmentMinutes });
+      // Check + flip inside one tx: items can't slip to unprepared between
+      // the check and the update, and a concurrent settle loses the claim.
+      await prisma.$transaction(async (tx) => {
+        const items = await orderRepository.getOrderItems(id, tx);
+        if (items.length === 0 || !items.every((i) => i.isPrepared)) {
+          throw new AppError(400, "All items must be marked as prepared before completing", "NOT_ALL_PREPARED");
+        }
+        const claimed = await orderRepository.claimStatus(id, ["accepted", "preparing"], "completed", tx);
+        if (claimed === 0) {
+          throw new AppError(409, "Order is no longer completable — it was settled concurrently", "ORDER_ALREADY_SETTLED");
+        }
+        await orderRepository.updateStatus(id, "completed", { userId: meta.userId, fulfillmentMinutes }, tx);
+      }, { timeout: 15000 });
 
       auditLogService.logAction({
         userId: meta.userId,
@@ -495,7 +541,7 @@ export const orderService = {
       }).catch(() => {});
 
       // Real-time anomaly hook: discount spike (fire-and-forget)
-      anomalyService.runScan(["discount_spike"]).catch(() => {});
+      anomalyService.runScan(["discount_spike"]).catch((err) => console.warn("[anomaly] hook scan dropped:", err?.message));
 
       return this.getById(id);
     }
@@ -530,7 +576,7 @@ export const orderService = {
   /* ── Prepare Order ───────────────────── */
 
   async prepareOrder(id, userId) {
-    const order = await orderRepository.findById(id);
+    const order = await orderRepository.findByIdGuard(id);
     if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
 
     if (!isValidTransition(order.status, "preparing")) {
@@ -553,7 +599,7 @@ export const orderService = {
   /* ── Check Order Item ────────────────── */
 
   async checkOrderItem(orderId, orderItemId, isPrepared, userId) {
-    const order = await orderRepository.findById(orderId);
+    const order = await orderRepository.findByIdGuard(orderId);
     if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
 
     if (order.status !== "preparing" && order.status !== "accepted") {
@@ -568,7 +614,7 @@ export const orderService = {
   /* ── Cancel / Delete ─────────────────── */
 
   async cancelOrDelete(id, userId, reason, options = {}) {
-    const order = await orderRepository.findById(id);
+    const order = await orderRepository.findByIdGuard(id);
     if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
 
     if (order.status === "completed") {
@@ -604,11 +650,6 @@ export const orderService = {
 
     // Determine loss handling based on options
     let lossOption = options.loss_option || "no_loss"; // "no_loss" | "with_loss"
-
-    // Accepted orders: no preparation has started, force no loss
-    if (order.status === "accepted") {
-      lossOption = "no_loss";
-    }
     const refundOption = options.refund_option || "partial"; // "full" | "partial" | "none"
     const itemLosses = options.item_losses || []; // [{ item_id, ingredient_losses: [{ ingredient_id, quantity_lost }] }]
 
@@ -630,12 +671,27 @@ export const orderService = {
     refundAmount = Math.max(0, roundMoney(refundAmount));
 
     await prisma.$transaction(async (tx) => {
-      if (order.status === "accepted") {
+      // Claim first: a concurrent settle loses here instead of double-restoring.
+      const claimed = await orderRepository.claimStatus(id, ["pending", "accepted", "preparing"], "cancelled", tx);
+      if (claimed === 0) {
+        throw new AppError(409, "Order is no longer cancellable — it was settled concurrently", "ORDER_ALREADY_SETTLED");
+      }
+      // Re-read inside the tx: the pre-tx `order.status` may have advanced
+      // (e.g. pending → accepted with fresh deductions) before our claim.
+      const fresh = await tx.order.findUnique({ where: { orderId: id }, select: { status: true } });
+      const currentStatus = fresh.status;
+
+      // Accepted orders: no preparation has started, force no loss
+      if (currentStatus === "accepted") {
+        lossOption = "no_loss";
+      }
+
+      if (currentStatus === "accepted") {
         // Accepted orders: all ingredients restored (no preparation has started)
         await this._restoreIngredients(id, userId, tx);
       }
 
-      if (order.status === "preparing") {
+      if (currentStatus === "preparing") {
         if (lossOption === "no_loss") {
           // No loss: restore ALL ingredients
           await this._restoreIngredients(id, userId, tx);
@@ -663,13 +719,21 @@ export const orderService = {
         }
       }
 
-      // Tag each item with its loss option for frontend display
-      for (const item of orderItems) {
-        const itemLoss = itemLosses.find((il) => il.order_item_id === item.orderItemId);
-        const hasLoss = lossOption === "with_loss" && itemLoss && itemLoss.ingredient_losses?.length > 0;
-        await tx.orderItem.update({
-          where: { orderItemId: item.orderItemId },
-          data: { removedLossOption: hasLoss ? "with_loss" : "no_loss" },
+      // Tag each item with its loss option for frontend display (batched)
+      const withLossIds = orderItems
+        .filter((item) => {
+          const itemLoss = itemLosses.find((il) => il.order_item_id === item.orderItemId);
+          return lossOption === "with_loss" && itemLoss && itemLoss.ingredient_losses?.length > 0;
+        })
+        .map((item) => item.orderItemId);
+      await tx.orderItem.updateMany({
+        where: { orderId: id },
+        data: { removedLossOption: "no_loss" },
+      });
+      if (withLossIds.length > 0) {
+        await tx.orderItem.updateMany({
+          where: { orderItemId: { in: withLossIds } },
+          data: { removedLossOption: "with_loss" },
         });
       }
 
@@ -692,7 +756,7 @@ export const orderService = {
     }, { timeout: 15000 });
 
     if (affectedIngredientIds.length > 0) {
-      productService.recomputeVariantAvailability(affectedIngredientIds).catch(() => {});
+      productService.recomputeVariantAvailability(affectedIngredientIds).catch((err) => console.warn("[menu] availability recompute dropped:", err?.message));
     }
 
     auditLogService.logAction({
@@ -712,7 +776,7 @@ export const orderService = {
     }).catch(() => {});
 
     // Real-time anomaly hooks (fire-and-forget, never block response)
-    anomalyService.runScan(["refund_spike", "cancellation_spike"]).catch(() => {});
+    anomalyService.runScan(["refund_spike", "cancellation_spike"]).catch((err) => console.warn("[anomaly] hook scan dropped:", err?.message));
 
     return { order_id: id, action: "cancelled" };
   },
@@ -720,7 +784,7 @@ export const orderService = {
   /* ── Remove Single Item ────────────── */
 
   async removeOrderItem(orderId, orderItemId, userId, reason, options = {}) {
-    const order = await orderRepository.findById(orderId);
+    const order = await orderRepository.findByIdGuard(orderId);
     if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
 
     if (order.status !== "accepted" && order.status !== "preparing") {
@@ -773,6 +837,26 @@ export const orderService = {
     let refundAmount = 0;
 
     await prisma.$transaction(async (tx) => {
+      // Re-check inside the tx: the item may have been marked prepared, or the
+      // order settled, between the pre-tx reads and now.
+      const freshItem = await tx.orderItem.findUnique({
+        where: { orderItemId },
+        select: { isPrepared: true, orderId: true },
+      });
+      if (!freshItem || freshItem.orderId !== orderId) {
+        throw new AppError(404, "Order item not found", "ORDER_ITEM_NOT_FOUND");
+      }
+      if (freshItem.isPrepared) {
+        throw new AppError(400, "Cannot remove a prepared item — it has already been served", "ITEM_ALREADY_SERVED");
+      }
+      const freshOrder = await tx.order.findUnique({
+        where: { orderId },
+        select: { status: true },
+      });
+      if (!freshOrder || (freshOrder.status !== "accepted" && freshOrder.status !== "preparing")) {
+        throw new AppError(409, "Order is no longer editable — it was settled concurrently", "ORDER_ALREADY_SETTLED");
+      }
+
       if (lossOption === "no_loss") {
         // No loss: restore this item's ingredients
         await this._restoreIngredientsForSingleItem(orderItem, itemRecipes, deductions, tx, orderId, userId);
@@ -862,7 +946,7 @@ export const orderService = {
     }, { timeout: 15000 });
 
     if (affectedIngredientIds.length > 0) {
-      productService.recomputeVariantAvailability(affectedIngredientIds).catch(() => {});
+      productService.recomputeVariantAvailability(affectedIngredientIds).catch((err) => console.warn("[menu] availability recompute dropped:", err?.message));
     }
 
     auditLogService.logAction({
@@ -884,7 +968,7 @@ export const orderService = {
 
     // Real-time anomaly hooks (fire-and-forget, never block response)
     if (refundAmount > 0) {
-      anomalyService.runScan(["refund_spike", "cancellation_spike"]).catch(() => {});
+      anomalyService.runScan(["refund_spike", "cancellation_spike"]).catch((err) => console.warn("[anomaly] hook scan dropped:", err?.message));
     }
 
     return {
@@ -940,6 +1024,8 @@ export const orderService = {
       if (livePrice == null) {
         throw new AppError(400, `Variant ${item.variant_id} not found`, "VARIANT_NOT_FOUND");
       }
+      // Cent-tolerance, not exact equality: float serialization across the
+      // wire can drift by fractions of a centavo without any real price change.
       if (Math.abs(Number(item.unit_price) - livePrice) > 0.01) {
         throw new AppError(409, "Menu price changed — please refresh and try again", "PRICE_CHANGED");
       }
@@ -1082,11 +1168,14 @@ export const orderService = {
    */
   async _checkStockLevels(needs) {
     const ingredientIds = [...needs.keys()];
-    const stockMap = await orderRepository.getIngredientsTotalStocks(ingredientIds);
+    const [stockMap, infoMap] = await Promise.all([
+      orderRepository.getIngredientsTotalStocks(ingredientIds),
+      orderRepository.getIngredientsBasic(ingredientIds),
+    ]);
 
     for (const ingredientId of ingredientIds) {
       const stockAfter = stockMap.get(ingredientId) ?? 0;
-      const ing = await orderRepository.getIngredientBasic(ingredientId);
+      const ing = infoMap.get(ingredientId);
       if (!ing) continue;
 
       // Crossing-only: skip ingredients that were already out/low before this
@@ -1126,9 +1215,10 @@ export const orderService = {
       restoreByIngredient.set(key, (restoreByIngredient.get(key) || 0) + Number(deduction.quantityDeducted));
     }
 
-    for (const deduction of deductions) {
-      await orderRepository.restoreBatch(deduction.restockBatchId, deduction.quantityDeducted, tx);
-    }
+    await this._bulkRestoreBatches(
+      deductions.map((d) => ({ restockBatchId: d.restockBatchId, qty: Number(d.quantityDeducted) })),
+      tx,
+    );
 
     await orderRepository.reverseDeductions(orderId, userId, tx);
 
@@ -1156,6 +1246,42 @@ export const orderService = {
     }
   },
 
+  /**
+   * Version-guarded bulk restore: credits slices back to batches in one SQL
+   * statement, aborting with 409 when a concurrent writer changed a batch.
+   * Slices targeting the same batch are summed (SQL CASE matches first row only).
+   * @param {Array<{restockBatchId: number, qty: number}>} slices
+   * @param {object} tx - transaction client
+   */
+  async _bulkRestoreBatches(slices, tx) {
+    const byBatch = new Map();
+    for (const s of slices) {
+      if (!s.qty || s.qty <= 0) continue;
+      byBatch.set(s.restockBatchId, (byBatch.get(s.restockBatchId) || 0) + Number(s.qty));
+    }
+    if (byBatch.size === 0) return;
+
+    const batches = await tx.restockBatch.findMany({
+      where: { restockId: { in: [...byBatch.keys()] } },
+      select: { restockId: true, version: true },
+    });
+    const versionMap = new Map(batches.map((b) => [b.restockId, b.version]));
+    const items = [...byBatch.entries()].map(([restockId, quantity]) => ({
+      restockId,
+      quantity,
+      version: versionMap.get(restockId),
+    }));
+    // A batch read at deduct time may have been consumed/deleted since —
+    // treat a missing version as a concurrent modification, not a silent skip.
+    if (items.some((i) => i.version == null)) {
+      throw new AppError(409, "Stock changed during restore — please retry", "CONCURRENT_STOCK");
+    }
+    const rows = await orderRepository.bulkRestoreBatches(items, tx);
+    if (rows !== items.length) {
+      throw new AppError(409, "Stock changed during restore — please retry", "CONCURRENT_STOCK");
+    }
+  },
+
   async _restoreIngredientsForItems(orderId, unpreparedItems, tx, userId) {
     const allDeductions = await orderRepository.getActiveDeductions(orderId, tx);
 
@@ -1178,25 +1304,34 @@ export const orderService = {
     }
 
     const restoreTracker = new Map(restoreNeeds);
+    const slices = [];
     for (const deduction of allDeductions) {
       const remaining = restoreTracker.get(deduction.ingredientId) || 0;
       if (remaining <= 0) continue;
 
       const restoreQty = Math.min(remaining, Number(deduction.quantityDeducted));
       if (restoreQty > 0) {
-        await orderRepository.restoreBatch(deduction.restockBatchId, restoreQty, tx);
+        slices.push({ restockBatchId: deduction.restockBatchId, qty: restoreQty });
         restoreTracker.set(deduction.ingredientId, remaining - restoreQty);
       }
+    }
+    await this._bulkRestoreBatches(slices, tx);
+
+    // Audit what was actually restored (needs minus unmet remainder).
+    const restoredByIngredient = new Map();
+    for (const [ingredientId, needed] of restoreNeeds) {
+      const restored = needed - (restoreTracker.get(ingredientId) || 0);
+      if (restored > 0) restoredByIngredient.set(ingredientId, restored);
     }
 
     // Create stock adjustment records for audit trail
     if (userId) {
-      const restoreIngredientIds = [...restoreNeeds.keys()].filter(id => restoreNeeds.get(id) > 0);
+      const restoreIngredientIds = [...restoredByIngredient.keys()];
       if (restoreIngredientIds.length > 0) {
         const stockMap = await orderRepository.getIngredientsTotalStocks(restoreIngredientIds, tx);
         const adjustments = [];
         for (const ingredientId of restoreIngredientIds) {
-          const totalRestored = restoreNeeds.get(ingredientId);
+          const totalRestored = restoredByIngredient.get(ingredientId);
           const currentStock = stockMap.get(ingredientId) || 0;
           adjustments.push({
             ingredientId,
@@ -1259,22 +1394,38 @@ export const orderService = {
       }
     }
 
+    // Carry the unmet remainder across ALL matching deductions (FIFO) instead
+    // of zeroing after the first batch — needs may span multiple batches.
+    const originalNeeds = new Map(restoreNeeds);
+    const slices = [];
     for (const deduction of allDeductions) {
-      const restoreQty = restoreNeeds.get(deduction.ingredientId) || 0;
+      const remaining = restoreNeeds.get(deduction.ingredientId) || 0;
+      if (remaining <= 0) continue;
+
+      const restoreQty = Math.min(remaining, Number(deduction.quantityDeducted));
       if (restoreQty > 0) {
-        await orderRepository.restoreBatch(deduction.restockBatchId, restoreQty, tx);
-        restoreNeeds.set(deduction.ingredientId, 0);
+        slices.push({ restockBatchId: deduction.restockBatchId, qty: restoreQty });
+        restoreNeeds.set(deduction.ingredientId, remaining - restoreQty);
       }
+    }
+    await this._bulkRestoreBatches(slices, tx);
+
+    // Audit what was actually restored (original need minus unmet remainder).
+    // restoreNeeds now holds only the unrestored leftover — never audit that.
+    const restoredByIngredient = new Map();
+    for (const [ingredientId, needed] of originalNeeds) {
+      const restored = needed - (restoreNeeds.get(ingredientId) || 0);
+      if (restored > 0) restoredByIngredient.set(ingredientId, restored);
     }
 
     // Create stock adjustment records for audit trail (partial restore)
     if (userId) {
-      const restoreIngredientIds = [...restoreNeeds.keys()].filter(id => restoreNeeds.get(id) > 0);
+      const restoreIngredientIds = [...restoredByIngredient.keys()];
       if (restoreIngredientIds.length > 0) {
         const stockMap = await orderRepository.getIngredientsTotalStocks(restoreIngredientIds, tx);
         const adjustments = [];
         for (const ingredientId of restoreIngredientIds) {
-          const totalRestored = restoreNeeds.get(ingredientId);
+          const totalRestored = restoredByIngredient.get(ingredientId);
           const currentStock = stockMap.get(ingredientId) || 0;
           adjustments.push({
             ingredientId,
@@ -1313,16 +1464,18 @@ export const orderService = {
       restoreTracker.set(ingId, qty);
     }
 
+    const slices = [];
     for (const deduction of allDeductions) {
       const remaining = restoreTracker.get(deduction.ingredientId) || 0;
       if (remaining <= 0) continue;
 
       const restoreQty = Math.min(remaining, Number(deduction.quantityDeducted));
       if (restoreQty > 0) {
-        await orderRepository.restoreBatch(deduction.restockBatchId, restoreQty, tx);
+        slices.push({ restockBatchId: deduction.restockBatchId, qty: restoreQty });
         restoreTracker.set(deduction.ingredientId, remaining - restoreQty);
       }
     }
+    await this._bulkRestoreBatches(slices, tx);
 
     // Create stock adjustment records for audit trail
     if (userId && orderId) {
@@ -1364,6 +1517,7 @@ export const orderService = {
       ? (orderItem.variant?.sizeName ? `${orderItem.product.productName} (${orderItem.variant.sizeName})` : orderItem.product.productName)
       : null;
 
+    const lossRows = [];
     for (const recipe of itemRecipes) {
       const totalNeeded = Number(recipe.quantityNeeded) * orderItem.quantity;
       const quantityLost = lossMap.has(recipe.ingredientId)
@@ -1374,7 +1528,7 @@ export const orderService = {
 
       const costPerUnit = deductionCostMap.get(recipe.ingredientId) || 0;
 
-      await orderRepository.createOrderItemLoss({
+      lossRows.push({
         ingredientId: recipe.ingredientId,
         declaredById: userId,
         lossType: "cancellation",
@@ -1386,8 +1540,9 @@ export const orderService = {
         notes: lossMap.has(recipe.ingredientId)
           ? `${itemLabel}: Partial loss declared`
           : `${itemLabel}: Item cancelled mid-preparation`,
-      }, tx);
+      });
     }
+    await orderRepository.createOrderItemLosses(lossRows, tx);
   },
 
   /**
@@ -1414,16 +1569,18 @@ export const orderService = {
     }
 
     const restoreTracker = new Map(restoreNeeds);
+    const slices = [];
     for (const deduction of allDeductions) {
       const remaining = restoreTracker.get(deduction.ingredientId) || 0;
       if (remaining <= 0) continue;
 
       const restoreQty = Math.min(remaining, Number(deduction.quantityDeducted));
       if (restoreQty > 0) {
-        await orderRepository.restoreBatch(deduction.restockBatchId, restoreQty, tx);
+        slices.push({ restockBatchId: deduction.restockBatchId, qty: restoreQty });
         restoreTracker.set(deduction.ingredientId, remaining - restoreQty);
       }
     }
+    await this._bulkRestoreBatches(slices, tx);
 
     // Create stock adjustment records for audit trail (partial restore)
     if (userId && orderId) {
@@ -1472,6 +1629,7 @@ export const orderService = {
       partialLossMap.set(entry.order_item_id, ingredientMap);
     }
 
+    const lossRows = [];
     for (const item of preparedItems) {
       const itemRecipes = recipeMap.get(item.variantId) || [];
       const partialMap = partialLossMap.get(item.orderItemId);
@@ -1490,7 +1648,7 @@ export const orderService = {
           ? (item.variant?.sizeName ? `${item.product.productName} (${item.variant.sizeName})` : item.product.productName)
           : null;
 
-        await orderRepository.createOrderItemLoss({
+        lossRows.push({
           ingredientId: recipe.ingredientId,
           declaredById: userId,
           lossType: "cancellation",
@@ -1502,9 +1660,10 @@ export const orderService = {
           notes: partialMap?.has(recipe.ingredientId)
             ? `${itemLabel}: Partial loss declared`
             : `${itemLabel}: Item cancelled mid-preparation`,
-        }, tx);
+        });
       }
     }
+    await orderRepository.createOrderItemLosses(lossRows, tx);
   },
 
   /* ── Acceptance Handler ──────────────── */
@@ -1543,6 +1702,12 @@ export const orderService = {
     let transactionNeeds;
 
     await prisma.$transaction(async (tx) => {
+      // Claim first: a concurrent accept loses here instead of double-deducting.
+      const claimed = await orderRepository.claimStatus(id, "pending", "accepted", tx);
+      if (claimed === 0) {
+        throw new AppError(409, "Order is no longer pending — it was settled concurrently", "ORDER_ALREADY_SETTLED");
+      }
+
       const { needs } = await this._deductIngredients(id, ingredientNeeds, tx, meta.userId);
       transactionNeeds = needs;
       await orderRepository.upsertReceipt({
@@ -1569,8 +1734,8 @@ export const orderService = {
     }, { timeout: 15000 });
 
     const affectedIngredientIds = [...ingredientNeeds.keys()];
-    productService.recomputeVariantAvailability(affectedIngredientIds).catch(() => {});
-    this._checkStockLevels(transactionNeeds).catch(() => {});
+    productService.recomputeVariantAvailability(affectedIngredientIds).catch((err) => console.warn("[menu] availability recompute dropped:", err?.message));
+    this._checkStockLevels(transactionNeeds).catch((err) => console.warn("[stock] level check dropped:", err?.message));
 
     return this.getById(id);
   },

@@ -5,8 +5,7 @@ import { DropDown } from "@/components/filters/DropDown";
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [20, 50, 100];
 
-/**
- * Pagination — reusable page navigation with page size selector.
+/** Pagination — 3-up page nav + page-size selector. WHY it exists: shared server-paging footer so lists don't reimplement windowing/counts; consumed by BatchListModal and admin tables. State: none (controlled page/size).
  *
  * @param {Object} props
  * @param {number} props.currentPage - Active page (1-indexed)

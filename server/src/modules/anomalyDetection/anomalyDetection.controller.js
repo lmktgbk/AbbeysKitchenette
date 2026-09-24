@@ -1,7 +1,15 @@
 import { anomalyService } from "./anomalyDetection.service.js";
-import { successResponse, errorResponse } from "../../utils/response.js";
+import { successResponse, controllerError } from "../../utils/response.js";
 import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
+
+/**
+ * Anomaly Controller (admin-only — enforced in routes)
+ *
+ * Thin HTTP layer. Acknowledge emits ANOMALY_ACKNOWLEDGED; scans and stats
+ * are read-only. Service-thrown 4xx (e.g. unknown rule) passes through
+ * controllerError instead of flattening to 500.
+ */
 
 export const anomalyController = {
   async getResults(req, res) {
@@ -16,8 +24,7 @@ export const anomalyController = {
       });
       return successResponse(res, "Anomaly results retrieved", result);
     } catch (error) {
-      console.error("[GET_ANOMALY_RESULTS]", error);
-      return errorResponse(res, "Something went wrong", null, 500, "GET_ANOMALY_RESULTS_ERROR");
+      return controllerError(res, error, "GET_ANOMALY_RESULTS_ERROR");
     }
   },
 
@@ -28,8 +35,7 @@ export const anomalyController = {
       const result = await anomalyService.getActive(severities);
       return successResponse(res, "Active anomalies retrieved", result);
     } catch (error) {
-      console.error("[GET_ACTIVE_ANOMALIES]", error);
-      return errorResponse(res, "Something went wrong", null, 500, "GET_ACTIVE_ANOMALIES_ERROR");
+      return controllerError(res, error, "GET_ACTIVE_ANOMALIES_ERROR");
     }
   },
 
@@ -38,8 +44,7 @@ export const anomalyController = {
       const result = await anomalyService.getStats();
       return successResponse(res, "Anomaly stats retrieved", result);
     } catch (error) {
-      console.error("[GET_ANOMALY_STATS]", error);
-      return errorResponse(res, "Something went wrong", null, 500, "GET_ANOMALY_STATS_ERROR");
+      return controllerError(res, error, "GET_ANOMALY_STATS_ERROR");
     }
   },
 
@@ -49,8 +54,7 @@ export const anomalyController = {
       const result = await anomalyService.runScan(rules || null);
       return successResponse(res, "Anomaly scan complete", result);
     } catch (error) {
-      console.error("[TRIGGER_SCAN]", error);
-      return errorResponse(res, "Something went wrong", null, 500, "TRIGGER_SCAN_ERROR");
+      return controllerError(res, error, "TRIGGER_SCAN_ERROR");
     }
   },
 
@@ -65,8 +69,8 @@ export const anomalyController = {
       }).catch(() => {});
       return successResponse(res, "Anomaly acknowledged");
     } catch (error) {
-      console.error("[ACKNOWLEDGE_ANOMALY]", error);
-      return errorResponse(res, "Something went wrong", null, 500, "ACKNOWLEDGE_ANOMALY_ERROR");
+      return controllerError(res, error, "ACKNOWLEDGE_ANOMALY_ERROR");
     }
   },
 };
+

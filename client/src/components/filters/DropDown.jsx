@@ -2,9 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import Icon from "@/components/ui/icon";
 
-/**
- * DropDown — custom select that replaces native <select>.
- * Fully themed, opens on click, pick one option, closes.
+/** DropDown — themed select replacing native <select>. WHY it exists: consistent dropdown with flip-up + outside-click/Esc close; consumed by FilterModal and Pagination. State: local [open, openUp].
  *
  * @param {Object} props
  * @param {{ value: string, label: string }[]} props.options

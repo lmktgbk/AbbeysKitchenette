@@ -1,7 +1,7 @@
 /**
- * Shift Query Layer (BR-02)
- *
- * Centralized query + mutation hooks for the shifts feature.
+ * Shifts Queries — owns drawer-session list / detail / summary hooks + open/close mutations (BR-02).
+ * WHY: centralizes live drawer polling so banners and reconciliation stay fresh. Keys: ["shifts", ...] (mine + list + stats refetchInterval 30s, summary(id) 15s while close modal open, history, orders(id, params) keepPreviousData, ingredientUsage(id)); mutations invalidate ["shifts"]; otherwise global staleTime 5m.
+ * State: TanStack Query hooks only, no local state; invalidation via useQueryClient.
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";

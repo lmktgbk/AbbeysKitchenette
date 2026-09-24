@@ -1,3 +1,4 @@
+/** AuthLayout — centered auth shell. WHY it exists: gives login/OTP a consistent narrow centered stage separate from admin/POS shells; consumed by auth routes via router Outlet. State: none. */
 import { Outlet } from "react-router-dom";
 
 export default function AuthLayout() {

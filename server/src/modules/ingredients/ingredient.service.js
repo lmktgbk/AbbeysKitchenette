@@ -307,13 +307,15 @@ export const ingredientService = {
   /* ── Restock ─────────────────────────── */
 
   /**
-   * Restock an ingredient — creates a new FIFO batch and increments stock.
+   * Restock an ingredient — creates a new FIFO batch and records the adjustment.
+   * Stock is derived as SUM(batches); there is no ingredient-level stock
+   * column, so no version guard is needed here — the batch insert plus the
+   * adjustment row commit atomically in one transaction.
    *
    * Runs inside a transaction:
-   *   1. Create RestockBatch record (FIFO batch with full quantity)
-   *   2. Increment ingredient stock (with optimistic lock via version)
+   *   1. Read current stock from batches (in-tx, for an exact before → after)
+   *   2. Create RestockBatch record (FIFO batch with full quantity)
    *   3. Record StockAdjustment for audit trail (before → after)
-   *   4. Check stock alerts — create if still low, resolve if now healthy
    *
    * @param {string} id - ingredient UUID
    * @param {object} data - { quantity_added, cost_per_unit, supplier_name?, notes? }
@@ -336,11 +338,13 @@ export const ingredientService = {
     // BR-05: optional expiry date (YYYY-MM-DD string → Date). Omitted = no tracking.
     const expiryDate = expiry_date ? new Date(`${expiry_date}T00:00:00Z`) : null;
 
-    // Compute current stock from batches
-    const qtyBefore = await ingredientRepository.getStockFromBatches(id);
-
-    // Run all database writes in a single transaction — all succeed or all roll back
+    // Run all database writes in a single transaction — all succeed or all roll back.
+    // qtyBefore is read INSIDE so concurrent restocks can't compute the same
+    // `before` for their adjustment rows.
+    let qtyBefore = 0;
     await prisma.$transaction(async (tx) => {
+      qtyBefore = await ingredientRepository.getStockFromBatches(id, tx);
+
       // Step 1: Create a new batch record (FIFO — first in, first out)
       // The batch tracks its own quantityLeft which decreases as stock is consumed
       await ingredientRepository.createRestockBatch(
@@ -623,31 +627,36 @@ export const ingredientService = {
 
     const physical = Number(data.physical_quantity);
     const reason = data.reason;
-    const systemStock = await ingredientRepository.getStockFromBatches(id);
-    const variance = Math.round((physical - systemStock) * 1000) / 1000;
 
-    if (variance === 0) {
-      return {
-        ingredient_id: id,
-        system_stock: systemStock,
-        physical_stock: physical,
-        variance: 0,
-        outcome: "balanced",
-      };
-    }
-
-    const isShort = variance < 0;
-    if (isShort && reason === "found_stock") {
-      throw new AppError(400, "A shortage cannot be recorded as found stock", "INVALID_COUNT_REASON");
-    }
-    if (!isShort && (reason === "spoilage" || reason === "spillage")) {
-      throw new AppError(400, "An overage cannot be recorded as spoilage or spillage", "INVALID_COUNT_REASON");
-    }
-
-    const absQty = Math.abs(variance);
     let lossRecord = null;
+    let result;
 
     await prisma.$transaction(async (tx) => {
+      // Re-read system stock INSIDE the tx: a concurrent deduct between the
+      // page load and now would otherwise book a wrong before/after pair.
+      const systemStock = await ingredientRepository.getStockFromBatches(id, tx);
+      const variance = Math.round((physical - systemStock) * 1000) / 1000;
+
+      if (variance === 0) {
+        result = {
+          ingredient_id: id,
+          system_stock: systemStock,
+          physical_stock: physical,
+          variance: 0,
+          outcome: "balanced",
+        };
+        return;
+      }
+
+      const isShort = variance < 0;
+      if (isShort && reason === "found_stock") {
+        throw new AppError(400, "A shortage cannot be recorded as found stock", "INVALID_COUNT_REASON");
+      }
+      if (!isShort && (reason === "spoilage" || reason === "spillage")) {
+        throw new AppError(400, "An overage cannot be recorded as spoilage or spillage", "INVALID_COUNT_REASON");
+      }
+
+      const absQty = Math.abs(variance);
       if (isShort) {
         // Shrink oldest batches first (FIFO cascade), tracking cost as we go.
         const batches = await ingredientRepository.findActiveBatchesFifo(id, tx);
@@ -702,7 +711,13 @@ export const ingredientService = {
         },
         tx,
       );
-    });
+
+      // Hand the in-tx snapshot to the post-commit tail (notify/audit/return).
+      result = { systemStock, variance, isShort, lossId: lossRecord ? lossRecord.lossId : null };
+    }, { timeout: 15000 });
+
+    if (result?.outcome === "balanced") return result;
+    const { systemStock, variance, isShort } = result;
 
     const stockQuantity = await ingredientRepository.getStockFromBatches(id);
     await productService.recomputeVariantAvailability([id]);
@@ -745,7 +760,7 @@ export const ingredientService = {
       variance,
       outcome: isShort ? "short" : "over",
       reason,
-      loss_id: lossRecord ? lossRecord.lossId : null,
+      loss_id: result.lossId,
     };
   },
 

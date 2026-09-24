@@ -1,7 +1,13 @@
+/**
+ * Header — top bar for AdminLayout (page title, sidebar toggle, theme, notifications).
+ * WHY the toggle branches: on mobile it opens/closes the overlay drawer, on desktop it
+ * collapses the fixed sidebar. Viewport is browser-only via useIsMobile; drawer state global.
+ */
 import { useLocation } from "react-router-dom";
 import Icon from "@/components/ui/icon";
 import ModeToggle from "@/components/ModeToggle";
 import useLayoutStore from "@/stores/layoutStore";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import useAuthStore from "@/features/auth/authStore";
 import NotificationBell from "@/features/notifications/components/NotificationBell";
 
@@ -24,7 +30,7 @@ const PAGE_TITLES = {
 
 export default function Header() {
     const location = useLocation();
-    const isMobile = useLayoutStore((s) => s.isMobile);
+    const isMobile = useIsMobile(768);
     const mobileOpen = useLayoutStore((s) => s.mobileOpen);
     const closeMobile = useLayoutStore((s) => s.closeMobile);
     const setMobileOpen = useLayoutStore((s) => s.setMobileOpen);

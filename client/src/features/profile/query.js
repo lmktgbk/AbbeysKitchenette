@@ -1,3 +1,8 @@
+/**
+ * Profile Queries — owns self-profile / password / avatar mutations.
+ * WHY: couples auth-cache invalidation and Zustand user sync with toasts in one place. Keys invalidated: ["auth", "me"] on profile/image success; no queries here (reads come from auth store); mutations only.
+ * State: TanStack Query mutations + Zustand auth store sync (setUser); no query keys owned.
+ */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import useAuthStore from "@/features/auth/authStore";

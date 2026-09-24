@@ -1,3 +1,4 @@
+/** Button — variant/size button primitive. WHY it exists: one themed click target shared by forms, modals, and tables; consumed app-wide. State: none. */
 import { cn } from "@/lib/utils";
 
 const variants = {

@@ -13,12 +13,14 @@ import {
 import { env } from "../../config/env.js";
 import { deleteImage } from "../../utils/cloudinary.js";
 
-// Constants
+// Brute-force budget: 5 strikes per account, then a 15-minute lockout.
+// Mirrored by the route-level accountLimiter (10/15m) as the outer net.
 const LOGIN_MAX_ATTEMPTS = 5;
 const LOGIN_LOCKOUT_MINUTES = 15;
-const OTP_EXPIRY_MINUTES = 10;
 
 export const authService = {
+  // Separate portals, identical failure shape: staff portal is cashier +
+  // kitchen only, admin portal is OTP-gated — but neither reveals the other.
   // Staff portal: cashier + kitchen only. Admins are redirected to /admin-login.
   async login(email, password, clientIP) {
     return this._loginCore(email, password, clientIP, "staff");
@@ -80,7 +82,7 @@ export const authService = {
 
     // Admin → send OTP, don't issue JWT yet
     if (user.role === "admin") {
-      const otpCode = generateOtp(user.id);
+      const otpCode = await generateOtp(user.id);
       await sendEmail({
         to: user.email,
         subject: "Your Verification Code — Abbey's Kitchenette",
@@ -98,10 +100,8 @@ export const authService = {
   },
 
   async verifyOtp(userId, code) {
-    const isValid = verifyOtpCode(userId, code);
-    if (!isValid) {
-      throw new AppError(401, "Invalid or expired OTP code", "INVALID_OTP");
-    }
+    // Throws INVALID_OTP / OTP_ATTEMPTS_EXCEEDED — never returns false.
+    await verifyOtpCode(userId, code);
     const user = await authRepository.findById(userId);
     if (!user) {
       throw new AppError(401, "User not found", "USER_NOT_FOUND");
@@ -116,7 +116,7 @@ export const authService = {
     if (!user) {
       throw new AppError(401, "User not found", "USER_NOT_FOUND");
     }
-    const otpCode = generateOtp(user.id);
+    const otpCode = await generateOtp(user.id);
     await sendEmail({
       to: user.email,
       subject: "Your New Verification Code — Abbey's Kitchenette",

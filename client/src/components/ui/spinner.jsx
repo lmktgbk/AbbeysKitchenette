@@ -1,3 +1,4 @@
+/** PrimarySpinner — centered loading spinner. WHY it exists: single full-section fallback while queries load; consumed by tabs and pages. State: none (props: size, className). */
 export default function PrimarySpinner({ className = "", size = "default" }) {
     const sizeClasses = {
         default: "h-screen",

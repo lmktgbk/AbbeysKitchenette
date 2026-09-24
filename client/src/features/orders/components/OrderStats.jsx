@@ -3,14 +3,20 @@ import { Skeleton } from "@/components/ui/skeleton";
 import Icon from "@/components/ui/icon";
 
 /**
- * OrderStats
- *
- * KPI cards showing order status counts for today.
+ * OrderStats — KPI cards showing order status counts for the selected date range.
  * 5 cards: Pending, Accepted, Preparing, Completed, Cancelled.
- * Clickable to filter order table by status.
+ * Clickable to filter order table by status. Unfiltered (no dates) = all-time counts.
+ *
+ * @param {string} props.activeStatus - currently selected status filter
+ * @param {(status: string) => void} props.onStatusClick - status toggle handler
+ * @param {string|null} [props.dateFrom] - "YYYY-MM-DD" or null
+ * @param {string|null} [props.dateTo] - "YYYY-MM-DD" or null
  */
-export default function OrderStats({ activeStatus, onStatusClick }) {
-  const { data: statsData, isLoading } = useOrderStats();
+export default function OrderStats({ activeStatus, onStatusClick, dateFrom, dateTo }) {
+  const { data: statsData, isLoading } = useOrderStats({
+    date_from: dateFrom || undefined,
+    date_to: dateTo || undefined,
+  });
 
   const stats = statsData?.data?.stats ?? {
     pending: 0,

@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { mapPrismaError, mapUploadError } from "../utils/response.js";
 
 /**
  * Custom Error Class for Expected Errors
@@ -36,14 +37,13 @@ const errorHandler = (err, req, res, next) => {
     });
   }
 
-  // Unique-constraint race (e.g. concurrent creates with the same name).
-  // Services map the known cases to friendlier errors; this is the net
-  // so a race never surfaces as a 500 anywhere.
-  if (err?.code === "P2002") {
-    return res.status(409).json({
+  // Known Prisma races/conflicts + upload rejections — never 500s.
+  const mapped = mapPrismaError(err) || mapUploadError(err);
+  if (mapped) {
+    return res.status(mapped.statusCode).json({
       success: false,
-      message: "A record with these details already exists",
-      error: "DUPLICATE_ENTRY",
+      message: mapped.message,
+      error: mapped.code,
       data: null,
     });
   }

@@ -1,3 +1,11 @@
+/**
+ * KitchenDisplay — kitchen/branch prep board with batch sidebar + ready-confirm flow.
+ * WHY it exists: live prep queue split by role with per-order/item spinners for concurrent
+ * actions. Query keys consumed: ["orders","list",{kitchen:true}] via useKitchenDisplay,
+ * ["orders","kitchen","batches"] via useKitchenBatchGroups. Guards: role guard
+ * cashier→Beverages, kitchen→Food, admin→all; no BR-02 shift gate.
+ * State: Query [preparing, accepted, completedToday, batches] | local [activeTab, pendingAction, animatingOut, sidebarOpen, preparingIds, togglingIds, readyIds] | Zustand [user via useAuthStore].
+ */
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { useKitchenDisplay, useKitchenBatchGroups, useOrderMutations } from "../query";

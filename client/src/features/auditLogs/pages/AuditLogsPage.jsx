@@ -1,3 +1,10 @@
+/**
+ * AuditLogsPage — searchable system audit trail with action-group + date filters.
+ * WHY it exists: read-only accountability view over server-side filtered audit actions.
+ * Query keys consumed: ["auditLogs","list",filters] via useAuditLogs. Guards: admin-only
+ * route; no BR-02 shift gate.
+ * State: Query [data] | local [page, limit, search, actionFilter, startDate, endDate] | Zustand [].
+ */
 import { useState, useMemo } from "react";
 import { SearchBar } from "@/components/filters/SearchBar";
 import { DropDown } from "@/components/filters/DropDown";
@@ -8,8 +15,8 @@ import { formatTime } from "@/lib/date";
 import { orderNumberLabel } from "@/lib/orderNumber";
 import Icon from "@/components/ui/icon";
 
-// Mirrors server ACTION_GROUPS (auditLog.constants.js) — filtering happens
-// server-side via `actions`, so pagination counts stay correct.
+// Group filter lists mirror the server audit actions (auditLog.constants.js)
+// — filtering happens server-side via `actions`, so pagination counts stay correct.
 const ACTION_GROUPS = [
   { value: "", label: "All Actions" },
   { value: "group:Product", label: "Product" },

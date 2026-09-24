@@ -1,3 +1,10 @@
+/**
+ * MarketBasketPage — promotions inbox from the latest market-basket job + combo creation.
+ * WHY it exists: turns association rules into add-to-products promos admins can act on.
+ * Query keys consumed: ["marketBasket","jobs"] via useLatestMBAJob. Guards: admin-only
+ * route; no BR-02 shift gate.
+ * State: Query [job] | local [showComboModal, selectedCombo] | Zustand [].
+ */
 import { useState, useMemo, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";

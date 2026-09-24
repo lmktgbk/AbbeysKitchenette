@@ -1,3 +1,8 @@
+/**
+ * Forecasting Queries — owns demand-forecast job lifecycle hooks.
+ * WHY: centralizes async job polling so components don't manage intervals. Keys: ["forecasting", "demand", ...] (status(jobId), results(jobId), history, ingredients(jobId)); status polls refetchInterval 2s until completed/failed/not_found; results/history retry false; run mutation invalidates demand history.
+ * State: TanStack Query hooks only, no local state; invalidation via useQueryClient.
+ */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as api from "./api";
 

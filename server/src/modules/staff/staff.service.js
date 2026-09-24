@@ -6,6 +6,14 @@ import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { notificationService } from "../notifications/notification.service.js";
 import { sendEmail, generateNewPasswordEmail } from "../../utils/email.js";
 
+/**
+ * Staff Service (admin-only callers — enforced in staff.routes.js)
+ *
+ * Owns user lifecycle: invite with temp password, profile edits, activate /
+ * deactivate, admin password resets, and guarded deletes. Passwords are
+ * bcrypt-hashed (SALT_ROUNDS=10); plaintext exists only in this file's
+ * function scope, en route to the hash or the invite email.
+ */
 const SALT_ROUNDS = 10;
 
 function mapToStaffResponse(user) {
@@ -48,6 +56,8 @@ export const staffService = {
   async createStaff({ name, email, role, password }, userId) {
     const existing = await staffRepository.findByEmail(email);
     if (existing) throw new AppError(409, "Email already in use", "EMAIL_IN_USE");
+    // No password supplied = deterministic temp password the admin relays once.
+    // mustChangePwd forces rotation on first login, so the temp is short-lived.
     const plain = password || `${name.split(" ")[0]}@12345`;
     const passwordHash = await bcrypt.hash(plain, SALT_ROUNDS);
     const user = await staffRepository.create({ name, email, role, passwordHash, mustChangePwd: true });
@@ -76,6 +86,8 @@ export const staffService = {
   async toggleActive(id, userId) {
     const user = await staffRepository.findById(id);
     if (!user) throw new AppError(404, "Staff not found", "STAFF_NOT_FOUND");
+    // Deactivation is the safe offboard: authenticate blocks !isActive, and
+    // all actor FKs keep resolving to a name. Delete is the last resort.
     const updated = await staffRepository.setActive(id, !user.isActive);
     auditLogService.logAction({ userId, action: !user.isActive ? ACTIONS.STAFF_ACTIVATED : ACTIONS.STAFF_DEACTIVATED, targetType: "staff", targetId: id, details: { name: user.name } });
     notificationService.create({ type: "system", title: user.isActive ? "Staff Deactivated" : "Staff Activated", message: `${user.name} has been ${user.isActive ? "deactivated" : "activated"}`, referenceType: "staff", referenceId: id }).catch(() => {});
@@ -107,6 +119,8 @@ export const staffService = {
   async deleteStaff(id, userId) {
     const user = await staffRepository.findById(id);
     if (!user) throw new AppError(404, "Staff not found", "STAFF_NOT_FOUND");
+    // Hard delete is blocked when the user touched money or stock — dangling
+    // actor names in orders/shifts/audit would otherwise lose their meaning.
     const hasTx = await staffRepository.hasTransactions(id);
     if (hasTx) throw new AppError(400, "Cannot delete staff with transaction history", "STAFF_HAS_TRANSACTIONS");
     const deleted = await staffRepository.deleteUser(id);

@@ -36,7 +36,6 @@ export default function ChangePasswordForm({ mutation }) {
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
-      {/* Current Password */}
       <div>
         <label className="mb-1.5 block text-sm font-semibold text-foreground">
           Current Password
@@ -49,7 +48,6 @@ export default function ChangePasswordForm({ mutation }) {
         />
       </div>
 
-      {/* New Password */}
       <div>
         <label className="mb-1.5 block text-sm font-semibold text-foreground">
           New Password
@@ -62,7 +60,6 @@ export default function ChangePasswordForm({ mutation }) {
         />
       </div>
 
-      {/* Confirm Password */}
       <div>
         <label className="mb-1.5 block text-sm font-semibold text-foreground">
           Confirm New Password

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { useProductMutations, useProductDetail, useCategoryList } from "../query";
 import { useIngredientList } from "@/features/ingredients/query";
@@ -11,10 +11,14 @@ import ProductDetailModal from "../components/ProductDetailModal";
 import PriceOptimizationModal from "../components/PriceOptimizationModal";
 
 /**
- * ProductsPage
- *
- * Main orchestrator for the Products module.
+ * ProductsPage — main orchestrator for the Products module.
  * Manages state and mutations only — all UI is delegated to child components.
+ *
+ * State (Rule of Thumb):
+ * - API data via TanStack Query: detail/edit detail, categories, ingredients.
+ * - Browser-only via useState: modal open flags, instant preview drafts, edit mode.
+ * - detailProduct / fullEditProduct are DERIVED (query ?? preview) — never mirrored
+ *   via useEffect, so modals open instantly on list data then upgrade when detail resolves.
  *
  * Layout:
  * - KpiCards (summary stats)
@@ -53,22 +57,12 @@ export default function ProductsPage() {
   const categories = categoriesData?.data?.categories ?? [];
   const ingredients = ingredientsData?.data?.ingredients ?? [];
 
-  // When edit detail data arrives, update selectedProduct
-  useEffect(() => {
-    if (editDetailData?.data?.product) {
-      setSelectedProduct(editDetailData.data.product);
-    }
-  }, [editDetailData]);
+  // Detail preview (browser-only instant paint); full detail derived from Query when it lands.
+  const [detailPreview, setDetailPreview] = useState(null);
+  const detailProduct = detailData?.data?.product ?? detailPreview;
 
-  // ── Detail modal product state ──────
-  const [detailProduct, setDetailProduct] = useState(null);
-
-  // When detail modal data arrives, update detailProduct
-  useEffect(() => {
-    if (detailData?.data?.product) {
-      setDetailProduct(detailData.data.product);
-    }
-  }, [detailData]);
+  // Edit draft (browser-only instant paint); full product derived from Query when it lands.
+  const fullEditProduct = editDetailData?.data?.product ?? selectedProduct;
 
   // ── Mutations ───────────────────────
 
@@ -124,7 +118,7 @@ export default function ProductsPage() {
   }
 
   function handleViewDetail(product) {
-    setDetailProduct(product); // list-level data (shows instantly)
+    setDetailPreview(product); // list-level data (shows instantly)
     setShowDetailModal(true);
     setDetailProductId(product.product_id); // triggers useProductDetail
   }
@@ -220,8 +214,9 @@ export default function ProductsPage() {
   }
 
   function handleFormSubmit(data) {
-    if (isEditMode && selectedProduct) {
-      updateMutation.mutate({ id: selectedProduct.product_id, data });
+    const target = fullEditProduct ?? selectedProduct;
+    if (isEditMode && target) {
+      updateMutation.mutate({ id: target.product_id, data });
     } else {
       createMutation.mutate(data);
     }
@@ -247,7 +242,7 @@ export default function ProductsPage() {
         open={showDetailModal}
         onOpenChange={(open) => {
           if (!open) {
-            setDetailProduct(null);
+            setDetailPreview(null);
             setDetailProductId(null);
           }
           setShowDetailModal(open);
@@ -274,7 +269,7 @@ export default function ProductsPage() {
           }
           setShowFormModal(open);
         }}
-        product={selectedProduct}
+        product={fullEditProduct}
         isEditMode={isEditMode}
         loading={isLoadingEditDetail}
         onSubmit={handleFormSubmit}

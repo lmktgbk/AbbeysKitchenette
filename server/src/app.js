@@ -3,11 +3,10 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
-import path from "path";
-import { fileURLToPath } from "url";
 
 // Imports
 import { env } from "./config/env.js";
+import prisma from "./config/prisma.js";
 import errorHandler from "./middleware/errorHandler.middleware.js";
 import { generalLimiter } from "./middleware/rateLimitin.middleware.js";
 
@@ -32,9 +31,6 @@ import anomalyDetectionRoutes from "./modules/anomalyDetection/anomalyDetection.
 import shiftRoutes from "./modules/shifts/shift.routes.js";
 import transactionRoutes from "./modules/transactions/transaction.routes.js";
 import analyticsRoutes from "./modules/analytics/analytics.routes.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 app.disable("etag");
@@ -73,9 +69,6 @@ app.use(cookieParser());
 // checkout, and other sensitive endpoints individually.
 app.use(generalLimiter);
 
-// Serve uploaded files statically
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
-
 // Routes endpoints
 app.use("/api/auth", authRoutes);
 app.use("/api/categories", categoryRoutes);
@@ -89,6 +82,8 @@ app.use("/api/reorder-suggestions", reorderSuggestionsRoutes);
 app.use("/api/waste-reduction", wasteReductionRoutes);
 app.use("/api/price-optimization", priceOptimizationRoutes);
 app.use("/api/market-basket", marketBasketRoutes);
+// Canonical new name after the MBA → Promotions rename; market-basket kept
+// for backward compatibility (bookmarks, old clients).
 app.use("/api/promotions", marketBasketRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/audit-logs", auditLogRoutes);
@@ -105,6 +100,32 @@ app.get("/api/health", (req, res) => {
     status: "ok",
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
+  });
+});
+
+// Readiness probe — verifies dependencies, not just the process.
+// Hosting should gate traffic on this: 200 only when DB + ML are reachable.
+app.get("/api/ready", async (req, res) => {
+  const checks = { database: false, mlService: false };
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    checks.database = true;
+  } catch {
+    // reported below
+  }
+  try {
+    const mlUrl = process.env.FORECAST_URL || "http://localhost:8000";
+    const response = await fetch(`${mlUrl}/health`, { signal: AbortSignal.timeout(3000) });
+    checks.mlService = response.ok;
+  } catch {
+    // reported below
+  }
+  const ready = checks.database && checks.mlService;
+  return res.status(ready ? 200 : 503).json({
+    success: ready,
+    message: ready ? "Ready" : "Dependency check failed",
+    error: ready ? null : "NOT_READY",
+    data: { ready, checks, timestamp: new Date().toISOString() },
   });
 });
 

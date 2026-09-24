@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -13,27 +13,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Icon from "@/components/ui/icon";
-import { SearchableDropDown } from "@/components/filters/SearchableDropDown";
 import { useCreateComboProduct } from "../query";
-import { useCategoryList } from "@/features/products/query";
 import { createComboSchema } from "../comboValidation";
 
 /**
- * CreateComboModal
- *
- * Modal form for creating a combo product from two associated variants.
+ * CreateComboModal — bundle creation from a market-basket pair.
+ * WHY no category picker: every promotion is a Bundle — the server auto-assigns the
+ * system-owned Bundles/Bundle subcategory (is_bundle flag), so nothing to pick or create.
  * Uses react-hook-form + Zod for inline field validation.
  */
 export default function CreateComboModal({ open, onOpenChange, combo }) {
   const createMutation = useCreateComboProduct();
-  const { data: categoriesData } = useCategoryList();
-  const categories = categoriesData?.data?.categories || [];
-  const categoryOptions = categories.flatMap((c) =>
-    (c.subcategories || []).map((s) => ({
-      value: String(s.subcategory_id),
-      label: s.subcategory_name,
-    }))
-  );
 
   const variantA = combo ? `${combo.product_a} ${combo.size_name_a || ""}`.trim() : "";
   const variantB = combo ? `${combo.product_b} ${combo.size_name_b || ""}`.trim() : "";
@@ -42,26 +32,18 @@ export default function CreateComboModal({ open, onOpenChange, combo }) {
   const {
     register,
     handleSubmit,
-    setValue,
     watch,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(createComboSchema),
     defaultValues: {
       name: combo?.suggested_name || "",
-      categoryId: "",
       description: `A fusion of ${variantA} and ${variantB}`,
       price: combo?.pricing?.suggested_price || 0,
     },
   });
 
   const price = watch("price");
-
-  // Sync category value from SearchableDropDown
-  const categoryId = watch("categoryId");
-  function handleCategoryChange(value) {
-    setValue("categoryId", value, { shouldValidate: true });
-  }
 
   const totalCost = useMemo(
     () => ingredients.reduce((sum, ing) => sum + ing.line_cost, 0),
@@ -88,9 +70,10 @@ export default function CreateComboModal({ open, onOpenChange, combo }) {
   }
 
   async function onSubmit(data) {
+    // No subcategory_id — server assigns Bundles/Bundle via the is_bundle flag.
     const payload = {
       product_name: data.name.trim(),
-      subcategory_id: Number(data.categoryId),
+      is_bundle: true,
       description: data.description.trim(),
       variants: [
         {
@@ -140,22 +123,10 @@ export default function CreateComboModal({ open, onOpenChange, combo }) {
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {/* Category */}
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-foreground">
-              Category
-            </label>
-            <SearchableDropDown
-              options={categoryOptions}
-              value={categoryId}
-              onChange={handleCategoryChange}
-              placeholder="Select category..."
-              searchPlaceholder="Search categories..."
-            />
-            {errors.categoryId && (
-              <p className="mt-1.5 text-xs text-destructive">{errors.categoryId.message}</p>
-            )}
-          </div>
+          {/* Bundle is automatic — server assigns Bundles/Bundle, no picker needed. */}
+          <p className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+            Category: <span className="font-semibold text-foreground">Bundle</span> (assigned automatically)
+          </p>
 
           {/* Product Name */}
           <div>

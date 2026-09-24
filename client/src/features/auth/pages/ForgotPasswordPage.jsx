@@ -1,3 +1,10 @@
+/**
+ * ForgotPasswordPage — admin password-reset request (email → reset link).
+ * WHY it exists: starts the email reset flow without revealing account existence.
+ * Query keys consumed: none (direct forgotPasswordRequest, not react-query). Guards:
+ * public admin-only route; no BR-02 shift gate.
+ * State: Query [] | local [submitted] | Zustand [].
+ */
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";

@@ -1,3 +1,8 @@
+/**
+ * Landing Queries — owns public store-settings hook.
+ * WHY: caches rarely-changing public settings separately from authed data. Keys: ["landing", "storeSettings"]; staleTime 5m to avoid refetching static branding on every visit; no mutations.
+ * State: TanStack Query hook only, no local state.
+ */
 import { useQuery } from "@tanstack/react-query";
 import { getStoreSettingsRequest } from "./api";
 

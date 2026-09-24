@@ -1,3 +1,8 @@
+/**
+ * Receipts API — owns receipt print payload + transactions ledger transport (BR-03).
+ * WHY: isolates print event + ledger fetching from POS/admin UI. Contract: GET /orders/:id/receipt, GET /transactions; returns res.data envelope; plus local print-receipt event and localStorage auto-print flag (no backend).
+ * State: axios wrappers, no state.
+ */
 import api from "@/config/axios";
 
 /**

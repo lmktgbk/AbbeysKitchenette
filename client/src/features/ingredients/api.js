@@ -1,3 +1,8 @@
+/**
+ * Ingredients API — owns inventory / batches / history / AI-suggestion transport (BR-05, BR-07).
+ * WHY: single contract owner for stock operations including FIFO and expiry write-offs. Contract: GET /ingredients, /summary, /archived, /alerts, /stock-value, POST /, PATCH /:id, stock POST /:id/restock|loss|count (BR-07), batches GET/PATCH/POST under /:id/batches (priority, follow-fifo, expiry + declare-expired-loss BR-05), GET /:id/history, archive/restore/delete, reorder-suggestions + waste-reduction generate/accept/reject; returns res.data envelope.
+ * State: axios wrappers, no state.
+ */
 import api from "@/config/axios";
 
 /**

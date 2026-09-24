@@ -1,11 +1,6 @@
 import { cn } from "@/lib/utils";
 
-/**
- * Table Components
- *
- * Reusable table with Tailwind styling.
- * Follows flat design — no shadows, no gradients.
- */
+/** Table — flat-design table primitives (Table/Header/Body/Row/Head/Cell). WHY it exists: one border/hover/padding system for admin lists; consumed by ingredient batches and data tables. State: none. */
 
 function Table({ className, noOverflow = false, ...props }) {
   return (

@@ -11,3 +11,7 @@ export const anomalyQuerySchema = z.object({
 export const activeAnomalyQuerySchema = z.object({
   severity: z.string().optional().default("critical,high"),
 });
+
+export const anomalyIdParamSchema = z.object({
+  id: z.string().uuid("Invalid anomaly ID"),
+});

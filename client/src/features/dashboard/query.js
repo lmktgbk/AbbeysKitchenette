@@ -1,8 +1,7 @@
 /**
- * Dashboard Query Layer
- *
- * Centralized query hooks for the dashboard feature.
- * Components import hooks, not API functions.
+ * Dashboard Queries — owns consolidated dashboard + revenue-trend hooks.
+ * WHY: splits revenue trend from the main payload so granularity changes don't refetch everything. Keys: ["dashboard", "data", params] and ["dashboard", "revenueTrend", params]; both staleTime 30s override (fresher than global 5m); read-only.
+ * State: TanStack Query hooks only, no local state or mutations.
  */
 
 import { useQuery } from "@tanstack/react-query";

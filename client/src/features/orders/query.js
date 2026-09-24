@@ -1,13 +1,7 @@
 /**
- * Order Query Layer
- *
- * Centralized query + mutation hooks for the orders feature.
- * Components import hooks, not API functions.
- *
- * Structure:
- * - orderKeys: internal key factory (not exported)
- * - Query hooks: useOrderList, useOrderStats, useOrderDetail, useGuestMenu, usePendingOnlineOrders
- * - Mutation hooks: useOrderMutations, useGuestOrderMutations
+ * Orders Queries — owns POS / kitchen / guest order hooks + all order mutations.
+ * WHY: single place for live order polling and cross-feature invalidation (orders + shifts). Keys: ["orders", ...] (list(params), stats refetchInterval 30s, detail(id), kitchen batches staleTime/refetch 5s, kitchen list 5s) and ["guest", ...]; guest order polls 15s; mutations invalidate ["orders"] (+ shiftKeys.all on sales-affecting writes).
+ * State: TanStack Query hooks + local checked-items Map in useKitchenDisplay; invalidation via useQueryClient.
  */
 
 import { useState, useMemo, useCallback } from "react";
@@ -20,7 +14,7 @@ import * as api from "./api";
 const orderKeys = {
   all: ["orders"],
   list: (params) => ["orders", "list", params],
-  stats: ["orders", "stats"],
+  stats: (params) => ["orders", "stats", params ?? {}],
   detail: (id) => ["orders", "detail", id],
   kitchenBatches: ["orders", "kitchen", "batches"],
 };
@@ -44,13 +38,15 @@ export function useOrderList(params) {
 }
 
 /**
- * useOrderStats — KPI status counts.
+ * useOrderStats — KPI status counts, optionally scoped to a date range.
+ * Same range semantics as the order list (order_date in range).
  * Auto-refreshes every 30s for live dashboard.
+ * @param {object} [params] - { date_from?: "YYYY-MM-DD", date_to?: "YYYY-MM-DD" }
  */
-export function useOrderStats() {
+export function useOrderStats(params = {}) {
   return useQuery({
-    queryKey: orderKeys.stats,
-    queryFn: api.getOrderStatsRequest,
+    queryKey: orderKeys.stats(params),
+    queryFn: () => api.getOrderStatsRequest(params),
     refetchInterval: 30000,
   });
 }

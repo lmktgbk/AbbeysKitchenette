@@ -1,3 +1,11 @@
+/**
+ * OrderingPage — public online ordering (menu grid + cart + checkout + success/tracking).
+ * WHY it exists: guest storefront checkout gated by client store-hours check.
+ * Query keys consumed: ["guest","menu",params] via useGuestMenu, ["landing","storeSettings"]
+ * via useStoreSettings (guest mutations via useGuestOrderMutations). Guards: public route;
+ * store-hours gate (isStoreOpenClient); no BR-02 shift gate, no role guards.
+ * State: Query [menuData, settingsData] | local [orderSuccess, search, activeCategory, cart, selectedProduct, showCartDrawer, showCheckout, selectedVariantId, quantity, customerName, tableNumber, privacyConsent, errors, linkCopied] | Zustand [].
+ */
 import { useState, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -28,18 +36,6 @@ function isStoreOpenClient(storeHours) {
     return { isOpen: true, opensAt: todayHours.open, closesAt: todayHours.close };
 }
 
-/**
- * OrderingPage
- * Public-facing online ordering page for Abbey's Kitchenette.
- *
- * Features:
- *  • Product grid with category filter + search (reuses GET /api/guest/menu)
- *  • Sticky cart sidebar (desktop) + bottom drawer (mobile)
- *  • Variant selector modal for multi-size products
- *  • Checkout modal with customer info fields
- *  • Order success confirmation screen
- *  • Uses useGuestMenu + useGuestOrderMutations from orders/query.js
- */
 export default function OrderingPage() {
     const [orderSuccess, setOrderSuccess] = useState(null); // { orderId, customerName }
 

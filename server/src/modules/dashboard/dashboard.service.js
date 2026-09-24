@@ -1,6 +1,19 @@
 import { dashboardRepository } from "./dashboard.repository.js";
 
+/**
+ * Dashboard Service
+ *
+ * Read-only landing payload for the admin dashboard. Fires ~26 independent
+ * aggregations in one Promise.all — wall time equals the slowest query,
+ * not the sum. Deltas compare the selected window against the previous
+ * equal-length window; null baseline renders as "—", never ±100%.
+ */
 export const dashboardService = {
+  /**
+   * Full dashboard payload. The positional destructure MUST stay in the
+   * same order as the Promise.all array — a rest-spread misindex here
+   * once mislabeled every widget (see analytics getDashboard fix).
+   */
   async getData(dateFrom, dateTo) {
     const [
       todayKpis,
@@ -60,6 +73,8 @@ export const dashboardService = {
       dashboardRepository.getStockValue(),
     ]);
 
+    // Loss severity is judged against true FIFO cost of goods, not revenue —
+    // a peso lost on a low-margin item hurts more than on a premium one.
     const calcDelta = (current, previous) => {
       if (!previous || previous === 0) return null;
       return Math.round(((current - previous) / previous) * 1000) / 10;

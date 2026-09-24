@@ -22,6 +22,60 @@ export const categoryRepository = {
     });
   },
 
+  /**
+   * Find a root category by name.
+   * @param {string} name - category_name (e.g. "Bundles")
+   * @returns {Promise<object|null>}
+   */
+  async findRootByName(name) {
+    return prisma.category.findUnique({
+      where: { categoryName: name },
+    });
+  },
+
+  /**
+   * Find a subcategory by parent + name.
+   * @param {number} categoryId - parent category_id
+   * @param {string} name - subcategory_name (e.g. "Bundle")
+   * @returns {Promise<object|null>}
+   */
+  async findSubByName(categoryId, name) {
+    return prisma.subcategory.findUnique({
+      where: { categoryId_subcategoryName: { categoryId, subcategoryName: name } },
+    });
+  },
+
+  /**
+   * Atomic find-or-create for a root category.
+   * WHY upsert over find-then-create: concurrent ensures collapse into one row
+   * server-side (ON CONFLICT) instead of racing into P2002 + invisible-row refetch.
+   * @param {string} name - category_name
+   * @param {string|null} [description]
+   * @returns {Promise<object>}
+   */
+  async upsertRootByName(name, description = null) {
+    return prisma.category.upsert({
+      where: { categoryName: name },
+      update: {},
+      create: { categoryName: name, description },
+    });
+  },
+
+  /**
+   * Atomic find-or-create for a subcategory under a root.
+   * @param {number} categoryId - parent category_id
+   * @param {string} name - subcategory_name
+   * @param {string|null} [description]
+   * @returns {Promise<object>}
+   */
+  async upsertSub(categoryId, name, description = null) {
+    return prisma.subcategory.upsert({
+      where: { categoryId_subcategoryName: { categoryId, subcategoryName: name } },
+      update: {},
+      create: { categoryId, subcategoryName: name, description },
+    });
+  },
+
   /* ── Subcategories ─────────────────────── */
 
   /**

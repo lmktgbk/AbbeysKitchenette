@@ -1,5 +1,13 @@
 import prisma from "../../config/prisma.js";
 
+/**
+ * Notification Repository
+ *
+ * Plain Prisma for CRUD and type-filtered paging (type + reference indexes
+ * cover the bell's chips). Free-text search can't use the query builder —
+ * details is JSON and the actor lives across a join — so searched listings
+ * go through parameterized raw SQL in findManySearched instead.
+ */
 export const notificationRepository = {
   async create({ type, title, message, referenceType, referenceId }) {
     return prisma.notification.create({

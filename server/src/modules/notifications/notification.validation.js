@@ -11,3 +11,7 @@ export const notificationQuerySchema = z.object({
 export const cleanupSchema = z.object({
   days: z.coerce.number().int().positive().default(30),
 });
+
+export const notificationIdParamSchema = z.object({
+  id: z.string().uuid("Invalid notification ID"),
+});

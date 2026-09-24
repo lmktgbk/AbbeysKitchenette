@@ -5,6 +5,14 @@ import { notificationService } from "../notifications/notification.service.js";
 
 export const DEFAULT_PAYMENTS = ["cash", "gcash", "maya"];
 
+/**
+ * Settings Service
+ *
+ * Single-row system config (singleton id=1, auto-created on first read).
+ * Writes diff before saving: unchanged PATCHes return silently instead of
+ * spamming audit + notifications, and only real payment changes bust the
+ * accepted-payments cache that every order creation reads.
+ */
 // Short-lived cache: payment checks run on every order creation.
 let _paymentsCache = null;
 let _paymentsCacheAt = 0;

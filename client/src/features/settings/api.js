@@ -1,3 +1,8 @@
+/**
+ * Settings API — owns system-settings transport.
+ * WHY: isolates global settings reads/writes from per-feature APIs. Contract: GET /settings, PATCH /settings; returns res.data envelope.
+ * State: axios wrappers, no state.
+ */
 import api from "@/config/axios";
 
 /** Get current system settings */

@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { useOrderMutations } from "../query";
 import { useMyShifts, useShiftMutations } from "@/features/shifts/query";
 import ShiftBanner from "@/features/shifts/components/ShiftBanner";
@@ -34,8 +35,14 @@ const CANCEL_REASONS = [
  * Full-screen split layout: 70% product menu, 30% order summary.
  * Payment handled in modal on "Place Order".
  * Header is provided by PosTerminal.
+ *
+ * State (Rule of Thumb):
+ * - API data via TanStack Query: shifts, store settings, order detail via queryClient.fetchQuery
+ *   (cached under ["orders","detail",id] so fulfill/cancel invalidation applies).
+ * - Browser-only via useState: cart items, customer/table input, modals, fulfilling/accepting ids.
  */
 export default function PosInterface() {
+  const queryClient = useQueryClient();
   const mutations = useOrderMutations();
   const shiftMutations = useShiftMutations();
   const { data: shiftsData, isLoading: shiftsLoading } = useMyShifts();
@@ -109,20 +116,25 @@ export default function PosInterface() {
       if (!yes) return;
     }
 
+    // Fetch through the Query cache (key matches useOrderDetail) so fulfill/cancel
+    // invalidation applies; cart population stays in the event handler (no effect mirror).
     setAcceptingOrderIds((prev) => new Set(prev).add(order.order_id));
     try {
-      const res = await getOrderDetailRequest(order.order_id);
+      const res = await queryClient.fetchQuery({
+        queryKey: ["orders", "detail", order.order_id],
+        queryFn: () => getOrderDetailRequest(order.order_id),
+      });
       const orderData = res.data.order;
 
       setItems(
-        orderData.items.map((item) => ({
+        (orderData.items ?? []).map((item) => ({
           product_id: item.product_id,
           variant_id: item.variant_id,
           product_name: item.product_name,
           size_name: item.size_name,
           quantity: item.quantity,
           unit_price: item.unit_price,
-        }))
+        })),
       );
       setCustomerName(orderData.customer_name || "");
       setTableName(orderData.table_number || "");

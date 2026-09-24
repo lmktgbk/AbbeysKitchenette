@@ -24,15 +24,30 @@ export const productRepository = {
   /* ── Lookups ─────────────────────────── */
 
   /**
-   * Find a product by name.
-   * Used to check for duplicate names before creating.
-   * @param {string} name - product name
+   * Find a product by name (case-insensitive).
+   * "Spanish Latte" and "spAnish Latte" are the same product — the shop
+   * must never hold both. Used by create/update/rename duplicate checks.
+   * @param {string} name - product name (already trimmed by callers)
    * @returns {object|null} - product or null if not found
    */
   async findByName(name) {
     return prisma.product.findFirst({
-      where: { productName: name },
+      where: { productName: { equals: name, mode: "insensitive" } },
     });
+  },
+
+  /**
+   * Batch ingredient names for error messages.
+   * @param {string[]} ingredientIds - ingredient UUIDs
+   * @returns {Map<string, string>} - ingredientId → ingredientName
+   */
+  async getIngredientNames(ingredientIds) {
+    if (ingredientIds.length === 0) return new Map();
+    const rows = await prisma.ingredient.findMany({
+      where: { ingredientId: { in: ingredientIds } },
+      select: { ingredientId: true, ingredientName: true },
+    });
+    return new Map(rows.map((r) => [r.ingredientId, r.ingredientName]));
   },
 
   /**
@@ -366,31 +381,33 @@ export const productRepository = {
     });
   },
 
-  /* ── Transaction Checks (Placeholder) ── */
+  /* ── Transaction Checks ── */
 
   /**
    * Check if a product has any order transactions.
-   * Placeholder — always returns 0 until Order module is built.
+   * Blocks hard-delete of products with order history.
    * @param {string} id - product UUID
-   * @returns {number} - transaction count (0 for now)
+   * @returns {number} - order item count referencing this product
    */
   async countTransactions(id) {
-    // TODO: Replace with real check when Order module is built
-    // Example: return prisma.orderItem.count({ where: { variant: { productId: id } } });
-    return 0;
+    return prisma.orderItem.count({ where: { productId: id } });
   },
 
   /**
    * Batch-check which variants have transactions.
-   * Placeholder — returns empty map until Order module is built.
    * @param {number[]} variantIds - array of variant IDs
    * @returns {Object<number, number>} - map of variantId → transaction count
    */
   async countVariantTransactionsBatch(variantIds) {
     if (variantIds.length === 0) return {};
-    // TODO: Replace with real check when Order module is built
+    const rows = await prisma.orderItem.groupBy({
+      by: ["variantId"],
+      where: { variantId: { in: variantIds } },
+      _count: { variantId: true },
+    });
     const result = {};
     for (const id of variantIds) result[id] = 0;
+    for (const row of rows) result[row.variantId] = row._count.variantId;
     return result;
   },
 
@@ -486,18 +503,20 @@ export const productRepository = {
   },
 
   /**
-   * Bulk update isAvailable for multiple variants in a single transaction.
+   * Bulk update isAvailable for multiple variants in ONE statement.
+   * Single CASE-based UPDATE — atomic like the old per-row array-tx, but
+   * one round-trip regardless of variant count, so it can never expire a
+   * 5s transaction the way V sequential updates could.
    * @param {Array<{ variantId: number, isAvailable: boolean }>} updates
+   * @returns {number} - rows updated
    */
   async bulkUpdateVariantAvailability(updates) {
-    if (updates.length === 0) return;
-    await prisma.$transaction(
-      updates.map((u) =>
-        prisma.productVariant.update({
-          where: { variantId: u.variantId },
-          data: { isAvailable: u.isAvailable },
-        })
-      )
-    );
+    if (updates.length === 0) return 0;
+    const result = await prisma.$executeRawUnsafe(`
+      UPDATE product_variants
+      SET is_available = CASE variant_id ${updates.map((u, i) => `WHEN $${i * 2 + 1} THEN $${i * 2 + 2}`).join(" ")} ELSE is_available END
+      WHERE variant_id IN (${updates.map((u, i) => `$${i * 2 + 1}`).join(", ")})
+    `, ...updates.flatMap((u) => [u.variantId, u.isAvailable]));
+    return result;
   },
 };

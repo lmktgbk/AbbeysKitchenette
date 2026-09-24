@@ -1,6 +1,8 @@
 import { Router } from "express";
 import authenticate from "../../middleware/authenticate.middleware.js";
 import authorize from "../../middleware/authorize.middleware.js";
+import { validateQuery } from "../../middleware/validate.middleware.js";
+import { forecastJobQuerySchema } from "./forecasting.validation.js";
 import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
@@ -81,11 +83,9 @@ router.get(
   "/demand/status",
   authenticate,
   authorize("admin"),
+  validateQuery(forecastJobQuerySchema),
   (req, res) => {
-    const { jobId } = req.query;
-    if (!jobId) {
-      return res.status(400).json({ success: false, message: "jobId is required" });
-    }
+    const { jobId } = req.validatedQuery;
     proxyGet(res, `/forecast/demand/status?job_id=${jobId}`, "DEMAND_STATUS_ERROR");
   },
 );
@@ -95,11 +95,9 @@ router.get(
   "/demand/results",
   authenticate,
   authorize("admin"),
+  validateQuery(forecastJobQuerySchema),
   (req, res) => {
-    const { jobId } = req.query;
-    if (!jobId) {
-      return res.status(400).json({ success: false, message: "jobId is required" });
-    }
+    const { jobId } = req.validatedQuery;
     proxyGet(res, `/forecast/demand/results?job_id=${jobId}`, "DEMAND_RESULTS_ERROR");
   },
 );
@@ -117,11 +115,9 @@ router.get(
   "/demand/ingredients",
   authenticate,
   authorize("admin"),
+  validateQuery(forecastJobQuerySchema),
   (req, res) => {
-    const { jobId } = req.query;
-    if (!jobId) {
-      return res.status(400).json({ success: false, message: "jobId is required" });
-    }
+    const { jobId } = req.validatedQuery;
     proxyGet(res, `/forecast/demand/ingredients?job_id=${jobId}`, "DEMAND_INGREDIENTS_ERROR");
   },
 );

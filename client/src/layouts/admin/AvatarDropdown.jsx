@@ -5,12 +5,7 @@ import useAuthStore from "@/features/auth/authStore";
 import { logoutRequest } from "@/features/auth/api";
 import { confirm } from "@/components/alerts/ConfirmDialog";
 
-/**
- * AvatarDropdown — user section at bottom of sidebar.
- * Shows: [Initials] Name    [Logout icon]
- * Clicking the account area opens dropdown (Profile, Settings, Logout).
- * Logout icon is always visible for quick access.
- */
+/** AvatarDropdown — sidebar account menu. WHY it exists: keeps profile/settings/logout + outside-click close in one spot so Sidebar stays lean; consumed by Sidebar. State: local [open]. */
 export default function AvatarDropdown({ collapsed, user, onOpenProfile }) {
     const [open, setOpen] = useState(false);
     const ref = useRef(null);

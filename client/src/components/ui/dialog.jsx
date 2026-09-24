@@ -3,13 +3,7 @@ import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import Icon from "@/components/ui/icon";
 
-/**
- * Dialog Components
- *
- * Custom modal dialog with backdrop overlay.
- * Follows flat design — no shadows, no gradients, no animations.
- * Closes on backdrop click, Escape key, or X button.
- */
+/** Dialog — portal modal with backdrop/Esc/X close. WHY it exists: single overlay + scroll-lock + close handling shared by FilterModal, BatchListModal, ProfileModal; consumed via open/onOpenChange. State: none (caller-owned open; local Escape listener). */
 
 function Dialog({ open, onOpenChange, children }) {
   // Close on Escape key
