@@ -75,7 +75,7 @@ export default function IngredientTable({
   const [showArchived, setShowArchived] = useState(false);
   const [expandedRow, setExpandedRow] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(20);
   const [filterOpen, setFilterOpen] = useState(false);
   const [activeSort, setActiveSort] = useState("status_asc");
   const [activeFilters, setActiveFilters] = useState({ status: "all" });
@@ -238,6 +238,7 @@ export default function IngredientTable({
           setPageSize(size);
           setCurrentPage(1);
         }}
+        pageSizeOptions={[20, 50, 100]}
         itemLabel="ingredients"
       />
     </div>

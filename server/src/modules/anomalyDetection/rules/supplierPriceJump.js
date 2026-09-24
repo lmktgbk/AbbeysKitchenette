@@ -1,4 +1,5 @@
 import prisma from "../../../config/prisma.js";
+import { toManilaDateString } from "../../../config/time.js";
 
 export const supplierPriceJump = {
   id: "supplier_price_jump",
@@ -22,7 +23,8 @@ export const supplierPriceJump = {
       if (jump >= 0.3 && (!worst || jump > worst.jump)) worst = { ...r, latest, avg, jump };
     }
     if (!worst) return { shouldDetect: false };
-    return { shouldDetect: true, worst, todayStr: new Date().toLocaleDateString("en-CA") };
+    // Manila business date label (see config/time.js).
+    return { shouldDetect: true, worst, todayStr: toManilaDateString() };
   },
   condition() {
     const { worst } = this._lastData || {};

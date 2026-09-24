@@ -1,4 +1,5 @@
 import prisma from "../../../config/prisma.js";
+import { toManilaDateString, toDayKey } from "../../../config/time.js";
 
 export const lossSpike = {
   id: "loss_spike",
@@ -19,30 +20,27 @@ export const lossSpike = {
 
     const rows = await prisma.$queryRawUnsafe(`
       SELECT
-        DATE(lr."logged_at") AS day,
+        DATE(lr."logged_at" AT TIME ZONE 'Asia/Manila') AS day,
         COUNT(*)::int AS loss_count,
         SUM(lr."total_cost_lost")::float AS loss_cost
       FROM loss_records lr
       WHERE lr."loss_type" = 'cancellation'
         AND lr."logged_at" >= $1
-      GROUP BY DATE(lr."logged_at")
+      GROUP BY DATE(lr."logged_at" AT TIME ZONE 'Asia/Manila')
       ORDER BY day ASC
     `, cutoff);
 
     if (rows.length < 3) return { shouldDetect: false };
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toLocaleDateString("en-CA");
+    // Manila business "today" — never host-local midnight (see config/time.js).
+    const todayStr = toManilaDateString();
 
-    const todayRow = rows.find((r) => r.day instanceof Date
-      ? r.day.toLocaleDateString("en-CA") === todayStr
-      : String(r.day).split("T")[0] === todayStr);
+    const todayRow = rows.find((r) => toDayKey(r.day) === todayStr);
 
     const todayCost = todayRow ? Number(todayRow.loss_cost) : 0;
     const todayCount = todayRow ? todayRow.loss_count : 0;
     const historicalCosts = rows.filter((r) => {
-      const d = r.day instanceof Date ? r.day.toLocaleDateString("en-CA") : String(r.day).split("T")[0];
+      const d = toDayKey(r.day);
       return d !== todayStr;
     }).map((r) => Number(r.loss_cost));
 

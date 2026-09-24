@@ -13,7 +13,7 @@ const STATUS_LABEL = { ok: "OK", warning: "Low", critical: "Order now" };
 export default function IngredientOrderTab({ ingredients, activeTab, onTabChange }) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const pageSize = 10;
+  const [pageSize, setPageSize] = useState(20);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return ingredients;
@@ -26,7 +26,7 @@ export default function IngredientOrderTab({ ingredients, activeTab, onTabChange
     return [...filtered].sort((a, b) => (order[a.status] ?? 2) - (order[b.status] ?? 2));
   }, [filtered]);
 
-  const paged = useMemo(() => sorted.slice((page - 1) * pageSize, page * pageSize), [sorted, page]);
+  const paged = useMemo(() => sorted.slice((page - 1) * pageSize, page * pageSize), [sorted, page, pageSize]);
 
   React.useEffect(() => { setPage(1); }, [search]);
 
@@ -86,7 +86,7 @@ export default function IngredientOrderTab({ ingredients, activeTab, onTabChange
           </tbody>
         </table>
       </div>
-      <Pagination currentPage={page} totalItems={sorted.length} pageSize={pageSize} onPageChange={setPage} pageSizeOptions={[10]} itemLabel="ingredients" />
+      <Pagination currentPage={page} totalItems={sorted.length} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={(s) => { setPageSize(s); setPage(1); }} pageSizeOptions={[20, 50, 100]} itemLabel="ingredients" />
       <p className="px-4 py-2 text-xs text-muted-foreground">Tip: “Lasts” = how many days your current stock will cover at forecasted demand.</p>
     </div>
   );

@@ -1,4 +1,5 @@
 import prisma from "../../../config/prisma.js";
+import { toManilaDateString, toDayKey } from "../../../config/time.js";
 
 export const stockoutSpike = {
   id: "stockout_spike",
@@ -12,14 +13,14 @@ export const stockoutSpike = {
     cutoff.setDate(cutoff.getDate() - 30);
     cutoff.setHours(0, 0, 0, 0);
     const rows = await prisma.$queryRawUnsafe(`
-      SELECT DATE(sa."triggered_at") AS day, COUNT(DISTINCT sa."ingredient_id")::int AS cnt
+      SELECT DATE(sa."triggered_at" AT TIME ZONE 'Asia/Manila') AS day, COUNT(DISTINCT sa."ingredient_id")::int AS cnt
       FROM stock_alerts sa WHERE sa."alert_type" IN ('out_of_stock','low_stock') AND sa."triggered_at" >= $1
-      GROUP BY DATE(sa."triggered_at") ORDER BY day ASC
+      GROUP BY DATE(sa."triggered_at" AT TIME ZONE 'Asia/Manila') ORDER BY day ASC
     `, cutoff);
     if (rows.length < 3) return { shouldDetect: false };
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const todayStr = today.toLocaleDateString("en-CA");
-    const find = (r) => (r.day instanceof Date ? r.day.toLocaleDateString("en-CA") : String(r.day).split("T")[0]) === todayStr;
+    // Manila business "today" — never host-local midnight (see config/time.js).
+    const todayStr = toManilaDateString();
+    const find = (r) => toDayKey(r.day) === todayStr;
     const todayRow = rows.find(find);
     const todayTotal = todayRow ? Number(todayRow.cnt) : 0;
     const historical = rows.filter((r) => !find(r)).map((r) => Number(r.cnt));

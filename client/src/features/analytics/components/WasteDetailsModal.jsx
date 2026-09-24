@@ -3,7 +3,7 @@ import { useWasteDetails } from "../variantQuery";
 import { SearchBar } from "@/components/filters/SearchBar";
 import { FilterPill } from "@/components/filters/FilterPill";
 import { Pagination } from "@/components/filters/Pagination";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { formatPeso } from "@/features/dashboard/utils/dashboardUtils";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,7 @@ const TYPE_OPTIONS = [
 export default function WasteDetailsModal({ open, onOpenChange, type, dateFrom, dateTo }) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [filterType, setFilterType] = useState(type || "all");
 
   const { data, isLoading } = useWasteDetails({
@@ -27,7 +28,7 @@ export default function WasteDetailsModal({ open, onOpenChange, type, dateFrom, 
     date_to: dateTo || undefined,
     type: filterType,
     search: search || undefined,
-    limit: "10",
+    limit: String(pageSize),
     page: String(page),
   });
   const rows = data?.data?.rows ?? [];
@@ -36,6 +37,7 @@ export default function WasteDetailsModal({ open, onOpenChange, type, dateFrom, 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
+        <DialogClose onClick={() => onOpenChange(false)} />
         <DialogHeader>
           <DialogTitle>Waste Details — {filterType === "all" ? "All types" : filterType}</DialogTitle>
         </DialogHeader>
@@ -73,7 +75,7 @@ export default function WasteDetailsModal({ open, onOpenChange, type, dateFrom, 
             )}
           </TableBody>
         </Table>
-        <Pagination currentPage={page} totalItems={total} pageSize={10} pageSizeOptions={[10, 20, 50]} onPageChange={setPage} itemLabel="records" />
+        <Pagination currentPage={page} totalItems={total} pageSize={pageSize} pageSizeOptions={[20, 50, 100]} onPageChange={setPage} onPageSizeChange={(s) => { setPageSize(s); setPage(1); }} itemLabel="records" />
       </DialogContent>
     </Dialog>
   );

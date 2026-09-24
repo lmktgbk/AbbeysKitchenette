@@ -1,4 +1,5 @@
 import prisma from "../../../config/prisma.js";
+import { toManilaDateString, toDayKey } from "../../../config/time.js";
 
 export const revenueAnomaly = {
   id: "revenue_anomaly",
@@ -18,28 +19,25 @@ export const revenueAnomaly = {
 
     const rows = await prisma.$queryRawUnsafe(`
       SELECT
-        DATE(o."created_at") AS day,
+        DATE(o."created_at" AT TIME ZONE 'Asia/Manila') AS day,
         SUM(o."total_amount")::float AS revenue
       FROM orders o
       WHERE o."status" = 'completed'
         AND o."created_at" >= $1
-      GROUP BY DATE(o."created_at")
+      GROUP BY DATE(o."created_at" AT TIME ZONE 'Asia/Manila')
       ORDER BY day ASC
     `, cutoff);
 
     if (rows.length < 7) return { shouldDetect: false };
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toLocaleDateString("en-CA");
+    // Manila business "today" — never host-local midnight (see config/time.js).
+    const todayStr = toManilaDateString();
 
-    const todayRow = rows.find((r) => r.day instanceof Date
-      ? r.day.toLocaleDateString("en-CA") === todayStr
-      : String(r.day).split("T")[0] === todayStr);
+    const todayRow = rows.find((r) => toDayKey(r.day) === todayStr);
 
     const todayRevenue = todayRow ? Number(todayRow.revenue) : 0;
     const historical = rows.filter((r) => {
-      const d = r.day instanceof Date ? r.day.toLocaleDateString("en-CA") : String(r.day).split("T")[0];
+      const d = toDayKey(r.day);
       return d !== todayStr;
     }).map((r) => Number(r.revenue));
 
@@ -64,8 +62,9 @@ export const revenueAnomaly = {
     const confidence = Math.min(0.99, 0.5 + Math.abs(zScore) * 0.15);
 
     const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    const dateObj = new Date(todayStr + "T12:00:00");
-    const dayName = days[dateObj.getDay()];
+    // Weekday of the Manila business date via UTC math — host-tz independent.
+    const [ry, rm, rd] = todayStr.split("-").map(Number);
+    const dayName = days[new Date(Date.UTC(ry, rm - 1, rd, 12)).getUTCDay()];
 
     return {
       triggered,

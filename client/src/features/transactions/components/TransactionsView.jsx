@@ -33,7 +33,7 @@ const TYPE_BADGES = {
   variance: { label: "Variance", variant: "warning" },
 };
 
-const PAGE_SIZE_OPTIONS = [50, 75, 100];
+const PAGE_SIZE_OPTIONS = [20, 50, 100];
 
 /**
  * TransactionsView (BR-03)
@@ -46,7 +46,7 @@ const PAGE_SIZE_OPTIONS = [50, 75, 100];
  */
 export default function TransactionsView({ switcher, actions }) {
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(20);
   const [search, setSearch] = useState("");
   const [dateFrom, setDateFrom] = useState(null);
   const [dateTo, setDateTo] = useState(null);

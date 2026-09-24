@@ -15,7 +15,7 @@ async function getIngredientProfitabilityRequest(params = {}) {
 export default function IngredientProfitabilityTable({ dateFrom, dateTo }) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(20);
 
   const { data, isLoading } = useQuery({
     queryKey: ["analytics", "ingredientProfit", { dateFrom, dateTo, search, page, pageSize }],
@@ -62,7 +62,7 @@ export default function IngredientProfitabilityTable({ dateFrom, dateTo }) {
           )}
         </TableBody>
       </Table>
-      <Pagination currentPage={page} totalItems={total} pageSize={pageSize} pageSizeOptions={[10, 20, 50]} onPageChange={setPage} onPageSizeChange={(s) => { setPageSize(s); setPage(1); }} itemLabel="ingredients" />
+      <Pagination currentPage={page} totalItems={total} pageSize={pageSize} pageSizeOptions={[20, 50, 100]} onPageChange={setPage} onPageSizeChange={(s) => { setPageSize(s); setPage(1); }} itemLabel="ingredients" />
     </div>
   );
 }

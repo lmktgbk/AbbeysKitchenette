@@ -9,6 +9,7 @@ import { useState, useMemo, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/filters/Pagination";
 import { useLatestMBAJob } from "../query";
 import MarketBasketRunButton from "../components/MarketBasketRunButton";
 import ComboCard from "../components/ComboCard";
@@ -18,10 +19,21 @@ export default function MarketBasketPage() {
   const { job, isLoading: jobLoading } = useLatestMBAJob();
   const [showComboModal, setShowComboModal] = useState(false);
   const [selectedCombo, setSelectedCombo] = useState(null);
+  // Combo grid paging (client-side: rules payload is bounded by topN).
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   const rules = job?.rules ?? [];
   const isRunning = job?.status === "running";
   const isFailed = job?.status === "failed";
+
+  // Reset to first page whenever a new analysis job arrives
+  // (render-adjust pattern — no set-state-in-effect).
+  const [prevJobId, setPrevJobId] = useState(job?.id);
+  if (job?.id !== prevJobId) {
+    setPrevJobId(job?.id);
+    setPage(1);
+  }
 
   const topRule = useMemo(() => {
     if (!rules.length) return null;
@@ -44,6 +56,11 @@ export default function MarketBasketPage() {
   const isLoading = jobLoading;
   const hasResults = rules.length > 0 && !isRunning;
   const isEmpty = !hasResults && !isLoading && !isFailed && !isRunning;
+
+  // Page window over the combo grid (global index preserved for isTop).
+  // Plain slice — O(n) trivial, no memo needed.
+  const startIdx = (page - 1) * pageSize;
+  const visibleRules = rules.slice(startIdx, startIdx + pageSize);
 
   return (
     <div className="flex flex-col gap-4">
@@ -112,11 +129,22 @@ export default function MarketBasketPage() {
       )}
 
       {hasResults && !isLoading && (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {rules.map((rule, idx) => (
-            <ComboCard key={rule.id} rule={rule} isTop={idx===0} totalOrders={job?.total_orders} onCreateCombo={handleCreateCombo} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {visibleRules.map((rule, idx) => (
+              <ComboCard key={rule.id} rule={rule} isTop={startIdx + idx === 0} totalOrders={job?.total_orders} onCreateCombo={handleCreateCombo} />
+            ))}
+          </div>
+          <Pagination
+            currentPage={page}
+            totalItems={rules.length}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
+            pageSizeOptions={[20, 50, 100]}
+            itemLabel="combos"
+          />
+        </>
       )}
 
       {isEmpty && (

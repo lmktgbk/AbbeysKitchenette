@@ -20,7 +20,8 @@ const ORDER_STATUS_OPTIONS = [
   { value: "cancelled", label: "Cancelled" },
 ];
 
-const ORDERS_PAGE_SIZE = 15;
+const DEFAULT_ORDERS_PAGE_SIZE = 20;
+const ORDERS_PAGE_SIZE_OPTIONS = [20, 50, 100];
 
 const STATUS_DOTS = {
   completed: "bg-green-500",
@@ -48,6 +49,7 @@ function FlowRow({ symbol, label, value, bold, tone }) {
  */
 export default function ShiftDetailDrawer({ open, onOpenChange, shiftId, onCloseShift }) {
   const [ordersPage, setOrdersPage] = useState(1);
+  const [ordersPageSize, setOrdersPageSize] = useState(DEFAULT_ORDERS_PAGE_SIZE);
   const [ordersStatus, setOrdersStatus] = useState("all");
   const [prevShiftId, setPrevShiftId] = useState(shiftId);
 
@@ -60,7 +62,7 @@ export default function ShiftDetailDrawer({ open, onOpenChange, shiftId, onClose
   const { data: summaryData, isLoading: loadingSummary } = useShiftSummary(open ? shiftId : null);
   const { data: ordersData, isLoading: loadingOrders } = useShiftOrders(
     open ? shiftId : null,
-    { page: String(ordersPage), limit: String(ORDERS_PAGE_SIZE), status: ordersStatus },
+    { page: String(ordersPage), limit: String(ordersPageSize), status: ordersStatus },
   );
 
   const { data: usageData, isLoading: loadingUsage } = useShiftIngredientUsage(open ? shiftId : null);
@@ -223,12 +225,14 @@ export default function ShiftDetailDrawer({ open, onOpenChange, shiftId, onClose
                       </p>
                     </div>
                   ))}
-                  {totalOrders > ORDERS_PAGE_SIZE && (
+                  {totalOrders > ordersPageSize && (
                     <Pagination
                       currentPage={ordersPage}
                       totalItems={totalOrders}
-                      pageSize={ORDERS_PAGE_SIZE}
+                      pageSize={ordersPageSize}
                       onPageChange={setOrdersPage}
+                      onPageSizeChange={(size) => { setOrdersPageSize(size); setOrdersPage(1); }}
+                      pageSizeOptions={ORDERS_PAGE_SIZE_OPTIONS}
                       itemLabel="orders"
                       className="border-t-0"
                     />

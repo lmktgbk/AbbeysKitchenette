@@ -20,7 +20,7 @@ function DemandTable({ results, skipped = [], previousResults, viewPeriod = 7, s
   const [search, setSearch] = useState("");
   const [selectedDate, setSelectedDate] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(20);
 
   const prevMap = useMemo(() => {
     if (!previousResults?.length) return {};
@@ -267,8 +267,8 @@ function DemandTable({ results, skipped = [], previousResults, viewPeriod = 7, s
         totalItems={displayData.length}
         pageSize={pageSize}
         onPageChange={setCurrentPage}
-        onPageSizeChange={setPageSize}
-        pageSizeOptions={[10, 25, 50]}
+        onPageSizeChange={(s) => { setPageSize(s); setCurrentPage(1); }}
+        pageSizeOptions={[20, 50, 100]}
         itemLabel="variants"
       />
     </div>

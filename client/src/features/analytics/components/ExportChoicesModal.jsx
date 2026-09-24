@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
 
@@ -32,6 +32,7 @@ export default function ExportChoicesModal({ open, onOpenChange, onExport }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
+        <DialogClose onClick={() => onOpenChange(false)} />
         <DialogHeader>
           <DialogTitle>Export Excel</DialogTitle>
         </DialogHeader>

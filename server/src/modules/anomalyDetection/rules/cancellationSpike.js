@@ -1,4 +1,5 @@
 import prisma from "../../../config/prisma.js";
+import { toManilaDateString, toDayKey } from "../../../config/time.js";
 
 export const cancellationSpike = {
   id: "cancellation_spike",
@@ -19,13 +20,13 @@ export const cancellationSpike = {
     const rows = await prisma.$queryRawUnsafe(`
       WITH daily_stats AS (
         SELECT
-          DATE(o."created_at") AS day,
+          DATE(o."created_at" AT TIME ZONE 'Asia/Manila') AS day,
           COUNT(*)::int AS total_orders,
           COUNT(oc."cancellation_id")::int AS cancelled_orders
         FROM orders o
         LEFT JOIN order_cancellations oc ON oc."order_id" = o."order_id"
         WHERE o."created_at" >= $1
-        GROUP BY DATE(o."created_at")
+        GROUP BY DATE(o."created_at" AT TIME ZONE 'Asia/Manila')
       )
       SELECT
         day,
@@ -41,19 +42,16 @@ export const cancellationSpike = {
 
     if (rows.length < 7) return { shouldDetect: false };
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toLocaleDateString("en-CA");
+    // Manila business "today" — never host-local midnight (see config/time.js).
+    const todayStr = toManilaDateString();
 
-    const todayRow = rows.find((r) => r.day instanceof Date
-      ? r.day.toLocaleDateString("en-CA") === todayStr
-      : String(r.day).split("T")[0] === todayStr);
+    const todayRow = rows.find((r) => toDayKey(r.day) === todayStr);
 
     const todayRate = todayRow ? Number(todayRow.cancel_rate) : 0;
     const todayTotal = todayRow ? todayRow.total_orders : 0;
     const todayCancelled = todayRow ? todayRow.cancelled_orders : 0;
     const historicalRates = rows.filter((r) => {
-      const d = r.day instanceof Date ? r.day.toLocaleDateString("en-CA") : String(r.day).split("T")[0];
+      const d = toDayKey(r.day);
       return d !== todayStr && r.total_orders > 0;
     }).map((r) => Number(r.cancel_rate));
 

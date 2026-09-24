@@ -1,4 +1,5 @@
 import prisma from "../../../config/prisma.js";
+import { toManilaDateString, toDayKey } from "../../../config/time.js";
 
 export const fulfillmentOutlier = {
   id: "fulfillment_outlier",
@@ -18,32 +19,29 @@ export const fulfillmentOutlier = {
 
     const rows = await prisma.$queryRawUnsafe(`
       SELECT
-        DATE(o."created_at") AS day,
+        DATE(o."created_at" AT TIME ZONE 'Asia/Manila') AS day,
         PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY o."fulfillment_minutes")::float AS median_minutes
       FROM orders o
       WHERE o."status" = 'completed'
         AND o."fulfillment_minutes" IS NOT NULL
         AND o."created_at" >= $1
-      GROUP BY DATE(o."created_at")
+      GROUP BY DATE(o."created_at" AT TIME ZONE 'Asia/Manila')
       HAVING COUNT(*) >= 3
       ORDER BY day ASC
     `, cutoff);
 
     if (rows.length < 7) return { shouldDetect: false };
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toLocaleDateString("en-CA");
+    // Manila business "today" — never host-local midnight (see config/time.js).
+    const todayStr = toManilaDateString();
 
-    const todayRow = rows.find((r) => r.day instanceof Date
-      ? r.day.toLocaleDateString("en-CA") === todayStr
-      : String(r.day).split("T")[0] === todayStr);
+    const todayRow = rows.find((r) => toDayKey(r.day) === todayStr);
 
     const todayMedian = todayRow ? Number(todayRow.median_minutes) : null;
     if (todayMedian === null) return { shouldDetect: false };
 
     const historical = rows.filter((r) => {
-      const d = r.day instanceof Date ? r.day.toLocaleDateString("en-CA") : String(r.day).split("T")[0];
+      const d = toDayKey(r.day);
       return d !== todayStr;
     }).map((r) => Number(r.median_minutes));
 

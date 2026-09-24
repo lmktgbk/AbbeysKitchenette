@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 export default function VariantProfitabilityTable({ dateFrom, dateTo }) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(20);
 
   const { data, isLoading } = useVariantProfitability({
     date_from: dateFrom || undefined,
@@ -59,7 +59,7 @@ export default function VariantProfitabilityTable({ dateFrom, dateTo }) {
           )}
         </TableBody>
       </Table>
-      <Pagination currentPage={page} totalItems={total} pageSize={pageSize} pageSizeOptions={[10, 20, 50]} onPageChange={setPage} onPageSizeChange={(s) => { setPageSize(s); setPage(1); }} itemLabel="variants" />
+      <Pagination currentPage={page} totalItems={total} pageSize={pageSize} pageSizeOptions={[20, 50, 100]} onPageChange={setPage} onPageSizeChange={(s) => { setPageSize(s); setPage(1); }} itemLabel="variants" />
     </div>
   );
 }

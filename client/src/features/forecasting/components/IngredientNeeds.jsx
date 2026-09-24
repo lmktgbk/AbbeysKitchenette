@@ -17,7 +17,7 @@ const STATUS_CONFIG = {
  */
 function IngredientNeeds({ ingredients }) {
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(20);
   const [search, setSearch] = useState("");
 
   useEffect(() => { setCurrentPage(1); }, [ingredients, search]);
@@ -132,8 +132,8 @@ function IngredientNeeds({ ingredients }) {
         totalItems={sortedIngredients.length}
         pageSize={pageSize}
         onPageChange={setCurrentPage}
-        onPageSizeChange={setPageSize}
-        pageSizeOptions={[10, 20, 30]}
+        onPageSizeChange={(s) => { setPageSize(s); setCurrentPage(1); }}
+        pageSizeOptions={[20, 50, 100]}
         itemLabel="ingredients"
       />
 

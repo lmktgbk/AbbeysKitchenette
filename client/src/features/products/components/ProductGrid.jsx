@@ -45,7 +45,7 @@ export default function ProductGrid({
 }) {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(20);
   const [activeSort, setActiveSort] = useState("created_at_desc");
   const [statusFilter, setStatusFilter] = useState("all");
   const [filterOpen, setFilterOpen] = useState(false);
@@ -226,6 +226,7 @@ export default function ProductGrid({
             setPageSize(size);
             setCurrentPage(1);
           }}
+          pageSizeOptions={[20, 50, 100]}
           itemLabel="products"
         />
       )}

@@ -1,4 +1,5 @@
 import prisma from "../../config/prisma.js";
+import { MANILA_TODAY_SQL } from "../../config/time.js";
 
 /**
  * Ingredient Repository
@@ -489,12 +490,12 @@ export const ingredientRepository = {
         i.unit AS unit,
         ROUND(rb.quantity_left::numeric, 2)::float AS "stock_at_trigger",
         CASE
-          WHEN rb.expiry_date < CURRENT_DATE THEN 'expired'
+          WHEN rb.expiry_date < ${MANILA_TODAY_SQL} THEN 'expired'
           ELSE 'expiring_soon'
         END AS "alert_type",
         rb.restock_id AS "restock_id",
         rb.expiry_date AS "expiry_date",
-        (rb.expiry_date - CURRENT_DATE)::int AS "days_left",
+        (rb.expiry_date - ${MANILA_TODAY_SQL})::int AS "days_left",
         rb.quantity_left AS "batch_quantity_left",
         rb.cost_per_unit AS "batch_cost_per_unit"
       FROM restock_batches rb
@@ -502,7 +503,7 @@ export const ingredientRepository = {
       WHERE i.is_archived = false
         AND rb.quantity_left > 0
         AND rb.expiry_date IS NOT NULL
-        AND rb.expiry_date - CURRENT_DATE <= $1
+        AND rb.expiry_date - ${MANILA_TODAY_SQL} <= $1
       ORDER BY "stock_at_trigger" ASC
     `, warningDays);
   },

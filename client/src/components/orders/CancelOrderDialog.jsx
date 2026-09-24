@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Icon from "@/components/ui/icon";
@@ -281,6 +281,7 @@ export default function CancelOrderDialog({
   return (
     <Dialog open={open} onOpenChange={handleDialogChange}>
       <DialogContent className="max-w-2xl">
+        <DialogClose onClick={() => handleDialogChange(false)} />
         <DialogHeader>
           <DialogTitle>
             Cancel Order {orderNumberLabel(order.order_number)}?

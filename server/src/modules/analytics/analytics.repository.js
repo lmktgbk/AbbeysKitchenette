@@ -105,16 +105,17 @@ export const analyticsRepository = {
 
   async getPreviousPeriodKpis(dateFrom, dateTo) {
     if (!dateFrom || !dateTo) return null;
-    const from = new Date(dateFrom);
-    const to = new Date(dateTo);
-    const diffDays = Math.ceil((to - from) / 86400000) + 1;
-    const prevTo = new Date(from);
-    prevTo.setDate(prevTo.getDate() - 1);
-    const prevFrom = new Date(prevTo);
-    prevFrom.setDate(prevFrom.getDate() - diffDays + 1);
-    const pf = prevFrom.toISOString().split("T")[0];
-    const pt = prevTo.toISOString().split("T")[0];
-    return this.getFinancialKpis(pf, pt);
+    // Pure UTC calendar math — never mixes local getDate()/setDate() with
+    // toISOString() (that round-trip shifts a day across timezones).
+    const [fy, fm, fd] = dateFrom.split("-").map(Number);
+    const [ty, tm, td] = dateTo.split("-").map(Number);
+    const fromUTC = Date.UTC(fy, fm - 1, fd);
+    const toUTC = Date.UTC(ty, tm - 1, td);
+    const diffDays = Math.round((toUTC - fromUTC) / 86400000) + 1;
+    const prevToUTC = fromUTC - 86400000;
+    const prevFromUTC = prevToUTC - (diffDays - 1) * 86400000;
+    const fmt = (t) => new Date(t).toISOString().split("T")[0];
+    return this.getFinancialKpis(fmt(prevFromUTC), fmt(prevToUTC));
   },
 
   async getVariantProfitability({ dateFrom, dateTo, search, limit = 10, offset = 0 }) {

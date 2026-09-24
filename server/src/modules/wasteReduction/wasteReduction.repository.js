@@ -1,4 +1,5 @@
 import prisma from "../../config/prisma.js";
+import { MANILA_TODAY_SQL } from "../../config/time.js";
 
 /**
  * Waste Reduction Repository
@@ -45,13 +46,13 @@ export const wasteReductionRepository = {
         i.ingredient_name AS name,
         i.unit,
         COALESCE(SUM(rb.quantity_left), 0)::float AS stock,
-        COALESCE(SUM(CASE WHEN rb.expiry_date IS NOT NULL AND rb.expiry_date < CURRENT_DATE THEN rb.quantity_left ELSE 0 END), 0)::float AS stock_expired,
-        COALESCE(SUM(CASE WHEN rb.expiry_date IS NOT NULL AND rb.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days' THEN rb.quantity_left ELSE 0 END), 0)::float AS stock_expiring_7d,
-        COALESCE(SUM(CASE WHEN rb.expiry_date IS NULL OR rb.expiry_date > CURRENT_DATE + INTERVAL '7 days' THEN rb.quantity_left ELSE 0 END), 0)::float AS stock_fresh,
+        COALESCE(SUM(CASE WHEN rb.expiry_date IS NOT NULL AND rb.expiry_date < ${MANILA_TODAY_SQL} THEN rb.quantity_left ELSE 0 END), 0)::float AS stock_expired,
+        COALESCE(SUM(CASE WHEN rb.expiry_date IS NOT NULL AND rb.expiry_date BETWEEN ${MANILA_TODAY_SQL} AND ${MANILA_TODAY_SQL} + INTERVAL '7 days' THEN rb.quantity_left ELSE 0 END), 0)::float AS stock_expiring_7d,
+        COALESCE(SUM(CASE WHEN rb.expiry_date IS NULL OR rb.expiry_date > ${MANILA_TODAY_SQL} + INTERVAL '7 days' THEN rb.quantity_left ELSE 0 END), 0)::float AS stock_fresh,
         COALESCE(iw.total_usage, 0)::float AS weekly_usage,
         CASE
           WHEN COALESCE(iw.total_usage, 0) > 0
-          THEN ROUND((COALESCE(SUM(CASE WHEN rb.expiry_date IS NULL OR rb.expiry_date > CURRENT_DATE + INTERVAL '7 days' THEN rb.quantity_left ELSE 0 END), 0) / iw.total_usage * 7)::numeric, 1)
+          THEN ROUND((COALESCE(SUM(CASE WHEN rb.expiry_date IS NULL OR rb.expiry_date > ${MANILA_TODAY_SQL} + INTERVAL '7 days' THEN rb.quantity_left ELSE 0 END), 0) / iw.total_usage * 7)::numeric, 1)
           ELSE 999
         END AS days_covered
       FROM ingredients i

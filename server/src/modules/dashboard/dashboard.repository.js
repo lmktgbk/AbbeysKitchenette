@@ -1,4 +1,5 @@
 import prisma from "../../config/prisma.js";
+import { MANILA_TODAY_SQL } from "../../config/time.js";
 
 /**
  * Dashboard Repository
@@ -46,18 +47,18 @@ export const dashboardRepository = {
   },
 
   /**
-   * Get today's order KPIs.
+   * Get today's order KPIs (Manila business day, DB clock).
    * @returns {object} - { revenue, orders, aov }
    */
   async getTodayKpis() {
-    const result = await prisma.$queryRaw`
+    const result = await prisma.$queryRawUnsafe(`
       SELECT
         COALESCE(SUM(CASE WHEN o.status = 'completed' THEN o.total_amount END), 0)::float AS revenue,
         COUNT(*)::int AS orders,
         COUNT(*) FILTER (WHERE o.status = 'completed')::int AS completed_orders
       FROM orders o
-      WHERE o.order_date = CURRENT_DATE
-    `;
+      WHERE o.order_date = ${MANILA_TODAY_SQL}
+    `);
     const row = result[0] || { revenue: 0, orders: 0, completed_orders: 0 };
     const aov = row.completed_orders > 0 ? Math.round((row.revenue / row.completed_orders) * 100) / 100 : 0;
     return { revenue: row.revenue, orders: row.orders, aov };

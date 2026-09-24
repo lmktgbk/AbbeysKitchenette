@@ -1,35 +1,33 @@
 /**
- * Display helpers for drawer sessions.
+ * Display helpers for drawer sessions (Manila business calendar).
  */
+import { toLocalDate, BUSINESS_TZ } from "@/lib/date";
 
 export function initials(name) {
   if (!name) return "?";
   return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 }
 
-function sameDay(a, b) {
-  return a.getFullYear() === b.getFullYear()
-    && a.getMonth() === b.getMonth()
-    && a.getDate() === b.getDate();
+function sameManilaDay(a, b) {
+  return toLocalDate(a) === toLocalDate(b);
 }
 
 /**
- * "Today" / "Yesterday" / "Sep 17" for a timestamp.
+ * "Today" / "Yesterday" / "Sep 17" for a timestamp (Manila business day).
  */
 export function humanDay(ts) {
   if (!ts) return "—";
   const d = new Date(ts);
   const now = new Date();
-  if (sameDay(d, now)) return "Today";
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  if (sameDay(d, yesterday)) return "Yesterday";
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  if (sameManilaDay(d, now)) return "Today";
+  const yesterday = new Date(now.getTime() - 86400000);
+  if (sameManilaDay(d, yesterday)) return "Yesterday";
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: BUSINESS_TZ });
 }
 
 export function timeHM(ts) {
   if (!ts) return "—";
-  return new Date(ts).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  return new Date(ts).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: BUSINESS_TZ });
 }
 
 /**

@@ -6,6 +6,7 @@ import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { notificationService } from "../notifications/notification.service.js";
 import { env } from "../../config/env.js";
+import { BUSINESS_TZ } from "../../config/time.js";
 
 /**
  * Anomaly Detection Service (BR-12)
@@ -24,10 +25,11 @@ export const anomalyService = {
       console.error("[anomaly] Invalid cron schedule:", schedule);
       return;
     }
+    // Pinned to the Manila business wall-clock regardless of host tz.
     this._cronTask = cron.schedule(schedule, () => {
       this.runScan().catch((err) => console.error("[anomaly] Scheduled scan failed:", err.message));
-    });
-    console.log(`[anomaly] Scheduler started: ${schedule}`);
+    }, { timezone: BUSINESS_TZ });
+    console.log(`[anomaly] Scheduler started: ${schedule} (${BUSINESS_TZ})`);
   },
 
   stopScheduler() {

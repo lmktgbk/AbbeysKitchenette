@@ -5,6 +5,7 @@ import { reorderSuggestionsService } from "../reorderSuggestions/reorderSuggesti
 import { wasteReductionService } from "../wasteReduction/wasteReduction.service.js";
 import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
+import { BUSINESS_TZ } from "../../config/time.js";
 
 const PYTHON_URL = process.env.FORECAST_URL || "http://localhost:8000";
 
@@ -79,12 +80,13 @@ export const automationScheduler = {
         continue;
       }
 
+      // Automation times are Manila wall-clock regardless of host tz.
       this._tasks[key] = cron.schedule(expr, () => {
         this._run(key).catch((err) =>
           console.error(`[automation] Scheduled ${key} failed:`, err.message),
         );
-      });
-      console.log(`[automation] Scheduled ${key}: ${expr}`);
+      }, { timezone: BUSINESS_TZ });
+      console.log(`[automation] Scheduled ${key}: ${expr} (${BUSINESS_TZ})`);
     }
   },
 

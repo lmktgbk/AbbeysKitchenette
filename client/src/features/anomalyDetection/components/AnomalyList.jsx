@@ -1,7 +1,7 @@
 import { Pagination } from "@/components/filters/Pagination";
 import AnomalyCard from "./AnomalyCard";
 
-const PAGE_SIZE_OPTIONS = [5, 10, 20];
+const PAGE_SIZE_OPTIONS = [20, 50, 100];
 
 export default function AnomalyList({ anomalies, totalItems, page, pageSize, onPageChange, onPageSizeChange, onAcknowledge }) {
   const totalPages = Math.ceil(totalItems / pageSize);

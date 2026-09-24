@@ -4,6 +4,7 @@ import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { anomalyService } from "../anomalyDetection/anomalyDetection.service.js";
 import prisma from "../../config/prisma.js";
+import { toManilaDateString, manilaDayStart, manilaDayEndExclusive } from "../../config/time.js";
 
 function roundMoney(n) {
   return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
@@ -322,15 +323,16 @@ export const shiftService = {
   },
 
   /**
-   * Period stats for the Shifts KPI row (default: today, local).
+   * Period stats for the Shifts KPI row (default: today, Manila business day).
    * Same drawer math as the cards — KPIs can never disagree with them.
    */
   async getStats({ dateFrom, dateTo }) {
-    const today = new Date().toISOString().split("T")[0];
+    const today = toManilaDateString();
     const fromStr = dateFrom || today;
     const toStr = dateTo || fromStr;
-    const from = new Date(`${fromStr}T00:00:00`);
-    const to = new Date(`${toStr}T23:59:59.999`);
+    // Manila-anchored instants — never host-local midnight or UTC-day.
+    const from = manilaDayStart(fromStr);
+    const to = new Date(manilaDayEndExclusive(toStr).getTime() - 1);
     const stats = await shiftRepository.getStats(from, to);
     return { ...stats, date_from: fromStr, date_to: toStr };
   },

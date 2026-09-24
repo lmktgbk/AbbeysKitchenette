@@ -1,4 +1,5 @@
 import prisma from "../../config/prisma.js";
+import { toManilaDateString, manilaDayStart } from "../../config/time.js";
 
 /**
  * Anomaly Repository
@@ -90,8 +91,8 @@ export const anomalyRepository = {
   // Reviewed-today also blocks re-fire: marking reviewed means "I know, stop
   // telling me today". A still-abnormal condition fires fresh again tomorrow.
   async existsActiveToday(ruleId, ingredientId = null) {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
+    // Manila "today" start as an absolute instant — never host-local midnight.
+    const start = manilaDayStart(toManilaDateString());
     const where = { ruleId, detectedAt: { gte: start } };
     const found = await prisma.anomalyResult.findFirst({ where, select: { id: true } });
     return !!found;

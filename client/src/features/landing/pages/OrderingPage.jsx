@@ -15,17 +15,17 @@ import OrderStatusStepper from "../components/OrderStatusStepper";
 import { orderNumberLabel } from "@/lib/orderNumber";
 import { useStoreSettings } from "@/features/landing/query";
 import Icon from "@/components/ui/icon";
+import { manilaParts } from "@/lib/date";
 
+// Client mirror of server isStoreOpen — MUST follow the Manila business
+// clock (same as server/src/utils/storeHours.js), never device-local.
 function isStoreOpenClient(storeHours) {
     if (!storeHours) return { isOpen: true, opensAt: null, closesAt: null };
-    const now = new Date();
-    const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-    const today = dayNames[now.getDay()];
+    const { weekday: today, minutes: currentMinutes } = manilaParts();
     const todayHours = storeHours[today];
     if (!todayHours || !todayHours.enabled) {
         return { isOpen: false, opensAt: null, closesAt: null };
     }
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
     const [openH, openM] = (todayHours.open || "08:00").split(":").map(Number);
     const [closeH, closeM] = (todayHours.close || "20:00").split(":").map(Number);
     const openMinutes = openH * 60 + openM;

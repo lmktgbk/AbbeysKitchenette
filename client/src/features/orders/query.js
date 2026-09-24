@@ -38,10 +38,10 @@ export function useOrderList(params) {
 }
 
 /**
- * useOrderStats — KPI status counts, optionally scoped to a date range.
- * Same range semantics as the order list (order_date in range).
+ * useOrderStats — KPI status counts, same scope as the order list.
+ * "active" = live queue (dates ignored), "all" = date-range counts.
  * Auto-refreshes every 30s for live dashboard.
- * @param {object} [params] - { date_from?: "YYYY-MM-DD", date_to?: "YYYY-MM-DD" }
+ * @param {object} [params] - { date_from?: "YYYY-MM-DD", date_to?: "YYYY-MM-DD", scope?: "active" | "all" }
  */
 export function useOrderStats(params = {}) {
   return useQuery({

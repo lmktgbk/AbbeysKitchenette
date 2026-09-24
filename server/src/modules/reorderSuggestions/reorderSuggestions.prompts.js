@@ -4,6 +4,7 @@
  * Builds structured prompts for Gemini to generate reorder recommendations.
  * Each function takes context data and returns { system, user } strings.
  */
+import { toManilaDateString } from "../../config/time.js";
 
 /**
  * Build the prompt for generating reorder suggestions.
@@ -15,7 +16,8 @@
  * @returns {{ system: string, user: string }}
  */
 export function buildReorderPrompt(context) {
-  const today = new Date().toISOString().split("T")[0];
+  // Manila business date (not UTC-day) so LLM urgency windows match the till.
+  const today = toManilaDateString();
   const system = `You are an inventory advisor for Abbey's Kitchenette, a café.
 Today's date is ${today}.
 Your task is to analyze current stock levels, forecasted demand, and historical usage patterns

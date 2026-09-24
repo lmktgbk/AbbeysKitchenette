@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import Icon from "@/components/ui/icon";
+import { toLocalDate, manilaTodayLocal } from "@/lib/date";
 import usePopoverAlign from "./usePopoverAlign";
 
 /**
@@ -15,12 +17,53 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
   const [open, setOpen] = useState(false);
   const [startDate, setStartDate] = useState(dateFrom);
   const [endDate, setEndDate] = useState(dateTo);
-  const [viewMonth, setViewMonth] = useState(() => new Date().getMonth());
-  const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
+  const [viewMonth, setViewMonth] = useState(() => manilaTodayLocal().getMonth());
+  const [viewYear, setViewYear] = useState(() => manilaTodayLocal().getFullYear());
   const [hoverDate, setHoverDate] = useState(null);
   // Panel alignment via shared hook: grows away from the nearest edge.
   const ref = useRef(null);
+  const panelRef = useRef(null);
   const align = usePopoverAlign(ref, open);
+  // Bumps every toggle so a stale position never paints on reopen.
+  const [gen, setGen] = useState(0);
+
+  // ── Portal position (fixed, viewport-anchored) ──
+  // WHY portal: the trigger often lives inside overflow-hidden cards
+  // (e.g. Orders table card) that clip an absolute panel. A body-level
+  // fixed panel escapes all ancestor clipping/stacking contexts.
+  const PANEL_WIDTH = 288;
+  const [pos, setPos] = useState({ top: 0, left: 0, ready: false, gen: 0 });
+
+  function updatePos() {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const height = panelRef.current?.offsetHeight ?? 480;
+    const margin = 8;
+    let top = rect.bottom + 4;
+    if (top + height > window.innerHeight - margin) {
+      top = Math.max(margin, rect.top - height - 4);
+    }
+    let left = align === "left" ? rect.left : rect.right - PANEL_WIDTH;
+    left = Math.min(Math.max(margin, left), Math.max(margin, window.innerWidth - PANEL_WIDTH - margin));
+    setPos({ top, left, ready: true, gen });
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    updatePos();
+    // Second pass after mount: measure the real panel height for the flip.
+    const raf = requestAnimationFrame(() => updatePos());
+    window.addEventListener("resize", updatePos);
+    // Capture phase: reposition on any ancestor scroll while open.
+    window.addEventListener("scroll", updatePos, true);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", updatePos);
+      window.removeEventListener("scroll", updatePos, true);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, align]);
 
   const isActive = dateFrom && dateTo;
 
@@ -33,11 +76,11 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
 
   // ── Helpers ──────────────────────────
 
+  // Emits Manila calendar days (server interprets YYYY-MM-DD as Manila).
+  // Grid Dates are device-local midnights; converting the instant keeps the
+  // emitted day on the Manila calendar even near midnight. See lib/date.js.
   function toISO(date) {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    const d = String(date.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
+    return toLocalDate(date);
   }
 
   function parseISO(str) {
@@ -54,7 +97,7 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
   }
 
   function isToday(date) {
-    return isSameDay(date, new Date());
+    return toISO(date) === toLocalDate(new Date());
   }
 
   function formatDateDisplay(str) {
@@ -159,7 +202,8 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
   // draft, isPresetActive highlights the preset matching the current draft.
 
   function presetRange(kind) {
-    const now = new Date();
+    // Manila "now": week/month arithmetic follows the business calendar.
+    const now = manilaTodayLocal();
     if (kind === "today") return { start: toISO(now), end: toISO(now) };
     if (kind === "thisWeek") {
       const day = now.getDay();
@@ -194,7 +238,7 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
     return { start: null, end: null };
   }
 
-  function applyRange(start, end, viewDate = new Date()) {
+  function applyRange(start, end, viewDate = manilaTodayLocal()) {
     setStartDate(start);
     setEndDate(end);
     setViewMonth(viewDate.getMonth());
@@ -224,13 +268,13 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
 
   function goLastWeek() {
     const { start, end } = presetRange("lastWeek");
-    const view = start ? parseISO(start) : new Date();
+    const view = start ? parseISO(start) : manilaTodayLocal();
     applyRange(start, end, view);
   }
 
   function goLastMonth() {
     const { start, end } = presetRange("lastMonth");
-    const view = start ? parseISO(start) : new Date();
+    const view = start ? parseISO(start) : manilaTodayLocal();
     applyRange(start, end, view);
   }
 
@@ -273,7 +317,9 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
   useEffect(() => {
     if (!open) return;
     function handleClick(e) {
-      if (ref.current && !ref.current.contains(e.target)) {
+      // Panel lives in a body portal — inside means in either container.
+      if (ref.current && !ref.current.contains(e.target)
+        && !(panelRef.current && panelRef.current.contains(e.target))) {
         setOpen(false);
       }
     }
@@ -309,7 +355,7 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
       {/* Trigger */}
       <button
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => { setGen((g) => g + 1); setOpen((prev) => !prev); }}
         className={cn(
           "flex items-center gap-2 h-8 px-3 rounded-md border text-xs font-medium transition-colors",
           isActive
@@ -327,12 +373,14 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
         />
       </button>
 
-      {/* Panel — flips to fit the available side */}
-      {open && (
-        <div className={cn(
-          "absolute z-50 mt-1 w-72 rounded-lg border border-border bg-card shadow-lg p-3",
-          align === "left" ? "left-0" : "right-0",
-        )}>
+      {/* Panel — body portal so ancestor overflow (table cards) can't clip it.
+          Flips above the trigger when space below is short. */}
+      {open && pos.gen === gen && createPortal(
+        <div
+          ref={panelRef}
+          className="fixed z-50 w-72 rounded-lg border border-border bg-card shadow-lg p-3"
+          style={{ top: pos.top, left: pos.left, visibility: pos.ready ? "visible" : "hidden" }}
+        >
           {/* Presets — highlight follows the draft range (applied on Apply) */}
           <div className="grid grid-cols-3 gap-1 mb-3">
             <PresetButton label="All Time" onClick={handleClear} active={!startDate && !endDate} />
@@ -438,7 +486,8 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
               Apply
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

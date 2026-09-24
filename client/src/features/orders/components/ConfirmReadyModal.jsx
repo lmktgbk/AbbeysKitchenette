@@ -11,9 +11,17 @@ export default function ConfirmReadyModal({ order, open, onConfirm, onCancel, lo
       onClick={onCancel}
     >
       <div
-        className="bg-card border border-border rounded-lg w-full max-w-sm shadow-2xl text-center px-6 py-8 kds-fade-in"
+        className="relative bg-card border border-border rounded-lg w-full max-w-sm shadow-2xl text-center px-6 py-8 kds-fade-in"
         onClick={(e) => e.stopPropagation()}
       >
+        <button
+          type="button"
+          aria-label="Close"
+          onClick={onCancel}
+          className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground hover:bg-muted"
+        >
+          <Icon name="x" size={16} />
+        </button>
         <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 kds-pulse-ring bg-primary/10 border-2 border-primary/30">
           <Icon name="check" size={32} className="text-primary" />
         </div>

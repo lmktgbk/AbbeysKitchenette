@@ -1,4 +1,5 @@
 import prisma from "../../../config/prisma.js";
+import { toManilaDateString, toDayKey } from "../../../config/time.js";
 
 export const shiftVarianceSpike = {
   id: "shift_variance_spike",
@@ -11,14 +12,14 @@ export const shiftVarianceSpike = {
     cutoff.setDate(cutoff.getDate() - 30);
     cutoff.setHours(0, 0, 0, 0);
     const rows = await prisma.$queryRawUnsafe(`
-      SELECT DATE(s."closed_at") AS day, SUM(ABS(s."variance"))::float AS total
+      SELECT DATE(s."closed_at" AT TIME ZONE 'Asia/Manila') AS day, SUM(ABS(s."variance"))::float AS total
       FROM shifts s WHERE s."status" = 'closed' AND s."closed_at" >= $1
-      GROUP BY DATE(s."closed_at") ORDER BY day ASC
+      GROUP BY DATE(s."closed_at" AT TIME ZONE 'Asia/Manila') ORDER BY day ASC
     `, cutoff);
     if (rows.length < 3) return { shouldDetect: false };
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const todayStr = today.toLocaleDateString("en-CA");
-    const find = (r) => (r.day instanceof Date ? r.day.toLocaleDateString("en-CA") : String(r.day).split("T")[0]) === todayStr;
+    // Manila business "today" — never host-local midnight (see config/time.js).
+    const todayStr = toManilaDateString();
+    const find = (r) => toDayKey(r.day) === todayStr;
     const todayRow = rows.find(find);
     const todayTotal = todayRow ? Number(todayRow.total) : 0;
     const historical = rows.filter((r) => !find(r)).map((r) => Number(r.total));

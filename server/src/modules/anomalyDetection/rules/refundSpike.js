@@ -1,4 +1,5 @@
 import prisma from "../../../config/prisma.js";
+import { toManilaDateString, toDayKey } from "../../../config/time.js";
 
 export const refundSpike = {
   id: "refund_spike",
@@ -11,13 +12,13 @@ export const refundSpike = {
     cutoff.setDate(cutoff.getDate() - 30);
     cutoff.setHours(0, 0, 0, 0);
     const rows = await prisma.$queryRawUnsafe(`
-      SELECT DATE(pr."refunded_at") AS day, COUNT(*)::int AS cnt, SUM(pr."amount")::float AS total
-      FROM payment_refunds pr WHERE pr."refunded_at" >= $1 GROUP BY DATE(pr."refunded_at") ORDER BY day ASC
+      SELECT DATE(pr."refunded_at" AT TIME ZONE 'Asia/Manila') AS day, COUNT(*)::int AS cnt, SUM(pr."amount")::float AS total
+      FROM payment_refunds pr WHERE pr."refunded_at" >= $1 GROUP BY DATE(pr."refunded_at" AT TIME ZONE 'Asia/Manila') ORDER BY day ASC
     `, cutoff);
     if (rows.length < 3) return { shouldDetect: false };
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const todayStr = today.toLocaleDateString("en-CA");
-    const find = (r) => (r.day instanceof Date ? r.day.toLocaleDateString("en-CA") : String(r.day).split("T")[0]) === todayStr;
+    // Manila business "today" — never host-local midnight (see config/time.js).
+    const todayStr = toManilaDateString();
+    const find = (r) => toDayKey(r.day) === todayStr;
     const todayRow = rows.find(find);
     const todayTotal = todayRow ? Number(todayRow.total) : 0;
     const todayCount = todayRow ? Number(todayRow.cnt) : 0;

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import Icon from "@/components/ui/icon";
 import usePopoverAlign from "./usePopoverAlign";
@@ -43,8 +44,47 @@ export default function DatePicker({ value, onChange, placeholder = "Select date
   const [viewMonth, setViewMonth] = useState(initial.getMonth());
   const [viewYear, setViewYear] = useState(initial.getFullYear());
   const ref = useRef(null);
+  const panelRef = useRef(null);
   const align = usePopoverAlign(ref, open);
   const [prevValue, setPrevValue] = useState(value);
+  // Bumps every toggle so a stale position never paints on reopen.
+  const [gen, setGen] = useState(0);
+
+  // ── Portal position (fixed, viewport-anchored) ──
+  // WHY portal: triggers often live inside overflow-hidden cards that clip
+  // an absolute panel. A body-level fixed panel escapes all ancestors.
+  const PANEL_WIDTH = 288;
+  const [pos, setPos] = useState({ top: 0, left: 0, ready: false, gen: 0 });
+
+  function updatePos() {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const height = panelRef.current?.offsetHeight ?? 380;
+    const margin = 8;
+    let top = rect.bottom + 4;
+    if (top + height > window.innerHeight - margin) {
+      top = Math.max(margin, rect.top - height - 4);
+    }
+    let left = align === "left" ? rect.left : rect.right - PANEL_WIDTH;
+    left = Math.min(Math.max(margin, left), Math.max(margin, window.innerWidth - PANEL_WIDTH - margin));
+    setPos({ top, left, ready: true, gen });
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    updatePos();
+    // Second pass after mount: measure the real panel height for the flip.
+    const raf = requestAnimationFrame(() => updatePos());
+    window.addEventListener("resize", updatePos);
+    window.addEventListener("scroll", updatePos, true);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", updatePos);
+      window.removeEventListener("scroll", updatePos, true);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, align]);
 
   // Re-anchor the calendar when a new value arrives while closed
   // (render-adjust pattern — no set-state-in-effect).
@@ -112,7 +152,9 @@ export default function DatePicker({ value, onChange, placeholder = "Select date
   useEffect(() => {
     if (!open) return;
     function handleClick(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+      // Panel lives in a body portal — inside means in either container.
+      if (ref.current && !ref.current.contains(e.target)
+        && !(panelRef.current && panelRef.current.contains(e.target))) setOpen(false);
     }
     function handleKey(e) {
       if (e.key === "Escape") setOpen(false);
@@ -129,7 +171,7 @@ export default function DatePicker({ value, onChange, placeholder = "Select date
     <div ref={ref} className="relative">
       <button
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => { setGen((g) => g + 1); setOpen((prev) => !prev); }}
         className={cn(
           "flex h-10 w-full items-center gap-2 rounded-lg border border-input bg-card px-3 text-sm transition-colors",
           "focus:outline-none focus:border-primary hover:border-muted-foreground/50",
@@ -157,11 +199,13 @@ export default function DatePicker({ value, onChange, placeholder = "Select date
         )}
       </button>
 
-      {open && (
-        <div className={cn(
-          "absolute z-50 mt-1 w-72 rounded-lg border border-border bg-card shadow-lg p-3",
-          align === "left" ? "left-0" : "right-0",
-        )}>
+      {/* Panel — body portal so ancestor overflow can't clip it. */}
+      {open && pos.gen === gen && createPortal(
+        <div
+          ref={panelRef}
+          className="fixed z-50 w-72 rounded-lg border border-border bg-card shadow-lg p-3"
+          style={{ top: pos.top, left: pos.left, visibility: pos.ready ? "visible" : "hidden" }}
+        >
           <div className="flex items-center justify-between mb-2">
             <button
               type="button"
@@ -234,7 +278,8 @@ export default function DatePicker({ value, onChange, placeholder = "Select date
               Done
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

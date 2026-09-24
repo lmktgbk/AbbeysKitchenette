@@ -17,7 +17,7 @@ export default function AnomalyPage() {
   const [severity, setSeverity] = useState("");
   const [category, setCategory] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(20);
 
   const queryParams = useMemo(() => {
     const params = { page, limit: pageSize };

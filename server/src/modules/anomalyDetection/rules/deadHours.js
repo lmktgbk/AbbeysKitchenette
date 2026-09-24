@@ -1,4 +1,5 @@
 import prisma from "../../../config/prisma.js";
+import { toManilaDateString, toDayKey } from "../../../config/time.js";
 
 export const deadHours = {
   id: "dead_hours",
@@ -28,9 +29,9 @@ export const deadHours = {
       SELECT day, (13 - busy_hours)::int AS dead FROM days ORDER BY day ASC
     `, cutoff);
     if (rows.length < 7) return { shouldDetect: false };
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const todayStr = today.toLocaleDateString("en-CA");
-    const find = (r) => (r.day instanceof Date ? r.day.toLocaleDateString("en-CA") : String(r.day).split("T")[0]) === todayStr;
+    // Manila business "today" — never host-local midnight (see config/time.js).
+    const todayStr = toManilaDateString();
+    const find = (r) => toDayKey(r.day) === todayStr;
     const todayRow = rows.find(find);
     const todayTotal = todayRow ? Number(todayRow.dead) : 0;
     const historical = rows.filter((r) => !find(r)).map((r) => Number(r.dead));

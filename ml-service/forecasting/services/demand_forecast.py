@@ -1,6 +1,7 @@
 import json
 import traceback
 from datetime import datetime, timezone, date, timedelta
+from zoneinfo import ZoneInfo
 import pandas as pd
 from prophet import Prophet
 from database import get_pool
@@ -10,6 +11,14 @@ from forecasting.services.data_loader import (
     load_recipe_map,
     load_current_stock,
 )
+
+# Business timezone — the whole web app follows the Asia/Manila calendar day.
+BUSINESS_TZ = ZoneInfo("Asia/Manila")
+
+
+def business_today() -> date:
+    """Manila calendar day per business clock — never host-local date."""
+    return datetime.now(BUSINESS_TZ).date()
 
 MIN_DATA_DAYS = 7
 KEEP_JOBS = 2
@@ -229,7 +238,7 @@ async def run_demand_forecast(job_id: int | None = None) -> dict:
 
                 # Fill in missing calendar days with zeros so Prophet sees the
                 # full picture: many zero-days + occasional sales spikes.
-                all_dates = pd.date_range(start=vdf["ds"].min(), end=date.today(), freq="D")
+                all_dates = pd.date_range(start=vdf["ds"].min(), end=business_today(), freq="D")
                 daily = (
                     pd.DataFrame({"ds": all_dates})
                     .merge(daily, on="ds", how="left")
@@ -273,7 +282,7 @@ async def run_demand_forecast(job_id: int | None = None) -> dict:
 
                 # Pad training data to today so forecast starts from today,
                 # not from the last order date. Cap gap to MAX_PAD_DAYS.
-                today = pd.Timestamp(date.today())
+                today = pd.Timestamp(business_today())
                 last_data_date = train["ds"].max()
                 if last_data_date < today:
                     gap_days = (today - last_data_date).days

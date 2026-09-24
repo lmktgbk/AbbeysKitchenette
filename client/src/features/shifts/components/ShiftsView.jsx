@@ -23,7 +23,7 @@ export default function ShiftsView({ dateFrom, dateTo, onDateChange }) {
   const [closingShift, setClosingShift] = useState(null);
   const [detailShiftId, setDetailShiftId] = useState(null);
   const [historyPage, setHistoryPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(20);
 
   const { data, isLoading } = useShiftsList({
     status: "all",
@@ -141,6 +141,7 @@ export default function ShiftsView({ dateFrom, dateTo, onDateChange }) {
               pageSize={pageSize}
               onPageChange={setHistoryPage}
               onPageSizeChange={(size) => { setPageSize(size); setHistoryPage(1); }}
+              pageSizeOptions={[20, 50, 100]}
               itemLabel="shifts"
             />
           </div>

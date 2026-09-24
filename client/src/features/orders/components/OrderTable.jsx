@@ -1,5 +1,4 @@
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import Icon from "@/components/ui/icon";
 import { formatDate } from "@/lib/date";
@@ -16,37 +15,31 @@ const STATUS_CONFIG = {
   cancelled: { label: "Cancelled", variant: "destructive" },
 };
 
-const SOURCE_CONFIG = {
-  walk_in: { label: "Walk-in", icon: "user" },
-  online: { label: "Online", icon: "send" },
-};
-
 /**
  * OrderTable
  *
- * Paginated table of orders with status badges and action buttons.
+ * Scan surface for the orders queue — view-only rows (click opens the
+ * detail modal, which owns all actions). Six columns, no wrapping cells.
  */
-export default function OrderTable({ orders, isLoading, onView, onAdvance }) {
+export default function OrderTable({ orders, isLoading, onView }) {
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
-        <Table>
+      <div className="overflow-hidden">
+        <Table className="table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead>Order #</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead>Table</TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead className="text-right">Total</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="w-[16%]">Order #</TableHead>
+              <TableHead className="w-[24%]">Customer</TableHead>
+              <TableHead className="w-[9%] whitespace-nowrap">Table</TableHead>
+              <TableHead className="w-[13%] text-right whitespace-nowrap">Total</TableHead>
+              <TableHead className="w-[15%] pl-6 whitespace-nowrap">Status</TableHead>
+              <TableHead className="w-[23%] whitespace-nowrap">Created</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {Array.from({ length: 5 }).map((_, i) => (
               <TableRow key={i}>
-                {Array.from({ length: 8 }).map((_, j) => (
+                {Array.from({ length: 6 }).map((_, j) => (
                   <TableCell key={j}>
                     <div className="h-4 w-full animate-pulse rounded bg-muted" />
                   </TableCell>
@@ -61,7 +54,7 @@ export default function OrderTable({ orders, isLoading, onView, onAdvance }) {
 
   if (!orders?.length) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card py-16">
+      <div className="flex flex-col items-center justify-center py-16">
         <Icon name="cart" size={48} className="text-muted-foreground/30" />
         <p className="mt-4 text-sm font-medium text-muted-foreground">No orders found</p>
       </div>
@@ -69,24 +62,24 @@ export default function OrderTable({ orders, isLoading, onView, onAdvance }) {
   }
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-card">
-      <Table>
+    <div className="flex flex-col overflow-hidden">
+      {/* Fixed layout + weighted widths (sum 100%): each column fits its
+          content, so inter-column gaps stay visually even. Customer takes
+          the flexible share; compact columns never sprawl. */}
+      <Table className="table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead>Order #</TableHead>
-            <TableHead>Customer</TableHead>
-            <TableHead>Table</TableHead>
-            <TableHead>Source</TableHead>
-            <TableHead className="text-right">Total</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Created</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
+            <TableHead className="w-[16%]">Order #</TableHead>
+            <TableHead className="w-[24%]">Customer</TableHead>
+            <TableHead className="w-[9%] whitespace-nowrap">Table</TableHead>
+            <TableHead className="w-[13%] text-right whitespace-nowrap">Total</TableHead>
+            <TableHead className="w-[15%] pl-6 whitespace-nowrap">Status</TableHead>
+            <TableHead className="w-[23%] whitespace-nowrap">Created</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {orders.map((order) => {
             const status = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
-            const source = SOURCE_CONFIG[order.order_source] || SOURCE_CONFIG.walk_in;
 
             return (
               <TableRow
@@ -94,59 +87,19 @@ export default function OrderTable({ orders, isLoading, onView, onAdvance }) {
                 onClick={() => onView?.(order)}
                 className="cursor-pointer hover:bg-muted/50"
               >
-                <TableCell className="font-mono font-medium">
+                <TableCell className="font-mono font-medium whitespace-nowrap">
                   {orderNumberLabel(order.order_number)}
                 </TableCell>
-                <TableCell>{order.customer_name}</TableCell>
-                <TableCell>{order.table_number}</TableCell>
-                <TableCell>
-                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                    <Icon name={source.icon} size={14} />
-                    {source.label}
-                  </span>
-                </TableCell>
-                <TableCell className="text-right font-medium">
+                <TableCell className="truncate">{order.customer_name}</TableCell>
+                <TableCell className="tabular-nums whitespace-nowrap">{order.table_number}</TableCell>
+                <TableCell className="text-right font-medium tabular-nums whitespace-nowrap">
                   ₱{Number(order.total_amount).toLocaleString()}
                 </TableCell>
-                <TableCell>
+                <TableCell className="whitespace-nowrap pl-6">
                   <Badge variant={status.variant}>{status.label}</Badge>
                 </TableCell>
-                <TableCell className="text-xs text-muted-foreground">
+                <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                   {formatDate(order.created_at, "shortDate")}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
-                    {order.status === "pending" && (
-                      <Button
-                        variant="primary"
-                        size="icon"
-                        onClick={() => onAdvance?.(order)}
-                        title="Accept"
-                      >
-                        <Icon name="check" size={16} />
-                      </Button>
-                    )}
-                    {order.status === "accepted" && (
-                      <Button
-                        variant="primary"
-                        size="icon"
-                        onClick={() => onAdvance?.(order)}
-                        title="Start Preparing"
-                      >
-                        <Icon name="play" size={16} />
-                      </Button>
-                    )}
-                    {order.status === "preparing" && (
-                      <Button
-                        variant="primary"
-                        size="icon"
-                        onClick={() => onAdvance?.(order)}
-                        title="Complete"
-                      >
-                        <Icon name="check" size={16} />
-                      </Button>
-                    )}
-                  </div>
                 </TableCell>
               </TableRow>
             );

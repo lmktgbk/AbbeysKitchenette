@@ -1,4 +1,5 @@
 import prisma from "../../config/prisma.js";
+import { MANILA_TODAY_SQL } from "../../config/time.js";
 
 /**
  * Price Optimization Repository
@@ -39,7 +40,7 @@ const priceOptimizationRepository = {
         FROM order_items oi
         JOIN orders o ON o.order_id = oi.order_id
         WHERE o.status = 'completed'
-          AND o.order_date >= CURRENT_DATE - INTERVAL '30 days'
+          AND o.order_date >= ${MANILA_TODAY_SQL} - INTERVAL '30 days'
           AND oi.removed_at IS NULL
         GROUP BY oi.variant_id
       ),

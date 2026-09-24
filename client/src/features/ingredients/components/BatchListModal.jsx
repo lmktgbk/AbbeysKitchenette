@@ -86,11 +86,11 @@ export default function BatchListModal({ open, onOpenChange, ingredient }) {
 
   // Batches pagination state
   const [batchPage, setBatchPage] = useState(1);
-  const [batchPageSize, setBatchPageSize] = useState(50);
+  const [batchPageSize, setBatchPageSize] = useState(20);
 
   // History pagination state
   const [historyPage, setHistoryPage] = useState(1);
-  const [historyPageSize, setHistoryPageSize] = useState(50);
+  const [historyPageSize, setHistoryPageSize] = useState(20);
 
   // Parse batch sort into sortBy + sortDir
   const [batchSortBy, batchSortDir] = activeBatchSort === "fifo"
@@ -295,6 +295,7 @@ export default function BatchListModal({ open, onOpenChange, ingredient }) {
             pageSize={batchPageSize}
             onPageChange={setBatchPage}
             onPageSizeChange={(size) => { setBatchPageSize(size); setBatchPage(1); }}
+            pageSizeOptions={[20, 50, 100]}
             itemLabel="batches"
           />
         ) : (
@@ -304,6 +305,7 @@ export default function BatchListModal({ open, onOpenChange, ingredient }) {
             pageSize={historyPageSize}
             onPageChange={setHistoryPage}
             onPageSizeChange={(size) => { setHistoryPageSize(size); setHistoryPage(1); }}
+            pageSizeOptions={[20, 50, 100]}
             itemLabel="entries"
           />
         )}

@@ -4,6 +4,12 @@
  * Pre-flights the database, then starts express server
  */
 
+// Pin host-local clock reads to the business zone (defense in depth —
+// business dating itself comes from the DB clock via config/time.js).
+// NOTE: ESM evaluates imports first; set TZ=Asia/Manila in the deploy
+// environment for full effect (see .env.example).
+if (!process.env.TZ) process.env.TZ = "Asia/Manila";
+
 import app from "./src/app.js";
 import { env } from "./src/config/env.js";
 import prisma from "./src/config/prisma.js";

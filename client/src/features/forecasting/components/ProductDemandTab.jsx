@@ -9,7 +9,7 @@ const TREND_COLOR = { increasing: "bg-green-100 text-green-700 border-green-200"
 export default function ProductDemandTab({ results, activeTab, onTabChange, selectedVariant, onSelectVariant }) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const pageSize = 10;
+  const [pageSize, setPageSize] = useState(20);
 
   const demandOnly = useMemo(() => results.filter((r) => r.daily_data.slice(0, 7).reduce((s, d) => s + d.units, 0) > 0), [results]);
 
@@ -27,7 +27,7 @@ export default function ProductDemandTab({ results, activeTab, onTabChange, sele
       const revenue = r.daily_data.slice(0, 7).reduce((s, d) => s + d.revenue, 0);
       return { ...r, units, revenue };
     });
-  }, [filtered, page]);
+  }, [filtered, page, pageSize]);
 
   React.useEffect(() => { setPage(1); }, [search, demandOnly]);
 
@@ -100,7 +100,7 @@ export default function ProductDemandTab({ results, activeTab, onTabChange, sele
           </tbody>
         </table>
       </div>
-      <Pagination currentPage={page} totalItems={filtered.length} pageSize={pageSize} onPageChange={setPage} pageSizeOptions={[10]} itemLabel="products" />
+      <Pagination currentPage={page} totalItems={filtered.length} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={(s) => { setPageSize(s); setPage(1); }} pageSizeOptions={[20, 50, 100]} itemLabel="products" />
     </div>
   );
 }
