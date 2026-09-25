@@ -27,8 +27,8 @@ export default function About() {
                 {/* Image */}
                 <div className="lp-reveal lp-reveal-delay-1">
                     <img
-                        src="/landing/diners.jpg"
-                        alt="Diners enjoying food at Abbey's Kitchenette"
+                        src="/landing/macrame_corner.png"
+                        alt="Boho macrame nook at Abbey's Kitchenette"
                         className="about-image"
                         loading="lazy"
                     />

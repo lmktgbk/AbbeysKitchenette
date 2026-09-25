@@ -55,8 +55,8 @@ export default function Location({ settings = {} }) {
                 {/* Image */}
                 <div className="lp-reveal lp-reveal-delay-2">
                     <img
-                        src="/landing/outdoor_tent.jpg"
-                        alt="Abbey's Kitchenette outdoor seating area"
+                        src="/landing/outdoor_gazebo.jpg"
+                        alt="Abbey's Kitchenette illuminated outdoor night gazebo area"
                         className="location-image"
                         loading="lazy"
                     />

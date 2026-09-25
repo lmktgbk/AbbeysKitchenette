@@ -30,7 +30,7 @@ export default function Hero({ storeName = "Abbey's Kitchenette" }) {
             {/* Background Image */}
             <div
                 className="hero-bg"
-                style={{ backgroundImage: "url(/landing/hero_cafe_bg.jpg)" }}
+                style={{ backgroundImage: "url(/landing/leaf_wall_wide.jpg)" }}
             />
 
             {/* Dark Overlay */}

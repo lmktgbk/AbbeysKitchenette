@@ -42,6 +42,7 @@ export default function Navbar({ storeName = "Abbey's Kitchenette" }) {
         { label: "Home",     href: "#home" },
         { label: "About",    href: "#about" },
         { label: "Menu",     href: "#menu" },
+        { label: "Ambiance", href: "#gallery" },
         { label: "Location", href: "#location" },
         { label: "Contact",  href: "#contact" },
     ];
@@ -64,10 +65,10 @@ export default function Navbar({ storeName = "Abbey's Kitchenette" }) {
                     aria-label={`${displayName} — back to top`}
                 >
                     <img
-                        src="/favicon.png"
+                        src="/landing/logo_circle.png"
                         alt={displayName}
-                        className="h-9 w-9 rounded-full"
-                        style={{ objectFit: "cover" }}
+                        className="h-12 w-12 rounded-full border-2 border-white/20 shadow-sm transition-transform hover:scale-105"
+                        style={{ objectFit: "cover", backgroundColor: "#fff" }}
                     />
                     <span
                         className="navbar-brand-text"

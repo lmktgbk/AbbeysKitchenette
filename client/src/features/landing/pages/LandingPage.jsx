@@ -14,6 +14,7 @@ import About from "../components/About";
 import Menu from "../components/Menu";
 import Location from "../components/Location";
 import Testimonials from "../components/Testimonials";
+import Gallery from "../components/Gallery";
 import Contact from "../components/Contact";
 import Footer from "../components/Footer";
 
@@ -78,6 +79,9 @@ export default function LandingPage() {
             </div>
             <div className="menu-section">
                 <Menu />
+            </div>
+            <div className="gallery-section">
+                <Gallery />
             </div>
             <div className="testimonials-section">
                 <Testimonials />

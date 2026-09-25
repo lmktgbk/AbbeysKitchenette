@@ -147,7 +147,11 @@ function OrderingUI({ onOrderSuccess }) {
             <header className="ord-header">
                 <div className="ord-header-left">
                     <Link to="/" className="ord-header-brand" style={{ textDecoration: "none" }}>
-                        <img src="/favicon.png" alt="Abbey's Kitchenette" />
+                        <img 
+                            src="/landing/logo_circle.png" 
+                            alt="Abbey's Kitchenette" 
+                            style={{ width: "42px", height: "42px", borderRadius: "50%", objectFit: "cover", backgroundColor: "#fff", border: "1px solid #e5e7eb" }} 
+                        />
                         <div>
                             <div className="ord-header-brand-name"><span className="ord-brand-cursive">Abbey's</span> Kitchenette</div>
                             <div className="ord-header-tagline">Online Ordering</div>
@@ -391,8 +395,8 @@ function ProductCard({ product, onOpenProductModal }) {
                     {isFullyUnavailable
                         ? "Unavailable"
                         : variants.length > 1
-                        ? "Choose Size"
-                        : "Add to Cart"}
+                            ? "Choose Size"
+                            : "Add to Cart"}
                 </button>
             </div>
         </div>
@@ -524,8 +528,8 @@ function CustomerProductDetailModal({ product, onAddToCart, onClose }) {
         prices.length === 0
             ? "No price"
             : minPrice === maxPrice
-            ? `₱${minPrice.toLocaleString()}`
-            : `₱${minPrice.toLocaleString()} – ₱${maxPrice.toLocaleString()}`;
+                ? `₱${minPrice.toLocaleString()}`
+                : `₱${minPrice.toLocaleString()} – ₱${maxPrice.toLocaleString()}`;
 
     const handleAddToCart = () => {
         if (!selectedVariant || isFullyUnavailable || !isAvailable) return;
@@ -583,8 +587,8 @@ function CustomerProductDetailModal({ product, onAddToCart, onClose }) {
                                 {variants.length > 1
                                     ? `${variants.length} variants`
                                     : variants.length === 1
-                                    ? "1 size available"
-                                    : "No variants"}
+                                        ? "1 size available"
+                                        : "No variants"}
                             </div>
                         </div>
                     </div>
