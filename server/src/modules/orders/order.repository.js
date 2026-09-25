@@ -1078,9 +1078,19 @@ export const orderRepository = {
     let idx = 1;
 
     if (search) {
-      values.push(`%${search}%`);
-      clauses.push(`(o.customer_name ILIKE $${idx} OR CAST(o.order_number AS TEXT) LIKE $${idx})`);
-      idx++;
+      // Displayed order numbers carry a dash ("#260925-002") that the stored
+      // integer has not (260925002). Match customer_name on the raw input,
+      // but match order_number on digits-only so dashed/prefixed pastes hit.
+      const digits = String(search).replace(/\D/g, "");
+      if (digits) {
+        values.push(`%${search}%`, `%${digits}%`);
+        clauses.push(`(o.customer_name ILIKE $${idx} OR CAST(o.order_number AS TEXT) LIKE $${idx + 1})`);
+        idx += 2;
+      } else {
+        values.push(`%${search}%`);
+        clauses.push(`(o.customer_name ILIKE $${idx} OR CAST(o.order_number AS TEXT) LIKE $${idx})`);
+        idx++;
+      }
     }
 
     const isActive = scope === "active";
