@@ -61,6 +61,10 @@ export const analyticsService = {
     return analyticsRepository.getIngredientProfitability(params);
   },
 
+  async getIngredientUnits() {
+    return analyticsRepository.getIngredientUnits();
+  },
+
   async getOrdersLedger(params) {
     return analyticsRepository.getOrdersLedger(params);
   },

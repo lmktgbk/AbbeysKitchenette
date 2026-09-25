@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import prisma from "../../config/prisma.js";
 
 /**
@@ -106,5 +107,43 @@ export const authRepository = {
   async getPasswordHash(userId) {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true } });
     return user?.passwordHash ?? null;
+  },
+
+  /* ── Single-use password-reset tokens (sha256 hash, never raw) ── */
+
+  hashResetToken(token) {
+    return crypto.createHash("sha256").update(token).digest("hex");
+  },
+
+  // Issue: retire prior live tokens so only the latest link works, then store.
+  async issueResetToken(userId, token, expiresAt) {
+    await prisma.passwordResetToken.deleteMany({
+      where: { userId, usedAt: null },
+    });
+    // Opportunistic hygiene for expired rows.
+    await prisma.passwordResetToken.deleteMany({
+      where: { expiresAt: { lt: new Date() } },
+    }).catch(() => {});
+    return prisma.passwordResetToken.create({
+      data: {
+        userId,
+        tokenHash: this.hashResetToken(token),
+        expiresAt,
+      },
+    });
+  },
+
+  async findResetToken(token) {
+    return prisma.passwordResetToken.findUnique({
+      where: { tokenHash: this.hashResetToken(token) },
+    });
+  },
+
+  // Burn-first: mark used before the password write so replays fail.
+  async consumeResetToken(id) {
+    return prisma.passwordResetToken.update({
+      where: { id },
+      data: { usedAt: new Date() },
+    });
   },
 };

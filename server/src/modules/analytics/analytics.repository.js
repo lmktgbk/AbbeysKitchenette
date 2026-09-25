@@ -118,7 +118,7 @@ export const analyticsRepository = {
     return this.getFinancialKpis(fmt(prevFromUTC), fmt(prevToUTC));
   },
 
-  async getVariantProfitability({ dateFrom, dateTo, search, limit = 10, offset = 0 }) {
+  async getVariantProfitability({ dateFrom, dateTo, search, limit = 10, offset = 0, category, sort = "profit_desc", marginBand = "all" }) {
     const values = [];
     let idx = 1;
     const whereClauses = ["o.status = 'completed'", "oi.removed_at IS NULL"];
@@ -135,8 +135,48 @@ export const analyticsRepository = {
       values.push(`%${search}%`);
       idx++;
     }
+    // Category filter, Products dialect ("sub:<id>" from the dropdown,
+    // "root:<id>" fallback). Mirrors product.repository branching: sub is a
+    // direct indexed FK match (no JOINs); root JOINs only when requested, so
+    // unfiltered results never lose rows.
+    let catJoin = "";
+    if (category) {
+      if (category.startsWith("root:")) {
+        const id = Number(category.replace("root:", ""));
+        catJoin = `JOIN subcategories sc ON sc.subcategory_id = p.subcategory_id`;
+        whereClauses.push(`sc.category_id = $${idx++}`);
+        values.push(id);
+      } else if (category.startsWith("sub:")) {
+        const id = Number(category.replace("sub:", ""));
+        whereClauses.push(`p.subcategory_id = $${idx++}`);
+        values.push(id);
+      }
+    }
     const where = `WHERE ${whereClauses.join(" AND ")}`;
-    const dataSql = `
+
+    // Margin expression (repeated in SELECT + HAVING — Postgres cannot
+    // reference SELECT aliases in HAVING).
+    const MARGIN_EXPR = `CASE WHEN SUM(oi.subtotal) > 0 THEN ROUND(((SUM(oi.subtotal) - COALESCE(SUM(oi.quantity * r.quantity_needed * COALESCE(ac.avg_cost,0)),0)) / SUM(oi.subtotal) *100)::numeric,1)::float ELSE 0 END`;
+    const BANDS = {
+      low: `${MARGIN_EXPR} < 20`,
+      mid: `${MARGIN_EXPR} >= 20 AND ${MARGIN_EXPR} < 90`,
+      high: `${MARGIN_EXPR} >= 90`,
+    };
+    const having = BANDS[marginBand] ? `HAVING ${BANDS[marginBand]}` : "";
+    // Sort whitelist — client strings never interpolate into SQL directly.
+    const SORTS = {
+      profit_desc: "profit DESC",
+      profit_asc: "profit ASC",
+      margin_desc: "margin DESC",
+      margin_asc: "margin ASC",
+      units_desc: "units DESC",
+      net_sales_desc: "net_sales DESC",
+    };
+    const orderBy = SORTS[sort] || SORTS.profit_desc;
+
+    // Shared grouped core: data page selects from it, count counts it, so
+    // totals always reflect the filtered set.
+    const core = `
       WITH avg_costs AS (
         SELECT ingredient_id, CASE WHEN SUM(quantity_added)>0 THEN SUM(quantity_added*cost_per_unit)/SUM(quantity_added) ELSE 0 END AS avg_cost
         FROM restock_batches GROUP BY ingredient_id
@@ -149,39 +189,42 @@ export const analyticsRepository = {
         ROUND(SUM(oi.subtotal)::numeric,2)::float AS net_sales,
         ROUND(COALESCE(SUM(oi.quantity * r.quantity_needed * COALESCE(ac.avg_cost,0))::numeric,0),2)::float AS cogs,
         ROUND((SUM(oi.subtotal) - COALESCE(SUM(oi.quantity * r.quantity_needed * COALESCE(ac.avg_cost,0)),0))::numeric,2)::float AS profit,
-        CASE WHEN SUM(oi.subtotal) > 0 THEN ROUND(((SUM(oi.subtotal) - COALESCE(SUM(oi.quantity * r.quantity_needed * COALESCE(ac.avg_cost,0)),0)) / SUM(oi.subtotal) *100)::numeric,1)::float ELSE 0 END AS margin
+        ${MARGIN_EXPR} AS margin
       FROM order_items oi
       JOIN orders o ON o.order_id = oi.order_id
       JOIN product_variants v ON v.variant_id = oi.variant_id
       JOIN products p ON p.product_id = v.product_id
       LEFT JOIN recipes r ON r.variant_id = v.variant_id
       LEFT JOIN avg_costs ac ON ac.ingredient_id = r.ingredient_id
+      ${catJoin}
       ${where}
       GROUP BY v.variant_id, p.product_name, v.size_name
-      ORDER BY profit DESC
-      LIMIT $${idx++} OFFSET $${idx++}
+      ${having}
     `;
-    values.push(limit, offset);
-    const countSql = `
-      SELECT COUNT(*)::int AS total FROM (
-        SELECT v.variant_id FROM order_items oi
-        JOIN orders o ON o.order_id = oi.order_id
-        JOIN product_variants v ON v.variant_id = oi.variant_id
-        JOIN products p ON p.product_id = v.product_id
-        ${where}
-        GROUP BY v.variant_id
-      ) t
-    `;
-    // countValues without limit/offset
-    const countValues = values.slice(0, values.length - 2);
+    const dataValues = [...values, limit, offset];
+    const limitIdx = values.length + 1;
+    const offsetIdx = values.length + 2;
+    const dataSql = `${core} ORDER BY ${orderBy} LIMIT $${limitIdx} OFFSET $${offsetIdx}`;
+    const countSql = `SELECT COUNT(*)::int AS total FROM (${core}) t`;
     const [rows, countRes] = await Promise.all([
-      prisma.$queryRawUnsafe(dataSql, ...values),
-      prisma.$queryRawUnsafe(countSql, ...countValues),
+      prisma.$queryRawUnsafe(dataSql, ...dataValues),
+      prisma.$queryRawUnsafe(countSql, ...values),
     ]);
     return { rows, total: countRes[0]?.total || 0 };
   },
 
-  async getIngredientProfitability({ dateFrom, dateTo, search, limit = 10, offset = 0 } = {}) {
+  /**
+   * Distinct measurement units across non-archived ingredients.
+   * Feeds the Unit filter dropdown — no params, ordered for display.
+   */
+  async getIngredientUnits() {
+    const rows = await prisma.$queryRawUnsafe(
+      `SELECT DISTINCT i.unit AS unit FROM ingredients i WHERE i.is_archived = false ORDER BY i.unit ASC`,
+    );
+    return rows.map((r) => r.unit);
+  },
+
+  async getIngredientProfitability({ dateFrom, dateTo, search, limit = 20, offset = 0, sort = "stock_value_desc", waste = "all", unit } = {}) {
     const values = [];
     let idx = 1;
     const batchClauses = [];
@@ -203,18 +246,24 @@ export const analyticsRepository = {
       values.push(`%${search}%`);
       idx++;
     }
+    const unitClause = unit ? `AND i.unit = $${idx}` : "";
+    if (unit) {
+      values.push(unit);
+      idx++;
+    }
     const batchWhere = batchClauses.length ? `WHERE ${batchClauses.join(" AND ")}` : "";
     const lossWhere = lossClauses.length ? `WHERE ${lossClauses.join(" AND ")}` : "";
     const stockSql = `SELECT ingredient_id, COALESCE(SUM(quantity_left * cost_per_unit),0)::float AS stock_value, COALESCE(SUM(quantity_left),0)::float AS stock_qty FROM restock_batches WHERE quantity_left > 0 GROUP BY ingredient_id`;
-    const sql = `
+    // Shared per-ingredient core: waste presence filters the aggregate, so
+    // both the page and the count select from it (totals always match).
+    const core = `
       SELECT i.ingredient_id, i.ingredient_name, i.unit,
         COALESCE(s.stock_value,0)::float AS stock_value,
         COALESCE(s.stock_qty,0)::float AS stock_qty,
         COALESCE(b.total_spend,0)::float AS total_spend,
         COALESCE(b.restock_count,0)::int AS restock_count,
         COALESCE(l.total_waste,0)::float AS total_waste,
-        COALESCE(l.waste_count,0)::int AS waste_count,
-        COALESCE(s.stock_value,0) - COALESCE(l.total_waste,0) AS net_position
+        COALESCE(l.waste_count,0)::int AS waste_count
       FROM ingredients i
       LEFT JOIN (${stockSql}) s ON s.ingredient_id = i.ingredient_id
       LEFT JOIN (
@@ -225,15 +274,29 @@ export const analyticsRepository = {
         SELECT lr.ingredient_id, COUNT(*)::int AS waste_count, COALESCE(SUM(lr.total_cost_lost),0)::float AS total_waste
         FROM loss_records lr ${lossWhere} GROUP BY lr.ingredient_id
       ) l ON l.ingredient_id = i.ingredient_id
-      WHERE i.is_archived = false ${searchClause}
-      ORDER BY net_position DESC
-      LIMIT $${idx++} OFFSET $${idx++}
+      WHERE i.is_archived = false ${searchClause} ${unitClause}
     `;
+    const wasteWhere = waste === "with"
+      ? `WHERE COALESCE(t.total_waste,0) > 0`
+      : waste === "without"
+        ? `WHERE COALESCE(t.total_waste,0) = 0`
+        : "";
+    // Sort whitelist — client strings never interpolate into SQL directly.
+    const SORTS = {
+      stock_value_desc: "t.stock_value DESC",
+      stock_value_asc: "t.stock_value ASC",
+      total_spend_desc: "t.total_spend DESC",
+      total_waste_desc: "t.total_waste DESC",
+      restock_count_desc: "t.restock_count DESC",
+      name_asc: "t.ingredient_name ASC",
+    };
+    const orderBy = SORTS[sort] || SORTS.stock_value_desc;
+    const dataSql = `SELECT * FROM (${core}) t ${wasteWhere} ORDER BY ${orderBy} LIMIT $${idx++} OFFSET $${idx++}`;
     values.push(limit, offset);
-    const countSql = `SELECT COUNT(*)::int AS total FROM ingredients i WHERE i.is_archived = false ${searchClause}`;
-    const countValues = search ? [values[idx - 3]] : [];
+    const countSql = `SELECT COUNT(*)::int AS total FROM (${core}) t ${wasteWhere}`;
+    const countValues = values.slice(0, values.length - 2);
     const [rows, countRes] = await Promise.all([
-      prisma.$queryRawUnsafe(sql, ...values),
+      prisma.$queryRawUnsafe(dataSql, ...values),
       prisma.$queryRawUnsafe(countSql, ...countValues),
     ]);
     return { rows, total: countRes[0]?.total || 0 };

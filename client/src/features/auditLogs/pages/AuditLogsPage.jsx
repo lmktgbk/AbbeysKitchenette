@@ -34,7 +34,7 @@ const ACTION_GROUP_MAP = {
   "group:Category": ["CATEGORY_CREATED", "CATEGORY_UPDATED", "CATEGORY_DELETED"],
   "group:Inventory": ["INGREDIENT_CREATED", "INGREDIENT_UPDATED", "INGREDIENT_ARCHIVED", "INGREDIENT_RESTORED", "INGREDIENT_DELETED", "STOCK_RESTOCKED", "STOCK_LOSS_DECLARED", "STOCK_COUNT_RECORDED", "LOSS_OVERRIDDEN"],
   "group:Staff": ["STAFF_CREATED", "STAFF_UPDATED", "STAFF_DEACTIVATED", "STAFF_ACTIVATED", "STAFF_DELETED"],
-  "group:Auth": ["LOGIN_SUCCESS", "LOGIN_FAILED", "LOGOUT", "PASSWORD_CHANGED", "PROFILE_UPDATED", "OTP_VERIFIED"],
+  "group:Auth": ["LOGIN_SUCCESS", "LOGIN_FAILED", "LOGOUT", "PASSWORD_CHANGED", "PASSWORD_RESET_REQUESTED", "PASSWORD_RESET", "PROFILE_UPDATED", "OTP_VERIFIED"],
   "group:Order": ["ORDER_CREATED", "ORDER_ACCEPTED", "ORDER_PREPARING", "ORDER_UPDATED", "ORDER_COMPLETED", "ORDER_CANCELLED", "ORDER_ITEM_REMOVED"],
   "group:Shift": ["SHIFT_OPENED", "SHIFT_CLOSED", "SHIFT_FORCE_CLOSED"],
   "group:System": ["SETTINGS_UPDATED", "FORECAST_RUN", "MBA_RUN", "MBA_COMBO_CREATED", "PRICE_RUN", "PRICE_APPLIED", "PRICE_DISMISSED", "REORDER_RUN", "REORDER_ACCEPTED", "REORDER_REJECTED", "WASTE_RUN", "WASTE_ACCEPTED", "WASTE_REJECTED", "ANOMALY_SCAN", "ANOMALY_ACKNOWLEDGED"],
@@ -98,6 +98,8 @@ const BADGE_STYLES = {
   STOCK_LOSS_DECLARED: "bg-amber-50 text-amber-700 border-amber-200",
   LOGOUT: "bg-amber-50 text-amber-700 border-amber-200",
   PASSWORD_CHANGED: "bg-amber-50 text-amber-700 border-amber-200",
+  PASSWORD_RESET_REQUESTED: "bg-amber-50 text-amber-700 border-amber-200",
+  PASSWORD_RESET: "bg-amber-50 text-amber-700 border-amber-200",
   PROFILE_UPDATED: "bg-blue-50 text-blue-700 border-blue-200",
 };
 
@@ -159,6 +161,8 @@ const ROW_BORDER_COLORS = {
   STOCK_LOSS_DECLARED: "border-l-amber-500",
   LOGOUT: "border-l-amber-500",
   PASSWORD_CHANGED: "border-l-amber-500",
+  PASSWORD_RESET_REQUESTED: "border-l-amber-500",
+  PASSWORD_RESET: "border-l-amber-500",
   PROFILE_UPDATED: "border-l-blue-500",
 };
 
@@ -222,6 +226,15 @@ function formatDescription(log) {
     case "LOGOUT": return "Logged out";
     case "OTP_VERIFIED": return "OTP verified";
     case "PASSWORD_CHANGED": return "Password changed";
+    case "PASSWORD_RESET_REQUESTED": {
+      if (d.context === "invite") {
+        return d.emailed === false
+          ? `Invite email failed for ${email}${role ? ` (${role})` : ""}`
+          : `Invite sent to ${email}${role ? ` (${role})` : ""}`;
+      }
+      return `Reset requested for ${email}${role ? ` (${role})` : ""}`;
+    }
+    case "PASSWORD_RESET": return `Reset password for ${email}${role ? ` (${role})` : ""}`;
     case "PROFILE_UPDATED": return `Updated profile${fields.length ? ` (${fields.join(", ")})` : ""}`;
 
     case "ORDER_CREATED": return `Created order ${orderRef()}${total ? ` · ${total}` : ""}${source ? ` · ${source}` : ""}`;
@@ -349,7 +362,7 @@ export default function AuditLogsPage() {
                 <tr className="border-b border-border bg-muted/40 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   <th className="py-2.5 pl-4 pr-3 w-[100px]">Time</th>
                   <th className="py-2.5 pr-3">User</th>
-                  <th className="py-2.5 pr-3 w-[160px]">Action</th>
+                  <th className="py-2.5 pr-3 w-[200px]">Action</th>
                   <th className="py-2.5 pr-4">Details</th>
                 </tr>
               </thead>
@@ -391,7 +404,7 @@ export default function AuditLogsPage() {
                         )}
                       </td>
                       <td className="py-2.5 pr-3">
-                        <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-medium ${badgeClass}`}>
+                        <span className={`inline-flex items-center whitespace-nowrap rounded-md border px-2 py-0.5 text-[11px] font-medium ${badgeClass}`}>
                           {formatAction(log.action)}
                         </span>
                       </td>

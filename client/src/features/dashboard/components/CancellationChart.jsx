@@ -26,9 +26,23 @@ const REASON_LABELS = {
 function CancellationChart({ data, isLoading }) {
   const pieData = useMemo(() => {
     if (!data?.length) return [];
-    return data.map((d, i) => ({
-      name: REASON_LABELS[d.reason] || d.reason,
-      value: d.count,
+    // Aggregate by display label: only the known enums get their own slice;
+    // anything else (free-text seed reasons, future values) sums into ONE
+    // "Other" — the UI can never show two Others no matter what the backend
+    // returns. Order: enums first (server sends count-DESC), Other last.
+    const totals = new Map();
+    for (const d of data) {
+      const label = REASON_LABELS[d.reason] || "Other";
+      totals.set(label, (totals.get(label) ?? 0) + Number(d.count || 0));
+    }
+    const rows = [...totals.entries()].map(([name, value]) => ({ name, value }));
+    rows.sort((a, b) => {
+      if (a.name === "Other") return 1;
+      if (b.name === "Other") return -1;
+      return b.value - a.value;
+    });
+    return rows.map((r, i) => ({
+      ...r,
       color: COLORS[i % COLORS.length],
     }));
   }, [data]);

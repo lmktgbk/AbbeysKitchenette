@@ -65,16 +65,25 @@ export const staffService = {
     auditLogService.logAction({ userId, action: ACTIONS.STAFF_CREATED, targetType: "staff", targetId: user.id, details: { name: user.name, email: user.email, role: user.role } });
     notificationService.create({ type: "system", title: "New Staff Added", message: `${user.name} (${role}) has been added to the team`, referenceType: "staff", referenceId: user.id }).catch(() => {});
     // Email the set-password link. Return emailed flag so UI can warn if mail failed.
+    // The link is single-use: stored (hashed) and burned on first reset.
     try {
       const resetToken = signToken({ sub: user.id, purpose: "password-reset" }, "15m");
       const resetUrl = `${env.CLIENT_URL}/reset-password?token=${resetToken}`;
+      const { authRepository } = await import("../auth/auth.repository.js");
+      await authRepository.issueResetToken(
+        user.id,
+        resetToken,
+        new Date(Date.now() + 15 * 60 * 1000),
+      );
       await sendEmail({
         to: user.email,
         subject: "Your Staff Account — Set Your Password",
         html: generateStaffInviteEmail(resetUrl, user.name?.split(" ")[0]),
       });
+      auditLogService.logAction({ userId, action: ACTIONS.PASSWORD_RESET_REQUESTED, targetType: "staff", targetId: user.id, details: { email: user.email, role: user.role, context: "invite" } }).catch(() => {});
     } catch (err) {
       console.error("[STAFF_INVITE_EMAIL]", err);
+      auditLogService.logAction({ userId, action: ACTIONS.PASSWORD_RESET_REQUESTED, targetType: "staff", targetId: user.id, details: { email: user.email, role: user.role, context: "invite", emailed: false } }).catch(() => {});
       return { staff: mapToStaffResponse(user), emailed: false };
     }
     return { staff: mapToStaffResponse(user), emailed: true };

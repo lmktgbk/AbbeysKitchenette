@@ -22,6 +22,10 @@ const STATUS_LABELS = {
   cancelled: "Cancelled",
 };
 
+// Canonical flow order — never trust wire/object key order for the legend
+// (the API once seeded keys with preparing appended last).
+const STATUS_ORDER = ["pending", "accepted", "preparing", "completed", "cancelled"];
+
 /**
  * OrdersOverview — order status donut + order source bar chart.
  *
@@ -34,13 +38,23 @@ const STATUS_LABELS = {
 function OrdersOverview({ statusData, sourceData, isLoading, variant = "both" }) {
   const pieData = useMemo(() => {
     if (!statusData) return [];
-    return Object.entries(statusData)
-      .filter(([, count]) => count > 0)
-      .map(([status, count]) => ({
-        name: STATUS_LABELS[status] || status,
-        value: count,
+    const known = STATUS_ORDER
+      .filter((status) => (statusData[status] ?? 0) > 0)
+      .map((status) => ({
+        name: STATUS_LABELS[status],
+        value: statusData[status],
         color: STATUS_COLORS[status] || "#888",
       }));
+    // Unknown future statuses still render (appended, raw label) rather
+    // than silently vanishing from the chart.
+    const unknown = Object.entries(statusData)
+      .filter(([status, count]) => !STATUS_ORDER.includes(status) && count > 0)
+      .map(([status, count]) => ({
+        name: status,
+        value: count,
+        color: "#888",
+      }));
+    return [...known, ...unknown];
   }, [statusData]);
 
   const barData = useMemo(() => {
@@ -102,6 +116,9 @@ function OrdersOverview({ statusData, sourceData, isLoading, variant = "both" })
                   outerRadius={80}
                   dataKey="value"
                   paddingAngle={2}
+                  // Micro-slices (e.g. 3 orders vs 1133) render sub-degree
+                  // arcs the eye can't see — guarantee a visible sliver.
+                  minAngle={3}
                 >
                   {pieData.map((entry, i) => (
                     <Cell key={i} fill={entry.color} />

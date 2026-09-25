@@ -81,7 +81,7 @@ function RevenueChart({ data, isLoading, granularity = "daily", onGranularityCha
           <h3 className="text-sm font-semibold text-foreground">Revenue Trend</h3>
           {totals.gross > 0 && (
             <p className="text-xs text-muted-foreground">
-              Net {formatPeso(totals.revenue)} · Gross {formatPeso(totals.gross)} · <span className="text-amber-600 font-medium">Profit {formatPeso(totals.profit)}</span>
+              Gross {formatPeso(totals.gross)} · <span className="text-amber-600 font-medium">Gross Profit {formatPeso(totals.profit)}</span>
             </p>
           )}
         </div>
@@ -106,21 +106,16 @@ function RevenueChart({ data, isLoading, granularity = "daily", onGranularityCha
       </div>
       <div className="relative">
         <div className="absolute top-2 right-4 z-10 hidden sm:flex items-center gap-3 text-xs bg-card/80 backdrop-blur px-2 py-1 rounded-md border border-border">
-          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[#10b981]" /> Gross</span>
-          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[var(--color-primary)]" /> Net</span>
-          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500" /> Profit</span>
+          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[var(--color-primary)]" /> Gross</span>
+          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500" /> Gross Profit</span>
         </div>
       <div className="px-4 pt-3 pb-4">
         <ResponsiveContainer width="100%" height={300}>
           <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <defs>
-              <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id="colorGross" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" style={{ stopColor: "var(--color-primary)" }} stopOpacity={0.35} />
                 <stop offset="95%" style={{ stopColor: "var(--color-primary)" }} stopOpacity={0.05} />
-              </linearGradient>
-              <linearGradient id="colorGross" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" style={{ stopColor: "#10b981" }} stopOpacity={0.25} />
-                <stop offset="95%" style={{ stopColor: "#10b981" }} stopOpacity={0.05} />
               </linearGradient>
               <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" style={{ stopColor: "#f59e0b" }} stopOpacity={0.25} />
@@ -145,21 +140,11 @@ function RevenueChart({ data, isLoading, granularity = "daily", onGranularityCha
                 fontSize: "12px",
                 color: "var(--color-foreground)",
               }}
-              formatter={(value, name) => [`₱${Number(value).toLocaleString()}`, name === "gross" ? "Gross" : name === "profit" ? "Profit" : "Net"]}
+              formatter={(value, name) => [`₱${Number(value).toLocaleString()}`, name === "Gross" ? "Gross" : "Gross Profit"]}
               labelFormatter={formatTooltipLabel}
             />
-            <Area type="monotone" dataKey="gross" name="Gross" stroke="#10b981" strokeWidth={2} fill="url(#colorGross)" dot={{ r: 3, fill: "#10b981", stroke: "var(--color-card)", strokeWidth: 1.5 }} activeDot={{ r: 5, fill: "#10b981", stroke: "var(--color-card)", strokeWidth: 2 }} />
-            <Area
-              type="monotone"
-              dataKey="revenue"
-              name="Net"
-              stroke="var(--color-primary)"
-              strokeWidth={2}
-              fill="url(#colorRevenue)"
-              dot={{ r: 3, fill: "var(--color-primary)", stroke: "var(--color-card)", strokeWidth: 1.5 }}
-              activeDot={{ r: 5, fill: "var(--color-primary)", stroke: "var(--color-card)", strokeWidth: 2 }}
-            />
-            <Area type="monotone" dataKey="profit" name="Profit" stroke="#f59e0b" strokeWidth={2} strokeDasharray="6 4" fill="url(#colorProfit)" dot={{ r: 3, fill: "#f59e0b", stroke: "var(--color-card)", strokeWidth: 1.5 }} activeDot={{ r: 5, fill: "#f59e0b", stroke: "var(--color-card)", strokeWidth: 2 }} />
+            <Area type="monotone" dataKey="gross" name="Gross" stroke="var(--color-primary)" strokeWidth={2} fill="url(#colorGross)" dot={{ r: 3, fill: "var(--color-primary)", stroke: "var(--color-card)", strokeWidth: 1.5 }} activeDot={{ r: 5, fill: "var(--color-primary)", stroke: "var(--color-card)", strokeWidth: 2 }} />
+            <Area type="monotone" dataKey="profit" name="Gross Profit" stroke="#f59e0b" strokeWidth={2} strokeDasharray="6 4" fill="url(#colorProfit)" dot={{ r: 3, fill: "#f59e0b", stroke: "var(--color-card)", strokeWidth: 1.5 }} activeDot={{ r: 5, fill: "#f59e0b", stroke: "var(--color-card)", strokeWidth: 2 }} />
           </AreaChart>
         </ResponsiveContainer>
         </div>

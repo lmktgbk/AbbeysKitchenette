@@ -116,8 +116,8 @@ export const dashboardRepository = {
   },
 
   /**
-   * Orders grouped by status.
-   * @returns {object} - { pending, accepted, next_in_line, processing, completed, cancelled }
+   * Orders grouped by status (all-time).
+   * @returns {object} - { pending, accepted, preparing, completed, cancelled }
    */
   async getOrdersByStatus() {
     const result = await prisma.order.groupBy({
@@ -125,7 +125,7 @@ export const dashboardRepository = {
       _count: { _all: true },
     });
 
-    const counts = { pending: 0, accepted: 0, next_in_line: 0, processing: 0, completed: 0, cancelled: 0 };
+    const counts = { pending: 0, accepted: 0, preparing: 0, completed: 0, cancelled: 0 };
     for (const row of result) {
       counts[row.status] = row._count._all;
     }
@@ -434,14 +434,17 @@ export const dashboardRepository = {
     }
 
     const where = `WHERE ${clauses.join(" AND ")}`;
+    // Manila wall-clock hour: the DB session tz is UTC, and plain EXTRACT
+    // would plot Manila 2pm trade under "6a" (same UTC-session bug the
+    // anomaly deadHours rule documents). See config/time.js.
     return prisma.$queryRawUnsafe(`
       SELECT
-        EXTRACT(HOUR FROM o.created_at)::int AS hour,
+        EXTRACT(HOUR FROM o.created_at AT TIME ZONE 'Asia/Manila')::int AS hour,
         COUNT(*)::int AS orders,
         ROUND(SUM(o.total_amount)::numeric, 2)::float AS revenue
       FROM orders o
       ${where}
-      GROUP BY EXTRACT(HOUR FROM o.created_at)
+      GROUP BY EXTRACT(HOUR FROM o.created_at AT TIME ZONE 'Asia/Manila')
       ORDER BY hour ASC
     `, ...values);
   },

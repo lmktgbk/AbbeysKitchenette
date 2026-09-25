@@ -1081,15 +1081,16 @@ export const orderRepository = {
       // Displayed order numbers carry a dash ("#260925-002") that the stored
       // integer has not (260925002). Match customer_name on the raw input,
       // but match order_number on digits-only so dashed/prefixed pastes hit.
+      // Order ID (UUID) matches on its text form so full or partial pastes hit.
       const digits = String(search).replace(/\D/g, "");
       if (digits) {
-        values.push(`%${search}%`, `%${digits}%`);
-        clauses.push(`(o.customer_name ILIKE $${idx} OR CAST(o.order_number AS TEXT) LIKE $${idx + 1})`);
-        idx += 2;
+        values.push(`%${search}%`, `%${digits}%`, `%${search}%`);
+        clauses.push(`(o.customer_name ILIKE $${idx} OR CAST(o.order_number AS TEXT) LIKE $${idx + 1} OR CAST(o.order_id AS TEXT) ILIKE $${idx + 2})`);
+        idx += 3;
       } else {
-        values.push(`%${search}%`);
-        clauses.push(`(o.customer_name ILIKE $${idx} OR CAST(o.order_number AS TEXT) LIKE $${idx})`);
-        idx++;
+        values.push(`%${search}%`, `%${search}%`);
+        clauses.push(`(o.customer_name ILIKE $${idx} OR CAST(o.order_number AS TEXT) LIKE $${idx} OR CAST(o.order_id AS TEXT) ILIKE $${idx + 1})`);
+        idx += 2;
       }
     }
 

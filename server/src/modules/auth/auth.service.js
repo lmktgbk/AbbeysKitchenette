@@ -128,16 +128,24 @@ export const authService = {
     const user = await authRepository.findByEmail(email);
     // Self-service for all roles (admin + staff). Silently skip unknown or
     // inactive accounts with the same generic response to avoid enumeration.
+    // Returns the emailed user (or null) so the controller can audit sends
+    // without logging unknown addresses.
     if (!user || !user.isActive) {
-      return;
+      return null;
     }
     const resetToken = signToken({ sub: user.id, purpose: "password-reset" }, "15m");
     const resetUrl = `${env.CLIENT_URL}/reset-password?token=${resetToken}`;
+    await authRepository.issueResetToken(
+      user.id,
+      resetToken,
+      new Date(Date.now() + 15 * 60 * 1000),
+    );
     await sendEmail({
       to: user.email,
       subject: "Reset Your Password — Abbey's Kitchenette",
       html: generateResetPasswordEmail(resetUrl),
     });
+    return user;
   },
 
   async resetPassword(token, newPassword) {
@@ -151,13 +159,24 @@ export const authService = {
     if (decoded.purpose !== "password-reset") {
       throw new AppError(401, "Invalid token purpose", "INVALID_TOKEN");
     }
+    // Single-use: link must exist, be unexpired, and be unused.
+    const stored = await authRepository.findResetToken(token);
+    if (!stored || stored.usedAt || stored.expiresAt <= new Date()) {
+      throw new AppError(401, "Invalid or expired reset token", "INVALID_TOKEN");
+    }
+    if (stored.userId !== decoded.sub) {
+      throw new AppError(401, "Invalid or expired reset token", "INVALID_TOKEN");
+    }
     const user = await authRepository.findById(decoded.sub);
     if (!user) {
       throw new AppError(401, "User not found", "USER_NOT_FOUND");
     }
+    // Burn first so replays fail even if a later step errors.
+    await authRepository.consumeResetToken(stored.id);
     const passwordHash = await bcrypt.hash(newPassword, 10);
     await authRepository.updatePassword(user.id, passwordHash);
     await authRepository.resetFailedLoginAttempts(user.id);
+    return user;
   },
 
   async updateProfile(userId, name, email) {

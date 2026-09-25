@@ -4,9 +4,9 @@ import { successResponse, errorResponse, controllerError } from "../../utils/res
 /**
  * Analytics Controller (admin-only — enforced in routes)
  *
- * Thin HTTP layer. The Excel export imports exceljs lazily and degrades to
- * 503 EXPORT_UNAVAILABLE when the optional dependency is absent, so a
- * missing export library never reads as a server crash.
+ * Thin HTTP layer. Report exports (Excel/PDF) import their renderers lazily
+ * and degrade to 503 EXPORT_UNAVAILABLE when the optional dependency is
+ * absent, so a missing export library never reads as a server crash.
  */
 
 function handleError(res, error, fallbackCode) {
@@ -36,8 +36,9 @@ export const analyticsController = {
 
   async getVariantProfitability(req, res) {
     try {
-      const { date_from, date_to, search, limit, page } = req.validatedQuery;
-      const lim = Math.min(Number(limit) || 10, 50);
+      const { date_from, date_to, search, limit, page, category, sort, margin_band } = req.validatedQuery;
+      // Cap 100 (not 50) so the 100-row page size is honored, not clamped.
+      const lim = Math.min(Number(limit) || 10, 100);
       const pg = Math.max(Number(page) || 1, 1);
       const data = await analyticsService.getVariantProfitability({
         dateFrom: date_from,
@@ -45,6 +46,9 @@ export const analyticsController = {
         search,
         limit: lim,
         offset: (pg - 1) * lim,
+        category,
+        sort,
+        marginBand: margin_band,
       });
       return successResponse(res, "Variant profitability retrieved", { ...data, page: pg, limit: lim });
     } catch (error) {
@@ -73,7 +77,7 @@ export const analyticsController = {
 
   async getIngredientProfitability(req, res) {
     try {
-      const { date_from, date_to, search, limit, page } = req.validatedQuery;
+      const { date_from, date_to, search, limit, page, sort, waste, unit } = req.validatedQuery;
       const lim = Math.min(Number(limit) || 20, 100);
       const pg = Math.max(Number(page) || 1, 1);
       const data = await analyticsService.getIngredientProfitability({
@@ -82,10 +86,22 @@ export const analyticsController = {
         search,
         limit: lim,
         offset: (pg - 1) * lim,
+        sort,
+        waste,
+        unit,
       });
       return successResponse(res, "Ingredient profitability retrieved", { ...data, page: pg, limit: lim });
     } catch (error) {
       return handleError(res, error, "GET_INGREDIENT_PROFIT_ERROR");
+    }
+  },
+
+  async getIngredientUnits(req, res) {
+    try {
+      const units = await analyticsService.getIngredientUnits();
+      return successResponse(res, "Ingredient units retrieved", { units });
+    } catch (error) {
+      return handleError(res, error, "GET_INGREDIENT_UNITS_ERROR");
     }
   },
 
@@ -101,12 +117,28 @@ export const analyticsController = {
 
   async exportExcel(req, res) {
     try {
-      const { date_from, date_to, type } = req.validatedQuery;
+      const { date_from, date_to, type, format } = req.validatedQuery;
       const types = type
         ? String(type).split(",").map((s) => s.trim().toLowerCase()).filter(Boolean)
         : ["all"];
       const include = (k) => types.includes("all") || types.includes(k);
-      const kpis = await analyticsService.getKpis(date_from, date_to);
+      const payload = await fetchExportData({ date_from, date_to, include, types });
+      const outFormat = String(format || "excel").toLowerCase();
+      const baseName = `Abbeys-KPIs-${date_from || "all"}-to-${date_to || "all"}`;
+
+      if (outFormat === "pdf") {
+        let buildPdfBuffer;
+        try {
+          ({ buildPdfBuffer } = await import("./exportPdf.js"));
+        } catch {
+          return errorResponse(res, "PDF export not available on server", null, 503, "EXPORT_UNAVAILABLE");
+        }
+        const buffer = await buildPdfBuffer(payload);
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="${baseName}.pdf"`);
+        res.send(buffer);
+        return;
+      }
 
       let ExcelJS;
       try {
@@ -114,14 +146,90 @@ export const analyticsController = {
       } catch {
         return errorResponse(res, "Excel export not available on server", null, 503, "EXPORT_UNAVAILABLE");
       }
-      const workbook = new ExcelJS.Workbook();
-      workbook.creator = "Abbey's Kitchenette";
-      workbook.created = new Date();
+      const workbook = buildExcelWorkbook(ExcelJS, payload);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", `attachment; filename="${baseName}.xlsx"`);
+      await workbook.xlsx.write(res);
+      res.end();
+    } catch (error) {
+      return handleError(res, error, "EXPORT_EXCEL_ERROR");
+    }
+  },
+};
 
-      if (include("financial") || include("kpi") || include("orders")) {
-        const ledger = await analyticsService.getOrdersLedger({ dateFrom: date_from, dateTo: date_to });
-        const ordersSheet = workbook.addWorksheet("Orders");
-        ordersSheet.columns = [
+/**
+ * Shared export payload — one parallel fetch for both renderers so Excel
+ * and PDF always report identical rows for the same filters.
+ */
+async function fetchExportData({ date_from, date_to, include, types }) {
+  const [kpis, orders, variants, ingredients, trend, waste] = await Promise.all([
+    analyticsService.getKpis(date_from, date_to),
+    include("financial") || include("kpi") || include("orders")
+      ? analyticsService.getOrdersLedger({ dateFrom: date_from, dateTo: date_to })
+      : null,
+    include("variants")
+      ? analyticsService.getVariantProfitability({ dateFrom: date_from, dateTo: date_to, limit: 50, offset: 0 })
+      : null,
+    include("ingredients")
+      ? analyticsService.getIngredientProfitability({ dateFrom: date_from, dateTo: date_to, limit: 50, offset: 0 })
+      : null,
+    include("trend") ? analyticsService.getTrend(date_from, date_to, "daily") : null,
+    include("waste")
+      ? analyticsService.getWasteDetails({ dateFrom: date_from, dateTo: date_to, limit: 200, offset: 0 })
+      : null,
+  ]);
+  return {
+    meta: {
+      dateFrom: date_from || null,
+      dateTo: date_to || null,
+      types: types.join(", "),
+      generated: new Date().toISOString(),
+    },
+    kpis,
+    orders,
+    variants,
+    ingredients,
+    trend,
+    waste,
+  };
+}
+
+/**
+ * Excel workbook writer — same sheets as the original inline implementation,
+ * plus a KPI Summary first sheet (mirrors the PDF cards), all fed by the
+ * shared payload.
+ */
+function buildExcelWorkbook(ExcelJS, payload) {
+  const { kpis, orders: ledger, variants: v, ingredients: ig, trend: tr, waste: wd, meta } = payload;
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "Abbey's Kitchenette";
+  workbook.created = new Date();
+
+  if (kpis) {
+    const ks = workbook.addWorksheet("Summary");
+    ks.columns = [
+      { header: "Metric", key: "metric", width: 20 },
+      { header: "Value", key: "value", width: 18 },
+      { header: "Change vs Prior", key: "delta", width: 18 },
+    ];
+    ks.getRow(1).font = { bold: true };
+    const deltaFmt = (d) => (d == null ? "-" : `${d > 0 ? "+" : ""}${d}%`);
+    const kpiRows = [
+      ["Gross Sales", kpis.grossSales, deltaFmt(kpis.deltas?.grossSales)],
+      ["Discounts", kpis.discounts, "-"],
+      ["Net Sales", kpis.netSales, deltaFmt(kpis.deltas?.netSales)],
+      ["Transactions", kpis.transactions, deltaFmt(kpis.deltas?.transactions)],
+      ["Avg Ticket", kpis.atv, deltaFmt(kpis.deltas?.atv)],
+      ["COGS", kpis.cogs, deltaFmt(kpis.deltas?.cogs)],
+      ["Gross Profit", kpis.grossProfit, deltaFmt(kpis.deltas?.grossProfit)],
+      ["Net Profit", kpis.netProfit, deltaFmt(kpis.deltas?.netProfit)],
+    ];
+    for (const [metric, value, d] of kpiRows) ks.addRow({ metric, value, delta: d });
+  }
+
+  if (ledger) {
+    const ordersSheet = workbook.addWorksheet("Orders");
+    ordersSheet.columns = [
           { header: "Order #", key: "order_number", width: 16 },
           { header: "Date", key: "order_date", width: 12 },
           { header: "Customer", key: "customer_name", width: 18 },
@@ -172,8 +280,7 @@ export const analyticsController = {
         totalRow.commit();
       }
 
-      if (include("variants")) {
-        const v = await analyticsService.getVariantProfitability({ dateFrom: date_from, dateTo: date_to, limit: 50, offset: 0 });
+      if (v) {
         const vs = workbook.addWorksheet("Variants Profitability");
         vs.columns = [
           { header: "Product", key: "product", width: 22 },
@@ -188,8 +295,7 @@ export const analyticsController = {
         for (const r of v.rows) vs.addRow({ product: r.product_name, variant: r.size_name, units: r.units, net: r.net_sales, cogs: r.cogs, profit: r.profit, margin: r.margin });
       }
 
-      if (include("ingredients")) {
-        const ig = await analyticsService.getIngredientProfitability({ dateFrom: date_from, dateTo: date_to, limit: 50, offset: 0 });
+      if (ig) {
         const is = workbook.addWorksheet("Ingredients");
         is.columns = [
           { header: "Ingredient", key: "name", width: 22 },
@@ -197,14 +303,12 @@ export const analyticsController = {
           { header: "Restocks", key: "count", width: 10 },
           { header: "Total Spend", key: "spend", width: 14 },
           { header: "Waste", key: "waste", width: 14 },
-          { header: "Net Position", key: "net", width: 14 },
         ];
         is.getRow(1).font = { bold: true };
-        for (const r of ig.rows) is.addRow({ name: r.ingredient_name, stock: r.stock_value, count: r.restock_count, spend: r.total_spend, waste: r.total_waste, net: r.net_position });
+        for (const r of ig.rows) is.addRow({ name: r.ingredient_name, stock: r.stock_value, count: r.restock_count, spend: r.total_spend, waste: r.total_waste });
       }
 
-      if (include("trend")) {
-        const tr = await analyticsService.getTrend(date_from, date_to, "daily");
+      if (tr) {
         const ts = workbook.addWorksheet("Trend");
         ts.columns = [
           { header: "Date", key: "date", width: 14 },
@@ -218,8 +322,7 @@ export const analyticsController = {
         for (const d of tr || []) ts.addRow({ date: d.date, gross: d.gross, net: d.revenue, cogs: d.cogs, profit: d.profit, orders: d.orders });
       }
 
-      if (include("waste")) {
-        const wd = await analyticsService.getWasteDetails({ dateFrom: date_from, dateTo: date_to, limit: 200, offset: 0 });
+      if (wd) {
         const ws = workbook.addWorksheet("Waste");
         ws.columns = [
           { header: "Date", key: "date", width: 14 },
@@ -240,17 +343,10 @@ export const analyticsController = {
         { header: "Value", key: "value", width: 22 },
       ];
       info.getRow(1).font = { bold: true };
-      info.addRow({ field: "Date From", value: date_from || "All time" });
-      info.addRow({ field: "Date To", value: date_to || "All time" });
-      info.addRow({ field: "Types", value: types.join(", ") });
-      info.addRow({ field: "Generated", value: new Date().toISOString() });
+      info.addRow({ field: "Date From", value: meta.dateFrom || "All time" });
+      info.addRow({ field: "Date To", value: meta.dateTo || "All time" });
+      info.addRow({ field: "Types", value: meta.types });
+      info.addRow({ field: "Generated", value: meta.generated });
 
-      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-      res.setHeader("Content-Disposition", `attachment; filename="Abbeys-KPIs-${date_from || "all"}-to-${date_to || "all"}.xlsx"`);
-      await workbook.xlsx.write(res);
-      res.end();
-    } catch (error) {
-      return handleError(res, error, "EXPORT_EXCEL_ERROR");
-    }
-  },
-};
+      return workbook;
+}

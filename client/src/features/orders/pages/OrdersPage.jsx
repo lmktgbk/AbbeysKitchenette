@@ -398,7 +398,7 @@ export default function OrdersPage({ embedded = false }) {
           <SearchBar
             value={search}
             onChange={(val) => { setSearch(val); setPage(1); }}
-            placeholder="Search customer, order #…"
+            placeholder="Search customer, order #, ID…"
           />
         </div>
         <DateRangeFilter

@@ -4,17 +4,25 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { formatPeso } from "@/features/dashboard/utils/dashboardUtils";
 
-function TrendArrow({ value }) {
+/**
+ * TrendArrow — period-over-period delta badge.
+ * tone "good" (default): up = green, down = red — for sales/profit cards
+ * where direction equals performance. tone "neutral": always gray — for
+ * cost cards (COGS), where movement tracks volume and the margin figure
+ * beside it is the real verdict, not the direction.
+ */
+function TrendArrow({ value, tone = "good" }) {
   if (value == null) return null;
   const isUp = value > 0;
   const isFlat = value === 0;
+  const neutral = tone === "neutral";
   return (
     <span
       className={cn(
         "inline-flex items-center gap-0.5 text-xs font-semibold",
-        isFlat && "text-muted-foreground",
-        isUp && "text-emerald-600 dark:text-emerald-400",
-        !isFlat && !isUp && "text-red-500 dark:text-red-400",
+        (isFlat || neutral) && "text-muted-foreground",
+        !neutral && isUp && "text-emerald-600 dark:text-emerald-400",
+        !neutral && !isFlat && !isUp && "text-red-500 dark:text-red-400",
       )}
     >
       {!isFlat && <Icon name={isUp ? "trendingUp" : "trendingDown"} size={12} />}
@@ -23,7 +31,7 @@ function TrendArrow({ value }) {
   );
 }
 
-function KpiCard({ icon, label, value, sub, delta, iconBg, iconColor }) {
+function KpiCard({ icon, label, value, sub, delta, tone, iconBg, iconColor }) {
   return (
     <div className="rounded-lg border border-border bg-card px-4 py-3">
       <div className="flex items-center justify-between mb-2">
@@ -38,7 +46,7 @@ function KpiCard({ icon, label, value, sub, delta, iconBg, iconColor }) {
         {delta != null && (
           <>
             <span className="text-[11px] text-muted-foreground">·</span>
-            <TrendArrow value={delta} />
+            <TrendArrow value={delta} tone={tone} />
           </>
         )}
       </div>
@@ -115,6 +123,8 @@ export default function AnalyticsKpis({ kpis, isLoading }) {
       value: formatPeso(kpis?.cogs),
       sub: "True FIFO cost",
       delta: kpis?.deltas?.cogs,
+      // Neutral: cost movement tracks sales volume — margin is the verdict.
+      tone: "neutral",
       iconBg: "bg-orange-500/10",
       iconColor: "text-orange-600 dark:text-orange-400",
     },

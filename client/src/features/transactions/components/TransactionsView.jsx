@@ -101,6 +101,7 @@ export default function TransactionsView({ switcher, actions }) {
       const q = search.trim().toLowerCase();
       return (
         String(t.order_number ?? "").includes(q)
+        || String(t.order_id ?? "").toLowerCase().includes(q)
         || (t.staff_name ?? "").toLowerCase().includes(q)
         || (t.note ?? "").toLowerCase().includes(q)
       );
@@ -136,7 +137,7 @@ export default function TransactionsView({ switcher, actions }) {
             <SearchBar
               value={search}
               onChange={(val) => setSearch(val)}
-              placeholder="Search #, cashier, note…"
+              placeholder="Search #, ID, cashier, note…"
               onFilterClick={() => setFilterOpen(true)}
               filterActive={filterActive}
             />

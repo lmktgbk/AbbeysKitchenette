@@ -99,7 +99,12 @@ export const authController = {
   async forgotPassword(req, res) {
     try {
       const { email } = req.body;
-      await authService.forgotPassword(email);
+      const user = await authService.forgotPassword(email);
+      // Audit only real sends — unknown/inactive addresses stay silent
+      // so logs can't be used to enumerate accounts.
+      if (user) {
+        auditLogService.logAction({ userId: user.id, action: ACTIONS.PASSWORD_RESET_REQUESTED, details: { email: user.email, role: user.role } }).catch(() => {});
+      }
       return successResponse(res, "If email exists, reset link has been sent");
     } catch (error) {
       return handleError(res, error, "FORGOT_PASSWORD_ERROR");
@@ -109,7 +114,8 @@ export const authController = {
   async resetPassword(req, res) {
     try {
       const { token, newPassword } = req.body;
-      await authService.resetPassword(token, newPassword);
+      const user = await authService.resetPassword(token, newPassword);
+      auditLogService.logAction({ userId: user.id, action: ACTIONS.PASSWORD_RESET, details: { email: user.email, role: user.role } }).catch(() => {});
       return successResponse(res, "Password reset successful");
     } catch (error) {
       return handleError(res, error, "RESET_PASSWORD_ERROR");

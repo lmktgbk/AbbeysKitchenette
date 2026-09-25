@@ -7,6 +7,7 @@
  * State: Query [data, trendData, analyticsData] | local [dateFrom, dateTo, granularity, wasteOpen, exportOpen] | Zustand [].
  */
 import { useState, useCallback, useMemo } from "react";
+import { toast } from "sonner";
 import { useDashboardData, useRevenueTrend } from "../query";
 import DashboardHeader from "../components/DashboardHeader";
 import AnalyticsKpis from "@/features/analytics/components/AnalyticsKpis";
@@ -66,9 +67,11 @@ export default function DashboardPage() {
   }, []);
 
   const [exportOpen, setExportOpen] = useState(false);
-  const handleExport = useCallback((types) => {
+  const handleExport = useCallback((types, format = "excel") => {
     const t = Array.isArray(types) ? types.join(",") : "all";
-    exportAnalyticsRequest({ ...dateParams, type: t });
+    exportAnalyticsRequest({ ...dateParams, type: t, format }).catch((err) =>
+      toast.error(err.message || "Export failed"),
+    );
   }, [dateParams]);
 
   const d = data?.data;
@@ -82,7 +85,7 @@ export default function DashboardPage() {
         onDateChange={handleDateChange}
         onExport={() => setExportOpen(true)}
       />
-      <ExportChoicesModal open={exportOpen} onOpenChange={setExportOpen} onExport={handleExport} />
+      <ExportChoicesModal open={exportOpen} onOpenChange={setExportOpen} onExport={handleExport} dateFrom={dateFrom} dateTo={dateTo} />
 
       <AnalyticsKpis kpis={ak} isLoading={analyticsLoading} />
 
@@ -99,7 +102,6 @@ export default function DashboardPage() {
       />
 
       <VariantProfitabilityTable dateFrom={dateFrom} dateTo={dateTo} />
-      <IngredientProfitabilityTable dateFrom={dateFrom} dateTo={dateTo} />
 
       <CategorySalesChart data={d?.salesByCategory} isLoading={isLoading} />
 
@@ -131,6 +133,7 @@ export default function DashboardPage() {
           isLoading={isLoading}
         />
       </div>
+      <IngredientProfitabilityTable dateFrom={dateFrom} dateTo={dateTo} />
       <WasteDetailsModal open={wasteOpen} onOpenChange={setWasteOpen} dateFrom={dateFrom} dateTo={dateTo} />
     </div>
   );
