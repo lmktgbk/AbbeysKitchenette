@@ -221,6 +221,7 @@ export function buildPdfBuffer(payload) {
               [
                 { header: "Order #", flex: 1.5, value: (r) => `#${String(r.order_number).padStart(4, "0")}` },
                 { header: "Date", flex: 1, value: (r) => shortDate(r.order_date) },
+                { header: "Time", flex: 0.7, value: (r) => int(r.order_time) },
                 { header: "Customer", flex: 1.6, value: (r) => int(r.customer_name) },
                 { header: "Table", flex: 0.7, value: (r) => int(r.table_number) },
                 { header: "Source", flex: 0.8, value: (r) => int(r.order_source) },

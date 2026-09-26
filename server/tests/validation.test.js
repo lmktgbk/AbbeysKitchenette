@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { notificationQuerySchema } from "../src/modules/notifications/notification.validation.js";
-import { anomalyIdParamSchema } from "../src/modules/anomalyDetection/anomalyDetection.validation.js";
+import { anomalyIdParamSchema, anomalyQuerySchema } from "../src/modules/anomalyDetection/anomalyDetection.validation.js";
 import { forecastJobQuerySchema } from "../src/modules/forecasting/forecasting.validation.js";
 import { productService } from "../src/modules/products/product.service.js";
 
@@ -26,6 +26,15 @@ describe("query/param validation", () => {
     expect(forecastJobQuerySchema.safeParse({ jobId: "12" }).data.jobId).toBe(12);
     expect(forecastJobQuerySchema.safeParse({ jobId: "../../etc" }).success).toBe(false);
     expect(forecastJobQuerySchema.safeParse({ jobId: "-3" }).success).toBe(false);
+  });
+
+  it("maps acknowledged query strings exactly (never coerce.boolean)", () => {
+    // Regression: z.coerce.boolean() turned "false" into TRUE (any non-empty
+    // string is truthy), inverting the Active inbox to show reviewed items.
+    expect(anomalyQuerySchema.safeParse({ acknowledged: "false" }).data.acknowledged).toBe(false);
+    expect(anomalyQuerySchema.safeParse({ acknowledged: "true" }).data.acknowledged).toBe(true);
+    expect(anomalyQuerySchema.safeParse({}).data.acknowledged).toBeUndefined();
+    expect(anomalyQuerySchema.safeParse({ acknowledged: "yes" }).success).toBe(false);
   });
 });
 

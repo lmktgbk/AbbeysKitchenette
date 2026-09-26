@@ -6,6 +6,7 @@ import Icon from "@/components/ui/icon";
 import { FilterPill } from "@/components/filters/FilterPill";
 import { Pagination } from "@/components/filters/Pagination";
 import { useShiftSummary, useShiftOrders, useShiftIngredientUsage } from "../query";
+import { useShiftsRealtime, useOrdersRealtime } from "@/realtime/subscriptions";
 import { cn } from "@/lib/utils";
 import { formatPeso } from "@/lib/money";
 import { orderNumberLabel } from "@/lib/orderNumber";
@@ -48,6 +49,9 @@ function FlowRow({ symbol, label, value, bold, tone }) {
  * that produced it, non-cash aside, kitchen warning, and the orders.
  */
 export default function ShiftDetailDrawer({ open, onOpenChange, shiftId, onCloseShift }) {
+  // Live reconciliation: drawer sessions + the sales behind them move.
+  useShiftsRealtime();
+  useOrdersRealtime();
   const [ordersPage, setOrdersPage] = useState(1);
   const [ordersPageSize, setOrdersPageSize] = useState(DEFAULT_ORDERS_PAGE_SIZE);
   const [ordersStatus, setOrdersStatus] = useState("all");

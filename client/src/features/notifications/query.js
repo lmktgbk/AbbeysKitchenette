@@ -1,6 +1,6 @@
 /**
  * Notifications Queries — owns paginated / infinite / unread-count hooks + read mutations.
- * WHY: centralizes bell polling and list invalidation. Keys: ["notifications", ...] (list(params) refetchInterval 30s, infinite list with getNextPageParam on totalItems, unread-count refetchInterval 15s); all mutations invalidate ["notifications"].
+ * WHY: centralizes bell updates and list invalidation. Keys: ["notifications", ...] (list(params), infinite list with getNextPageParam on totalItems, unread-count); all refreshed by server-pushed invalidations (bell subscribes "notifications:all"); all mutations invalidate ["notifications"].
  * State: TanStack Query hooks only, no local state; invalidation via useQueryClient.
  */
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -24,7 +24,6 @@ export function useNotifications(params = {}) {
   return useQuery({
     queryKey: notificationKeys.list(params),
     queryFn: () => api.getNotificationsRequest(params),
-    refetchInterval: 30000,
   });
 }
 
@@ -47,18 +46,16 @@ export function useInfiniteNotifications({ limit = 20, types = [] } = {}) {
       );
       return loaded < total ? allPages.length + 1 : undefined;
     },
-    refetchInterval: 30000,
   });
 }
 
 /**
- * useUnreadCount — notification unread count (polls every 15s).
+ * useUnreadCount — notification unread count (live via bell subscription).
  */
 export function useUnreadCount() {
   return useQuery({
     queryKey: notificationKeys.unreadCount,
     queryFn: api.getUnreadCountRequest,
-    refetchInterval: 15000,
   });
 }
 

@@ -9,6 +9,7 @@
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { useKitchenDisplay, useKitchenBatchGroups, useOrderMutations } from "../query";
+import { useKitchenRealtime } from "@/realtime/subscriptions";
 import useAuthStore from "@/features/auth/authStore";
 import KitchenHeader from "../components/KitchenHeader";
 import OrderCard from "../components/OrderCard";
@@ -25,6 +26,8 @@ const TABS = [
 ];
 
 export default function KitchenDisplay({ embedded = false }) {
+  // Live kitchen: server-pushed invalidations replace 5s polling.
+  useKitchenRealtime();
   const {
     loading,
     refreshing,

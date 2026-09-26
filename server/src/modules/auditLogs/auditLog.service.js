@@ -1,4 +1,5 @@
 import { auditLogRepository } from "./auditLog.repository.js";
+import { broadcast } from "../../realtime/hub.js";
 
 export const auditLogService = {
   /**
@@ -20,6 +21,12 @@ export const auditLogService = {
         targetId,
         details,
       });
+      // Audit-trail stream: fire-and-forget like the write itself.
+      try {
+        broadcast("audit", { entity: "audit-log" });
+      } catch (err) {
+        console.warn("[realtime] audit emit dropped:", err?.message);
+      }
     } catch (err) {
       console.error("[audit] Failed to log action:", action, err.message);
     }

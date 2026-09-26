@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import Icon from "@/components/ui/icon";
-import { formatDate } from "@/lib/date";
+import { formatDate, formatTime } from "@/lib/date";
 import { orderNumberLabel } from "@/lib/orderNumber";
 
 /**
@@ -70,11 +70,12 @@ export default function OrderTable({ orders, isLoading, onView }) {
         <TableHeader>
           <TableRow>
             <TableHead className="w-[16%]">Order #</TableHead>
-            <TableHead className="w-[24%]">Customer</TableHead>
+            <TableHead className="w-[22%]">Customer</TableHead>
             <TableHead className="w-[9%] whitespace-nowrap">Table</TableHead>
             <TableHead className="w-[13%] text-right whitespace-nowrap">Total</TableHead>
             <TableHead className="w-[15%] pl-6 whitespace-nowrap">Status</TableHead>
-            <TableHead className="w-[23%] whitespace-nowrap">Created</TableHead>
+            <TableHead className="w-[15%] whitespace-nowrap">Created</TableHead>
+            <TableHead className="w-[10%] whitespace-nowrap">Time</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -100,6 +101,9 @@ export default function OrderTable({ orders, isLoading, onView }) {
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                   {formatDate(order.created_at, "shortDate")}
+                </TableCell>
+                <TableCell className="text-xs text-muted-foreground tabular-nums whitespace-nowrap">
+                  {formatTime(order.created_at)}
                 </TableCell>
               </TableRow>
             );

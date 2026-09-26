@@ -3,16 +3,17 @@ import { env } from "../config/env.js";
 
 /**
  * Send an email
- * @param {object} options - { to, subject, html }
+ * @param {object} options - { to, subject, html, attachments? }
  * @returns {Promise} - nodemailer send result
  */
-export async function sendEmail({ to, subject, html }) {
+export async function sendEmail({ to, subject, html, attachments }) {
   const mailOptions = {
     from: `"Abbey's Kitchenette" <${env.EMAIL_FROM}>`,
     to,
     subject,
     html,
   };
+  if (attachments?.length) mailOptions.attachments = attachments;
 
   return transporter.sendMail(mailOptions);
 }
@@ -136,4 +137,90 @@ export function generateOtpEmail(code) {
       <p style="font-size:13px;color:${THEME.muted};margin:16px 0 0;">This code expires in <strong>10 minutes</strong>.</p>`,
     footNote: "If you didn't request this, you can safely ignore this email.",
   });
+}
+
+/**
+ * Daily business report email (yesterday-in-review for admins).
+ * PDF-lite: KPI cards with period deltas, Top 5 variants, waste, drawer
+ * totals, open-orders carryover. Email-safe table layout (no flex/grid).
+ * @param {object} report - { day, kpis, topVariants, shifts, openOrders }
+ * @returns {{ subject: string, html: string }}
+ */
+export function generateDailyReportEmail(report) {
+  const peso = (n) => `₱${Number(n ?? 0).toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+  const signed = (v) => (v == null ? "—" : `${v > 0 ? "+" : ""}${v}%`);
+  const k = report.kpis ?? {};
+  const d = k.deltas ?? {};
+  const dayLabel = report.day || "Yesterday";
+
+  const kpiCell = (label, value, delta) => `
+    <td width="25%" style="padding:8px;">
+      <div style="border:1px solid ${THEME.border};border-radius:8px;padding:10px 12px;">
+        <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:${THEME.muted};margin:0 0 4px;">${label}</div>
+        <div style="font-size:17px;font-weight:bold;color:${THEME.ink};margin:0;">${value}</div>
+        <div style="font-size:11px;color:${THEME.muted};margin:4px 0 0;">vs prior day: ${signed(delta)}</div>
+      </div>
+    </td>`;
+
+  const variantRows = (report.topVariants ?? [])
+    .map(
+      (r, i) => `
+    <tr>
+      <td style="padding:7px 10px;font-size:13px;color:${THEME.ink};border-bottom:1px solid ${THEME.border};">${i + 1}. ${r.product_name} (${r.size_name})</td>
+      <td align="right" style="padding:7px 10px;font-size:13px;color:${THEME.ink};border-bottom:1px solid ${THEME.border};">${Number(r.units ?? 0).toLocaleString()}</td>
+      <td align="right" style="padding:7px 10px;font-size:13px;font-weight:bold;color:${THEME.ink};border-bottom:1px solid ${THEME.border};">${peso(r.profit)}</td>
+      <td align="right" style="padding:7px 10px;font-size:13px;color:${THEME.muted};border-bottom:1px solid ${THEME.border};">${r.margin ?? 0}%</td>
+    </tr>`,
+    )
+    .join("");
+
+  const s = report.shifts ?? {};
+  const lines = [
+    ["Net Sales", peso(k.netSales)],
+    ["Transactions", `${Number(k.transactions ?? 0).toLocaleString()} (${Number(k.totalUnits ?? 0).toLocaleString()} units)`],
+    ["Avg Ticket", peso(k.atv)],
+    ["Gross Profit", `${peso(k.grossProfit)} (${k.grossMargin ?? 0}% margin)`],
+    ["Losses Logged", peso(k.totalLosses)],
+    ["Drawer Sessions", `${s.sessions ?? 0} · Cash Sales ${peso(s.cashSales)}`],
+    ["Drawer Variances", `${s.offCount ?? 0} off · ${peso(s.varianceTotal)}`],
+    ["Open Orders Carried", `${report.openOrders ?? 0} still open`],
+  ]
+    .map(
+      ([label, value]) => `
+    <tr>
+      <td style="padding:7px 10px;font-size:13px;color:${THEME.muted};border-bottom:1px solid ${THEME.border};">${label}</td>
+      <td align="right" style="padding:7px 10px;font-size:13px;font-weight:bold;color:${THEME.ink};border-bottom:1px solid ${THEME.border};">${value}</td>
+    </tr>`,
+    )
+    .join("");
+
+  const html = baseEmailLayout({
+    heading: `Daily Report — ${dayLabel}`,
+    introHtml: `Yesterday at Abbey's Kitchenette: <strong>${peso(k.netSales)}</strong> net sales across <strong>${Number(k.transactions ?? 0).toLocaleString()} orders</strong>. Full detail lives in your dashboard.`,
+    actionHtml: `
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 8px;">
+        <tr>
+          ${kpiCell("Gross", peso(k.grossSales), d.grossSales)}
+          ${kpiCell("Net", peso(k.netSales), d.netSales)}
+        </tr>
+        <tr>
+          ${kpiCell("Transactions", Number(k.transactions ?? 0).toLocaleString(), d.transactions)}
+          ${kpiCell("Net Profit", peso(k.netProfit), d.netProfit)}
+        </tr>
+      </table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0;">
+        <tr><td style="padding:10px 10px 4px;font-size:13px;font-weight:bold;color:${THEME.ink};">Top Variants</td></tr>
+        ${variantRows || `<tr><td style="padding:4px 10px;font-size:13px;color:${THEME.muted};">No completed sales this day.</td></tr>`}
+      </table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 0;">
+        <tr><td style="padding:10px 10px 4px;font-size:13px;font-weight:bold;color:${THEME.ink};">Day Detail</td></tr>
+        ${lines}
+      </table>`,
+    footNote: "Automated daily report · figures match your dashboard for the same day · full day detail attached as PDF · manage schedule in Settings → Automation.",
+  });
+
+  return {
+    subject: `Daily Report — ${dayLabel} · Net ${peso(k.netSales)} · ${Number(k.transactions ?? 0).toLocaleString()} orders`,
+    html,
+  };
 }

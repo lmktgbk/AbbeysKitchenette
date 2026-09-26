@@ -38,6 +38,15 @@ const envSchema = z.object({
 
   // Anomaly Detection
   ANOMALY_CRON_SCHEDULE: z.string().default("0 6 * * *"),
+
+  // Realtime (WebSocket heartbeat: server pings, drops silent sockets)
+  WS_HEARTBEAT_MS: z.coerce.number().int().positive().default(25000),
+
+  // Google Sheets live order sync (optional — disabled unless ALL three set).
+  // Private key uses literal \n newlines in .env (converted at use time).
+  GOOGLE_SERVICE_ACCOUNT_EMAIL: z.string().optional(),
+  GOOGLE_PRIVATE_KEY: z.string().optional(),
+  SHEETS_ORDERS_ID: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

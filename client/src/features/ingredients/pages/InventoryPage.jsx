@@ -9,6 +9,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { useIngredientMutations } from "../query";
+import { useInventoryRealtime } from "@/realtime/subscriptions";
 import { confirm } from "@/components/alerts/ConfirmDialog";
 import KpiCards from "../components/KpiCards";
 import IngredientTable from "../components/IngredientTable";
@@ -22,6 +23,8 @@ import ReorderSuggestions from "../components/sidebar/ReorderSuggestions";
 import WasteInsights from "../components/sidebar/WasteInsights";
 
 export default function InventoryPage() {
+  // Live stock: deductions/restocks/losses elsewhere refresh this screen.
+  useInventoryRealtime();
   const mutations = useIngredientMutations();
 
   // ── Modal state ─────────────────────

@@ -1,19 +1,22 @@
 /**
  * TrackingPage — public live order tracking at /track/:token (BR-04).
- * WHY it exists: read-only guest status view polling the same cadence as the POS feed;
- * changes/cancels happen at the counter. Query keys consumed: ["guest","order",token] via
- * useGuestOrder (15s poll). Guards: public token gate; read-only by design; no BR-02 shift gate.
+ * WHY it exists: read-only guest status view with live updates over the
+ * token-gated socket; changes/cancels happen at the counter. Query keys consumed: ["guest","order",token] via
+ * useGuestOrder (socket-invalidated). Guards: public token gate; read-only by design; no BR-02 shift gate.
  * State: Query [data/order] | local [] | Zustand [].
  */
 import { Link, useParams } from "react-router-dom";
 import "../ordering.css";
 import { useGuestOrder } from "@/features/orders/query";
+import { useGuestRealtime } from "@/realtime/subscriptions";
 import { orderNumberLabel } from "@/lib/orderNumber";
 import OrderStatusStepper from "../components/OrderStatusStepper";
 import Icon from "@/components/ui/icon";
 
 export default function TrackingPage() {
     const { token } = useParams();
+    // Live tracking: status advances stream in over the token-gated socket.
+    useGuestRealtime(token);
     const { data, isLoading, isError, isFetching } = useGuestOrder(token);
     const order = data?.data?.order ?? null;
 
@@ -36,7 +39,7 @@ export default function TrackingPage() {
                     </div>
                 </div>
                 {!isLoading && !isError && order && (
-                    <div className="ord-live-pill" title="Auto-refreshes every 15 seconds">
+                    <div className="ord-live-pill" title="Live updates over a secure tracking channel">
                         <span className={`ord-status-pulse${isFetching ? "" : " paused"}`} />
                         Live
                     </div>

@@ -1,11 +1,13 @@
 /**
  * MarketBasket Queries — owns MBA job history / job polling / combo-creation hooks.
- * WHY: hides async analysis polling and product-creation chaining from promo UI. Keys: ["marketBasket", ...] (jobs, job(id) with refetchInterval 2s while running); analyze invalidates jobs/job(jobId); create-combo invalidates ["products"] + ["marketBasket"].
+ * WHY: hides async analysis updates and product-creation chaining from promo UI. Keys: ["marketBasket", ...] (jobs, job(id) refreshed by server-pushed completion); analyze invalidates jobs/job(jobId); create-combo invalidates ["products"] + ["marketBasket"].
  * State: TanStack Query hooks only, no local state; invalidation via useQueryClient.
  */
+import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as api from "./api";
 import { createProductRequest } from "@/features/products/api";
+import { subscribeRealtime } from "@/realtime/socket";
 
 const marketBasketKeys = {
   all: ["marketBasket"],
@@ -21,15 +23,19 @@ function useMarketBasketJobs(limit = 20) {
 }
 
 export function useMarketBasketJob(jobId) {
+  const queryClient = useQueryClient();
+  // Live progress: the server watches the ML job and pushes completion.
+  useEffect(() => {
+    if (jobId == null) return undefined;
+    return subscribeRealtime(`jobs:${jobId}`, () => {
+      queryClient.invalidateQueries({ queryKey: marketBasketKeys.job(jobId) });
+      queryClient.invalidateQueries({ queryKey: marketBasketKeys.jobs });
+    });
+  }, [queryClient, jobId]);
   return useQuery({
     queryKey: marketBasketKeys.job(jobId),
     queryFn: () => api.getMarketBasketJob(jobId),
     enabled: !!jobId,
-    refetchInterval: (query) => {
-      const data = query.state.data?.data;
-      if (data?.status === "running") return 2000;
-      return false;
-    },
   });
 }
 

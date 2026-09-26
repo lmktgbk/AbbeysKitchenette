@@ -7,6 +7,7 @@ import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { notificationService } from "../notifications/notification.service.js";
 import { env } from "../../config/env.js";
 import { BUSINESS_TZ } from "../../config/time.js";
+import { emitAnomalyCompleted } from "../../realtime/events.js";
 
 /**
  * Anomaly Detection Service (BR-12)
@@ -104,6 +105,17 @@ export const anomalyService = {
       }).catch(() => {});
     }
 
+    // Anomaly screens refresh (list, stats, badge). The audit emit above
+    // covers the audit page; this covers anomaly state itself.
+    emitAnomalyCompleted(allResults.length);
+
+    // Retention: findings older than 90 days are pruned on every scan.
+    // Cheap indexed delete, idempotent — this is the only pruning path
+    // now that no scheduler runs (previously nothing ever called cleanup).
+    anomalyRepository.deleteOlderThan(90).catch((err) =>
+      console.warn("[anomaly] retention prune dropped:", err?.message),
+    );
+
     return { anomaliesFound: allResults.length, elapsedSeconds: Number(elapsed) };
   },
 
@@ -120,7 +132,9 @@ export const anomalyService = {
   },
 
   async acknowledge(id) {
-    return anomalyRepository.acknowledge(id);
+    const result = await anomalyRepository.acknowledge(id);
+    emitAnomalyCompleted(null);
+    return result;
   },
 
   async cleanup(days = 90) {

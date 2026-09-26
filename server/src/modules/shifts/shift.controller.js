@@ -1,5 +1,6 @@
 import { shiftService } from "./shift.service.js";
 import { successResponse, controllerError } from "../../utils/response.js";
+import { emitShiftChanged } from "../../realtime/events.js";
 
 /**
  * Shift Controller
@@ -23,6 +24,7 @@ export const shiftController = {
         openingCash: opening_cash,
         userId: req.user.id,
       });
+      emitShiftChanged(shift?.shift_id ?? shift?.shiftId);
       return successResponse(res, "Shift opened", { shift }, 201);
     } catch (error) {
       return handleError(res, error, "OPEN_SHIFT_ERROR");
@@ -171,6 +173,7 @@ export const shiftController = {
         closeNote: close_note,
         userId: req.user.id,
       });
+      emitShiftChanged(shift?.shift_id ?? shift?.shiftId ?? req.params.id);
       return successResponse(res, "Shift closed", { shift });
     } catch (error) {
       return handleError(res, error, "CLOSE_SHIFT_ERROR");
@@ -191,6 +194,7 @@ export const shiftController = {
         userId: req.user.id,
         forced: true,
       });
+      emitShiftChanged(shift?.shift_id ?? shift?.shiftId ?? req.params.id);
       return successResponse(res, "Shift force-closed", { shift });
     } catch (error) {
       return handleError(res, error, "FORCE_CLOSE_SHIFT_ERROR");

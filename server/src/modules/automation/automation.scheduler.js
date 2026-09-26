@@ -4,6 +4,7 @@ import { settingsRepository } from "../settings/settings.repository.js";
 import { reorderSuggestionsService } from "../reorderSuggestions/reorderSuggestions.service.js";
 import { wasteReductionService } from "../wasteReduction/wasteReduction.service.js";
 import { auditLogService } from "../auditLogs/auditLog.service.js";
+import { dailyReportService } from "../reports/dailyReport.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { BUSINESS_TZ } from "../../config/time.js";
 
@@ -26,6 +27,9 @@ const JOB_DEFS = {
   reorder: { audit: ACTIONS.REORDER_RUN, targetType: "reorder" },
   waste: { audit: ACTIONS.WASTE_RUN, targetType: "waste" },
   marketBasket: { audit: ACTIONS.MBA_RUN, targetType: "market_basket" },
+  // Daily report emails itself + audits via DAILY_REPORT_SENT, so it opts
+  // out of the generic audit wrapper (see _run).
+  dailyReport: { audit: null, targetType: "report" },
 };
 
 function toCronExpr(job) {
@@ -46,6 +50,7 @@ const runners = {
   marketBasket: () => postToML("/mba/analyze"),
   reorder: () => reorderSuggestionsService.generate(),
   waste: () => wasteReductionService.generate(),
+  dailyReport: () => dailyReportService.sendDailyReport(),
 };
 
 export const automationScheduler = {
@@ -93,8 +98,10 @@ export const automationScheduler = {
   async _run(key) {
     const def = JOB_DEFS[key];
     try {
-      await runners[key]();
+      const result = await runners[key]();
       console.log(`[automation] Scheduled ${key} complete`);
+      // Daily report audits itself (recipients, day) — skip the generic log.
+      if (!def.audit) return result;
       auditLogService
         .logAction({
           action: def.audit,
@@ -102,6 +109,7 @@ export const automationScheduler = {
           details: { source: "scheduled" },
         })
         .catch(() => {});
+      return result;
     } catch (err) {
       console.error(`[automation] Scheduled ${key} failed:`, err.message);
       auditLogService

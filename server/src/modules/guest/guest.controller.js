@@ -1,5 +1,6 @@
 import { guestService } from "./guest.service.js";
 import { successResponse, errorResponse, controllerError } from "../../utils/response.js";
+import { emitOrderChanged } from "../../realtime/events.js";
 import { settingsRepository } from "../settings/settings.repository.js";
 import { isStoreOpen } from "../../utils/storeHours.js";
 
@@ -73,6 +74,7 @@ export const guestController = {
         tableNumber: table_number,
         items,
       });
+      emitOrderChanged(order?.order_id);
       return successResponse(res, "Order placed", { order }, 201);
     } catch (error) {
       return handleError(res, error, "PLACE_ORDER_ERROR");

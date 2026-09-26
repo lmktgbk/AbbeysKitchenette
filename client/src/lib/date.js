@@ -63,11 +63,13 @@ export function toLocalDate(date = new Date(), tz = BUSINESS_TZ) {
 }
 
 /**
- * Manila calendar parts of an instant (for calendar math that must follow
- * the business day, e.g. week presets). Month is 1-based; weekday is 0-6
- * starting Sunday (matches Date#getDay numbering).
+ * Manila calendar parts of an instant (for logic that must follow the
+ * business day, e.g. week presets and the store-hours gate). Month is
+ * 1-based; weekday is the full lowercase day name ("monday".."sunday") —
+ * the same contract as server manilaNowParts(), matching the SystemSettings
+ * storeHours keys. MUST stay a name string: consumers index keyed objects.
  * @param {Date} [date] - defaults to now
- * @returns {{ y: number, m: number, d: number, weekday: number }}
+ * @returns {{ y: number, m: number, d: number, weekday: string }}
  */
 export function manilaParts(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -75,15 +77,14 @@ export function manilaParts(date = new Date()) {
     year: "numeric",
     month: "numeric",
     day: "numeric",
-    weekday: "short",
+    weekday: "long",
   }).formatToParts(date);
   const get = (type) => parts.find((p) => p.type === type)?.value;
-  const weekdays = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
   return {
     y: Number(get("year")),
     m: Number(get("month")),
     d: Number(get("day")),
-    weekday: weekdays[get("weekday")],
+    weekday: String(get("weekday")).toLowerCase(),
   };
 }
 

@@ -51,6 +51,8 @@ const automationSchema = z.object({
   reorder: automationJobSchema.optional(),
   waste: automationJobSchema.optional(),
   marketBasket: automationJobSchema.optional(),
+  // Daily report email (daily-only in UI; same shape for scheduler reuse).
+  dailyReport: automationJobSchema.optional(),
 });
 
 const ipWhitelistSchema = z

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { orderNumberLabel } from "@/lib/orderNumber";
+import faviconUrl from "@/assets/favicon.png";
 
 /**
  * ReceiptPrint (BR-03)
@@ -7,9 +8,9 @@ import { orderNumberLabel } from "@/lib/orderNumber";
  * 80mm thermal receipt markup. Rendered inside the hidden print root;
  * screen shows the app normally, print shows only this.
  *
- * Logo: screen uses /favicon.png; print prefers /abbeys-logo-mono.png
- * (black-on-light, thermal-safe) and falls back to the store name when
- * the mono file is absent.
+ * Logo: bundled favicon (hashed, base-path safe) rendered grayscale via
+ * print CSS for thermal printers; falls back to the store name when the
+ * image can't load. The host waits for image decode before printing.
  */
 
 function peso(n) {
@@ -21,20 +22,29 @@ function discountTag(order) {
   if (order.discount_type === "senior") return "Senior 20%";
   if (order.discount_type === "pwd") return "PWD 20%";
   if (order.discount_type === "mixed") return "Mixed (per-item)";
-  const mode = Number(order.discount_percent) > 0 ? `${order.discount_percent}%` : "fixed";
-  return `Promo ${mode}${order?.discount_label ? ` ${order.discount_label}` : ""}`;
+  if (Number(order.discount_percent) > 0) {
+    return `Promo ${order.discount_percent}%${order?.discount_label ? ` ${order.discount_label}` : ""}`;
+  }
+  if (Number(order.discount_amount) > 0) {
+    return `Promo ₱${Number(order.discount_amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}${order?.discount_label ? ` ${order.discount_label}` : ""}`;
+  }
+  return `Promo${order?.discount_label ? ` ${order.discount_label}` : ""}`;
 }
 
 function itemDiscountTag(item) {
   if (!item?.discount_type || item.discount_type === "none") return null;
   if (item.discount_type === "senior") return "SNR 20%";
   if (item.discount_type === "pwd") return "PWD 20%";
-  const mode = Number(item.discount_percent) > 0 ? `${item.discount_percent}%` : "fixed";
-  return `Promo ${mode}`;
+  // Promo intent is derived from stored fields (no promo_mode column):
+  // percent promos keep their %, amount promos show the peso value.
+  // Never prints a bare "fixed" — the amount is always on the right.
+  if (Number(item.discount_percent) > 0) return `Promo ${item.discount_percent}%`;
+  if (Number(item.discount_amount) > 0) return `Promo ₱${Number(item.discount_amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
+  return item.discount_label ? `Promo ${item.discount_label}` : "Promo";
 }
 
 export default function ReceiptPrint({ payload }) {
-  const [monoMissing, setMonoMissing] = useState(false);
+  const [logoMissing, setLogoMissing] = useState(false);
   if (!payload) return null;
   const { order, store } = payload;
   if (!order) return null;
@@ -50,14 +60,14 @@ export default function ReceiptPrint({ payload }) {
 
   return (
     <div className="rc-receipt">
-      {/* Store header — mono logo when present, name always */}
+      {/* Store header — bundled logo when loadable, name always */}
       <div className="rc-center">
-        {!monoMissing && (
+        {!logoMissing && (
           <img
-            src="/abbeys-logo-mono.png"
+            src={faviconUrl}
             alt=""
             className="rc-logo"
-            onError={() => setMonoMissing(true)}
+            onError={() => setLogoMissing(true)}
           />
         )}
         <p className="rc-store">{store?.name || "Abbey's Kitchenette"}</p>

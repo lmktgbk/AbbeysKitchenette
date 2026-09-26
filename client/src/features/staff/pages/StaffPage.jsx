@@ -15,8 +15,11 @@ import StaffKpis from "../components/StaffKpis";
 import ShiftsView from "@/features/shifts/components/ShiftsView";
 import ShiftKpis from "@/features/shifts/components/ShiftKpis";
 import { FilterPill } from "@/components/filters/FilterPill";
+import { useStaffRealtime } from "@/realtime/subscriptions";
 
 export default function StaffPage() {
+  // Live roster: staff writes elsewhere refresh this screen.
+  useStaffRealtime();
   const [view, setView] = useState("list");
   const [showFormModal, setShowFormModal] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);

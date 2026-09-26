@@ -1,6 +1,6 @@
 /**
  * Shifts Queries — owns drawer-session list / detail / summary hooks + open/close mutations (BR-02).
- * WHY: centralizes live drawer polling so banners and reconciliation stay fresh. Keys: ["shifts", ...] (mine + list + stats refetchInterval 30s, summary(id) 15s while close modal open, history, orders(id, params) keepPreviousData, ingredientUsage(id)); mutations invalidate ["shifts"]; otherwise global staleTime 5m.
+ * WHY: centralizes live drawer updates so banners and reconciliation stay fresh. Keys: ["shifts", ...] (mine + list + stats + summary(id) + history, orders(id, params) keepPreviousData, ingredientUsage(id)); refreshed by server-pushed invalidations (realtime/subscriptions); mutations invalidate ["shifts"]; otherwise global staleTime 5m.
  * State: TanStack Query hooks only, no local state; invalidation via useQueryClient.
  */
 
@@ -26,24 +26,23 @@ export { shiftKeys };
 
 /**
  * useMyShifts — own open shifts with live expected cash.
- * Polls every 30s so the banner stays fresh during a shift.
+ * Live via server-pushed invalidations (ShiftBanner subscribes "shifts").
  */
 export function useMyShifts() {
   return useQuery({
     queryKey: shiftKeys.mine,
     queryFn: api.getMyShiftsRequest,
-    refetchInterval: 30000,
   });
 }
 
 /**
  * useShiftsList — admin shift history with filters.
+ * Live via server-pushed invalidations (ShiftsView subscribes "shifts").
  */
 export function useShiftsList(params, options = {}) {
   return useQuery({
     queryKey: shiftKeys.list(params),
     queryFn: () => api.getShiftsRequest(params),
-    refetchInterval: 30000,
     ...options,
   });
 }
@@ -51,14 +50,14 @@ export function useShiftsList(params, options = {}) {
 /**
  * useShiftSummary — reconciliation breakdown for review/close.
  * Fetched on demand (enabled when a shift id is selected).
+ * Live while the close modal is open — the drawer subscribes "shifts"
+ * (sessions) and "orders" (sales moving behind the summary).
  */
 export function useShiftSummary(id, options = {}) {
   return useQuery({
     queryKey: shiftKeys.summary(id),
     queryFn: () => api.getShiftSummaryRequest(id),
     enabled: !!id,
-    // Live while the close modal is open — sales behind it keep moving.
-    refetchInterval: 15000,
     ...options,
   });
 }
@@ -76,12 +75,12 @@ export function useMyHistory(options = {}) {
 
 /**
  * useShiftStats — period aggregates for the Shifts KPI row.
+ * Live via server-pushed invalidations (drawer subscribes "shifts").
  */
 export function useShiftStats(params = {}, options = {}) {
   return useQuery({
     queryKey: ["shifts", "stats", params],
     queryFn: () => api.getShiftStatsRequest(params),
-    refetchInterval: 30000,
     ...options,
   });
 }

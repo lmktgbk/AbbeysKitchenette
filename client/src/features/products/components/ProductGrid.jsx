@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useProductList } from "../query";
+import { useProductsRealtime } from "@/realtime/subscriptions";
 import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
 import { SearchBar } from "@/components/filters/SearchBar";
@@ -43,6 +44,8 @@ export default function ProductGrid({
   onOptimizePrice,
   categories = [],
 }) {
+  // Live catalog: stock/menu changes elsewhere refresh this grid.
+  useProductsRealtime();
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);

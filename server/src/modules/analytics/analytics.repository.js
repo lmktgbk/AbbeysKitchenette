@@ -317,6 +317,7 @@ export const analyticsRepository = {
     const where = `WHERE ${clauses.join(" AND ")}`;
     const sql = `
       SELECT o.order_number, o.order_date::text AS order_date, o.customer_name, o.table_number, o.order_source, o.status,
+        to_char(COALESCE(o.accepted_at, o.created_at) AT TIME ZONE 'Asia/Manila', 'HH24:MI') AS order_time,
         o.subtotal_amount::float AS gross, o.discount_amount::float AS discounts, o.total_amount::float AS net, o.payment_method,
         u.name AS cashier,
         COALESCE(q.units,0)::int AS units,

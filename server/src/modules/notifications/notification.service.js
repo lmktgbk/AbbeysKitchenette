@@ -1,4 +1,5 @@
 import { notificationRepository } from "./notification.repository.js";
+import { broadcast } from "../../realtime/hub.js";
 
 /**
  * Notification Service (admin-only readers — enforced in routes + header)
@@ -20,13 +21,20 @@ export const notificationService = {
    */
   async create({ type, title, message, referenceType, referenceId }) {
     try {
-      return await notificationRepository.create({
+      const created = await notificationRepository.create({
         type,
         title,
         message,
         referenceType,
         referenceId,
       });
+      // Admin bell stream: fire-and-forget like the write itself.
+      try {
+        broadcast("notifications:all", { entity: "notification", id: created?.id ?? null });
+      } catch (err) {
+        console.warn("[realtime] notification emit dropped:", err?.message);
+      }
+      return created;
     } catch (err) {
       console.error("[notification] Failed to create:", type, err.message);
     }

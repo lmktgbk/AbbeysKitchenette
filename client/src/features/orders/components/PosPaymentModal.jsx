@@ -144,6 +144,15 @@ export default function PosPaymentModal({
   orderSummary,
   onConfirm,
   isLoading,
+  // True while the caller's order lines are still fetching (OrdersPage accept
+  // flow). Discount pickers stay hidden and confirm stays disabled until the
+  // real lines arrive — settling against fallback/empty lines would store the
+  // wrong discount_type and print a stale receipt.
+  linesLoading = false,
+  // True when the lines fetch FAILED (not merely loading). Same block, but
+  // the label explains retry instead of waiting — an empty-lines settle
+  // would silently default every per-line promo to "none".
+  linesError = false,
   // Accepted methods from Settings (public store settings). Defaults to all.
   acceptedPayments,
 }) {
@@ -288,7 +297,7 @@ export default function PosPaymentModal({
   const isValid = discountValid && paymentValid && total >= 0;
 
   function handleConfirm() {
-    if (!isValid) return;
+    if (!isValid || linesLoading || linesError) return;
     if (hasLines) {
       // Per-item payload: one discount per line + audit IDs. Legacy
       // whole-order fields stay "none" so old servers/clients ignore them.
@@ -352,8 +361,19 @@ export default function PosPaymentModal({
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Items & discounts</label>
                 <p className="text-xs text-muted-foreground">
-                  Tap a line to add its discount — one per item.
+                  {linesLoading
+                    ? "Loading order lines — discounts unlock when they arrive."
+                    : linesError
+                      ? "Couldn't load order lines — close and retry."
+                      : "Tap a line to add its discount — one per item."}
                 </p>
+                {linesLoading || linesError ? (
+                  <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
+                    {[0, 1].map((i) => (
+                      <div key={i} className="h-4 w-full animate-pulse rounded bg-muted" />
+                    ))}
+                  </div>
+                ) : (
                 <div className="max-h-64 overflow-y-auto modal-scroll rounded-lg border border-border">
                   {summaryItems.map((item, idx) => {
                     const line = lineDiscounts[idx] ?? blankLineState();
@@ -462,6 +482,7 @@ export default function PosPaymentModal({
                     );
                   })}
                 </div>
+                )}
                 {(usesSenior || usesPwd) && (
                   <div className="space-y-1.5">
                     {usesSenior && (
@@ -690,11 +711,15 @@ export default function PosPaymentModal({
               </Button>
               <Button
                 size="lg"
-                disabled={!isValid || isLoading}
+                disabled={!isValid || isLoading || linesLoading || linesError}
                 onClick={handleConfirm}
                 className="h-12 flex-[2] text-base font-bold"
               >
-                {isLoading ? "Processing..." : (
+                {isLoading ? "Processing..." : linesLoading ? (
+                  "Loading order…"
+                ) : linesError ? (
+                  "Lines unavailable"
+                ) : (
                   <span className="flex items-center gap-2">
                     <Icon name="check" size={18} />
                     Charge ₱{total.toLocaleString()}

@@ -5,6 +5,7 @@ import { validateQuery, validateParams } from "../../middleware/validate.middlew
 import { mbaAnalyzeQuerySchema, mbaJobsQuerySchema, mbaJobIdParamSchema } from "./marketBasket.validation.js";
 import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
+import { proxyMlStatus } from "../../realtime/jobs.js";
 
 const router = Router();
 
@@ -101,14 +102,22 @@ router.get(
   },
 );
 
-// GET /api/market-basket/jobs/:id — get job with rules
+// GET /api/market-basket/jobs/:id — get job with rules (arms the
+// server-side job watcher while running, so clients stop polling).
 router.get(
   "/jobs/:id",
   authenticate,
   authorize("admin"),
   validateParams(mbaJobIdParamSchema),
   (req, res) => {
-    proxyGet(res, `/mba/jobs/${req.params.id}`, "MBA_JOB_ERROR");
+    proxyMlStatus(res, {
+      kind: "mba",
+      jobId: req.params.id,
+      mlPath: `/mba/jobs/${req.params.id}`,
+      okMessage: "Success",
+      serviceLabel: "MBA",
+      fallbackCode: "MBA_JOB_ERROR",
+    });
   },
 );
 

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { useShiftsList, useShiftMutations } from "../query";
+import { useShiftsRealtime } from "@/realtime/subscriptions";
 import useAuthStore from "@/features/auth/authStore";
 import ShiftCard from "./ShiftCard";
 import ShiftDetailDrawer from "./ShiftDetailDrawer";
@@ -18,6 +19,8 @@ import { formatVariance } from "@/lib/money";
  * Cards open the detail drawer; open cards carry close/force-close.
  */
 export default function ShiftsView({ dateFrom, dateTo, onDateChange }) {
+  // Live history: drawer open/close elsewhere refreshes this list.
+  useShiftsRealtime();
   const user = useAuthStore((s) => s.user);
   const shiftMutations = useShiftMutations();
   const [closingShift, setClosingShift] = useState(null);

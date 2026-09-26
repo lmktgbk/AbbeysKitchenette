@@ -10,6 +10,7 @@ import useLayoutStore from "@/stores/layoutStore";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import useAuthStore from "@/features/auth/authStore";
 import NotificationBell from "@/features/notifications/components/NotificationBell";
+import LiveDot from "@/realtime/LiveDot";
 
 const PAGE_TITLES = {
     "/dashboard": "Dashboard",
@@ -66,6 +67,7 @@ export default function Header() {
             </div>
 
             <div className="ml-auto flex items-center gap-1">
+                <LiveDot />
                 <ModeToggle />
                 {user?.role === "admin" && <NotificationBell />}
             </div>

@@ -9,6 +9,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { useDashboardData, useRevenueTrend } from "../query";
+import { useDashboardRealtime } from "@/realtime/subscriptions";
 import DashboardHeader from "../components/DashboardHeader";
 import AnalyticsKpis from "@/features/analytics/components/AnalyticsKpis";
 import { useAnalyticsKpis } from "@/features/analytics/query";
@@ -40,6 +41,8 @@ function SectionDivider({ title }) {
 }
 
 export default function DashboardPage() {
+  // Live dashboard: order/shift/anomaly events refresh cards + trends.
+  useDashboardRealtime();
   const [dateFrom, setDateFrom] = useState(null);
   const [dateTo, setDateTo] = useState(null);
   const [granularity, setGranularity] = useState("daily");

@@ -194,7 +194,7 @@ function OrderingUI({ onOrderSuccess }) {
                     alignItems: "center",
                     gap: "0.75rem",
                     padding: "1rem 1.5rem",
-                    margin: "0 1.5rem",
+                    margin: "1.5rem 1.5rem 0",
                     background: "linear-gradient(135deg, #fef3cd, #fde68a)",
                     border: "1.5px solid #f59e0b",
                     borderRadius: "0.75rem",

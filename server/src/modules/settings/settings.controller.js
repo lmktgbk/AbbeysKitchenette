@@ -2,6 +2,7 @@ import { settingsService } from "./settings.service.js";
 import { automationScheduler } from "../automation/automation.scheduler.js";
 import { successResponse, controllerError } from "../../utils/response.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
+import { emitSettingsChanged } from "../../realtime/events.js";
 
 /**
  * Settings Controller (admin-only — router guard plus in-handler re-check)
@@ -36,7 +37,9 @@ export const settingsController = {
 
       const settings = await settingsService.updateSettings(req.body, req.user.id);
       // Automation schedules may have changed — reload without blocking the response.
-      automationScheduler.reschedule().catch((err) => console.warn("[automation] reschedule dropped:", err?.message));
+      automationScheduler.reschedule().catch((err) => console.error("[automation] reschedule dropped:", err?.message));
+      // Tills re-read hours/payments live.
+      emitSettingsChanged();
       return successResponse(res, "Settings updated", { settings });
     } catch (error) {
       return handleError(res, error, "UPDATE_SETTINGS_ERROR");

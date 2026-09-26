@@ -1,5 +1,7 @@
 import { orderService } from "./order.service.js";
 import { successResponse, controllerError } from "../../utils/response.js";
+import { emitOrderChanged, emitStockChanged, emitGuestForOrder } from "../../realtime/events.js";
+import { sheetsService } from "../sheets/sheets.service.js";
 
 /**
  * Order Controller
@@ -111,6 +113,10 @@ export const orderController = {
         discount: { discount_type, promo_mode, promo_value, discount_id_no, senior_id_no, pwd_id_no, discount_label },
         payment: { payment_method, reference_no },
       });
+      emitOrderChanged(order?.order_id);
+      emitStockChanged();
+      // Live sheet sync — post-commit, fire-and-forget, never blocks the sale.
+      sheetsService.enqueue(order?.order_id, "paid");
       return successResponse(res, "Order created", { order }, 201);
     } catch (error) {
       return handleError(res, error, "CREATE_ORDER_ERROR");
@@ -137,6 +143,9 @@ export const orderController = {
   async updateOrder(req, res) {
     try {
       const order = await orderService.editPending(req.params.id, req.body, req.user.id);
+      emitOrderChanged(order?.order_id ?? req.params.id);
+      emitGuestForOrder(order?.order_id ?? req.params.id);
+      emitStockChanged();
       return successResponse(res, "Order updated", { order });
     } catch (error) {
       return handleError(res, error, "UPDATE_ORDER_ERROR");
@@ -157,6 +166,14 @@ export const orderController = {
         discount_type, promo_mode, promo_value,
         discount_id_no, senior_id_no, pwd_id_no, discount_label, item_discounts, payment_method, reference_no,
       });
+      emitOrderChanged(req.params.id);
+      emitGuestForOrder(req.params.id);
+      // Accepting payment deducts stock — refresh stock screens + menus.
+      if (status === "accepted") {
+        emitStockChanged();
+        // Paid (or re-settled) — sheet row for the final state.
+        sheetsService.enqueue(req.params.id, "paid");
+      }
       return successResponse(res, "Order status updated", { order });
     } catch (error) {
       return handleError(res, error, "UPDATE_STATUS_ERROR");
@@ -182,6 +199,10 @@ export const orderController = {
         discount: { discount_type, promo_mode, promo_value, discount_id_no, senior_id_no, pwd_id_no, discount_label },
         payment: { payment_method, reference_no },
       });
+      emitOrderChanged(req.params.id);
+      emitGuestForOrder(req.params.id);
+      emitStockChanged();
+      sheetsService.enqueue(req.params.id, "paid");
       return successResponse(res, "Order fulfilled", { order });
     } catch (error) {
       return handleError(res, error, "FULFILL_ORDER_ERROR");
@@ -197,6 +218,13 @@ export const orderController = {
       const { reason, custom_reason, loss_option, refund_option, refund_amount, item_losses } = req.body || {};
       const finalReason = reason === "other" ? custom_reason : reason;
       const result = await orderService.cancelOrDelete(req.params.id, req.user.id, finalReason, { loss_option, refund_option, refund_amount, item_losses });
+      // Cancellation restores ingredients — refresh stock screens + menus.
+      emitOrderChanged(req.params.id);
+      emitGuestForOrder(req.params.id);
+      emitStockChanged();
+      // Only previously-paid orders have a sheet row to adjust; pending
+      // deletes never reached the sheet.
+      if (result?.wasPaid) sheetsService.enqueue(req.params.id, "cancelled");
       return successResponse(res, "Order cancelled", result);
     } catch (error) {
       return handleError(res, error, "CANCEL_ORDER_ERROR");
@@ -218,6 +246,14 @@ export const orderController = {
         finalReason,
         { loss_option, refund_option, refund_amount, ingredient_losses },
       );
+      // Item removal restores ingredients — refresh stock screens + menus.
+      emitOrderChanged(req.params.id);
+      emitGuestForOrder(req.params.id);
+      emitStockChanged();
+      // Paid orders only (remove-item rejects pending): cancelled wipes the
+      // row, otherwise append the adjusted totals as a new history row.
+      if (result?.action === "cancelled") sheetsService.enqueue(req.params.id, "cancelled");
+      else sheetsService.enqueue(req.params.id, "adjusted");
       return successResponse(res, result.action === "cancelled" ? "Order cancelled (no items left)" : "Item removed", result);
     } catch (error) {
       return handleError(res, error, "REMOVE_ITEM_ERROR");
@@ -231,6 +267,8 @@ export const orderController = {
   async prepareOrder(req, res) {
     try {
       const order = await orderService.prepareOrder(req.params.id, req.user.id);
+      emitOrderChanged(req.params.id);
+      emitGuestForOrder(req.params.id);
       return successResponse(res, "Order is now preparing", { order });
     } catch (error) {
       return handleError(res, error, "PREPARE_ORDER_ERROR");
@@ -245,6 +283,8 @@ export const orderController = {
     try {
       const { is_prepared } = req.body;
       const order = await orderService.checkOrderItem(req.params.id, Number(req.params.itemId), is_prepared, req.user.id);
+      emitOrderChanged(req.params.id);
+      emitGuestForOrder(req.params.id);
       return successResponse(res, "Item updated", { order });
     } catch (error) {
       return handleError(res, error, "CHECK_ITEM_ERROR");
@@ -263,6 +303,8 @@ export const orderController = {
         overrideNote: override_note,
         userId: req.user.id,
       });
+      // Loss records feed waste views — refresh stock screens elsewhere.
+      emitStockChanged();
       return successResponse(res, "Loss overridden", result);
     } catch (error) {
       return handleError(res, error, "OVERRIDE_LOSS_ERROR");

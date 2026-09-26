@@ -159,7 +159,8 @@ export const analyticsController = {
 
 /**
  * Shared export payload — one parallel fetch for both renderers so Excel
- * and PDF always report identical rows for the same filters.
+ * and PDF always report identical rows for the same filters. Exported for
+ * the daily report email (day-scoped PDF attachment reuses it verbatim).
  */
 async function fetchExportData({ date_from, date_to, include, types }) {
   const [kpis, orders, variants, ingredients, trend, waste] = await Promise.all([
@@ -193,6 +194,8 @@ async function fetchExportData({ date_from, date_to, include, types }) {
     waste,
   };
 }
+
+export { fetchExportData };
 
 /**
  * Excel workbook writer — same sheets as the original inline implementation,
@@ -232,6 +235,7 @@ function buildExcelWorkbook(ExcelJS, payload) {
     ordersSheet.columns = [
           { header: "Order #", key: "order_number", width: 16 },
           { header: "Date", key: "order_date", width: 12 },
+          { header: "Time", key: "order_time", width: 8 },
           { header: "Customer", key: "customer_name", width: 18 },
           { header: "Table", key: "table_number", width: 10 },
           { header: "Source", key: "order_source", width: 10 },
@@ -251,6 +255,7 @@ function buildExcelWorkbook(ExcelJS, payload) {
           ordersSheet.addRow({
             order_number: `#${String(r.order_number).padStart(4, "0")}`,
             order_date: r.order_date,
+            order_time: r.order_time ?? "-",
             customer_name: r.customer_name,
             table_number: r.table_number,
             order_source: r.order_source,

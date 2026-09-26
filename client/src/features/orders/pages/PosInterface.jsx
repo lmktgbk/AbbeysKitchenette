@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useOrderMutations } from "../query";
+import { useOrdersRealtime, useProductsRealtime, useShiftsRealtime } from "@/realtime/subscriptions";
 import { useMyShifts, useShiftMutations } from "@/features/shifts/query";
 import ShiftBanner from "@/features/shifts/components/ShiftBanner";
 import OpenShiftModal from "@/features/shifts/components/OpenShiftModal";
@@ -42,6 +43,10 @@ const CANCEL_REASONS = [
  * - Browser-only via useState: cart items, customer/table input, modals, fulfilling/accepting ids.
  */
 export default function PosInterface() {
+  // Live POS: pending feed + menu availability + drawer state, no polling.
+  useOrdersRealtime();
+  useProductsRealtime();
+  useShiftsRealtime();
   const queryClient = useQueryClient();
   const mutations = useOrderMutations();
   const shiftMutations = useShiftMutations();

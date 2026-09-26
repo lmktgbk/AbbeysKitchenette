@@ -1,6 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Icon from "@/components/ui/icon";
 import { useInfiniteNotifications, useUnreadCount, useNotificationMutations } from "../query";
+import { useNotificationsRealtime } from "@/realtime/subscriptions";
 import NotificationItem from "./NotificationItem";
 
 const TYPE_FILTERS = {
@@ -13,11 +15,18 @@ const TYPE_FILTERS = {
 const PAGE_SIZE = 20;
 
 export default function NotificationBell() {
+  // Live bell: server-pushed invalidations replace 15s/30s polling.
+  useNotificationsRealtime();
   const [open, setOpen] = useState(false);
   const [typeFilter, setTypeFilter] = useState("all");
+  const buttonRef = useRef(null);
   const dropdownRef = useRef(null);
   const listRef = useRef(null);
   const sentinelRef = useRef(null);
+  // Fixed anchor under the bell — the panel lives in a body portal (outside
+  // the header's stacking/clip context) so page content can never paint over
+  // it or clip it.
+  const [anchor, setAnchor] = useState({ top: 64, right: 12 });
 
   const { data: unreadData } = useUnreadCount();
   const {
@@ -38,13 +47,44 @@ export default function NotificationBell() {
 
   useEffect(() => {
     function handleClickOutside(e) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+      if (
+        dropdownRef.current && !dropdownRef.current.contains(e.target) &&
+        buttonRef.current && !buttonRef.current.contains(e.target)
+      ) {
         setOpen(false);
       }
     }
+    function handleEscape(e) {
+      if (e.key === "Escape") setOpen(false);
+    }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, []);
+
+  const updateAnchor = useCallback(() => {
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setAnchor({
+      top: Math.round(rect.bottom + 8),
+      right: Math.max(8, Math.round(window.innerWidth - rect.right)),
+    });
+  }, []);
+
+  // Track the sticky header while open (scroll/resize/viewport changes).
+  useEffect(() => {
+    if (!open) return;
+    updateAnchor();
+    window.addEventListener("resize", updateAnchor);
+    window.addEventListener("scroll", updateAnchor, true);
+    return () => {
+      window.removeEventListener("resize", updateAnchor);
+      window.removeEventListener("scroll", updateAnchor, true);
+    };
+  }, [open, updateAnchor]);
 
   // Infinite scroll: load the next page when the sentinel scrolls into view.
   useEffect(() => {
@@ -81,11 +121,13 @@ export default function NotificationBell() {
   }
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative">
       <button
+        ref={buttonRef}
         onClick={handleToggle}
         className="relative rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         aria-label="Notifications"
+        aria-expanded={open}
       >
         <Icon name="bell" size={18} />
         {unreadCount > 0 && (
@@ -95,8 +137,17 @@ export default function NotificationBell() {
         )}
       </button>
 
-      {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 max-h-96 overflow-hidden rounded-lg border bg-card shadow-lg animate-in fade-in slide-in-from-top-2 duration-150 z-50">
+      {open && createPortal(
+        <div
+          ref={dropdownRef}
+          style={{
+            position: "fixed",
+            top: anchor.top,
+            right: anchor.right,
+            maxHeight: `min(24rem, calc(100dvh - ${anchor.top}px - 12px))`,
+          }}
+          className="w-80 overflow-hidden rounded-lg border bg-card shadow-lg animate-in fade-in slide-in-from-top-2 duration-150 z-[100]"
+        >
           <div className="flex items-center justify-between border-b px-4 py-2.5">
             <h3 className="text-sm font-semibold text-foreground">Notifications</h3>
             {unreadCount > 0 && (
@@ -168,7 +219,8 @@ export default function NotificationBell() {
               Showing {notifications.length} of {totalItems}
             </div>
           )}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

@@ -555,8 +555,9 @@ export const orderService = {
         referenceId: id,
       }).catch(() => {});
 
-      // Real-time anomaly hook: discount spike (fire-and-forget)
-      anomalyService.runScan(["discount_spike"]).catch((err) => console.warn("[anomaly] hook scan dropped:", err?.message));
+      // Real-time anomaly hooks: revenue + fulfillment evaluate the just-
+      // completed order; discount keeps its existing hook (fire-and-forget).
+      anomalyService.runScan(["revenue_anomaly", "fulfillment_outlier", "discount_spike"]).catch((err) => console.warn("[anomaly] hook scan dropped:", err?.message));
 
       return this.getById(id);
     }
@@ -793,7 +794,7 @@ export const orderService = {
     // Real-time anomaly hooks (fire-and-forget, never block response)
     anomalyService.runScan(["refund_spike", "cancellation_spike"]).catch((err) => console.warn("[anomaly] hook scan dropped:", err?.message));
 
-    return { order_id: id, action: "cancelled" };
+    return { order_id: id, action: "cancelled", wasPaid: order.status !== "pending" };
   },
 
   /* ── Remove Single Item ────────────── */

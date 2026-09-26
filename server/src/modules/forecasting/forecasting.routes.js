@@ -5,6 +5,7 @@ import { validateQuery } from "../../middleware/validate.middleware.js";
 import { forecastJobQuerySchema } from "./forecasting.validation.js";
 import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
+import { proxyMlStatus } from "../../realtime/jobs.js";
 
 const router = Router();
 
@@ -78,7 +79,8 @@ router.post(
   },
 );
 
-// GET /api/forecasting/demand/status — poll progress
+// GET /api/forecasting/demand/status — poll progress (arms the server-side
+// job watcher while running, so clients stop polling in Phase 3).
 router.get(
   "/demand/status",
   authenticate,
@@ -86,7 +88,14 @@ router.get(
   validateQuery(forecastJobQuerySchema),
   (req, res) => {
     const { jobId } = req.validatedQuery;
-    proxyGet(res, `/forecast/demand/status?job_id=${jobId}`, "DEMAND_STATUS_ERROR");
+    proxyMlStatus(res, {
+      kind: "forecast",
+      jobId,
+      mlPath: `/forecast/demand/status?job_id=${jobId}`,
+      okMessage: "Forecast retrieved",
+      serviceLabel: "Forecast",
+      fallbackCode: "DEMAND_STATUS_ERROR",
+    });
   },
 );
 

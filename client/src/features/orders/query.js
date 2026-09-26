@@ -1,6 +1,6 @@
 /**
  * Orders Queries — owns POS / kitchen / guest order hooks + all order mutations.
- * WHY: single place for live order polling and cross-feature invalidation (orders + shifts). Keys: ["orders", ...] (list(params), stats refetchInterval 30s, detail(id), kitchen batches staleTime/refetch 5s, kitchen list 5s) and ["guest", ...]; guest order polls 15s; mutations invalidate ["orders"] (+ shiftKeys.all on sales-affecting writes).
+ * WHY: single place for live order updates and cross-feature invalidation (orders + shifts). Keys: ["orders", ...] (list(params), stats, detail(id), kitchen batches, kitchen list) refreshed by server-pushed invalidations (realtime/subscriptions); guest order still polls 15s until Phase 2; mutations invalidate ["orders"] (+ shiftKeys.all on sales-affecting writes).
  * State: TanStack Query hooks + local checked-items Map in useKitchenDisplay; invalidation via useQueryClient.
  */
 
@@ -11,7 +11,7 @@ import * as api from "./api";
 
 /* ── Key Factories (internal) ──────────────────── */
 
-const orderKeys = {
+export const orderKeys = {
   all: ["orders"],
   list: (params) => ["orders", "list", params],
   stats: (params) => ["orders", "stats", params ?? {}],
@@ -40,14 +40,13 @@ export function useOrderList(params) {
 /**
  * useOrderStats — KPI status counts, same scope as the order list.
  * "active" = live queue (dates ignored), "all" = date-range counts.
- * Auto-refreshes every 30s for live dashboard.
+ * Live via server-pushed invalidations (OrdersPage subscribes "orders").
  * @param {object} [params] - { date_from?: "YYYY-MM-DD", date_to?: "YYYY-MM-DD", scope?: "active" | "all" }
  */
 export function useOrderStats(params = {}) {
   return useQuery({
     queryKey: orderKeys.stats(params),
     queryFn: () => api.getOrderStatsRequest(params),
-    refetchInterval: 30000,
   });
 }
 
@@ -78,14 +77,13 @@ export function useGuestMenu(params = {}) {
 
 /**
  * useGuestOrder — live tracking for one guest order by token.
- * Polls every 15s, same cadence as the POS pending feed.
+ * Live via the token-gated socket (TrackingPage subscribes guest:{token}).
  */
 export function useGuestOrder(token, options = {}) {
   return useQuery({
     queryKey: guestKeys.order(token),
     queryFn: () => api.getGuestOrderRequest(token),
     enabled: !!token,
-    refetchInterval: 15000,
     retry: 1,
     ...options,
   });
@@ -93,33 +91,31 @@ export function useGuestOrder(token, options = {}) {
 
 /**
  * usePendingOnlineOrders — pending online orders for POS.
- * Polls every 15s for real-time notification.
+ * Live via server-pushed invalidations (POS subscribes "orders").
  * @param {Object} filters - optional { search, dateFrom, dateTo }
  */
 export function usePendingOnlineOrders({ search, dateFrom, dateTo } = {}) {
   return useQuery({
     queryKey: orderKeys.list({ status: "pending", limit: "50", search, dateFrom, dateTo }),
     queryFn: () => api.getOrdersRequest({ status: "pending", limit: "50", search, date_from: dateFrom, date_to: dateTo }),
-    refetchInterval: 15000,
   });
 }
 
 /**
  * useKitchenBatchGroups — batch preparation groups for preparing orders.
- * Polls every 5s alongside kitchen display.
+ * Live via server-pushed invalidations (kitchen subscribes "kitchen").
  */
 export function useKitchenBatchGroups() {
   return useQuery({
     queryKey: orderKeys.kitchenBatches,
     queryFn: api.getKitchenBatchGroupsRequest,
     staleTime: 5000,
-    refetchInterval: 5000,
   });
 }
 
 /**
  * useKitchenDisplay — kitchen display hook.
- * Polls every 5s, returns all active orders grouped by status.
+ * Live via server-pushed invalidations (kitchen subscribes "kitchen").
  * Manages client-side item checked state (Map<orderId, Set<orderItemId>>).
  */
 export function useKitchenDisplay() {
@@ -130,7 +126,6 @@ export function useKitchenDisplay() {
     queryKey: orderKeys.list({ kitchen: true }),
     queryFn: () => api.getKitchenOrdersRequest(),
     staleTime: 5000,
-    refetchInterval: 5000,
     retry: 1,
   });
 

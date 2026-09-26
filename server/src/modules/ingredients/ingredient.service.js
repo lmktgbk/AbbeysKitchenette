@@ -5,6 +5,7 @@ import prisma from "../../config/prisma.js";
 import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { notificationService } from "../notifications/notification.service.js";
+import { anomalyService } from "../anomalyDetection/anomalyDetection.service.js";
 
 /**
  * Map Prisma Ingredient + stock quantity to snake_case API response format.
@@ -541,6 +542,10 @@ export const ingredientService = {
       targetId: id,
       details: { name: existing.ingredientName, unit: existing.unit, loss_type, quantity_lost: qty, batch_id },
     }).catch(() => {});
+
+    // Real-time anomaly hook: loss spike (fire-and-forget). Covers
+    // writeOffExpired too — it delegates to declareLoss.
+    anomalyService.runScan(["loss_spike"]).catch((err) => console.warn("[anomaly] hook scan dropped:", err?.message));
 
     return response;
   },

@@ -11,6 +11,7 @@ import { DropDown } from "@/components/filters/DropDown";
 import DateRangeFilter from "@/components/filters/DateRangeFilter";
 import { Pagination } from "@/components/filters/Pagination";
 import { useAuditLogs } from "../query";
+import { useAuditRealtime } from "@/realtime/subscriptions";
 import { formatTime } from "@/lib/date";
 import { orderNumberLabel } from "@/lib/orderNumber";
 import Icon from "@/components/ui/icon";
@@ -37,7 +38,7 @@ const ACTION_GROUP_MAP = {
   "group:Auth": ["LOGIN_SUCCESS", "LOGIN_FAILED", "LOGOUT", "PASSWORD_CHANGED", "PASSWORD_RESET_REQUESTED", "PASSWORD_RESET", "PROFILE_UPDATED", "OTP_VERIFIED"],
   "group:Order": ["ORDER_CREATED", "ORDER_ACCEPTED", "ORDER_PREPARING", "ORDER_UPDATED", "ORDER_COMPLETED", "ORDER_CANCELLED", "ORDER_ITEM_REMOVED"],
   "group:Shift": ["SHIFT_OPENED", "SHIFT_CLOSED", "SHIFT_FORCE_CLOSED"],
-  "group:System": ["SETTINGS_UPDATED", "FORECAST_RUN", "MBA_RUN", "MBA_COMBO_CREATED", "PRICE_RUN", "PRICE_APPLIED", "PRICE_DISMISSED", "REORDER_RUN", "REORDER_ACCEPTED", "REORDER_REJECTED", "WASTE_RUN", "WASTE_ACCEPTED", "WASTE_REJECTED", "ANOMALY_SCAN", "ANOMALY_ACKNOWLEDGED"],
+  "group:System": ["SETTINGS_UPDATED", "FORECAST_RUN", "MBA_RUN", "MBA_COMBO_CREATED", "PRICE_RUN", "PRICE_APPLIED", "PRICE_DISMISSED", "REORDER_RUN", "REORDER_ACCEPTED", "REORDER_REJECTED", "WASTE_RUN", "WASTE_ACCEPTED", "WASTE_REJECTED", "ANOMALY_SCAN", "ANOMALY_ACKNOWLEDGED", "DAILY_REPORT_SENT"],
 };
 
 const BADGE_STYLES = {
@@ -87,6 +88,7 @@ const BADGE_STYLES = {
   MBA_COMBO_CREATED: "bg-blue-50 text-blue-700 border-blue-200",
   ANOMALY_SCAN: "bg-blue-50 text-blue-700 border-blue-200",
   ANOMALY_ACKNOWLEDGED: "bg-amber-50 text-amber-700 border-amber-200",
+  DAILY_REPORT_SENT: "bg-blue-50 text-blue-700 border-blue-200",
   SHIFT_OPENED: "bg-blue-50 text-blue-700 border-blue-200",
   VARIANT_ACTIVATED: "bg-green-50 text-green-700 border-green-200",
   VARIANT_DEACTIVATED: "bg-blue-50 text-blue-700 border-blue-200",
@@ -150,6 +152,7 @@ const ROW_BORDER_COLORS = {
   MBA_COMBO_CREATED: "border-l-blue-500",
   ANOMALY_SCAN: "border-l-blue-500",
   ANOMALY_ACKNOWLEDGED: "border-l-amber-500",
+  DAILY_REPORT_SENT: "border-l-blue-500",
   SHIFT_OPENED: "border-l-blue-500",
   VARIANT_ACTIVATED: "border-l-green-500",
   VARIANT_DEACTIVATED: "border-l-blue-500",
@@ -273,6 +276,8 @@ function formatDescription(log) {
 }
 
 export default function AuditLogsPage() {
+  // Live trail: actions elsewhere stream in as they are logged.
+  useAuditRealtime();
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [search, setSearch] = useState("");

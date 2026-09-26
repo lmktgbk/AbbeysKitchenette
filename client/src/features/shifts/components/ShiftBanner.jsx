@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
+import { useShiftsRealtime, useOrdersRealtime } from "@/realtime/subscriptions";
 
 /**
  * ShiftBanner (BR-02)
@@ -9,6 +10,10 @@ import { cn } from "@/lib/utils";
  * Full card for the Orders page; compact row for the POS header.
  */
 export default function ShiftBanner({ shifts = [], isLoading, onOpenShift, onCloseShift, compact }) {
+  // Live drawer: open/close elsewhere refreshes wherever this renders.
+  // Expected cash also moves with sales — hence the orders subscription.
+  useShiftsRealtime();
+  useOrdersRealtime();
   if (isLoading) {
     return (
       <div className={cn("animate-pulse rounded-lg bg-muted", compact ? "h-9" : "h-20")} />

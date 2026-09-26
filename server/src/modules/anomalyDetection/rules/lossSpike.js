@@ -5,8 +5,8 @@ export const lossSpike = {
   id: "loss_spike",
   name: "Loss Spike Detection",
   category: "loss",
-  // Disabled per owner cut — low signal. Re-enable to restore.
-  enabled: false,
+  // Re-enabled per owner replan — peso waste is a kept signal.
+  enabled: true,
 
   config: {
     lookbackDays: 30,

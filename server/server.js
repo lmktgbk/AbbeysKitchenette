@@ -10,11 +10,16 @@
 // environment for full effect (see .env.example).
 if (!process.env.TZ) process.env.TZ = "Asia/Manila";
 
+import http from "http";
 import app from "./src/app.js";
 import { env } from "./src/config/env.js";
 import prisma from "./src/config/prisma.js";
-import { anomalyService } from "./src/modules/anomalyDetection/anomalyDetection.service.js";
 import { automationScheduler } from "./src/modules/automation/automation.scheduler.js";
+import { sheetsService } from "./src/modules/sheets/sheets.service.js";
+import { attachRealtimeServer } from "./src/realtime/server.js";
+
+let httpServer = null;
+let realtime = null;
 
 async function boot() {
   // Fail fast when the database is unreachable — never serve a dead API.
@@ -25,22 +30,40 @@ async function boot() {
     process.exit(1);
   }
 
-  app.listen(env.PORT, () => {
+  // Plain http server (not app.listen) so Express + WebSocket share one port.
+  httpServer = http.createServer(app);
+  realtime = attachRealtimeServer(httpServer);
+
+  httpServer.listen(env.PORT, () => {
     console.log(
       `Server running in ${env.NODE_ENV} mode on http://localhost:${env.PORT}`,
     );
 
-    // Start anomaly detection scheduler
-    anomalyService.startScheduler();
+    // Anomaly detection is purely event-driven (POS/shift/loss hooks) plus
+    // manual Check-now — no scheduled scans. ANOMALY_CRON_SCHEDULE is inert.
+    // (startScheduler remains for one-off/manual use, but boot no longer arms it.)
+
+    // Nightly Google Sheets backfill (no-op unless Sheets env is set)
+    sheetsService.startReconciler();
 
     // Load automation schedules (ML jobs) from settings
     automationScheduler.reschedule().catch((err) => console.error("[automation] Boot load failed:", err.message));
   });
 }
 
-// Graceful shutdown — drain the pool instead of dropping queries mid-flight.
+// Graceful shutdown — close sockets, then drain the pool instead of
+// dropping queries mid-flight.
 process.on("SIGTERM", async () => {
   try {
+    realtime?.stop();
+    for (const socket of realtime?.wss.clients ?? []) {
+      try {
+        socket.close(1001, "server shutting down");
+      } catch {
+        // already gone
+      }
+    }
+    await new Promise((resolve) => (httpServer ? httpServer.close(resolve) : resolve()));
     await prisma.$disconnect();
   } finally {
     process.exit(0);

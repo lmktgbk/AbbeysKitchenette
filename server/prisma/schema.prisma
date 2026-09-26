@@ -763,6 +763,23 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
+// ── Sheet Sync Log (Google Sheets live order sync — retry/backfill ledger) ──
+model SheetSyncLog {
+  id        Int       @id @default(autoincrement()) @map("id")
+  orderId   String    @map("order_id") @db.Uuid
+  kind      String    @default("paid") @map("kind") @db.VarChar(20)
+  status    String    @default("pending") @map("status") @db.VarChar(20)
+  attempts  Int       @default(0)
+  lastError String?   @map("last_error")
+  syncedAt  DateTime? @map("synced_at") @db.Timestamptz
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@unique([orderId, kind], map: "sheet_sync_log_order_kind_unique")
+  @@index([status], map: "sheet_sync_log_status_idx")
+  @@map("sheet_sync_log")
+}
+
 // ── Anomaly Detection ─────────────────────────────────
 model AnomalyResult {
   id            String   @id @default(uuid()) @db.Uuid

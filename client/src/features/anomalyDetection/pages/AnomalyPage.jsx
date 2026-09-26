@@ -7,15 +7,24 @@
  */
 import { useState, useMemo } from "react";
 import { useAnomalyResults, useAnomalyStats, useAcknowledgeAnomaly, useTriggerScan } from "../query";
+import { useAnomalyRealtime } from "@/realtime/subscriptions";
 import AnomalyFilters from "../components/AnomalyFilters";
+import { FilterPill } from "@/components/filters/FilterPill";
 import AnomalyList from "../components/AnomalyList";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 
 export default function AnomalyPage() {
+  // Live anomalies: scan completions refresh list/stats/badge.
+  useAnomalyRealtime();
   const [severity, setSeverity] = useState("");
   const [category, setCategory] = useState("");
+  // Inbox scope: Active (unreviewed) by default — reviewed cards leave the
+  // list immediately on acknowledge. Reviewed/All are one tap away.
+  // Policy: reviewed snoozes one day; a still-abnormal condition re-fires
+  // tomorrow as a fresh card.
+  const [statusFilter, setStatusFilter] = useState("active");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
@@ -23,8 +32,10 @@ export default function AnomalyPage() {
     const params = { page, limit: pageSize };
     if (severity) params.severity = severity;
     if (category) params.category = category;
+    if (statusFilter === "active") params.acknowledged = false;
+    else if (statusFilter === "reviewed") params.acknowledged = true;
     return params;
-  }, [page, pageSize, severity, category]);
+  }, [page, pageSize, severity, category, statusFilter]);
 
   const { data: resultsData, isLoading: resultsLoading } = useAnomalyResults(queryParams);
   const { data: statsData, isLoading: statsLoading } = useAnomalyStats();
@@ -104,13 +115,24 @@ export default function AnomalyPage() {
       )}
 
       {/* Filters — hidden when zero total and no filter active */}
-      {(total > 0 || severity || category) && (
-        <AnomalyFilters
-          severity={severity}
-          category={category}
-          onSeverityChange={(v) => { setSeverity(v); setPage(1); }}
-          onCategoryChange={(v) => { setCategory(v); setPage(1); }}
-        />
+      {(total > 0 || severity || category || statusFilter !== "active") && (
+        <div className="flex items-center gap-3 flex-wrap">
+          <FilterPill
+            options={[
+              { value: "active", label: "Active" },
+              { value: "reviewed", label: "Reviewed" },
+              { value: "all", label: "All" },
+            ]}
+            value={statusFilter}
+            onChange={(v) => { setStatusFilter(v); setPage(1); }}
+          />
+          <AnomalyFilters
+            severity={severity}
+            category={category}
+            onSeverityChange={(v) => { setSeverity(v); setPage(1); }}
+            onCategoryChange={(v) => { setCategory(v); setPage(1); }}
+          />
+        </div>
       )}
 
       {resultsLoading && (

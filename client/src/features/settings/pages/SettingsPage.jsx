@@ -5,15 +5,16 @@
  * Guards: admin-only route; no BR-02 shift gate, no per-role branching.
  * State: Query [settings] | local [] (react-hook-form only) | Zustand [].
  */
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import Icon from "@/components/ui/icon";
 import { useSettings, useUpdateSettings } from "../query";
+import { useSettingsRealtime } from "@/realtime/subscriptions";
 import { settingsSchema } from "../validation";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -48,6 +49,8 @@ const AUTOMATION_JOBS = [
   { key: "reorder", label: "Reorder Suggestions", hint: "Morning stock suggestions" },
   { key: "waste", label: "Waste Reduction", hint: "Weekly overstock insights" },
   { key: "marketBasket", label: "Market Basket", hint: "Weekly combo analysis" },
+  // Daily-only: emailed yesterday-in-review for admins (no frequency choice).
+  { key: "dailyReport", label: "Daily Report", hint: "Yesterday's numbers emailed to all active admins", dailyOnly: true },
 ];
 
 const DEFAULT_AUTOMATION = {
@@ -55,6 +58,7 @@ const DEFAULT_AUTOMATION = {
   reorder: { enabled: true, frequency: "daily", day: "monday", time: "05:30" },
   waste: { enabled: false, frequency: "weekly", day: "monday", time: "06:00" },
   marketBasket: { enabled: false, frequency: "weekly", day: "sunday", time: "23:00" },
+  dailyReport: { enabled: false, frequency: "daily", day: "monday", time: "00:30" },
 };
 
 function mergeAutomation(saved) {
@@ -66,12 +70,14 @@ function mergeAutomation(saved) {
 }
 
 export default function SettingsPage() {
+  // Live settings: writes elsewhere refresh this form's source data.
+  useSettingsRealtime();
   const { data: settings, isLoading } = useSettings();
   const updateMutation = useUpdateSettings();
 
   const {
-    register, handleSubmit, reset, watch, setValue, getValues,
-    formState: { errors, isDirty },
+    register, handleSubmit, reset, watch, setValue, getValues, trigger,
+    formState: { errors, isDirty, dirtyFields },
   } = useForm({
     resolver: zodResolver(settingsSchema),
     defaultValues: {
@@ -139,6 +145,60 @@ export default function SettingsPage() {
     updateMutation.mutate(data);
   }
 
+  // ── Per-section save ───────────────────
+  // Each card persists only its own fields: an invalid phone number never
+  // blocks saving hours. The server PATCH is partial-safe; after each save
+  // the realtime refresh resets the form and clears dirty.
+  const SECTION_FIELDS = {
+    info: ["storeName", "storeEmail", "storeAddress", "storePhone"],
+    hours: ["storeHours"],
+    payments: ["acceptedPayments"],
+    automation: ["automation"],
+    security: ["storeIpWhitelist"],
+  };
+  const [savingSection, setSavingSection] = useState(null);
+
+  function isSectionDirty(key) {
+    const fields = SECTION_FIELDS[key] ?? [];
+    return fields.some((f) => dirtyFields?.[f] !== undefined);
+  }
+
+  function saveSection(key) {
+    const fields = SECTION_FIELDS[key] ?? [];
+    if (!fields.some((f) => dirtyFields?.[f] !== undefined)) return;
+    setSavingSection(key);
+    // Validate ONLY this section: an invalid phone number must never block
+    // saving hours. handleSubmit would validate the whole form instead.
+    trigger(fields).then((valid) => {
+      if (!valid) {
+        setSavingSection(null);
+        return;
+      }
+      const data = getValues();
+      const partial = {};
+      for (const f of fields) partial[f] = data[f];
+      updateMutation.mutate(partial, {
+        onSettled: () => setSavingSection((s) => (s === key ? null : s)),
+      });
+    }).catch(() => setSavingSection(null));
+  }
+
+  function SectionSaveButton({ sectionKey }) {
+    const dirty = isSectionDirty(sectionKey);
+    const saving = savingSection === sectionKey || (updateMutation.isPending && dirty);
+    return (
+      <Button
+        type="button"
+        size="sm"
+        variant="primary"
+        disabled={!dirty || updateMutation.isPending}
+        onClick={() => saveSection(sectionKey)}
+      >
+        {saving ? "Saving…" : dirty ? "Save" : "Saved"}
+      </Button>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -152,7 +212,15 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-lg font-semibold text-foreground">Settings</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-lg font-semibold text-foreground">Settings</h1>
+        {isDirty && (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[11px] text-muted-foreground">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-muted-foreground/50" />
+            Unsaved changes
+          </span>
+        )}
+      </div>
 
       {openMode && (
         <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/10 p-3">
@@ -196,6 +264,7 @@ export default function SettingsPage() {
                 <Input placeholder="123 Main St, Manila" error={errors.storeAddress?.message} {...register("storeAddress")} />
               </div>
             </div>
+            <div className="flex justify-end pt-1"><SectionSaveButton sectionKey="info" /></div>
           </CardContent>
         </Card>
 
@@ -236,6 +305,7 @@ export default function SettingsPage() {
                 );
               })}
             </div>
+            <div className="mt-3 flex justify-end"><SectionSaveButton sectionKey="hours" /></div>
           </CardContent>
         </Card>
 
@@ -267,6 +337,7 @@ export default function SettingsPage() {
             {errors.acceptedPayments?.message && (
               <p className="mt-2 text-xs text-destructive">{errors.acceptedPayments.message}</p>
             )}
+            <div className="mt-3 flex justify-end"><SectionSaveButton sectionKey="payments" /></div>
           </CardContent>
         </Card>
 
@@ -278,7 +349,7 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {AUTOMATION_JOBS.map(({ key, label, hint }) => {
+              {AUTOMATION_JOBS.map(({ key, label, hint, dailyOnly }) => {
                 const job = automation[key] ?? DEFAULT_AUTOMATION[key];
                 const jobError =
                   errors.automation?.[key]?.message ||
@@ -301,6 +372,17 @@ export default function SettingsPage() {
                         <p className="text-xs text-muted-foreground">{hint}</p>
                       </div>
                       {job.enabled && (
+                        dailyOnly ? (
+                          <div className="ml-auto flex shrink-0 items-center gap-2">
+                            <span className="text-xs text-muted-foreground">Daily at</span>
+                            <Input
+                              type="time"
+                              value={job.time}
+                              onChange={(e) => updateAutomation(key, "time", e.target.value)}
+                              className="w-32"
+                            />
+                          </div>
+                        ) : (
                         <div className="ml-auto grid shrink-0 grid-cols-[6rem_6rem_8rem] items-center gap-2">
                           <select
                             value={job.frequency}
@@ -328,7 +410,7 @@ export default function SettingsPage() {
                             className="w-32"
                           />
                         </div>
-                      )}
+                        ))}
                     </div>
                     {job.enabled && jobError && (
                       <p className="mt-1.5 text-xs text-destructive">{jobError}</p>
@@ -337,6 +419,7 @@ export default function SettingsPage() {
                 );
               })}
             </div>
+            <div className="mt-3 flex justify-end"><SectionSaveButton sectionKey="automation" /></div>
           </CardContent>
         </Card>
 
@@ -353,15 +436,9 @@ export default function SettingsPage() {
                 error={errors.storeIpWhitelist?.message} {...register("storeIpWhitelist")} />
               <p className="mt-1.5 text-xs text-muted-foreground">Comma-separated IP addresses. Leave empty to allow all IPs.</p>
             </div>
+            <div className="mt-3 flex justify-end"><SectionSaveButton sectionKey="security" /></div>
           </CardContent>
         </Card>
-
-        {/* Save */}
-        <div className="flex justify-end">
-          <Button type="submit" disabled={updateMutation.isPending || !isDirty}>
-            {updateMutation.isPending ? "Saving..." : "Save Changes"}
-          </Button>
-        </div>
       </form>
     </div>
   );

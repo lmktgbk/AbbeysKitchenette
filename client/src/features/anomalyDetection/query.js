@@ -1,6 +1,6 @@
 /**
  * AnomalyDetection Queries — owns anomaly results / active alerts / stats hooks.
- * WHY: keeps anomaly polling and ack/scan cache rules out of components. Keys: ["anomalies", ...] (results(params), active(severity), stats); active polls refetchInterval 15s; mutations invalidate ["anomalies"]; otherwise global staleTime 5m.
+ * WHY: keeps anomaly updates and ack/scan cache rules out of components. Keys: ["anomalies", ...] (results(params), active(severity), stats); refreshed by server-pushed invalidations (realtime/subscriptions); mutations invalidate ["anomalies"]; otherwise global staleTime 5m.
  * State: TanStack Query hooks only, no local state; invalidation via useQueryClient.
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -24,7 +24,6 @@ export function useActiveAnomalies(severity = "critical,high") {
   return useQuery({
     queryKey: anomalyKeys.active(severity),
     queryFn: () => api.getActiveAnomalies(severity),
-    refetchInterval: 15000,
   });
 }
 

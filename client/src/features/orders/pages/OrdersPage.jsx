@@ -8,7 +8,9 @@
  */
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
-import { useOrderList, useOrderDetail, useOrderMutations } from "../query";
+import { useQueryClient } from "@tanstack/react-query";
+import { useOrderList, useOrderDetail, useOrderMutations, orderKeys } from "../query";
+import { useOrdersRealtime, useLedgerRealtime } from "@/realtime/subscriptions";
 import { useShiftMutations } from "@/features/shifts/query";
 import OpenShiftModal from "@/features/shifts/components/OpenShiftModal";
 import { printReceipt, shouldAutoPrint } from "@/features/receipts/api";
@@ -40,6 +42,10 @@ const CANCEL_REASONS = [
 
 export default function OrdersPage({ embedded = false }) {
   const mutations = useOrderMutations();
+  const queryClient = useQueryClient();
+  // Live queue + ledger: server-pushed invalidations replace polling.
+  useOrdersRealtime();
+  useLedgerRealtime();
   const shiftMutations = useShiftMutations();
   const user = useAuthStore((s) => s.user);
 
@@ -90,7 +96,7 @@ export default function OrdersPage({ embedded = false }) {
 
   // ── Accept payment modal ───────────
   const [acceptingOrder, setAcceptingOrder] = useState(null);
-  const { data: acceptingDetailData } = useOrderDetail(acceptingOrder?.order_id);
+  const { data: acceptingDetailData, isLoading: isLoadingAcceptingDetail, isError: isErrorAcceptingDetail } = useOrderDetail(acceptingOrder?.order_id);
   const acceptingDetail = acceptingDetailData?.data?.order ?? null;
 
   // ── Cancel dialog ──────────────────
@@ -273,6 +279,18 @@ export default function OrdersPage({ embedded = false }) {
 
   async function handleAcceptPaymentConfirm({ amount_paid, discount_type, promo_mode, promo_value, discount_id_no, senior_id_no, pwd_id_no, discount_label, item_discounts, payment_method, reference_no }) {
     if (!acceptingOrder) return;
+    // Defense in depth: never settle discounts against unloaded lines —
+    // the modal blocks confirm while loading, this guards stale closures.
+    // A failed detail fetch blocks too: empty lines would silently default
+    // every per-line promo to "none".
+    if (isLoadingAcceptingDetail || isErrorAcceptingDetail) {
+      toast.error(
+        isErrorAcceptingDetail
+          ? "Couldn't load order lines — close and retry"
+          : "Order details still loading — please try again",
+      );
+      return;
+    }
     try {
       await mutations.advanceStatus.mutateAsync({
         id: acceptingOrder.order_id,
@@ -286,14 +304,13 @@ export default function OrdersPage({ embedded = false }) {
           senior_id_no,
           pwd_id_no,
           discount_label,
-          // Per-item discounts keyed by stored order_item_id (one type per line).
+          // Per-item discounts keyed STRICTLY by stored order_item_id.
+          // No positional fallback: misattaching a promo to the wrong line
+          // is worse than leaving it "none" (server rejects unknown ids).
           item_discounts: (acceptingDetail?.items ?? []).map((item) => {
-            const match = (item_discounts ?? []).find(
-              (d) => Number(d.order_item_id) === Number(item.order_item_id),
+            const d = (item_discounts ?? []).find(
+              (x) => Number(x.order_item_id) === Number(item.order_item_id),
             );
-            const fallbackIdx = (acceptingDetail?.items ?? []).indexOf(item);
-            const fallback = item_discounts?.[fallbackIdx];
-            const d = match ?? fallback;
             const patch = { order_item_id: item.order_item_id, discount_type: d?.discount_type ?? "none" };
             if (d?.discount_type === "promo") {
               patch.promo_mode = d.promo_mode;
@@ -307,6 +324,9 @@ export default function OrdersPage({ embedded = false }) {
         },
       });
       toast.success(`Order ${orderNumberLabel(acceptingOrder.order_number)} accepted`);
+      // Settle the cached detail before printing so on-screen state matches
+      // the fresh DB snapshot the receipt fetches.
+      await queryClient.refetchQueries({ queryKey: orderKeys.detail(acceptingOrder.order_id) }).catch(() => {});
       if (shouldAutoPrint()) printReceipt(acceptingOrder.order_id);
       setAcceptingOrder(null);
     } catch (err) {
@@ -468,6 +488,8 @@ export default function OrdersPage({ embedded = false }) {
         onOpenChange={(open) => { if (!open) setAcceptingOrder(null); }}
         acceptedPayments={acceptedPayments}
         totalAmount={acceptingOrder ? Number(acceptingOrder.total_amount) : 0}
+        linesLoading={isLoadingAcceptingDetail && !!acceptingOrder}
+        linesError={isErrorAcceptingDetail && !!acceptingOrder}
         orderSummary={acceptingOrder ? {
           itemCount: acceptingDetail?.items
             ? acceptingDetail.items.reduce((s, i) => s + Number(i.quantity ?? 0), 0)
