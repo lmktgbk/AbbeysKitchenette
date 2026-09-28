@@ -61,6 +61,23 @@ const DEFAULT_AUTOMATION = {
   dailyReport: { enabled: false, frequency: "daily", day: "monday", time: "00:30" },
 };
 
+const DEFAULT_DINING_TABLES = {
+  tables: Array.from({ length: 8 }, (_, i) => ({
+    id: `t${i + 1}`,
+    label: `Table ${i + 1}`,
+    enabled: true,
+  })),
+  takeoutEnabled: true,
+};
+
+function mergeDiningTables(saved) {
+  if (!saved || typeof saved !== "object") return DEFAULT_DINING_TABLES;
+  return {
+    tables: Array.isArray(saved.tables) ? saved.tables : [],
+    takeoutEnabled: saved.takeoutEnabled ?? true,
+  };
+}
+
 function mergeAutomation(saved) {
   const merged = {};
   for (const { key } of AUTOMATION_JOBS) {
@@ -89,6 +106,7 @@ export default function SettingsPage() {
       storeIpWhitelist: "",
       acceptedPayments: ["cash", "gcash", "maya"],
       automation: DEFAULT_AUTOMATION,
+      diningTables: DEFAULT_DINING_TABLES,
     },
   });
 
@@ -103,6 +121,7 @@ export default function SettingsPage() {
         storeIpWhitelist: settings.storeIpWhitelist || "",
         acceptedPayments: settings.acceptedPayments?.length ? settings.acceptedPayments : ["cash", "gcash", "maya"],
         automation: mergeAutomation(settings.automation),
+        diningTables: mergeDiningTables(settings.diningTables),
       });
     }
   }, [settings, reset]);
@@ -141,6 +160,33 @@ export default function SettingsPage() {
     setValue(`storeHours.${dayKey}`, { ...current, [field]: value }, { shouldValidate: true, shouldDirty: true });
   }
 
+  const diningTables = watch("diningTables") ?? DEFAULT_DINING_TABLES;
+  const diningRows = diningTables.tables ?? [];
+
+  function updateDiningTable(index, field, value) {
+    const current = getValues("diningTables") ?? DEFAULT_DINING_TABLES;
+    const tables = (current.tables ?? []).map((t, i) => (i === index ? { ...t, [field]: value } : t));
+    setValue("diningTables", { ...current, tables }, { shouldValidate: true, shouldDirty: true });
+  }
+
+  function addDiningTable() {
+    const current = getValues("diningTables") ?? DEFAULT_DINING_TABLES;
+    const tables = [...(current.tables ?? [])];
+    tables.push({ id: `t${Date.now()}`, label: `Table ${tables.length + 1}`, enabled: true });
+    setValue("diningTables", { ...current, tables }, { shouldValidate: true, shouldDirty: true });
+  }
+
+  function removeDiningTable(index) {
+    const current = getValues("diningTables") ?? DEFAULT_DINING_TABLES;
+    const tables = (current.tables ?? []).filter((_, i) => i !== index);
+    setValue("diningTables", { ...current, tables }, { shouldValidate: true, shouldDirty: true });
+  }
+
+  function toggleTakeout() {
+    const current = getValues("diningTables") ?? DEFAULT_DINING_TABLES;
+    setValue("diningTables", { ...current, takeoutEnabled: !current.takeoutEnabled }, { shouldValidate: true, shouldDirty: true });
+  }
+
   function onSubmit(data) {
     updateMutation.mutate(data);
   }
@@ -154,6 +200,7 @@ export default function SettingsPage() {
     hours: ["storeHours"],
     payments: ["acceptedPayments"],
     automation: ["automation"],
+    tables: ["diningTables"],
     security: ["storeIpWhitelist"],
   };
   const [savingSection, setSavingSection] = useState(null);
@@ -420,6 +467,68 @@ export default function SettingsPage() {
               })}
             </div>
             <div className="mt-3 flex justify-end"><SectionSaveButton sectionKey="automation" /></div>
+          </CardContent>
+        </Card>
+
+        {/* Tables */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Tables</CardTitle>
+            <CardDescription>Dining tables offered in the POS and ordering checkout, plus takeout.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {diningRows.map((table, idx) => {
+                const tableError = errors.diningTables?.tables?.[idx]?.label?.message;
+                return (
+                  <div key={table.id ?? idx} className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => updateDiningTable(idx, "enabled", !table.enabled)}
+                      className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                        table.enabled ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {table.enabled ? "On" : "Off"}
+                    </button>
+                    <Input
+                      value={table.label ?? ""}
+                      onChange={(e) => updateDiningTable(idx, "label", e.target.value)}
+                      placeholder="Table label"
+                      className="h-9 min-w-0 flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeDiningTable(idx)}
+                      className="shrink-0 rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      title="Remove table"
+                    >
+                      <Icon name="x" size={14} />
+                    </button>
+                    {tableError && <p className="w-full text-xs text-destructive">{tableError}</p>}
+                  </div>
+                );
+              })}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={addDiningTable}
+                  className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  + Add table
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleTakeout}
+                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                    diningTables.takeoutEnabled ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {diningTables.takeoutEnabled ? "Takeout: On" : "Takeout: Off"}
+                </button>
+              </div>
+            </div>
+            <div className="mt-3 flex justify-end"><SectionSaveButton sectionKey="tables" /></div>
           </CardContent>
         </Card>
 

@@ -5,12 +5,14 @@ import faviconUrl from "@/assets/favicon.png";
 /**
  * ReceiptPrint (BR-03)
  *
- * 80mm thermal receipt markup. Rendered inside the hidden print root;
- * screen shows the app normally, print shows only this.
+ * Thermal receipt markup for 58mm (JP-58H default) and legacy 80mm.
+ * Rendered inside the hidden print root; screen shows the app normally,
+ * print shows only this.
  *
  * Logo: bundled favicon (hashed, base-path safe) rendered grayscale via
  * print CSS for thermal printers; falls back to the store name when the
- * image can't load. The host waits for image decode before printing.
+ * image can't load or the terminal disabled logos. The host waits for
+ * image decode before printing.
  */
 
 function peso(n) {
@@ -43,7 +45,7 @@ function itemDiscountTag(item) {
   return item.discount_label ? `Promo ${item.discount_label}` : "Promo";
 }
 
-export default function ReceiptPrint({ payload }) {
+export default function ReceiptPrint({ payload, paperSize = "58mm", showLogo = true }) {
   const [logoMissing, setLogoMissing] = useState(false);
   if (!payload) return null;
   const { order, store } = payload;
@@ -59,10 +61,10 @@ export default function ReceiptPrint({ payload }) {
   const method = (order.payment_method || "cash").toUpperCase();
 
   return (
-    <div className="rc-receipt">
+    <div className="rc-receipt" data-paper={paperSize}>
       {/* Store header — bundled logo when loadable, name always */}
       <div className="rc-center">
-        {!logoMissing && (
+        {showLogo && !logoMissing && (
           <img
             src={faviconUrl}
             alt=""

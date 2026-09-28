@@ -2,8 +2,10 @@
  * Thermal receipt print styles (BR-03).
  *
  * Screen: the print root stays hidden.
- * Print: the app hides, the 80mm receipt shows. Works with any
+ * Print: the app hides, the receipt shows. Works with any
  * thermal printer through its OS driver (or Save-as-PDF for review).
+ * Paper size comes from [data-paper] on #print-root-thermal:
+ * "58mm" for the JP-58H (48mm printable), "80mm" legacy default.
  */
 
 #print-root-thermal {
@@ -11,9 +13,11 @@
 }
 
 @media print {
+  /* Default terminal is the 58mm JP-58H; the driver dialog can still
+     override to 80mm paper when [data-paper="80mm"]. */
   @page {
-    size: 80mm auto;
-    margin: 2mm;
+    size: 58mm auto;
+    margin: 1mm;
   }
 
   html, body {
@@ -26,15 +30,22 @@
 
   #print-root-thermal {
     display: block !important;
-    width: 72mm;
+    width: 48mm;
     margin: 0 auto;
     color: #000 !important;
     background: #fff !important;
     font-family: "Courier New", ui-monospace, monospace;
-    font-size: 11px;
-    line-height: 1.45;
+    font-size: 10px;
+    line-height: 1.4;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  /* Legacy 80mm terminals keep the wider layout. */
+  #print-root-thermal[data-paper="80mm"] {
+    width: 72mm;
+    font-size: 11px;
+    line-height: 1.45;
   }
 
   #print-root-thermal * {
@@ -56,14 +67,19 @@
 }
 
 .rc-center { text-align: center; }
-.rc-logo { max-width: 40mm; max-height: 22mm; margin: 0 auto; display: block; }
-.rc-store { font-size: 14px; font-weight: 700; }
-.rc-small { font-size: 11px; }
-.rc-disclaimer { font-size: 11px; font-weight: 700; }
-.rc-divider { border-top: 1px dashed #000; margin: 6px 0; }
-.rc-row { display: flex; justify-content: space-between; gap: 8px; }
+.rc-logo { max-width: 32mm; max-height: 18mm; margin: 0 auto; display: block; }
+.rc-store { font-size: 12px; font-weight: 700; }
+.rc-small { font-size: 10px; }
+.rc-disclaimer { font-size: 10px; font-weight: 700; }
+.rc-divider { border-top: 1px dashed #000; margin: 5px 0; }
+.rc-row { display: flex; justify-content: space-between; gap: 6px; overflow-wrap: anywhere; }
 .rc-row .rc-right { white-space: nowrap; }
 .rc-item { margin: 1px 0; }
-.rc-item-sub { padding-left: 12px; }
-.rc-total { font-size: 14px; font-weight: 700; }
-.rc-footer { margin-top: 6px; }
+.rc-item-sub { padding-left: 10px; }
+.rc-total { font-size: 12px; font-weight: 700; }
+.rc-footer { margin-top: 6px; padding-bottom: 12px; }
+
+/* 80mm keeps the roomier legacy sizes. */
+.rc-receipt[data-paper="80mm"] .rc-logo { max-width: 40mm; max-height: 22mm; }
+.rc-receipt[data-paper="80mm"] .rc-store { font-size: 14px; }
+.rc-receipt[data-paper="80mm"] .rc-total { font-size: 14px; }

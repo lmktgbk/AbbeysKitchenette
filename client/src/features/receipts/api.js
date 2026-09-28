@@ -50,3 +50,82 @@ export function setAutoPrint(on) {
     // storage unavailable — printing still works manually
   }
 }
+
+/**
+ * Per-terminal paper size (JP-58H is 58mm; default was 80mm).
+ * Stored locally so the laptop and the Android tablet can differ.
+ */
+const PAPER_KEY = "pos.paperSize";
+
+export function getPaperSize() {
+  try {
+    return window.localStorage.getItem(PAPER_KEY) === "80mm" ? "80mm" : "58mm";
+  } catch {
+    return "58mm";
+  }
+}
+
+export function setPaperSize(size) {
+  try {
+    window.localStorage.setItem(PAPER_KEY, size === "80mm" ? "80mm" : "58mm");
+  } catch {
+    // ignore — printing still works with the default
+  }
+}
+
+/**
+ * Per-terminal connection: "system" (window.print via USB driver — laptop
+ * USB001 or Bluetooth COM8 print queue) or "rawbt" (ESC/POS bytes handed to
+ * the RawBT app on Android over Bluetooth SPP).
+ */
+const CONNECTION_KEY = "pos.printerConnection";
+
+export function getPrinterConnection() {
+  try {
+    const v = window.localStorage.getItem(CONNECTION_KEY);
+    return v === "rawbt" || v === "webusb" ? v : "system";
+  } catch {
+    return "system";
+  }
+}
+
+export function setPrinterConnection(conn) {
+  try {
+    window.localStorage.setItem(
+      CONNECTION_KEY,
+      conn === "rawbt" || conn === "webusb" ? conn : "system",
+    );
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Logo on receipts (B/W raster for ESC/POS, <img> for system print).
+ * Defaults ON; turn off for faster prints on the 80-90mm/s JP-58H.
+ */
+const LOGO_KEY = "pos.receiptLogo";
+
+export function shouldPrintLogo() {
+  try {
+    return window.localStorage.getItem(LOGO_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+
+export function setPrintLogo(on) {
+  try {
+    window.localStorage.setItem(LOGO_KEY, on ? "on" : "off");
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Test print without creating an order. ReceiptPrintHost renders the sample
+ * locally (no receipt fetch) so cashiers can verify paper size + Bluetooth.
+ */
+export function printSampleReceipt() {
+  window.dispatchEvent(new CustomEvent("print-receipt-sample"));
+}

@@ -121,16 +121,19 @@ export const sheetsService = {
   /** Adjustment row for cancels/refunds/item removals — history preserved, never edited. */
   buildAdjustmentRow(order, kind) {
     const row = this.buildRow(order);
+    // NOTE: Items is index 5 (Order #0, Date1, Time2, Customer3, Table4, Items5).
     const tag = kind === "cancelled" ? "CANCELLED" : kind === "adjusted" ? "ADJUSTED" : "REFUNDED";
-    row[4] = `${tag} — was: ${row[4]}`;
+    row[5] = `${tag} — was: ${row[5]}`;
     return row;
   },
 
   async appendRow(values) {
     const token = await this.getAccessToken();
+    // RAW: values store literally ("00:25" stays "00:25", dates stay text)
+    // instead of Sheets reinterpreting them; JSON numbers stay numeric.
     const url =
       `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ORDERS_ID}` +
-      `/values/${encodeURIComponent(SHEET_RANGE)}:append?valueInputOption=USER_ENTERED`;
+      `/values/${encodeURIComponent(SHEET_RANGE)}:append?valueInputOption=RAW`;
     const res = await fetch(url, {
       method: "POST",
       headers: {

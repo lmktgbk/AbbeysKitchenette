@@ -37,6 +37,19 @@ const automationSchema = z.object({
   reorder: automationJobSchema.optional(),
   waste: automationJobSchema.optional(),
   marketBasket: automationJobSchema.optional(),
+  dailyReport: automationJobSchema.optional(),
+});
+
+const diningTableSchema = z.object({
+  id: z.string().trim().min(1).max(40).optional(),
+  // Max 20: matches the server order table_number contract.
+  label: z.string().trim().min(1, "Table label is required").max(20),
+  enabled: z.boolean(),
+});
+
+const diningTablesSchema = z.object({
+  tables: z.array(diningTableSchema).max(50).default([]),
+  takeoutEnabled: z.boolean().default(true),
 });
 
 export const settingsSchema = z.object({
@@ -71,4 +84,5 @@ export const settingsSchema = z.object({
     ),
   acceptedPayments: z.array(paymentMethodSchema).min(1, "At least one payment method is required"),
   automation: automationSchema.optional().default({}),
+  diningTables: diningTablesSchema.optional(),
 });

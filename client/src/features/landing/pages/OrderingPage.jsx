@@ -15,6 +15,7 @@ import OrderStatusStepper from "../components/OrderStatusStepper";
 import { orderNumberLabel } from "@/lib/orderNumber";
 import { useStoreSettings } from "@/features/landing/query";
 import Icon from "@/components/ui/icon";
+import TableSelect from "@/components/filters/TableSelect";
 import { manilaParts } from "@/lib/date";
 
 // Client mirror of server isStoreOpen — MUST follow the Manila business
@@ -771,15 +772,13 @@ function CheckoutModal({ cart, subtotal, onClose, onSuccess }) {
                         {/* Table / reference */}
                         <div className="ord-field">
                             <label className="ord-field-label">Table / Reference *</label>
-                            <input
-                                type="text"
-                                className={`ord-field-input${errors.table ? " err" : ""}`}
-                                placeholder="e.g. Table 5 or Online-001"
+                            <TableSelect
                                 value={tableNumber}
-                                onChange={(e) => {
-                                    setTableNumber(e.target.value);
+                                onChange={(val) => {
+                                    setTableNumber(val);
                                     if (errors.table) setErrors((p) => ({ ...p, table: "" }));
                                 }}
+                                placeholder="Select table or Takeout"
                             />
                             {errors.table && <span className="ord-field-error">{errors.table}</span>}
                         </div>

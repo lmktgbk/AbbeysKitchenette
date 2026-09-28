@@ -8,6 +8,7 @@
  */
 import { useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { toast } from "sonner";
 import useAuthStore from "@/features/auth/authStore";
 import { logoutRequest } from "@/features/auth/api";
 import { confirm } from "@/components/alerts/ConfirmDialog";
@@ -15,7 +16,17 @@ import { FilterPill } from "@/components/filters/FilterPill";
 import ModeToggle from "@/components/ModeToggle";
 import Icon from "@/components/ui/icon";
 import ReceiptPrintHost from "@/features/receipts/ReceiptPrintHost";
-import { shouldAutoPrint, setAutoPrint } from "@/features/receipts/api";
+import {
+  shouldAutoPrint,
+  setAutoPrint,
+  getPaperSize,
+  setPaperSize,
+  getPrinterConnection,
+  setPrinterConnection,
+  shouldPrintLogo,
+  setPrintLogo,
+  printSampleReceipt,
+} from "@/features/receipts/api";
 
 const VIEW_OPTIONS = [
   { value: "pos", label: "POS" },
@@ -29,11 +40,41 @@ export default function PosTerminal() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const [autoPrint, setAutoPrintState] = useState(() => shouldAutoPrint());
+  const [paperSize, setPaperSizeState] = useState(() => getPaperSize());
+  const [connection, setConnectionState] = useState(() => getPrinterConnection());
+  const [logoOn, setLogoOnState] = useState(() => shouldPrintLogo());
+  const [printerOpen, setPrinterOpen] = useState(false);
 
   function toggleAutoPrint() {
     const next = !autoPrint;
     setAutoPrint(next);
     setAutoPrintState(next);
+  }
+
+  function changePaper(size) {
+    setPaperSize(size);
+    setPaperSizeState(size === "80mm" ? "80mm" : "58mm");
+  }
+
+  function changeConnection(conn) {
+    setPrinterConnection(conn);
+    setConnectionState(conn === "rawbt" || conn === "webusb" ? conn : "system");
+  }
+
+  function toggleLogo() {
+    const next = !logoOn;
+    setPrintLogo(next);
+    setLogoOnState(next);
+  }
+
+  function handleTestPrint() {
+    printSampleReceipt();
+    if (connection === "rawbt") {
+      toast.info("Opening RawBT — confirm the print there", { duration: 4000 });
+    } else {
+      toast.info("Test receipt sent to system print dialog");
+    }
+    setPrinterOpen(false);
   }
 
   const activeView = location.pathname.startsWith("/pos/orders")
@@ -97,7 +138,7 @@ export default function PosTerminal() {
           onChange={handleViewChange}
         />
 
-        {/* Right — theme, profile, sign out */}
+        {/* Right — printer, theme, profile, sign out */}
         <div className="flex items-center gap-2">
           <button
             onClick={toggleAutoPrint}
@@ -107,6 +148,83 @@ export default function PosTerminal() {
           >
             <Icon name="receipt" size={18} />
           </button>
+          <div className="relative">
+            <button
+              onClick={() => setPrinterOpen((o) => !o)}
+              title={`Printer: ${paperSize} / ${connection === "rawbt" ? "Bluetooth" : connection === "webusb" ? "WebUSB" : "USB driver"}`}
+              aria-label="Printer settings"
+              className={`rounded-md p-2 transition-colors hover:bg-muted ${printerOpen ? "text-foreground" : "text-muted-foreground"}`}
+            >
+              <Icon name="settings" size={18} />
+            </button>
+            {printerOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setPrinterOpen(false)} />
+                <div className="absolute right-0 z-50 mt-2 w-72 rounded-lg border border-border bg-card p-3 shadow-lg">
+                  <p className="text-xs font-semibold text-foreground">Printer — JP-58H</p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    Per-terminal. Laptop uses USB driver, tablet uses Bluetooth.
+                  </p>
+
+                  <p className="mb-1 mt-3 text-[11px] font-semibold text-foreground">Paper</p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {(["58mm", "80mm"]).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => changePaper(s)}
+                        className={`rounded-md border px-2 py-1.5 text-xs font-medium transition-colors ${
+                          paperSize === s ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {s}{s === "58mm" ? " (JP-58H)" : ""}
+                      </button>
+                    ))}
+                  </div>
+
+                  <p className="mb-1 mt-3 text-[11px] font-semibold text-foreground">Connection</p>
+                  <div className="flex flex-col gap-1.5">
+                    {([
+                      { value: "system", label: "USB driver", hint: "Laptop USB001 / COM8 queue" },
+                      { value: "rawbt", label: "Bluetooth (RawBT)", hint: "Android tablet + JP-58H" },
+                      { value: "webusb", label: "WebUSB", hint: "Experimental direct USB" },
+                    ]).map((o) => (
+                      <button
+                        key={o.value}
+                        type="button"
+                        onClick={() => changeConnection(o.value)}
+                        className={`rounded-md border px-2 py-1.5 text-left transition-colors ${
+                          connection === o.value ? "border-primary bg-primary/10" : "border-border hover:border-muted-foreground/40"
+                        }`}
+                      >
+                        <span className="block text-xs font-semibold text-foreground">{o.label}</span>
+                        <span className="block text-[11px] text-muted-foreground">{o.hint}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={toggleLogo}
+                    className="mt-3 flex w-full items-center justify-between rounded-md border border-border px-2 py-1.5 text-xs"
+                  >
+                    <span className="font-semibold text-foreground">Logo on receipt</span>
+                    <span className={logoOn ? "font-bold text-primary" : "text-muted-foreground"}>
+                      {logoOn ? "On" : "Off"}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleTestPrint}
+                    className="mt-2 w-full rounded-md bg-primary px-2 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                  >
+                    Test Print
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
           <ModeToggle />
 
           {/* Profile */}

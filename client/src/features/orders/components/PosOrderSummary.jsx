@@ -2,6 +2,7 @@ import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import TableSelect from "@/components/filters/TableSelect";
 
 /**
  * PosOrderSummary
@@ -39,11 +40,10 @@ export default function PosOrderSummary({
         </div>
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Table</label>
-          <Input
+          <TableSelect
             value={tableName}
-            onChange={(e) => onTableNameChange?.(e.target.value)}
-            placeholder="Table number"
-            className="h-8 text-sm placeholder:text-muted-foreground/60"
+            onChange={(val) => onTableNameChange?.(val)}
+            placeholder="Select table"
           />
         </div>
       </div>

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { notificationQuerySchema } from "../src/modules/notifications/notification.validation.js";
 import { anomalyIdParamSchema, anomalyQuerySchema } from "../src/modules/anomalyDetection/anomalyDetection.validation.js";
 import { forecastJobQuerySchema } from "../src/modules/forecasting/forecasting.validation.js";
+import { updateSettingsSchema, DEFAULT_DINING_TABLES } from "../src/modules/settings/settings.validation.js";
 import { productService } from "../src/modules/products/product.service.js";
 
 describe("query/param validation", () => {
@@ -35,6 +36,22 @@ describe("query/param validation", () => {
     expect(anomalyQuerySchema.safeParse({ acknowledged: "true" }).data.acknowledged).toBe(true);
     expect(anomalyQuerySchema.safeParse({}).data.acknowledged).toBeUndefined();
     expect(anomalyQuerySchema.safeParse({ acknowledged: "yes" }).success).toBe(false);
+  });
+
+  it("accepts a dining-tables config matching the order contract", () => {
+    const ok = {
+      diningTables: {
+        tables: [{ id: "t1", label: "Table 1", enabled: true }],
+        takeoutEnabled: true,
+      },
+    };
+    expect(updateSettingsSchema.safeParse(ok).success).toBe(true);
+    expect(updateSettingsSchema.safeParse({}).success).toBe(true);
+    // Labels cap at 20: order table_number rejects longer strings.
+    const long = { diningTables: { tables: [{ label: "x".repeat(21), enabled: true }], takeoutEnabled: true } };
+    expect(updateSettingsSchema.safeParse(long).success).toBe(false);
+    expect(DEFAULT_DINING_TABLES.tables).toHaveLength(8);
+    expect(DEFAULT_DINING_TABLES.takeoutEnabled).toBe(true);
   });
 });
 

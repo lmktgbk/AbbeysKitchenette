@@ -31,6 +31,27 @@ const storeHoursSchema = z.object({
 
 const paymentMethodSchema = z.enum(["cash", "gcash", "maya"]);
 
+// Defaults when unset — mirrors seed TABLES (1–8 + Takeout).
+export const DEFAULT_DINING_TABLES = {
+  tables: Array.from({ length: 8 }, (_, i) => ({
+    id: `t${i + 1}`,
+    label: `Table ${i + 1}`,
+    enabled: true,
+  })),
+  takeoutEnabled: true,
+};
+const diningTableSchema = z.object({
+  id: z.string().trim().min(1).max(40).optional(),
+  // Max 20: order table_number contract caps at 20 chars server-side.
+  label: z.string().trim().min(1, "Table label is required").max(20),
+  enabled: z.boolean(),
+});
+
+const diningTablesSchema = z.object({
+  tables: z.array(diningTableSchema).max(50).default([]),
+  takeoutEnabled: z.boolean().default(true),
+});
+
 const automationJobSchema = z
   .object({
     enabled: z.boolean(),
@@ -82,4 +103,5 @@ export const updateSettingsSchema = z.object({
   // At least one payment method must stay enabled.
   acceptedPayments: z.array(paymentMethodSchema).min(1, "At least one payment method is required").optional(),
   automation: automationSchema.optional(),
+  diningTables: diningTablesSchema.optional(),
 });

@@ -55,6 +55,7 @@ model SystemSettings {
   storeHours           Json?    @map("store_hours")
   acceptedPayments     String[] @default(["cash", "gcash", "maya"]) @map("accepted_payments")
   automation           Json     @default("{}")
+  diningTables         Json?    @map("dining_tables")
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 

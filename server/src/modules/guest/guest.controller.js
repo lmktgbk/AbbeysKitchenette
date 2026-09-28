@@ -2,6 +2,7 @@ import { guestService } from "./guest.service.js";
 import { successResponse, errorResponse, controllerError } from "../../utils/response.js";
 import { emitOrderChanged } from "../../realtime/events.js";
 import { settingsRepository } from "../settings/settings.repository.js";
+import { DEFAULT_DINING_TABLES } from "../settings/settings.validation.js";
 import { isStoreOpen } from "../../utils/storeHours.js";
 
 /**
@@ -28,6 +29,8 @@ export const guestController = {
         storePhone: settings?.storePhone || "",
         storeEmail: settings?.storeEmail || "",
         storeHours: settings?.storeHours || null,
+        // Dining tables for the checkout dropdown (defaults when unset).
+        diningTables: settings?.diningTables || DEFAULT_DINING_TABLES,
         // Public so the cashier POS (non-admin) can hide disabled methods.
         acceptedPayments: settings?.acceptedPayments ?? ["cash", "gcash", "maya"],
       });
