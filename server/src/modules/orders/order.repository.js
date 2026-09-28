@@ -280,8 +280,8 @@ export const orderRepository = {
    * @param {object} params - { skip, take, search, status, dateFrom, dateTo, sortBy, sortDir }
    * @returns {Array} - rows with order + item_count
    */
-  async findManyPaginated({ skip, take, search, status, dateFrom, dateTo, sortBy, sortDir, staffId, scope }) {
-    const { where, values } = this._buildOrderWhereClause(search, status, dateFrom, dateTo, staffId, scope);
+  async findManyPaginated({ skip, take, search, status, dateFrom, dateTo, timeFrom, timeTo, sortBy, sortDir, staffId, scope }) {
+    const { where, values } = this._buildOrderWhereClause(search, status, dateFrom, dateTo, timeFrom, timeTo, staffId, scope);
     const orderClause = this._buildOrderOrderByClause(sortBy, sortDir);
 
     const sql = `
@@ -314,8 +314,8 @@ export const orderRepository = {
    * @param {object} params - { search, status, dateFrom, dateTo }
    * @returns {number} - total count
    */
-  async countFiltered({ search, status, dateFrom, dateTo, staffId, scope }) {
-    const { where, values } = this._buildOrderWhereClause(search, status, dateFrom, dateTo, staffId, scope);
+  async countFiltered({ search, status, dateFrom, dateTo, timeFrom, timeTo, staffId, scope }) {
+    const { where, values } = this._buildOrderWhereClause(search, status, dateFrom, dateTo, timeFrom, timeTo, staffId, scope);
     const sql = `SELECT COUNT(*)::int AS count FROM orders o ${where}`;
     const result = await prisma.$queryRawUnsafe(sql, ...values);
     return result[0]?.count ?? 0;
@@ -1069,10 +1069,12 @@ export const orderRepository = {
    * @param {string} status - status filter
    * @param {string} dateFrom - start date (YYYY-MM-DD)
    * @param {string} dateTo - end date (YYYY-MM-DD)
+   * @param {string} [timeFrom] - start time (HH:mm)
+   * @param {string} [timeTo] - end time (HH:mm)
    * @param {string} [scope] - "active" | "all"
    * @returns {{ where: string, values: Array }}
    */
-  _buildOrderWhereClause(search, status, dateFrom, dateTo, staffId, scope) {
+  _buildOrderWhereClause(search, status, dateFrom, dateTo, timeFrom, timeTo, staffId, scope) {
     const clauses = [];
     const values = [];
     let idx = 1;
@@ -1116,6 +1118,16 @@ export const orderRepository = {
       clauses.push(...date.clauses);
       values.push(...date.values);
       idx = date.nextIdx;
+    }
+
+    if (!isActive && timeFrom) {
+      clauses.push(`(o.created_at AT TIME ZONE 'Asia/Manila')::time >= $${idx++}::time`);
+      values.push(timeFrom);
+    }
+    
+    if (!isActive && timeTo) {
+      clauses.push(`(o.created_at AT TIME ZONE 'Asia/Manila')::time <= $${idx++}::time`);
+      values.push(timeTo);
     }
 
     if (staffId) {

@@ -114,7 +114,10 @@ export default function OrdersPage({ embedded = false }) {
       ? activeFilters.status
       : undefined;
 
-  const filterActive = activeSort !== "created_at_desc" || activeFilters.status !== "all";
+  const filterActive = activeSort !== "created_at_desc" || 
+    activeFilters.status !== "all" || 
+    !!activeFilters.time_from || 
+    !!activeFilters.time_to;
 
   const queryParams = useMemo(() => ({
     page: String(page),
@@ -123,10 +126,12 @@ export default function OrdersPage({ embedded = false }) {
     status: effectiveStatus,
     date_from: dateFrom || undefined,
     date_to: dateTo || undefined,
+    time_from: activeFilters.time_from || undefined,
+    time_to: activeFilters.time_to || undefined,
     scope,
     sortBy,
     sortDir,
-  }), [page, search, effectiveStatus, dateFrom, dateTo, pageSize, scope, sortBy, sortDir]);
+  }), [page, search, effectiveStatus, dateFrom, dateTo, activeFilters.time_from, activeFilters.time_to, pageSize, scope, sortBy, sortDir]);
 
   // ── Data ───────────────────────────
   const { data: ordersData, isLoading } = useOrderList(queryParams);
@@ -501,6 +506,7 @@ export default function OrdersPage({ embedded = false }) {
         onOpenChange={setFilterOpen}
         sortOptions={ORDER_SORT_OPTIONS}
         filterOptions={ORDER_FILTER_OPTIONS}
+        showTimeRange={true}
         onApply={handleFilterApply}
         currentSort={activeSort}
         currentFilters={activeFilters}

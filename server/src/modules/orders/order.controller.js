@@ -21,7 +21,7 @@ export const orderController = {
    */
   async getOrders(req, res) {
     try {
-      const { page, limit, search, status, date_from, date_to, sortBy, sortDir, staff_id, scope } = req.validatedQuery;
+      const { page, limit, search, status, date_from, date_to, time_from, time_to, sortBy, sortDir, staff_id, scope } = req.validatedQuery;
       const result = await orderService.getAll({
         page: Number(page),
         limit: Number(limit),
@@ -29,6 +29,8 @@ export const orderController = {
         status,
         dateFrom: date_from,
         dateTo: date_to,
+        timeFrom: time_from,
+        timeTo: time_to,
         sortBy,
         sortDir,
         staffId: staff_id,

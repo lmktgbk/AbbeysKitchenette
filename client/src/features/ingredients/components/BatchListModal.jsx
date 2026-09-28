@@ -19,6 +19,7 @@ import { Pagination } from "@/components/filters/Pagination";
 import { formatDate } from "@/lib/date";
 import { toast } from "sonner";
 import ExpiryBadge from "./ExpiryBadge";
+import DatePicker from "@/components/filters/DatePicker";
 
 /**
  * BatchListModal
@@ -178,7 +179,7 @@ export default function BatchListModal({ open, onOpenChange, ingredient }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col p-0">
+      <DialogContent className="max-w-6xl max-h-[85vh] overflow-hidden flex flex-col p-0">
         <div className="flex items-start justify-between border-b border-border px-6 py-4">
           <div>
             <h3 className="text-base font-semibold text-foreground">
@@ -336,19 +337,33 @@ function BatchesTab({ batches, isLoading, ingredient, fifoLeaderBatchId, onToggl
   }
 
   return (
-    <Table noOverflow>
+    <Table noOverflow className="table-fixed">
+      {/* colgroup pins every column to a fixed width so the header and
+          body cells always align, even when Expires switches to an edit input */}
+      <colgroup>
+        <col style={{ width: "3rem" }} />       {/* star */}
+        <col style={{ width: "5rem" }} />       {/* ID */}
+        <col style={{ width: "5.5rem" }} />     {/* Date */}
+        <col style={{ width: "6rem" }} />       {/* Added */}
+        <col style={{ width: "6.5rem" }} />     {/* Remaining */}
+        <col style={{ width: "13rem" }} />      {/* Expires */}
+        <col style={{ width: "6.5rem" }} />     {/* Cost/Unit */}
+        <col style={{ width: "6rem" }} />       {/* Total */}
+        <col style={{ width: "10rem" }} />      {/* Supplier — fixed so text never collapses */}
+        <col style={{ width: "2.5rem" }} />     {/* Notes icon */}
+      </colgroup>
       <TableHeader>
         <TableRow className="hover:bg-transparent">
-          <TableHead className="w-12"></TableHead>
-          <TableHead className="w-20 text-center">ID</TableHead>
-          <TableHead className="w-24 text-center">Date</TableHead>
-          <TableHead className="w-24 text-center">Added</TableHead>
-          <TableHead className="w-28 text-center">Remaining</TableHead>
-          <TableHead className="w-28 text-center">Expires</TableHead>
-          <TableHead className="w-28 text-center">Cost/Unit</TableHead>
-          <TableHead className="w-28 text-center">Total</TableHead>
+          <TableHead></TableHead>
+          <TableHead className="text-center">ID</TableHead>
+          <TableHead className="text-center">Date</TableHead>
+          <TableHead className="text-center">Added</TableHead>
+          <TableHead className="text-center">Remaining</TableHead>
+          <TableHead className="text-center">Expires</TableHead>
+          <TableHead className="text-center">Cost/Unit</TableHead>
+          <TableHead className="text-center">Total</TableHead>
           <TableHead>Supplier</TableHead>
-          <TableHead className="w-10"></TableHead>
+          <TableHead></TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -384,7 +399,7 @@ function BatchRow({ batch, ingredient, onTogglePriority, isPriorityLoading }) {
         `${batch.is_priority ? "bg-primary/5" : ""} ${isDepleted ? "opacity-50" : ""}`
       }
     >
-      <TableCell className="w-12 px-3">
+      <TableCell className="px-3">
         <button
           onClick={() => onTogglePriority(batch.batch_id, !batch.is_priority)}
           disabled={isPriorityLoading}
@@ -398,19 +413,19 @@ function BatchRow({ batch, ingredient, onTogglePriority, isPriorityLoading }) {
         </button>
       </TableCell>
 
-      <TableCell className="w-20 font-mono text-muted-foreground text-xs text-center">
+      <TableCell className="font-mono text-muted-foreground text-xs text-center">
         B-{batch.batch_id}
       </TableCell>
 
-      <TableCell className="w-24 text-muted-foreground text-center">
+      <TableCell className="text-muted-foreground text-center">
         {dateStr}
       </TableCell>
 
-      <TableCell className="w-24 text-center font-mono whitespace-nowrap">
+      <TableCell className="text-center font-mono whitespace-nowrap">
         {batch.quantity_added.toLocaleString()} {unit}
       </TableCell>
 
-      <TableCell className={`w-28 text-center font-mono font-medium whitespace-nowrap ${isDepleted
+      <TableCell className={`text-center font-mono font-medium whitespace-nowrap ${isDepleted
         ? "text-muted-foreground"
         : "text-green-600 dark:text-green-400"
         }`}>
@@ -418,7 +433,7 @@ function BatchRow({ batch, ingredient, onTogglePriority, isPriorityLoading }) {
       </TableCell>
 
       {/* Expires — date + badge, pencil to correct */}
-      <TableCell className="w-28 text-center whitespace-nowrap">
+      <TableCell className="text-center">
         <BatchExpiryCell
           batch={batch}
           ingredientId={ingredient.ingredient_id}
@@ -426,19 +441,20 @@ function BatchRow({ batch, ingredient, onTogglePriority, isPriorityLoading }) {
         />
       </TableCell>
 
-      <TableCell className="w-28 text-center font-mono text-muted-foreground whitespace-nowrap">
+      <TableCell className="text-center font-mono text-muted-foreground whitespace-nowrap">
         ₱{batch.cost_per_unit.toFixed(2)}/{unit}
       </TableCell>
 
-      <TableCell className="w-28 text-center font-mono whitespace-nowrap">
+      <TableCell className="text-center font-mono whitespace-nowrap">
         ₱{batch.total_cost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
       </TableCell>
 
-      <TableCell className="truncate max-w-[120px]" title={batch.supplier_name || undefined}>
+      {/* Supplier — full name, wraps if very long */}
+      <TableCell title={batch.supplier_name || undefined}>
         {batch.supplier_name || "—"}
       </TableCell>
 
-      <TableCell className="w-10 px-3 text-center">
+      <TableCell className="px-3 text-center">
         {batch.notes ? (
           <span className="group relative inline-flex items-center justify-center">
             <Icon
@@ -487,14 +503,14 @@ function BatchExpiryCell({ batch, ingredientId, unit }) {
 
   if (editing) {
     return (
-      <span className="flex items-center justify-center gap-1">
-        <input
-          type="date"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          className="h-7 w-32 rounded-md border border-border bg-card px-1 text-xs outline-none focus:border-primary"
-          autoFocus
-        />
+      <span className="flex items-center justify-center gap-1 w-full max-w-[240px] mx-auto">
+        <div className="w-44 shrink-0">
+          <DatePicker
+            value={draft || null}
+            onChange={(val) => setDraft(val ?? "")}
+            placeholder="No expiry"
+          />
+        </div>
         <button
           type="button"
           onClick={handleSave}
@@ -517,22 +533,25 @@ function BatchExpiryCell({ batch, ingredientId, unit }) {
   }
 
   return (
-    <span className="inline-flex items-center justify-center gap-1.5">
+    <div className="grid grid-cols-[1fr_auto_1fr] items-center w-full">
+      <div /> {/* Spacer to balance the grid */}
       <span className="flex flex-col items-center gap-0.5">
         <span className="font-mono text-xs text-muted-foreground">
           {batch.expiry_date ?? "—"}
         </span>
         <ExpiryBadge expiryDate={batch.expiry_date} days={batch.days_until_expiry} />
       </span>
-      <button
-        type="button"
-        onClick={() => setEditing(true)}
-        title={batch.expiry_date ? "Correct expiry date" : "Set expiry date"}
-        className="cursor-pointer rounded p-1 text-muted-foreground/60 hover:bg-muted hover:text-foreground"
-      >
-        <Icon name="pencil" size={12} />
-      </button>
-    </span>
+      <div className="flex justify-start pl-1.5">
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          title={batch.expiry_date ? "Correct expiry date" : "Set expiry date"}
+          className="cursor-pointer rounded p-1 text-muted-foreground/60 hover:bg-muted hover:text-foreground"
+        >
+          <Icon name="pencil" size={12} />
+        </button>
+      </div>
+    </div>
   );
 }
 

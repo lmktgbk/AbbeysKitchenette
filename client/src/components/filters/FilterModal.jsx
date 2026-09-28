@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { DropDown } from "@/components/filters/DropDown";
+import TimePicker from "@/components/filters/TimePicker";
 
 /** FilterModal — dynamic sort + filter dialog. WHY it exists: config-driven dialog lets each list declare options without feature logic; consumed via SearchBar filter button. State: local [selectedSort, selectedFilters] synced on open.
  *
@@ -26,6 +27,7 @@ export default function FilterModal({
   onOpenChange,
   sortOptions = [],
   filterOptions = [],
+  showTimeRange = false,
   onApply,
   currentSort,
   currentFilters = {},
@@ -56,10 +58,14 @@ export default function FilterModal({
     for (const f of filterOptions) {
       resetFilters[f.key] = f.options[0]?.value || "all";
     }
+    if (showTimeRange) {
+      resetFilters.time_from = "";
+      resetFilters.time_to = "";
+    }
     setSelectedFilters(resetFilters);
   }
 
-  const hasContent = sortOptions.length > 0 || filterOptions.length > 0;
+  const hasContent = sortOptions.length > 0 || filterOptions.length > 0 || showTimeRange;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -112,6 +118,26 @@ export default function FilterModal({
                 />
               </div>
             ))}
+
+            {/* Time Range Section */}
+            {showTimeRange && (
+              <div>
+                <p className="text-sm font-medium text-foreground mb-2">Time Range</p>
+                <div className="flex items-center gap-2">
+                  <TimePicker
+                    value={selectedFilters.time_from || null}
+                    onChange={(val) => handleFilterChange("time_from", val ?? "")}
+                    placeholder="From"
+                  />
+                  <span className="text-muted-foreground text-sm shrink-0">to</span>
+                  <TimePicker
+                    value={selectedFilters.time_to || null}
+                    onChange={(val) => handleFilterChange("time_to", val ?? "")}
+                    placeholder="To"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <p className="py-6 text-center text-muted-foreground text-sm">
