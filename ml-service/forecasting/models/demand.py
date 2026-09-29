@@ -43,11 +43,21 @@ class JobStatusResponse(BaseModel):
 
 # ── Variant result schemas ─────────────────────────────────────
 
-class ProductScore(BaseModel):
-    """Paper metrics scored at product level (dense series, 7-day holdout).
+class WeekScore(BaseModel):
+    """One hidden-week total pair (and its errors)."""
+    w_pred: float = 0.0
+    w_actual: float = 0.0
+    w_mae: float = 0.0
+    w_mse: float = 0.0
 
-    Daily fields grade typical-day error; w_ fields grade the 7-day prep
-    total (noise cancels). w_ defaults keep pre-split jobs readable.
+
+class ProductScore(BaseModel):
+    """Paper metrics scored at product level (dense series, rolling 3-origin
+    7-day holdouts).
+
+    Daily fields pool all origin pairs; w_ fields average the per-origin
+    week totals; weeks/n_weeks carry the per-origin pairs the menu headline
+    pools over (headline + range). All defaulted so older jobs validate.
     """
     product_id: int
     product_name: str
@@ -58,9 +68,19 @@ class ProductScore(BaseModel):
     r_squared: float
     w_mae: float = 0.0
     w_mse: float = 0.0
-    w_rmse: float = 0.0
     w_pred: float = 0.0
     w_actual: float = 0.0
+    weeks: list[WeekScore] = []
+    # Naive carry-forward on the same hidden tails; absent on older jobs.
+    n_mae: float = 0.0
+    n_mse: float = 0.0
+    n_rmse: float = 0.0
+    n_r_squared: float = 0.0
+    n_w_mae: float = 0.0
+    n_w_mse: float = 0.0
+    n_w_pred: float = 0.0
+    n_w_actual: float = 0.0
+    n_weeks: list[WeekScore] = []
 
 
 class VariantResult(BaseModel):

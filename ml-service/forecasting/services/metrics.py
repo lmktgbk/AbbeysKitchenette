@@ -60,12 +60,48 @@ def weekly_metrics(eval_pred_df, holdout_df) -> dict:
     actual_total = float(holdout_df[actual_col].sum())
     err = abs(actual_total - pred_total)
     mse = err ** 2
+    # No per-product weekly rmse: one observation makes sqrt(err^2) == |err|,
+    # so whole-menu weekly RMSE is derived as sqrt(mean w_mse) at read time.
     return {
         "mae": round(err, 2),
         "mse": round(mse, 2),
-        "rmse": round(float(np.sqrt(mse)), 2),
         "w_pred": round(pred_total, 2),
         "w_actual": round(actual_total, 2),
+    }
+
+
+def naive_baseline(train, holdout_days: int = 7) -> dict:
+    """Same-weekday carry-forward scored on the identical hidden tail.
+
+    train: DataFrame with [ds, y] sorted ascending, full calendar.
+    Returns daily metrics plus weekly totals in the same shape as the
+    Prophet scores, so the paper reports Prophet-vs-naive deltas.
+    """
+    import pandas as pd
+
+    hist = train["y"].tolist()
+    dates = train["ds"].tolist()
+    split = len(hist) - holdout_days
+    preds, actuals, ds = [], [], []
+    for i in range(holdout_days):
+        t = split + i
+        preds.append(max(0.0, float(hist[t - 7])))
+        actuals.append(float(hist[t]))
+        ds.append(dates[t])
+    pred_df = pd.DataFrame({"ds": ds, "yhat": preds})
+    actual_df = pd.DataFrame({"ds": ds, "y": actuals})
+    daily = compute_metrics(pred_df, actual_df)
+    daily["r_squared"] = bound_r2(daily["r_squared"])
+    weekly = weekly_metrics(pred_df, actual_df)
+    return {
+        "mae": daily["mae"],
+        "mse": daily["mse"],
+        "rmse": daily["rmse"],
+        "r_squared": daily["r_squared"],
+        "w_mae": weekly["mae"],
+        "w_mse": weekly["mse"],
+        "w_pred": weekly["w_pred"],
+        "w_actual": weekly["w_actual"],
     }
 
 

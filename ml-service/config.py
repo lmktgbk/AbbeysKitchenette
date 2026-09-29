@@ -12,18 +12,24 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
 
 # Prophet — one config for every product. Additive because a weekend bump
 # adds units (+5), not multiplies (x2), so zero-sales days stay stable.
+# Stiff trend/seasonality (A/B/C comparison winner): the model tracks the
+# level instead of chasing single-day spikes, which predicts week-totals
+# better on intermittent series.
 PROPHET_CONFIG = {
-    "changepoint_prior_scale": 0.1,
+    "changepoint_prior_scale": 0.02,
     "seasonality_mode": "additive",
-    "seasonality_prior_scale": 10.0,
+    "seasonality_prior_scale": 2.0,
     "weekly_seasonality": True,
     "changepoint_range": 0.8,  # fit trend on first 80%, keep tail stable
     "interval_width": 0.90,  # 90% band -> daily lower/upper
     "holidays_prior_scale": 10.0,
 }
 
-# Yearly wave needs ~180 days to avoid hallucinating; below that it is off.
-YEARLY_MIN_DAYS = 180
+# Yearly waves are under-identified below ~730 days of history (Prophet's own
+# guidance; D-test confirmed removing them lifts pooled R2 4.4% -> 28.4%).
+YEARLY_MIN_DAYS = 730
+
+
 
 # Scoring tail hidden from training. 7 days = the same horizon we deploy,
 # so the paper grade matches what the kitchen actually gets.

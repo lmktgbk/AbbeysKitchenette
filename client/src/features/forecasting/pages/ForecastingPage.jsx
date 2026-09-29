@@ -98,25 +98,57 @@ export default function ForecastingPage() {
       const vals = rows.map((f) => f[key]).filter((v) => v != null);
       return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
     };
-    const pooledR2 = (rows) => {
-      const pts = rows.filter((f) => f.w_pred != null && f.w_actual != null && (f.w_pred > 0 || f.w_actual > 0));
-      if (pts.length < 2) return null;
-      const mean = pts.reduce((s, f) => s + f.w_actual, 0) / pts.length;
-      const ssTot = pts.reduce((s, f) => s + (f.w_actual - mean) ** 2, 0);
+    const pooledR2 = (pts) => {
+      const live = pts.filter((f) => f.w_pred != null && f.w_actual != null && (f.w_pred > 0 || f.w_actual > 0));
+      if (live.length < 2) return null;
+      const mean = live.reduce((s, f) => s + f.w_actual, 0) / live.length;
+      const ssTot = live.reduce((s, f) => s + (f.w_actual - mean) ** 2, 0);
       if (ssTot <= 0) return null;
-      const ssRes = pts.reduce((s, f) => s + (f.w_actual - f.w_pred) ** 2, 0);
+      const ssRes = live.reduce((s, f) => s + (f.w_actual - f.w_pred) ** 2, 0);
       return 1 - ssRes / ssTot;
     };
+    // Normalize old jobs (scalar week fields) into one pseudo-week so all
+    // downstream math runs on product-week pairs uniformly.
+    const weekPairsOf = (f) => (f.weeks?.length ? f.weeks : [{ w_pred: f.w_pred, w_actual: f.w_actual, w_mae: f.w_mae, w_mse: f.w_mse }]);
+    const naivePairsOf = (f) => (f.n_weeks?.length ? f.n_weeks : [{ w_pred: f.n_w_pred, w_actual: f.n_w_actual, w_mae: f.n_w_mae, w_mse: f.n_w_mse }]);
     const labelFor = (r2) => (r2 >= 0.8 ? "Strong" : r2 >= 0.5 ? "Moderate" : "Weak");
     if (productScores?.length) {
-      const weekly = productScores.filter((f) => f.w_pred != null && (f.w_pred > 0 || f.w_actual > 0));
-      const r2 = pooledR2(productScores) ?? avg(productScores, "r_squared") ?? 0;
+      const pairs = productScores.flatMap(weekPairsOf);
+      const nPairs = productScores.flatMap(naivePairsOf);
+      // Weekly RMSE is derived as sqrt(mean w_mse): per-product single-pair
+      // RMSE is degenerate (== |err|), so it is never averaged directly.
+      const mse = avg(pairs, "w_mse") ?? avg(productScores, "mse") ?? 0;
+      const r2 = pooledR2(pairs) ?? avg(productScores, "r_squared") ?? 0;
+      // Per-origin pooled R2 across products = the reported range (needs 2+
+      // origins; single-window jobs show no range).
+      const nOrigins = Math.max(...productScores.map((f) => f.weeks?.length || 1));
+      let range = null;
+      if (nOrigins > 1) {
+        const perOrigin = [];
+        for (let i = 0; i < nOrigins; i++) {
+          const pts = productScores.flatMap((f) => (f.weeks?.[i] ? [f.weeks[i]] : []));
+          const v = pooledR2(pts);
+          if (v != null) perOrigin.push(v);
+        }
+        if (perOrigin.length > 1) range = [Math.min(...perOrigin), Math.max(...perOrigin)];
+      }
+      const nLive = nPairs.filter((f) => (f.w_pred || 0) > 0 || (f.w_actual || 0) > 0);
+      const nMse = avg(nLive, "w_mse");
+      const naive = nLive.length
+        ? {
+            mae: avg(nLive, "w_mae") ?? 0,
+            mse: nMse ?? 0,
+            rmse: nMse != null ? Math.sqrt(nMse) : 0,
+            r2: pooledR2(nPairs) ?? 0,
+            count: productScores.filter((f) => naivePairsOf(f).some((w) => (w.w_pred || 0) > 0 || (w.w_actual || 0) > 0)).length,
+          }
+        : null;
       return {
-        r2, mae: avg(weekly, "w_mae") ?? avg(productScores, "mae") ?? 0,
-        rmse: avg(weekly, "w_rmse") ?? avg(productScores, "rmse") ?? 0,
-        mse: avg(weekly, "w_mse") ?? avg(productScores, "mse") ?? 0,
+        r2, mae: avg(pairs, "w_mae") ?? avg(productScores, "mae") ?? 0,
+        rmse: Math.sqrt(mse), mse,
         count: productScores.length, label: labelFor(r2),
         dailyMae: avg(productScores, "mae"),
+        naive, range,
         unscored: 0,
       };
     }
@@ -312,10 +344,23 @@ export default function ForecastingPage() {
               </div>
               )}
               {evalMetrics.count != null ? (
-                <p className="text-xs text-muted-foreground">
-                  Whole-menu 7-day-total average across {evalMetrics.count} products (hidden week, zeros included)
-                  {evalMetrics.unscored ? ` · ${evalMetrics.unscored} too new to score` : ""} · Lower is better for MAE/RMSE/MSE
-                </p>
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    Whole-menu 7-day-total average across {evalMetrics.count} products (hidden weeks, zeros included)
+                    {evalMetrics.range ? ` · R² range ${(evalMetrics.range[0] * 100).toFixed(1)}–${(evalMetrics.range[1] * 100).toFixed(1)}% across 3 hidden weeks` : ""}
+                    {evalMetrics.unscored ? ` · ${evalMetrics.unscored} too new to score` : ""} · Lower is better for MAE/RMSE/MSE
+                  </p>
+                  {evalMetrics.naive && (() => {
+                    const n = evalMetrics.naive;
+                    const pct = (base, val) => base > 0 ? Math.round((1 - val / base) * 100) : 0;
+                    const r2gap = ((evalMetrics.r2 - n.r2) * 100).toFixed(0);
+                    return (
+                      <p className="text-xs text-muted-foreground">
+                        vs carry-forward baseline ({n.count} products): MAE {n.mae.toFixed(2)}/week · RMSE {n.rmse.toFixed(2)}/week · R² {(n.r2 * 100).toFixed(1)}% — Prophet cuts MAE by {pct(n.mae, evalMetrics.mae)}% and RMSE by {pct(n.rmse, evalMetrics.rmse)}%, and leads R² by {r2gap} pts.
+                      </p>
+                    );
+                  })()}
+                </>
               ) : (
                 <p className="text-xs text-muted-foreground">Not enough history to score yet — forecasts below still show for prep. Scores appear once a product has 14+ days.</p>
               )}
@@ -324,15 +369,15 @@ export default function ForecastingPage() {
                 <h4 className="text-xs font-semibold text-foreground">How it was modeled</h4>
                 <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                   <div><dt className="text-muted-foreground">Model</dt><dd className="font-medium text-foreground">Prophet additive + PH holidays</dd></div>
-                  <div><dt className="text-muted-foreground">Patterns</dt><dd className="font-medium text-foreground">Weekly (+ yearly past 180 days)</dd></div>
+                  <div><dt className="text-muted-foreground">Patterns</dt><dd className="font-medium text-foreground">Weekly (yearly past 730 days)</dd></div>
                   <div><dt className="text-muted-foreground">Level</dt><dd className="font-medium text-foreground">One model per product, split to sizes</dd></div>
                   <div><dt className="text-muted-foreground">Size split</dt><dd className="font-medium text-foreground">Trailing-30-day share, totals preserved</dd></div>
                   <div><dt className="text-muted-foreground">Training window</dt><dd className="font-medium text-foreground">All history, full calendar (missing = 0)</dd></div>
-                  <div><dt className="text-muted-foreground">Scoring</dt><dd className="font-medium text-foreground">Hidden 7-day week, totals + daily, zeros in</dd></div>
+                  <div><dt className="text-muted-foreground">Scoring</dt><dd className="font-medium text-foreground">3 hidden 7-day weeks, totals + daily, zeros in</dd></div>
                   <div><dt className="text-muted-foreground">Forecast</dt><dd className="font-medium text-foreground">Next 7 days</dd></div>
                   <div><dt className="text-muted-foreground">Confidence</dt><dd className="font-medium text-foreground">90% interval</dd></div>
                 </dl>
-                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">We group items sold per product per day, fill missing days with 0 (zeros are true demand), fit one Prophet model per product, split each day across sizes by recent share, and score RMSE/MAE/MSE/R² on a hidden 7-day tail at 7-day-total level (the prep decision). Per-product R² is bounded below at −1 so one freak bulk week can't sink the menu mean; headline R² is volume-weighted across products. Revenue uses real size prices; ingredients use real size recipes.</p>
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">We group items sold per product per day, fill missing days with 0 (zeros are true demand), fit one stiff Prophet model per product in square-root space (variance stabilization for spiky counts, squared back before scoring), split each day across sizes by recent share, and score RMSE/MAE/MSE/R² on three staggered hidden 7-day tails (rolling 3-origin procedure) at 7-day-total level (the prep decision), alongside a same-weekday carry-forward baseline on the identical tails, with the per-window range reported. Per-product R² is bounded below at −1 so one freak bulk week can't sink the menu mean; headline R² is volume-weighted across products; weekly RMSE is the square root of mean weekly MSE. Revenue uses real size prices; ingredients use real size recipes.</p>
               </div>
 
               <p className="border-t border-border pt-2 text-xs text-muted-foreground">

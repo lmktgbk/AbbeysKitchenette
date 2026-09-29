@@ -142,6 +142,28 @@ async function main() {
   };
   const isDrink = (k) => poolDrink.includes(k);
 
+  // ── Demand calibration (Cable-1: the 78%-era recipe, reconstructed) ──
+  // One-stage variant picks: TOP heroes direct 30% + 5x pool weight (dense
+  // forecastable head over a long sparse tail). Size mix from REAL slips:
+  // 22oz-family ~40% of units vs 16oz-family ~16%, single sizes between.
+  // (Two-stage product->size picking was tested and reverted: identical
+  // product totals, no headline gain — see methods log.)
+  const TOPSET = new Set(TOP);
+  function sizeFactor(k) {
+    const sz = k.split("||")[1] ?? "";
+    if (/22oz/.test(sz)) return 3.0;
+    if (/16oz/.test(sz)) return 1.2;
+    return 1.5;
+  }
+  const W_OF = new Map(ALLK.map((k) => [k, (TOPSET.has(k) ? 5 : 1) * sizeFactor(k)]));
+  const wPick = (arr) => pickWeighted(arr, arr.map((k) => W_OF.get(k) ?? 1));
+
+  // Day-of-week volume multipliers (Sun..Sat): Fri-Sun peak ~1.9x the Mon
+  // trough (Cable-1 values: the 78%-era recipe). Learnable weekly wave at
+  // moderate amplitude — Cable 2 (~2.5x) was falsified: bigger peaks raised
+  // peak-magnitude misses faster than pattern gains (MSE 4.4 -> 12.8).
+  const DOWM = [1.4, 0.85, 0.9, 1.0, 1.05, 1.35, 1.6];
+
   // Order assembly buffers (chronological insert later)
   const orderRows = [], itemRows = [], cancelRows = [], receiptRows = [];
   const counterMap = new Map();
@@ -224,8 +246,7 @@ async function main() {
   for (let d = new Date(START); d <= END; d = addDays(d, 1)) {
     const ds = dstr(d);
     const dow = d.getDay();
-    const weekend = dow === 0 || dow === 6;
-    let n = weekend ? randInt(18, 30) : randInt(10, 20);
+    let n = Math.round(randInt(10, 20) * (DOWM[dow] ?? 1));
     if (HOLIDAYS.has(ds)) n = Math.round(n * 1.3);
     const m = d.getMonth();
     if (m === 11) n = Math.round(n * 1.25);
@@ -238,19 +259,19 @@ async function main() {
       const hh = pickWeighted(HOURS, HW), mm = randInt(0, 59);
       const nItems = pickWeighted([1, 2, 3, 4], [40, 35, 20, 5]);
       const rv = Math.random();
-      const first = rv < 0.03 && poolResale.length ? pick(poolResale)
-        : Math.random() < 0.12 && TOP.length ? pick(TOP)
-        : Math.random() < 0.68 ? pick(poolDrink) : pick(poolFood);
+      const first = rv < 0.03 && poolResale.length ? wPick(poolResale)
+        : Math.random() < 0.30 && TOP.length ? pick(TOP)
+        : Math.random() < 0.68 ? wPick(poolDrink) : wPick(poolFood);
       const lines = [[Math.random() < 0.85 ? 1 : 2, first]];
       const seen = new Set([first]);
       for (let j = 1; j < nItems; j++) {
         let cand;
         if (Math.random() < 0.55) {
           const pool = isDrink(first) ? PAIR.drink : PAIR.food;
-          cand = pick(pool.filter((k) => !seen.has(k) && V.has(k)));
-          if (!cand) cand = pick(isDrink(first) ? poolFood : poolDrink);
+          cand = wPick(pool.filter((k) => !seen.has(k) && V.has(k)));
+          if (!cand) cand = wPick(isDrink(first) ? poolFood : poolDrink);
         } else {
-          cand = Math.random() < 0.12 && TOP.length ? pick(TOP) : pick(V.keys() ? [...V.keys()] : []);
+          cand = Math.random() < 0.30 && TOP.length ? pick(TOP) : wPick([...V.keys()]);
         }
         if (!cand || seen.has(cand)) continue;
         seen.add(cand);
@@ -394,18 +415,15 @@ async function main() {
   await bulk(prisma.orderIngredientDeduction, deductions, 4000, "deductions");
   await bulk(prisma.stockAdjustment, adjustments, 4000, "adjustments");
 
-  // Sync quantityLeft of all batches (chunked transactions)
+  // Sync quantityLeft of all batches (single set-based statement: row-by-row
+  // transactional updates time out against the remote DB at this volume).
   console.log("  syncing batch quantities...");
-  const allB = [];
-  for (const list of inv.values()) for (const b of list) if (typeof b.batchId === "number") allB.push(b);
-  let synced = 0;
-  for (let i = 0; i < allB.length; i += 50) {
-    await prisma.$transaction(allB.slice(i, i + 50).map((b) =>
-      prisma.restockBatch.update({ where: { restockId: b.batchId }, data: { quantityLeft: Math.max(0, Math.round(b.left * 1000) / 1000) } })
-    ));
-    synced += Math.min(50, allB.length - i);
-    if (synced % 500 === 0) console.log(`  ... ${synced}/${allB.length}`);
-  }
+  const synced = await prisma.$executeRawUnsafe(`
+    UPDATE restock_batches rb
+    SET quantity_left = GREATEST(0, rb.quantity_added - COALESCE(d.used, 0))
+    FROM (SELECT restock_batch_id AS id, SUM(quantity_deducted) AS used
+          FROM order_ingredient_deductions GROUP BY restock_batch_id) d
+    WHERE rb.restock_id = d.id`);
   console.log(`  ✓ ${synced} batches synced`);
 
   // ── Monthly losses ──

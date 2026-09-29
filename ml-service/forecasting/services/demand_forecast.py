@@ -2,12 +2,18 @@ import json
 import traceback
 from datetime import datetime, timezone, date, timedelta
 from zoneinfo import ZoneInfo
+import numpy as np
 import pandas as pd
 from prophet import Prophet
 from database import get_pool
-from config import PROPHET_CONFIG, YEARLY_MIN_DAYS, HOLDOUT_DAYS, SHARE_WINDOW_DAYS
+from config import (
+    PROPHET_CONFIG,
+    YEARLY_MIN_DAYS,
+    HOLDOUT_DAYS,
+    SHARE_WINDOW_DAYS,
+)
 from forecasting.services.data_loader import load_variant_daily_sales
-from forecasting.services.metrics import bound_r2, compute_metrics, weekly_metrics
+from forecasting.services.metrics import bound_r2, compute_metrics, naive_baseline, weekly_metrics
 from forecasting.services.holidays import philippine_holidays
 
 # Business timezone — the whole web app follows the Asia/Manila calendar day.
@@ -171,6 +177,11 @@ def compute_trend(pred_df) -> str:
     if first_half == 0:
         return "stable"
 
+    # Sub-unit wobble (e.g. 0.3 -> 0.5/day) is apportionment noise, not a
+    # trend — without this floor every thin product reads "rising/falling".
+    if abs(second_half - first_half) < 0.5:
+        return "stable"
+
     pct = ((second_half - first_half) / first_half) * 100
 
     if pct > 15:
@@ -198,7 +209,7 @@ def build_prophet(n_days: int) -> Prophet:
         seasonality_mode=PROPHET_CONFIG["seasonality_mode"],
         seasonality_prior_scale=PROPHET_CONFIG["seasonality_prior_scale"],
         weekly_seasonality=PROPHET_CONFIG["weekly_seasonality"],
-        yearly_seasonality=n_days >= YEARLY_MIN_DAYS,  # short history can't learn a yearly wave
+        yearly_seasonality=n_days >= YEARLY_MIN_DAYS,  # needs ~2 full cycles to stay stable
         changepoint_range=PROPHET_CONFIG["changepoint_range"],
         interval_width=PROPHET_CONFIG["interval_width"],
         holidays=_HOLIDAYS,
@@ -207,6 +218,21 @@ def build_prophet(n_days: int) -> Prophet:
 
 
 FORECAST_PERIOD = 7
+
+
+# ── Variance stabilization (E-test winner, now the default) ───────
+# Spiky count data behaves better in square-root space, so the model fits
+# sqrt(units) and predictions are squared back before scoring/splitting.
+# Scoring always happens in original units, so metrics stay comparable.
+
+def _to_fit(df):
+    out = df.copy()
+    out["y"] = np.sqrt(out["y"].clip(lower=0))
+    return out
+
+
+def _from_fit(values):
+    return np.square(np.maximum(values, 0.0))
 
 
 # ── Size-share split ──────────────────────────────────────────
@@ -309,43 +335,94 @@ async def run_demand_forecast(job_id: int | None = None) -> dict:
                     pad = pd.DataFrame({"ds": pad_dates, "y": [0] * len(pad_dates)})
                     train = pd.concat([train, pad], ignore_index=True)
 
-                # Score on the hidden 7-day tail (same horizon we deploy);
-                # None when too short — excluded from the whole-menu average.
-                # Daily metrics grade typical-day error; weekly totals grade the
-                # prep decision (noise cancels). R2 is floored per product so
-                # one freak bulk week can't sink the menu mean.
+                # Rolling 3-origin scoring (Prophet's recommended 3-cutoff
+                # procedure): three non-overlapping hidden weeks (offsets
+                # 0/7/14d), each trained only on data before its window.
+                # Daily metrics pool all pairs; weekly totals stay per-origin
+                # for menu-level pooling + range. None when too short.
+                # R2 is floored per product so one freak bulk week can't
+                # sink the menu mean.
+                ORIGIN_OFFSETS = (0, 7, 14)
                 metrics = None
-                w_metrics = None
+                week_list = []
+                n_week_list = []
+                n_daily_list = []
                 if len(train) > HOLDOUT_DAYS + MIN_DATA_DAYS:
-                    fit_df = train.iloc[:-HOLDOUT_DAYS]
-                    holdout_df = train.iloc[-HOLDOUT_DAYS:]
-                    m_eval = build_prophet(len(fit_df))
-                    m_eval.fit(fit_df)
-                    eval_pred = m_eval.predict(
-                        m_eval.make_future_dataframe(periods=HOLDOUT_DAYS)
-                    ).tail(HOLDOUT_DAYS)[["ds", "yhat"]]
-                    metrics = compute_metrics(eval_pred, holdout_df)
-                    metrics["r_squared"] = bound_r2(metrics["r_squared"])
-                    w_metrics = weekly_metrics(eval_pred, holdout_df)
+                    daily_preds, daily_actuals = [], []
+                    for off in ORIGIN_OFFSETS:
+                        end = len(train) - off
+                        if end - HOLDOUT_DAYS <= MIN_DATA_DAYS:
+                            continue  # older origin lacks training history
+                        fit_df = train.iloc[:end - HOLDOUT_DAYS]
+                        holdout_df = train.iloc[end - HOLDOUT_DAYS:end]
+                        m_eval = build_prophet(len(fit_df))
+                        m_eval.fit(_to_fit(fit_df))
+                        eval_pred = m_eval.predict(
+                            m_eval.make_future_dataframe(periods=HOLDOUT_DAYS)
+                        ).tail(HOLDOUT_DAYS)[["ds", "yhat"]]
+                        eval_pred["yhat"] = _from_fit(eval_pred["yhat"].values)
+                        daily_preds.append(eval_pred)
+                        daily_actuals.append(holdout_df)
+                        wm = weekly_metrics(eval_pred, holdout_df)
+                        week_list.append({
+                            "w_pred": wm["w_pred"], "w_actual": wm["w_actual"],
+                            "w_mae": wm["mae"], "w_mse": wm["mse"],
+                        })
+                        # Same hidden window, zero fitting cost — the
+                        # comparator the paper needs for Prophet-vs-naive.
+                        nm = naive_baseline(train.iloc[:end], HOLDOUT_DAYS)
+                        n_daily_list.append({k: nm[k] for k in ("mae", "mse", "rmse", "r_squared")})
+                        n_week_list.append({
+                            "w_pred": nm["w_pred"], "w_actual": nm["w_actual"],
+                            "w_mae": nm["w_mae"], "w_mse": nm["w_mse"],
+                        })
+                    if daily_preds:
+                        metrics = compute_metrics(
+                            pd.concat(daily_preds), pd.concat(daily_actuals))
+                        metrics["r_squared"] = bound_r2(metrics["r_squared"])
 
                 m = build_prophet(len(train))
-                m.fit(train)
+                m.fit(_to_fit(train))
                 pred = m.predict(m.make_future_dataframe(periods=period)).tail(period)
+                # Back-transform point + interval together (square is monotonic,
+                # so lower <= yhat <= upper is preserved for E).
+                for col in ("yhat", "yhat_lower", "yhat_upper"):
+                    pred[col] = _from_fit(pred[col].values)
                 trend = compute_trend(pred)
 
                 shares = size_shares(pdf, float(daily["units"].sum()))
                 vids = [int(v["variant_id"]) for v in variants]
                 share_list = [shares.get(vid, 0.0) for vid in vids]
 
-                for i, (_, p) in enumerate(pred.iterrows()):
-                    p_units = max(0, round(float(p["yhat"])))
-                    p_lower = max(0, round(float(p["yhat_lower"])))
-                    p_upper = max(0, round(float(p["yhat_upper"])))
-                    day_ds = p["ds"].strftime("%Y-%m-%d")
-                    split = split_units(p_units, share_list)
+                # Week-aware apportionment with fractional backlog: on 1-unit
+                # days daily largest-remainder starves every minority size
+                # (a 45% share still rounds to 0), so fractions carry forward
+                # instead — weekly size totals match shares within 1 unit
+                # while each daily product total stays exact.
+                days_plan = []
+                for _, p in pred.iterrows():
+                    days_plan.append({
+                        "ds": p["ds"].strftime("%Y-%m-%d"),
+                        "units": max(0, round(float(p["yhat"]))),
+                        "lower": max(0, round(float(p["yhat_lower"]))),
+                        "upper": max(0, round(float(p["yhat_upper"]))),
+                    })
+                backlog = [0.0] * len(variants)
+                for i, day in enumerate(days_plan):
+                    p_units = day["units"]
+                    day_ds = day["ds"]
+                    exact = [s * p_units + backlog[k] for k, s in enumerate(share_list)]
+                    give = [max(0, int(x)) for x in exact]
+                    remainder = p_units - sum(give)
+                    order = sorted(range(len(variants)),
+                                   key=lambda k: exact[k] - give[k], reverse=True)
+                    for k in order[:max(0, remainder)]:
+                        give[k] += 1
+                    backlog = [exact[k] - give[k] for k in range(len(variants))]
+                    split = give
                     # Interval band follows each size's share of the product band.
-                    lowers = split_units(p_lower, share_list)
-                    uppers = split_units(p_upper, share_list)
+                    lowers = split_units(day["lower"], share_list)
+                    uppers = split_units(day["upper"], share_list)
                     for k, v in enumerate(variants):
                         price = float(v["price"])
                         units = split[k]
@@ -371,16 +448,32 @@ async def run_demand_forecast(job_id: int | None = None) -> dict:
                     )
 
                 if metrics:
+                    # Means across scored origins double as legacy scalars;
+                    # `weeks`/`n_weeks` carry the per-origin pairs the menu
+                    # headline pools over (headline + range need them).
+                    def _mean(rows, key):
+                        vals = [r[key] for r in rows if r.get(key) is not None]
+                        return round(sum(vals) / len(vals), 4) if vals else 0.0
+
                     product_scores.append({
                         "product_id": int(product_id),
                         "product_name": product_name,
                         "variants": len(variants),
                         **metrics,
-                        "w_mae": w_metrics["mae"],
-                        "w_mse": w_metrics["mse"],
-                        "w_rmse": w_metrics["rmse"],
-                        "w_pred": w_metrics["w_pred"],
-                        "w_actual": w_metrics["w_actual"],
+                        "w_mae": _mean(week_list, "w_mae"),
+                        "w_mse": _mean(week_list, "w_mse"),
+                        "w_pred": _mean(week_list, "w_pred"),
+                        "w_actual": _mean(week_list, "w_actual"),
+                        "weeks": week_list,
+                        "n_mae": _mean(n_daily_list, "mae"),
+                        "n_mse": _mean(n_daily_list, "mse"),
+                        "n_rmse": _mean(n_daily_list, "rmse"),
+                        "n_r_squared": _mean(n_daily_list, "r_squared"),
+                        "n_w_mae": _mean(n_week_list, "w_mae"),
+                        "n_w_mse": _mean(n_week_list, "w_mse"),
+                        "n_w_pred": _mean(n_week_list, "w_pred"),
+                        "n_w_actual": _mean(n_week_list, "w_actual"),
+                        "n_weeks": n_week_list,
                     })
 
                 completed_count += 1
