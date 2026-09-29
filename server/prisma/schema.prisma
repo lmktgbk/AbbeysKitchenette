@@ -657,8 +657,15 @@ model MBARule {
   sizeNameA         String?  @map("size_name_a") @db.VarChar(50)
   sizeNameB         String?  @map("size_name_b") @db.VarChar(50)
   support           Float
-  confidence        Float
-  lift              Float
+  confidence       Float
+  lift             Float
+  // Acceptance baseline: conviction reported; stable = rule re-verified on
+  // the newest 20% of trading days (half support/confidence bars, lift > 1).
+  conviction       Float?
+  stable           Boolean? @default(false)
+  recentSupport    Float?   @map("recent_support")
+  recentConfidence Float?   @map("recent_confidence")
+  recentLift       Float?   @map("recent_lift")
   isCombo           Boolean  @default(false) @map("is_combo")
   explanation       String?  @db.Text
   suggestedName     String?  @map("suggested_name") @db.VarChar(200)

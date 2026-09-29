@@ -11,6 +11,7 @@ from config import (
     YEARLY_MIN_DAYS,
     HOLDOUT_DAYS,
     SHARE_WINDOW_DAYS,
+    EVAL_ORIGINS,
 )
 from forecasting.services.data_loader import load_variant_daily_sales
 from forecasting.services.metrics import bound_r2, compute_metrics, naive_baseline, weekly_metrics
@@ -335,14 +336,15 @@ async def run_demand_forecast(job_id: int | None = None) -> dict:
                     pad = pd.DataFrame({"ds": pad_dates, "y": [0] * len(pad_dates)})
                     train = pd.concat([train, pad], ignore_index=True)
 
-                # Rolling 3-origin scoring (Prophet's recommended 3-cutoff
-                # procedure): three non-overlapping hidden weeks (offsets
-                # 0/7/14d), each trained only on data before its window.
+                # Rolling-origin scoring (Prophet's recommended 3-cutoff
+                # procedure): non-overlapping hidden weeks (offsets 0/7/14d
+                # at EVAL_ORIGINS=3; just offset 0 at =1 for fast routine
+                # runs), each trained only on data before its window.
                 # Daily metrics pool all pairs; weekly totals stay per-origin
                 # for menu-level pooling + range. None when too short.
                 # R2 is floored per product so one freak bulk week can't
                 # sink the menu mean.
-                ORIGIN_OFFSETS = (0, 7, 14)
+                ORIGIN_OFFSETS = tuple(7 * i for i in range(EVAL_ORIGINS))
                 metrics = None
                 week_list = []
                 n_week_list = []

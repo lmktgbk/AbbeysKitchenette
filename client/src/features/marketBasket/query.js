@@ -36,6 +36,10 @@ export function useMarketBasketJob(jobId) {
     queryKey: marketBasketKeys.job(jobId),
     queryFn: () => api.getMarketBasketJob(jobId),
     enabled: !!jobId,
+    // Realtime broadcast is primary; 2s polling is backup while running
+    // so progress never freezes when the socket drops.
+    refetchInterval: (query) =>
+      query?.state?.data?.data?.status === "running" ? 2000 : false,
   });
 }
 

@@ -28,25 +28,24 @@ function ComboCard({ rule, onCreateCombo, isTop, totalOrders }) {
         </p>
       </div>
 
-      {/* Stats — sentence, plain */}
-      <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-        <span>{totalOrders ? `${Math.round(rule.support * totalOrders)} orders bought together` : `${(rule.support * 100).toFixed(1)}% bought together`}</span>
-        <span>·</span>
-        <span>{rule.confidence >= 0.5 ? "Half also buy" : `${(rule.confidence * 100).toFixed(0)}% also buy`}</span>
-        <span
-          title={`Lift ${rule.lift.toFixed(1)}× — support ${(rule.support*100).toFixed(1)}%, confidence ${(rule.confidence*100).toFixed(0)}%`}
-          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-            rule.lift >= 2
-              ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-              : rule.lift >= 1.5
-                ? "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary"
-                : "bg-muted text-muted-foreground"
-          }`}
-        >
-          {rule.lift >= 2 ? "Pairs well" : "Often together"}
-        </span>
+      {/* Evaluation metrics — the paper's Support / Confidence / Lift, per rule */}
+      <div className="mt-2 grid grid-cols-3 gap-2">
+        <div title="Share of all baskets containing both items" className="rounded-lg border border-border bg-muted/30 px-2 py-1.5 text-center">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Support</p>
+          <p className="text-sm font-semibold text-foreground">{(rule.support * 100).toFixed(2)}%</p>
+          <p className="text-[10px] text-muted-foreground">{totalOrders ? `${Math.round(rule.support * totalOrders)} baskets` : "co-occurrence"}</p>
+        </div>
+        <div title="Share of A-buyers who also take B" className="rounded-lg border border-border bg-muted/30 px-2 py-1.5 text-center">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Confidence</p>
+          <p className="text-sm font-semibold text-foreground">{(rule.confidence * 100).toFixed(1)}%</p>
+          <p className="text-[10px] text-muted-foreground">of A-buyers</p>
+        </div>
+        <div title="How many times more likely together than by coincidence (1.0 = independent)" className="rounded-lg border border-border bg-muted/30 px-2 py-1.5 text-center">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Lift</p>
+          <p className="text-sm font-semibold text-foreground">{rule.lift.toFixed(2)}×</p>
+          <p className="text-[10px] text-muted-foreground">vs coincidence</p>
+        </div>
       </div>
-
       {/* Pricing preview — flex-1 to align buttons */}
       {rule.pricing && (
         <div className="mt-3 flex-1 rounded-lg bg-muted/50 px-3 py-2 text-xs">
@@ -65,10 +64,6 @@ function ComboCard({ rule, onCreateCombo, isTop, totalOrders }) {
           <div className="flex justify-between">
             <span className="text-muted-foreground">Cost:</span>
             <span className="font-mono text-foreground">₱{rule.pricing.total_cogs}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Margin:</span>
-            <span className="font-mono text-foreground">{rule.pricing.margin_percent}%</span>
           </div>
         </div>
       )}

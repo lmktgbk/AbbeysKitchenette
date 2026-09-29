@@ -67,9 +67,14 @@ export default function MarketBasketRunButton({ compact = false }) {
     setOptimisticPending(true);
     try {
       const res = await runMutation.mutateAsync();
-      const jobId = res?.data?.job_id;
+      const payload = res?.data;
+      const jobId = payload?.job_id;
       if (jobId) {
         setActiveJobId(jobId);
+        if (payload?.status === "busy") {
+          toast.info("Attached to the running analysis — showing its progress.");
+        }
+        // Don't clear optimisticPending here — let isRunning take over
       } else {
         setOptimisticPending(false);
         toast.error("Failed to start analysis. Please try again.");

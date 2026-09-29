@@ -3,7 +3,9 @@ from database import get_pool
 
 
 async def load_order_baskets(min_date: str | None = None) -> pd.DataFrame:
-    """Load order baskets at variant level — each row is (order_id, variant_id, variant_label, product_name, size_name)."""
+    """Load order baskets at variant level — each row is (order_id, order_date,
+    variant_id, variant_label, product_name, size_name). order_date drives the
+    80/20 temporal stability split (oldest 80% mined, newest 20% verified)."""
     pool = await get_pool()
     where = "AND o.order_date >= $1" if min_date else ""
     params = [min_date] if min_date else []
@@ -11,6 +13,7 @@ async def load_order_baskets(min_date: str | None = None) -> pd.DataFrame:
     query = f"""
         SELECT
             o.order_id,
+            o.order_date::text AS order_date,
             pv.variant_id,
             p.product_name || ' ' || pv.size_name AS variant_label,
             p.product_name,
@@ -23,13 +26,16 @@ async def load_order_baskets(min_date: str | None = None) -> pd.DataFrame:
           AND p.is_archived = FALSE
           AND pv.is_available = TRUE
           AND oi.removed_at IS NULL
+          AND o.order_date IS NOT NULL
           {where}
         ORDER BY o.order_id, pv.variant_id
     """
     rows = await pool.fetch(query, *params)
     if not rows:
-        return pd.DataFrame(columns=["order_id", "variant_id", "variant_label", "product_name", "size_name"])
-    return pd.DataFrame([dict(r) for r in rows])
+        return pd.DataFrame(columns=["order_id", "order_date", "variant_id", "variant_label", "product_name", "size_name"])
+    df = pd.DataFrame([dict(r) for r in rows])
+    df["order_date"] = pd.to_datetime(df["order_date"])
+    return df
 
 
 async def load_product_details() -> pd.DataFrame:

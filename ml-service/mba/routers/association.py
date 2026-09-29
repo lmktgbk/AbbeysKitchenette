@@ -12,6 +12,8 @@ from mba.services.fpgrowth import (
 
 router = APIRouter(prefix="/mba", tags=["mba"])
 
+_active_jobs: dict[int, asyncio.Task] = {}
+
 
 class MarkComboCreatedRequest(BaseModel):
     product_name_a: str
@@ -22,17 +24,29 @@ class MarkComboCreatedRequest(BaseModel):
 @router.post("/analyze")
 async def create_analysis_job(
     min_support: float = Query(0.005, ge=0.001, le=1.0),
-    min_confidence: float = Query(0.3, ge=0.01, le=1.0),
+    min_confidence: float = Query(0.08, ge=0.01, le=1.0),
     top_n: int = Query(20, ge=1, le=50),
 ):
-    """Create a new MBA analysis job."""
+    """Create a new MBA analysis job (single-job lock: a second call attaches
+    to the running job instead of stacking overlapping analyses)."""
+    for running_id, task in _active_jobs.items():
+        if not task.done():
+            return {"job_id": running_id, "status": "busy",
+                    "message": "An analysis is already running. Attached to it."}
+
     pool = await get_pool()
+    stale = await pool.fetchrow(
+        "SELECT id FROM mba_jobs WHERE status = 'running' ORDER BY id DESC LIMIT 1"
+    )
+    if stale:
+        return {"job_id": stale["id"], "status": "busy",
+                "message": "An analysis is already running. Attached to it."}
 
     job_id = await pool.fetchval(
         """INSERT INTO mba_jobs (status) VALUES ('running') RETURNING id"""
     )
 
-    asyncio.create_task(_run_job(job_id, min_support, min_confidence, top_n))
+    _active_jobs[job_id] = asyncio.create_task(_run_job(job_id, min_support, min_confidence, top_n))
 
     return {"job_id": job_id, "status": "running"}
 
@@ -52,6 +66,8 @@ async def _run_job(job_id: int, min_support: float, min_confidence: float, top_n
         )
     except Exception as e:
         await mark_job_failed(job_id, str(e))
+    finally:
+        _active_jobs.pop(job_id, None)
 
 
 @router.get("/jobs")
@@ -86,22 +102,45 @@ async def get_job(job_id: int):
     rules = []
     top_pair_a, top_pair_b = None, None
     if job["status"] == "completed":
-        rule_rows = await pool.fetch(
-            """SELECT r.id, r.product_name_a, r.product_name_b, r.product_id_a, r.product_id_b,
-                      r.variant_id_a, r.variant_id_b, r.size_name_a, r.size_name_b,
-                      r.support, r.confidence, r.lift, r.is_combo, r.explanation, r.suggested_name,
-                      r.merged_ingredients, r.pricing,
-                      EXISTS (
-                        SELECT 1 FROM combo_created_pairs c
-                        WHERE c.product_name_a = r.product_name_a
-                          AND c.product_name_b = r.product_name_b
-                      ) AS combo_exists
-               FROM mba_rules r
-               WHERE r.job_id = $1
-               ORDER BY r.confidence * r.lift DESC""",
-            job_id,
-        )
+        # Extended columns (conviction/stable/recent_*) ride along when the
+        # table is migrated; older DBs fall back to the base select.
+        try:
+            rule_rows = await pool.fetch(
+                """SELECT r.id, r.product_name_a, r.product_name_b, r.product_id_a, r.product_id_b,
+                          r.variant_id_a, r.variant_id_b, r.size_name_a, r.size_name_b,
+                          r.support, r.confidence, r.lift, r.is_combo, r.explanation, r.suggested_name,
+                          r.merged_ingredients, r.pricing,
+                          r.conviction, r.stable, r.recent_support, r.recent_confidence, r.recent_lift,
+                          EXISTS (
+                            SELECT 1 FROM combo_created_pairs c
+                            WHERE c.product_name_a = r.product_name_a
+                              AND c.product_name_b = r.product_name_b
+                          ) AS combo_exists
+                   FROM mba_rules r
+                   WHERE r.job_id = $1
+                   ORDER BY r.confidence * r.lift DESC""",
+                job_id,
+            )
+            extended = True
+        except Exception:
+            rule_rows = await pool.fetch(
+                """SELECT r.id, r.product_name_a, r.product_name_b, r.product_id_a, r.product_id_b,
+                          r.variant_id_a, r.variant_id_b, r.size_name_a, r.size_name_b,
+                          r.support, r.confidence, r.lift, r.is_combo, r.explanation, r.suggested_name,
+                          r.merged_ingredients, r.pricing,
+                          EXISTS (
+                            SELECT 1 FROM combo_created_pairs c
+                            WHERE c.product_name_a = r.product_name_a
+                              AND c.product_name_b = r.product_name_b
+                          ) AS combo_exists
+                   FROM mba_rules r
+                   WHERE r.job_id = $1
+                   ORDER BY r.confidence * r.lift DESC""",
+                job_id,
+            )
+            extended = False
         for r in rule_rows:
+            keys = set(r.keys())
             merged_ings = r["merged_ingredients"]
             if isinstance(merged_ings, str):
                 merged_ings = json.loads(merged_ings)
@@ -130,6 +169,11 @@ async def get_job(job_id: int):
                 "suggested_name": r["suggested_name"],
                 "merged_ingredients": merged_ings,
                 "pricing": pricing,
+                "conviction": float(r["conviction"]) if extended and r["conviction"] is not None else None,
+                "stable": bool(r["stable"]) if extended and "stable" in keys else None,
+                "recent_support": float(r["recent_support"]) if extended and r["recent_support"] is not None else None,
+                "recent_confidence": float(r["recent_confidence"]) if extended and r["recent_confidence"] is not None else None,
+                "recent_lift": float(r["recent_lift"]) if extended and r["recent_lift"] is not None else None,
             }
             rules.append(rule)
 

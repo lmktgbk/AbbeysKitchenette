@@ -7,8 +7,6 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 CLIENT_URL = os.getenv("CLIENT_URL", "http://localhost:5173")
 FORECAST_PORT = int(os.getenv("FORECAST_PORT", "8000"))
 FORECASTER_URL = os.getenv("FORECASTER_URL", "http://localhost:5000")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
 
 # Prophet — one config for every product. Additive because a weekend bump
 # adds units (+5), not multiplies (x2), so zero-sales days stay stable.
@@ -34,6 +32,11 @@ YEARLY_MIN_DAYS = 730
 # Scoring tail hidden from training. 7 days = the same horizon we deploy,
 # so the paper grade matches what the kitchen actually gets.
 HOLDOUT_DAYS = 7
+
+# Rolling evaluation origins (Prophet's recommended 3-cutoff procedure).
+# 3 = paper/certification runs (~10 min); 1 = fast routine runs (~3 min).
+# Same code path, same hidden-week design — only the origin count changes.
+EVAL_ORIGINS = max(1, int(os.getenv("FORECAST_EVAL_ORIGINS", "3")))
 
 # Size-share window: trailing days used to split a product forecast into
 # sizes. Recent mix beats lifetime mix; falls back to all history.
