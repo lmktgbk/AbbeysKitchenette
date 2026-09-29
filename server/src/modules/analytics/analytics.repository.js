@@ -154,42 +154,47 @@ export const analyticsRepository = {
     }
     const where = `WHERE ${whereClauses.join(" AND ")}`;
 
-    // Margin expression (repeated in SELECT + HAVING — Postgres cannot
-    // reference SELECT aliases in HAVING).
-    const MARGIN_EXPR = `CASE WHEN SUM(oi.subtotal) > 0 THEN ROUND(((SUM(oi.subtotal) - COALESCE(SUM(oi.quantity * r.quantity_needed * COALESCE(ac.avg_cost,0)),0)) / SUM(oi.subtotal) *100)::numeric,1)::float ELSE 0 END`;
+    // Margin bands filter the final per-variant rows (outer aliases).
     const BANDS = {
-      low: `${MARGIN_EXPR} < 20`,
-      mid: `${MARGIN_EXPR} >= 20 AND ${MARGIN_EXPR} < 90`,
-      high: `${MARGIN_EXPR} >= 90`,
+      low: `t.margin < 20`,
+      mid: `t.margin >= 20 AND t.margin < 90`,
+      high: `t.margin >= 90`,
     };
-    const having = BANDS[marginBand] ? `HAVING ${BANDS[marginBand]}` : "";
+    const bandWhere = BANDS[marginBand] ? `WHERE ${BANDS[marginBand]}` : "";
     // Sort whitelist — client strings never interpolate into SQL directly.
     const SORTS = {
-      profit_desc: "profit DESC",
-      profit_asc: "profit ASC",
-      margin_desc: "margin DESC",
-      margin_asc: "margin ASC",
-      units_desc: "units DESC",
-      net_sales_desc: "net_sales DESC",
+      profit_desc: "t.profit DESC",
+      profit_asc: "t.profit ASC",
+      margin_desc: "t.margin DESC",
+      margin_asc: "t.margin ASC",
+      units_desc: "t.units DESC",
+      net_sales_desc: "t.net_sales DESC",
     };
     const orderBy = SORTS[sort] || SORTS.profit_desc;
 
-    // Shared grouped core: data page selects from it, count counts it, so
-    // totals always reflect the filtered set.
-    const core = `
-      WITH avg_costs AS (
-        SELECT ingredient_id, CASE WHEN SUM(quantity_added)>0 THEN SUM(quantity_added*cost_per_unit)/SUM(quantity_added) ELSE 0 END AS avg_cost
-        FROM restock_batches GROUP BY ingredient_id
-      )
+    // No fan-out: units/net_sales aggregate per variant BEFORE touching
+    // recipes (one order line × N ingredients would multiply them ~4x —
+    // the bug that showed ₱15M of sales against ₱4.1M gross). COGS keeps
+    // the recipe join, which is its correct granularity.
+    const salesCore = `
       SELECT
         v.variant_id AS variant_id,
         p.product_name AS product_name,
         v.size_name AS size_name,
         SUM(oi.quantity)::int AS units,
-        ROUND(SUM(oi.subtotal)::numeric,2)::float AS net_sales,
-        ROUND(COALESCE(SUM(oi.quantity * r.quantity_needed * COALESCE(ac.avg_cost,0))::numeric,0),2)::float AS cogs,
-        ROUND((SUM(oi.subtotal) - COALESCE(SUM(oi.quantity * r.quantity_needed * COALESCE(ac.avg_cost,0)),0))::numeric,2)::float AS profit,
-        ${MARGIN_EXPR} AS margin
+        ROUND(SUM(oi.subtotal)::numeric,2)::float AS net_sales
+      FROM order_items oi
+      JOIN orders o ON o.order_id = oi.order_id
+      JOIN product_variants v ON v.variant_id = oi.variant_id
+      JOIN products p ON p.product_id = v.product_id
+      ${catJoin}
+      ${where}
+      GROUP BY v.variant_id, p.product_name, v.size_name
+    `;
+    const cogsCore = `
+      SELECT
+        v.variant_id AS variant_id,
+        ROUND(COALESCE(SUM(oi.quantity * r.quantity_needed * COALESCE(ac.avg_cost,0))::numeric,0),2)::float AS cogs
       FROM order_items oi
       JOIN orders o ON o.order_id = oi.order_id
       JOIN product_variants v ON v.variant_id = oi.variant_id
@@ -198,14 +203,34 @@ export const analyticsRepository = {
       LEFT JOIN avg_costs ac ON ac.ingredient_id = r.ingredient_id
       ${catJoin}
       ${where}
-      GROUP BY v.variant_id, p.product_name, v.size_name
-      ${having}
+      GROUP BY v.variant_id
+    `;
+    // Shared grouped core: data page selects from it, count counts it, so
+    // totals always reflect the filtered set.
+    const core = `
+      WITH avg_costs AS (
+        SELECT ingredient_id, CASE WHEN SUM(quantity_added)>0 THEN SUM(quantity_added*cost_per_unit)/SUM(quantity_added) ELSE 0 END AS avg_cost
+        FROM restock_batches GROUP BY ingredient_id
+      ),
+      sales AS (${salesCore}),
+      costs AS (${cogsCore})
+      SELECT
+        s.variant_id AS variant_id,
+        s.product_name AS product_name,
+        s.size_name AS size_name,
+        s.units AS units,
+        s.net_sales AS net_sales,
+        COALESCE(c.cogs,0)::float AS cogs,
+        ROUND((s.net_sales - COALESCE(c.cogs,0))::numeric,2)::float AS profit,
+        CASE WHEN s.net_sales > 0 THEN ROUND(((s.net_sales - COALESCE(c.cogs,0)) / s.net_sales *100)::numeric,1)::float ELSE 0 END AS margin
+      FROM sales s
+      LEFT JOIN costs c ON c.variant_id = s.variant_id
     `;
     const dataValues = [...values, limit, offset];
     const limitIdx = values.length + 1;
     const offsetIdx = values.length + 2;
-    const dataSql = `${core} ORDER BY ${orderBy} LIMIT $${limitIdx} OFFSET $${offsetIdx}`;
-    const countSql = `SELECT COUNT(*)::int AS total FROM (${core}) t`;
+    const dataSql = `SELECT * FROM (${core}) t ${bandWhere} ORDER BY ${orderBy} LIMIT $${limitIdx} OFFSET $${offsetIdx}`;
+    const countSql = `SELECT COUNT(*)::int AS total FROM (${core}) t ${bandWhere}`;
     const [rows, countRes] = await Promise.all([
       prisma.$queryRawUnsafe(dataSql, ...dataValues),
       prisma.$queryRawUnsafe(countSql, ...values),
