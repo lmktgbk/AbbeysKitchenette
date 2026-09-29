@@ -14,12 +14,12 @@ import { getBusinessDate } from "../../config/time.js";
 export const orderService = {
   /* ── Queries ─────────────────────────── */
 
-  async getAll({ page = 1, limit = 50, search, status, dateFrom, dateTo, sortBy, sortDir, staffId, scope }) {
+  async getAll({ page = 1, limit = 50, search, status, dateFrom, dateTo, timeFrom, timeTo, sortBy, sortDir, staffId, scope }) {
     const skip = (page - 1) * limit;
 
     const [rows, totalItems] = await Promise.all([
-      orderRepository.findManyPaginated({ skip, take: limit, search, status, dateFrom, dateTo, sortBy, sortDir, staffId, scope }),
-      orderRepository.countFiltered({ search, status, dateFrom, dateTo, staffId, scope }),
+      orderRepository.findManyPaginated({ skip, take: limit, search, status, dateFrom, dateTo, timeFrom, timeTo, sortBy, sortDir, staffId, scope }),
+      orderRepository.countFiltered({ search, status, dateFrom, dateTo, timeFrom, timeTo, staffId, scope }),
     ]);
 
     const orders = rows.map((row) => formatOrderResponse(row, {

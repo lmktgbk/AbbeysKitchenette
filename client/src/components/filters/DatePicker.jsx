@@ -180,7 +180,7 @@ export default function DatePicker({ value, onChange, placeholder = "Select date
         )}
       >
         <Icon name="calendar" size={14} className="shrink-0 text-muted-foreground" />
-        <span className="flex-1 truncate text-left">
+        <span className="flex-1 truncate text-center">
           {value ? formatDisplay(value) : placeholder}
         </span>
         {value ? (

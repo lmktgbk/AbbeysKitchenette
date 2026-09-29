@@ -373,6 +373,8 @@ export const getOrdersQuerySchema = z.object({
     .default("all"),
   date_from: z.string().optional(), // YYYY-MM-DD
   date_to: z.string().optional(),   // YYYY-MM-DD
+  time_from: z.string().optional(), // HH:mm
+  time_to: z.string().optional(),   // HH:mm
   sortBy: z
     .enum(["order_number", "customer_name", "total_amount", "created_at", "status"])
     .optional()

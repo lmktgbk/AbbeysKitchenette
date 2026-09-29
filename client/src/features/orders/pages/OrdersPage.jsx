@@ -27,6 +27,7 @@ import { SearchBar } from "@/components/filters/SearchBar";
 import DateRangeFilter from "@/components/filters/DateRangeFilter";
 import { orderNumberLabel } from "@/lib/orderNumber";
 import { FilterPill } from "@/components/filters/FilterPill";
+import FilterModal from "@/components/filters/FilterModal";
 import TransactionsView from "@/features/transactions/components/TransactionsView";
 import useAuthStore from "@/features/auth/authStore";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,30 @@ const CANCEL_REASONS = [
   { value: "duplicate", label: "Duplicate order" },
   { value: "out_of_stock", label: "Out of stock" },
   { value: "other", label: "Other" },
+];
+
+const ORDER_SORT_OPTIONS = [
+  { value: "created_at_desc", label: "Newest First" },
+  { value: "created_at_asc",  label: "Oldest First" },
+  { value: "total_amount_desc", label: "Total: High → Low" },
+  { value: "total_amount_asc",  label: "Total: Low → High" },
+  { value: "status_asc",  label: "Status A–Z" },
+  { value: "status_desc", label: "Status Z–A" },
+];
+
+const ORDER_FILTER_OPTIONS = [
+  {
+    key: "status",
+    label: "Status",
+    options: [
+      { value: "all",       label: "All" },
+      { value: "pending",   label: "Pending" },
+      { value: "accepted",  label: "Accepted" },
+      { value: "preparing", label: "Preparing" },
+      { value: "completed", label: "Completed" },
+      { value: "cancelled", label: "Cancelled" },
+    ],
+  },
 ];
 
 export default function OrdersPage({ embedded = false }) {
@@ -71,16 +96,42 @@ export default function OrdersPage({ embedded = false }) {
   const [dateFrom, setDateFrom] = useState(null);
   const [dateTo, setDateTo] = useState(null);
   const [pageSize, setPageSize] = useState(20);
+  // ── Sort / Filter Modal ─────────────
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [activeSort, setActiveSort] = useState("created_at_desc");
+  const [activeFilters, setActiveFilters] = useState({ status: "all" });
+
+  // Parse compound sort string: "created_at_desc" → sortBy + sortDir
+  const [sortBy, sortDir] = activeSort.includes("_desc")
+    ? [activeSort.replace(/_desc$/, ""), "desc"]
+    : [activeSort.replace(/_asc$/, ""), "asc"];
+
+  // Merge modal status filter with the KPI-card status drill-down
+  // (KPI card sets statusFilter directly; modal filter sets activeFilters.status)
+  const effectiveStatus = statusFilter !== "all"
+    ? statusFilter
+    : activeFilters.status !== "all"
+      ? activeFilters.status
+      : undefined;
+
+  const filterActive = activeSort !== "created_at_desc" || 
+    activeFilters.status !== "all" || 
+    !!activeFilters.time_from || 
+    !!activeFilters.time_to;
 
   const queryParams = useMemo(() => ({
     page: String(page),
     limit: String(pageSize),
     search: search || undefined,
-    status: statusFilter !== "all" ? statusFilter : undefined,
+    status: effectiveStatus,
     date_from: dateFrom || undefined,
     date_to: dateTo || undefined,
+    time_from: activeFilters.time_from || undefined,
+    time_to: activeFilters.time_to || undefined,
     scope,
-  }), [page, search, statusFilter, dateFrom, dateTo, pageSize, scope]);
+    sortBy,
+    sortDir,
+  }), [page, search, effectiveStatus, dateFrom, dateTo, activeFilters.time_from, activeFilters.time_to, pageSize, scope, sortBy, sortDir]);
 
   // ── Data ───────────────────────────
   const { data: ordersData, isLoading } = useOrderList(queryParams);
@@ -373,7 +424,17 @@ export default function OrdersPage({ embedded = false }) {
   // status (lookup action); toggling off stays in All unfiltered.
   function handleStatusClick(status) {
     setStatusFilter(status);
+    // Also clear the modal filter so they don't conflict
+    setActiveFilters((prev) => ({ ...prev, status: "all" }));
     if (status !== "all") setScope("all");
+    setPage(1);
+  }
+
+  function handleFilterApply(sort, filters) {
+    setActiveSort(sort);
+    setActiveFilters(filters);
+    // If modal picked a status, clear the KPI-card status to avoid conflict
+    if (filters.status !== "all") setStatusFilter("all");
     setPage(1);
   }
 
@@ -419,6 +480,8 @@ export default function OrdersPage({ embedded = false }) {
             value={search}
             onChange={(val) => { setSearch(val); setPage(1); }}
             placeholder="Search customer, order #, ID…"
+            onFilterClick={() => setFilterOpen(true)}
+            filterActive={filterActive}
           />
         </div>
         <DateRangeFilter
@@ -436,6 +499,18 @@ export default function OrdersPage({ embedded = false }) {
           {viewSwitcher}
         </div>
       </div>
+
+      {/* Sort & Filter Modal — same pattern as Products / Inventory */}
+      <FilterModal
+        open={filterOpen}
+        onOpenChange={setFilterOpen}
+        sortOptions={ORDER_SORT_OPTIONS}
+        filterOptions={ORDER_FILTER_OPTIONS}
+        showTimeRange={true}
+        onApply={handleFilterApply}
+        currentSort={activeSort}
+        currentFilters={activeFilters}
+      />
 
             <OrderTable
               orders={orders}

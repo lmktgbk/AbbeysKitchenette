@@ -536,6 +536,10 @@ function CurrentBatch({ batch, unit }) {
         <DetailRow label="Supplier Name" value={batch.supplier_name || "N/A"} />
         <DetailRow label="Notes" value={batch.notes || "N/A"} />
         <DetailRow label="Restock Date & Time" value={`${dateStr} · ${timeStr}`} />
+        <DetailRow
+          label="Expiration Date"
+          value={batch.expiry_date ? formatDate(batch.expiry_date) : "N/A"}
+        />
       </div>
     </div>
   );

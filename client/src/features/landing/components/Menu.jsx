@@ -250,13 +250,8 @@ export default function Menu() {
                     </p>
                 </div>
                 
-                <div className="overall-menu-grid" style={{ 
-                    display: "grid", 
-                    gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", 
-                    gap: "2rem",
-                    marginTop: "2.5rem"
-                }}>
-                    <div className="overall-menu-card lp-reveal lp-reveal-delay-3" style={{ borderRadius: "16px", overflow: "hidden", boxShadow: "0 10px 30px -10px rgba(0,0,0,0.15)" }}>
+                <div className="overall-menu-grid lp-reveal lp-reveal-delay-3">
+                    <div className="overall-menu-card" style={{ borderRadius: "16px", overflow: "hidden", boxShadow: "0 10px 30px -10px rgba(0,0,0,0.15)" }}>
                         <img 
                             src="/landing/menu_overall_1.jpg" 
                             alt="Drinks Menu" 
