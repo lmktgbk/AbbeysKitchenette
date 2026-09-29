@@ -123,12 +123,12 @@ export default function VariantProfitabilityTable({ dateFrom, dateTo }) {
           ) : (
             rows.map((r) => (
               <TableRow key={r.variant_id}>
-                <TableCell className="font-medium">{r.product_name} - {r.size_name}</TableCell>
-                <TableCell className="text-right tabular-nums">{r.units}</TableCell>
-                <TableCell className="text-right tabular-nums">{formatPeso(r.net_sales)}</TableCell>
-                <TableCell className="text-right tabular-nums text-amber-600">{formatPeso(r.cogs)}</TableCell>
-                <TableCell className={cn("text-right font-semibold tabular-nums", Number(r.profit) < 0 ? "text-red-500" : "text-emerald-600")}>{formatPeso(r.profit)}</TableCell>
-                <TableCell className={cn("text-right tabular-nums font-medium", marginTone(r.margin))}>{r.margin}%</TableCell>
+                <TableCell className="max-w-[260px] truncate font-medium">{r.product_name} - {r.size_name}</TableCell>
+                <TableCell className="text-right whitespace-nowrap tabular-nums">{r.units}</TableCell>
+                <TableCell className="text-right whitespace-nowrap tabular-nums">{formatPeso(r.net_sales)}</TableCell>
+                <TableCell className="text-right whitespace-nowrap tabular-nums text-amber-600">{formatPeso(r.cogs)}</TableCell>
+                <TableCell className={cn("text-right font-semibold whitespace-nowrap tabular-nums", Number(r.profit) < 0 ? "text-red-500" : "text-emerald-600")}>{formatPeso(r.profit)}</TableCell>
+                <TableCell className={cn("text-right tabular-nums font-medium whitespace-nowrap", marginTone(r.margin))}>{r.margin}%</TableCell>
               </TableRow>
             ))
           )}

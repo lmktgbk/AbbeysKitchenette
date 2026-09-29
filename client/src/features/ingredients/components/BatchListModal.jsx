@@ -384,7 +384,7 @@ function BatchRow({ batch, ingredient, onTogglePriority, isPriorityLoading }) {
         `${batch.is_priority ? "bg-primary/5" : ""} ${isDepleted ? "opacity-50" : ""}`
       }
     >
-      <TableCell className="w-12 px-3">
+      <TableCell className="w-12">
         <button
           onClick={() => onTogglePriority(batch.batch_id, !batch.is_priority)}
           disabled={isPriorityLoading}
@@ -438,7 +438,7 @@ function BatchRow({ batch, ingredient, onTogglePriority, isPriorityLoading }) {
         {batch.supplier_name || "—"}
       </TableCell>
 
-      <TableCell className="w-10 px-3 text-center">
+      <TableCell className="w-10 text-center">
         {batch.notes ? (
           <span className="group relative inline-flex items-center justify-center">
             <Icon

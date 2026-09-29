@@ -33,6 +33,23 @@ const SORT_OPTIONS = [
   { value: "createdAt_desc", label: "Newest First" },
 ];
 
+/**
+ * COLUMNS — single source of truth for alignment.
+ * The header cell and every body cell of a column share the same
+ * alignment token, so headers always sit exactly over their values.
+ * No fixed widths: auto layout hugs content, so the gap between any
+ * two columns is always the same uniform cell padding (balanced).
+ */
+const COLUMNS = {
+  name: { label: "Name", align: "", cell: "max-w-[180px] truncate font-medium whitespace-nowrap" },
+  email: { label: "Email", align: "", cell: "max-w-[260px] truncate text-muted-foreground" },
+  role: { label: "Role", align: "text-center", cell: "text-center whitespace-nowrap" },
+  status: { label: "Status", align: "text-center", cell: "text-center whitespace-nowrap" },
+  lastLogin: { label: "Last Login", align: "", cell: "text-xs whitespace-nowrap text-muted-foreground" },
+  actions: { label: "Actions", align: "text-center", cell: "text-center whitespace-nowrap" },
+};
+const COLUMN_KEYS = ["name", "email", "role", "status", "lastLogin", "actions"];
+
 export default function StaffTable({
   onAdd,
   onEdit,
@@ -103,12 +120,11 @@ export default function StaffTable({
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/30">
-            <TableHead>Name</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead className="text-center">Role</TableHead>
-            <TableHead className="text-center">Status</TableHead>
-            <TableHead>Last Login</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
+            {COLUMN_KEYS.map((key) => (
+              <TableHead key={key} className={COLUMNS[key].align}>
+                {COLUMNS[key].label}
+              </TableHead>
+            ))}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -136,21 +152,21 @@ export default function StaffTable({
               const roleConfig = ROLE_CONFIG[s.role] || ROLE_CONFIG.cashier;
               return (
                 <TableRow key={s.staff_id}>
-                  <TableCell className="font-medium">{s.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{s.email}</TableCell>
-                  <TableCell className="text-center">
+                  <TableCell className={COLUMNS.name.cell}>{s.name}</TableCell>
+                  <TableCell className={COLUMNS.email.cell}>{s.email}</TableCell>
+                  <TableCell className={COLUMNS.role.cell}>
                     <Badge variant={roleConfig.variant}>{roleConfig.label}</Badge>
                   </TableCell>
-                  <TableCell className="text-center">
+                  <TableCell className={COLUMNS.status.cell}>
                     <Badge variant={s.is_active ? "success" : "destructive"}>
                       {s.is_active ? "Active" : "Inactive"}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
+                  <TableCell className={COLUMNS.lastLogin.cell}>
                     {s.last_login_at ? formatDate(s.last_login_at, "shortDate") : "Never"}
                   </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
+                  <TableCell className={COLUMNS.actions.cell}>
+                    <div className="flex items-center justify-center gap-1">
                       <Button
                         variant="outline"
                         size="icon"

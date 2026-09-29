@@ -209,21 +209,21 @@ export default function TransactionsView({ switcher, actions }) {
                     <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                       {t.timestamp ? new Date(t.timestamp).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true }) : "—"}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <Badge variant={badge.variant} className="text-[10px]">{badge.label}</Badge>
                     </TableCell>
-                    <TableCell className="text-xs capitalize">{t.method}</TableCell>
-                    <TableCell className="font-mono text-xs font-bold">
+                    <TableCell className="text-xs capitalize whitespace-nowrap">{t.method}</TableCell>
+                    <TableCell className="font-mono text-xs font-bold whitespace-nowrap">
                       {t.order_number != null ? orderNumberLabel(t.order_number) : "—"}
                     </TableCell>
-                    <TableCell className="text-xs">{t.staff_name ?? "—"}</TableCell>
+                    <TableCell className="max-w-[200px] truncate text-xs">{t.staff_name ?? "—"}</TableCell>
                     <TableCell className={cn(
-                      "text-right text-sm font-bold tabular-nums",
+                      "text-right text-sm font-bold whitespace-nowrap tabular-nums",
                       positive ? "text-green-600 dark:text-green-400" : "text-destructive",
                     )}>
                       {positive ? "+" : "−"}{formatPeso(Math.abs(Number(t.amount)))}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right whitespace-nowrap">
                       {t.type === "payment" && t.order_id ? (
                         <button
                           type="button"

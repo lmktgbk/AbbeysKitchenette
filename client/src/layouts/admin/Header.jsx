@@ -1,11 +1,10 @@
 /**
- * Header — top bar for AdminLayout (page title, sidebar toggle, theme, notifications).
+ * Header — top bar for AdminLayout (page title, sidebar toggle, notifications).
  * WHY the toggle branches: on mobile it opens/closes the overlay drawer, on desktop it
  * collapses the fixed sidebar. Viewport is browser-only via useIsMobile; drawer state global.
  */
 import { useLocation } from "react-router-dom";
 import Icon from "@/components/ui/icon";
-import ModeToggle from "@/components/ModeToggle";
 import useLayoutStore from "@/stores/layoutStore";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import useAuthStore from "@/features/auth/authStore";
@@ -68,7 +67,6 @@ export default function Header() {
 
             <div className="ml-auto flex items-center gap-1">
                 <LiveDot />
-                <ModeToggle />
                 {user?.role === "admin" && <NotificationBell />}
             </div>
         </header>

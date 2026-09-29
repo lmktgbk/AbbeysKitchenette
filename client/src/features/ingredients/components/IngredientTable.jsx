@@ -53,11 +53,11 @@ const INGREDIENT_FILTER_OPTIONS = [
 ];
 
 const INGREDIENT_COLUMNS = [
-  { key: "ingredient_name", label: "Ingredient" },
-  { key: "unit", label: "Unit" },
-  { key: "stock_quantity", label: "Stock" },
-  { key: "minimum_threshold", label: "Min Threshold" },
-  { key: "status", label: "Status" },
+  { key: "ingredient_name", label: "Ingredient", align: "text-left" },
+  { key: "unit", label: "Unit", align: "text-center" },
+  { key: "stock_quantity", label: "Stock", align: "text-center" },
+  { key: "minimum_threshold", label: "Min Threshold", align: "text-center" },
+  { key: "status", label: "Status", align: "text-center" },
 ];
 
 export default function IngredientTable({
@@ -178,18 +178,12 @@ export default function IngredientTable({
               {INGREDIENT_COLUMNS.map((col) => (
                 <TableHead
                   key={col.key}
-                  className={`text-[10px] uppercase tracking-widest ${col.key === "unit" ||
-                    col.key === "stock_quantity" ||
-                    col.key === "minimum_threshold" ||
-                    col.key === "status"
-                    ? "text-center"
-                    : ""
-                    }`}
+                  className={`text-[10px] uppercase tracking-widest ${col.align}`}
                 >
                   {col.label}
                 </TableHead>
               ))}
-              <TableHead className="w-12"></TableHead>
+              <TableHead className="text-center"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -329,20 +323,20 @@ function IngredientRow({
   return (
     <>
       <TableRow className={rowBg} onClick={() => onToggleExpand(ingredient.ingredient_id)}>
-        <TableCell className="font-medium">
+        <TableCell className="max-w-[220px] truncate font-medium whitespace-nowrap">
           {ingredient.ingredient_name}
         </TableCell>
-        <TableCell className="text-center text-muted-foreground">{ingredient.unit}</TableCell>
-        <TableCell className={`text-center font-mono font-semibold ${stockColor}`}>
+        <TableCell className="text-center whitespace-nowrap text-muted-foreground">{ingredient.unit}</TableCell>
+        <TableCell className={`text-center font-mono font-semibold whitespace-nowrap tabular-nums ${stockColor}`}>
           {stock.toLocaleString()}
         </TableCell>
-        <TableCell className="text-center font-mono text-muted-foreground">
+        <TableCell className="text-center font-mono whitespace-nowrap text-muted-foreground tabular-nums">
           {threshold.toLocaleString()}
         </TableCell>
-        <TableCell className="text-center">
+        <TableCell className="text-center whitespace-nowrap">
           <Badge variant={statusVariant}>{statusLabel}</Badge>
         </TableCell>
-        <TableCell className="text-center">
+        <TableCell className="text-center whitespace-nowrap">
           <button
             onClick={(e) => {
               e.stopPropagation();

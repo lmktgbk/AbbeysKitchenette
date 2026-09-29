@@ -38,13 +38,13 @@ function TopProductsTable({ title, data, isLoading }) {
         <h3 className="text-sm font-semibold text-foreground">{title}</h3>
       </div>
       <div className="p-2">
-        <table className="w-full">
+        <table className="w-full border-collapse">
           <thead>
             <tr className="text-[11px] font-medium text-muted-foreground">
-              <th className="px-3 py-2 text-left w-8">#</th>
-              <th className="px-3 py-2 text-left">Product</th>
-              <th className="px-3 py-2 text-right">Units</th>
-              <th className="px-3 py-2 text-right">Revenue</th>
+              <th className="whitespace-nowrap px-4 py-3 text-left">#</th>
+              <th className="whitespace-nowrap px-4 py-3 text-left">Product</th>
+              <th className="whitespace-nowrap px-4 py-3 text-right">Units</th>
+              <th className="whitespace-nowrap px-4 py-3 text-right">Revenue</th>
             </tr>
           </thead>
           <tbody>
@@ -53,14 +53,14 @@ function TopProductsTable({ title, data, isLoading }) {
                 key={i}
                 className="text-xs hover:bg-muted/50 transition-colors"
               >
-                <td className="px-3 py-2 font-bold text-muted-foreground">{i + 1}</td>
-                <td className="px-3 py-2 font-medium text-foreground truncate max-w-[160px]">
+                <td className="whitespace-nowrap px-4 py-3 font-bold text-muted-foreground tabular-nums">{i + 1}</td>
+                <td className="max-w-[200px] truncate px-4 py-3 font-medium text-foreground">
                   {p.productName}
                 </td>
-                <td className="px-3 py-2 text-right text-muted-foreground">
+                <td className="whitespace-nowrap px-4 py-3 text-right text-muted-foreground tabular-nums">
                   {p.unitsSold}
                 </td>
-                <td className="px-3 py-2 text-right font-semibold text-foreground">
+                <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-foreground tabular-nums">
                   ₱{Number(p.revenue || 0).toLocaleString()}
                 </td>
               </tr>
