@@ -10,11 +10,12 @@ function formatDayLabel(dateStr) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", weekday: "short" });
 }
 
-export default function SimpleForecastChart({ results, selectedVariant, selectedVariantName, onClear, isLoading }) {
+export default function SimpleForecastChart({ results, selectedVariant, selectedProduct, selectedVariantName, onClear, isLoading }) {
   const displayResults = useMemo(() => {
-    if (!selectedVariant) return results;
-    return results.filter((v) => String(v.variant_id) === String(selectedVariant));
-  }, [results, selectedVariant]);
+    if (selectedVariant) return results.filter((v) => String(v.variant_id) === String(selectedVariant));
+    if (selectedProduct) return results.filter((v) => String(v.product_id ?? v.product_name) === String(selectedProduct));
+    return results;
+  }, [results, selectedVariant, selectedProduct]);
 
   const chartData = useMemo(() => {
     if (!displayResults?.length) return [];
@@ -57,7 +58,7 @@ export default function SimpleForecastChart({ results, selectedVariant, selected
           <h3 className="text-sm font-semibold text-foreground">7-Day Forecast Plan{selectedVariantName ? ` · ${selectedVariantName}` : ""}</h3>
           <p className="text-xs text-muted-foreground">Items and revenue per day</p>
         </div>
-        {selectedVariant && (
+        {(selectedVariant || selectedProduct) && (
           <button onClick={onClear} className="rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium hover:bg-muted/80">
             Show all
           </button>

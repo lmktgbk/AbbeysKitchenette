@@ -71,15 +71,17 @@ function ForecastRunButton({ onJobComplete }) {
     setOptimisticPending(true);
     try {
       const res = await runMutation.mutateAsync();
-      const jobId = res?.data?.job_id;
+      const payload = res?.data;
+      const jobId = payload?.job_id;
       if (jobId) {
         setActiveJobId(jobId);
+        if (payload?.status === "busy") {
+          toast.info("Attached to the running forecast — showing its progress.");
+        }
         // Don't clear optimisticPending here — let isRunning take over
       } else {
         setOptimisticPending(false);
-        if (res?.data?.status === "busy") {
-          toast.error("A forecast is already running. Please wait.");
-        }
+        toast.error("A forecast is already running. Please wait.");
       }
     } catch (err) {
       setOptimisticPending(false);
@@ -116,13 +118,19 @@ function ForecastRunButton({ onJobComplete }) {
       {isRunning && status && (
         <div className="flex flex-1 items-center gap-3 min-w-[200px]">
           <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-primary transition-all duration-500"
-              style={{ width: `${progress}%` }}
-            />
+            {status.total_variants ? (
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-500"
+                style={{ width: `${progress}%` }}
+              />
+            ) : (
+              <div className="h-full w-1/3 animate-pulse rounded-full bg-primary" />
+            )}
           </div>
           <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
-            Preparing {status.completed + status.failed} of {status.total_variants}
+            {status.total_variants
+              ? `Preparing ${status.completed + status.failed} of ${status.total_variants}`
+              : "Starting…"}
           </span>
         </div>
       )}

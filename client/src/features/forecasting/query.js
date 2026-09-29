@@ -40,6 +40,10 @@ export function useDemandStatus(jobId, options = {}) {
     queryKey: forecastKeys.demandStatus(jobId),
     queryFn: () => api.getDemandStatus(jobId),
     enabled: !!jobId,
+    // Realtime broadcast is primary; 2s polling is backup while running
+    // so progress never freezes when the socket drops or no watcher armed.
+    refetchInterval: (query) =>
+      query?.state?.data?.data?.status === "running" ? 2000 : false,
     ...options,
   });
 }

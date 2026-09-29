@@ -24,6 +24,8 @@ class JobSummary(BaseModel):
     period: int
     started_at: str | None
     completed_at: str | None
+    # Whole-menu paper metrics (product level); None on jobs before the split.
+    product_scores: list[ProductScore] | None = None
 
 
 class JobStatusResponse(BaseModel):
@@ -41,8 +43,29 @@ class JobStatusResponse(BaseModel):
 
 # ── Variant result schemas ─────────────────────────────────────
 
+class ProductScore(BaseModel):
+    """Paper metrics scored at product level (dense series, 7-day holdout).
+
+    Daily fields grade typical-day error; w_ fields grade the 7-day prep
+    total (noise cancels). w_ defaults keep pre-split jobs readable.
+    """
+    product_id: int
+    product_name: str
+    variants: int
+    rmse: float
+    mae: float
+    mse: float
+    r_squared: float
+    w_mae: float = 0.0
+    w_mse: float = 0.0
+    w_rmse: float = 0.0
+    w_pred: float = 0.0
+    w_actual: float = 0.0
+
+
 class VariantResult(BaseModel):
     variant_id: int
+    product_id: int | None = None
     product_name: str
     size_name: str
     price: float
@@ -54,6 +77,8 @@ class VariantResult(BaseModel):
     days_of_data: int
     skipped: bool
     skip_reason: str | None
+    # Share of parent product forecast (0-1); None on jobs before the split.
+    share: float | None = None
     rmse: float | None = None
     mae: float | None = None
     mse: float | None = None
@@ -105,3 +130,6 @@ class RunStartedResponse(BaseModel):
 class RunBusyResponse(BaseModel):
     status: str = "busy"
     message: str
+    # Running job to attach to — client adopts it and shows progress
+    # instead of a dead toast. None only if no running job found.
+    job_id: int | None = None

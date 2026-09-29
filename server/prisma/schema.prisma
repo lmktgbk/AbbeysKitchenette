@@ -512,7 +512,9 @@ model ForecastJob {
   period        Int       @default(14)
   startedAt     DateTime  @default(now()) @map("started_at") @db.Timestamptz
   completedAt   DateTime? @map("completed_at") @db.Timestamptz
-  errorMessage  String?   @map("error_message") @db.VarChar(500)
+  errorMessage  String? @map("error_message") @db.VarChar(500)
+  // Product-level paper metrics (RMSE/MAE/MSE/R2, 7-day holdout) as JSON.
+  productScores Json?   @map("product_scores")
 
   results ForecastResult[]
 
@@ -538,6 +540,13 @@ model ForecastResult {
   mae         Float?  @map("mae")
   mse         Float?  @map("mse")
   rSquared    Float?  @map("r_squared")
+  // Holdout scores (hidden tail during fit). Tier/method are legacy from
+  // the variant-level experiment; product-level jobs use productScores instead.
+  tier        String? @db.VarChar(20)
+  method      String? @db.VarChar(20)
+  // Parent product + share of its forecast (0-1) from the size-share split.
+  productId   Int?    @map("product_id")
+  share       Float?
 
   job ForecastJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
 

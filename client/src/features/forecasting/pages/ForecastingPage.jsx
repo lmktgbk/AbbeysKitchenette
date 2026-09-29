@@ -24,6 +24,7 @@ export default function ForecastingPage() {
   const [selectedJobId, setSelectedJobId] = useState(null);
   const [activeTab, setActiveTab] = useState("products");
   const [selectedVariant, setSelectedVariant] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
 
   const { data: historyData, isLoading: historyLoading } = useDemandHistory();
@@ -39,6 +40,7 @@ export default function ForecastingPage() {
   const handleJobComplete = useCallback((jobId) => {
     setSelectedJobId(jobId);
     setSelectedVariant(null);
+    setSelectedProduct(null);
     queryClient.invalidateQueries({ queryKey: forecastKeys.demandResults(jobId) });
     queryClient.invalidateQueries({ queryKey: forecastKeys.demandIngredients(jobId) });
     queryClient.invalidateQueries({ queryKey: forecastKeys.demandHistory });
@@ -48,6 +50,7 @@ export default function ForecastingPage() {
   const ingredients = ingredientsData?.data?.ingredients || [];
   const job = resultsData?.data?.job;
   const skipped = resultsData?.data?.skipped || [];
+  const productScores = job?.product_scores || null;
 
   const periodTotals = useMemo(() => {
     if (!forecasted.length) return { units: 0, revenue: 0 };
@@ -64,10 +67,19 @@ export default function ForecastingPage() {
   }, [lowIngredients]);
 
   const selectedVariantName = useMemo(() => {
-    if (!selectedVariant) return null;
-    const v = forecasted.find((f) => String(f.variant_id) === String(selectedVariant));
-    return v ? `${v.product_name} (${v.size_name})` : null;
-  }, [selectedVariant, forecasted]);
+    if (selectedVariant) {
+      const v = forecasted.find((f) => String(f.variant_id) === String(selectedVariant));
+      return v ? `${v.product_name} (${v.size_name})` : null;
+    }
+    if (selectedProduct) {
+      const v = forecasted.find((f) => String(f.product_id ?? f.product_name) === String(selectedProduct));
+      return v ? `${v.product_name} (all sizes)` : null;
+    }
+    return null;
+  }, [selectedVariant, selectedProduct, forecasted]);
+
+  const chartVariantFilter = selectedVariant ?? null;
+  const chartProductFilter = !selectedVariant ? selectedProduct : null;
 
   // selectedVariant clears on explicit job switch via handleSelectJob/handleJobComplete —
   // no useEffect mirror needed (derived activeJobId never writes back to state).
@@ -78,21 +90,48 @@ export default function ForecastingPage() {
   const isFailed = job?.status === "failed";
   const showLoading = resultsLoading && !job;
 
+  // Whole-menu headline over 7-DAY TOTALS (the prep decision): weekly
+  // MAE/RMSE/MSE averaged per product, R2 pooled volume-weighted so one
+  // freak week can't sink the mean. Daily means ride along as context.
   const evalMetrics = useMemo(() => {
+    const avg = (rows, key) => {
+      const vals = rows.map((f) => f[key]).filter((v) => v != null);
+      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    };
+    const pooledR2 = (rows) => {
+      const pts = rows.filter((f) => f.w_pred != null && f.w_actual != null && (f.w_pred > 0 || f.w_actual > 0));
+      if (pts.length < 2) return null;
+      const mean = pts.reduce((s, f) => s + f.w_actual, 0) / pts.length;
+      const ssTot = pts.reduce((s, f) => s + (f.w_actual - mean) ** 2, 0);
+      if (ssTot <= 0) return null;
+      const ssRes = pts.reduce((s, f) => s + (f.w_actual - f.w_pred) ** 2, 0);
+      return 1 - ssRes / ssTot;
+    };
+    const labelFor = (r2) => (r2 >= 0.8 ? "Strong" : r2 >= 0.5 ? "Moderate" : "Weak");
+    if (productScores?.length) {
+      const weekly = productScores.filter((f) => f.w_pred != null && (f.w_pred > 0 || f.w_actual > 0));
+      const r2 = pooledR2(productScores) ?? avg(productScores, "r_squared") ?? 0;
+      return {
+        r2, mae: avg(weekly, "w_mae") ?? avg(productScores, "mae") ?? 0,
+        rmse: avg(weekly, "w_rmse") ?? avg(productScores, "rmse") ?? 0,
+        mse: avg(weekly, "w_mse") ?? avg(productScores, "mse") ?? 0,
+        count: productScores.length, label: labelFor(r2),
+        dailyMae: avg(productScores, "mae"),
+        unscored: 0,
+      };
+    }
     if (!forecasted.length) return null;
-    const withM = forecasted.filter((f) => f.r_squared != null);
-    if (!withM.length) return null;
-    const avg = (key) => {
-      const vals = withM.map((f) => f[key]).filter((v) => v != null && v !== 0);
-      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
-    };
-    const r2 = avg("r_squared");
-    const label = r2 >= 0.8 ? "Strong" : r2 >= 0.5 ? "Moderate" : "Weak";
+    const scored = forecasted.filter((f) => f.r_squared != null && f.mae != null);
+    if (!scored.length) return { unscored: forecasted.length };
+    const r2 = avg(scored, "r_squared") ?? 0;
     return {
-      r2, mae: avg("mae"), rmse: avg("rmse"), mse: avg("mse"),
-      count: withM.length, label,
+      r2, mae: avg(scored, "mae") ?? 0,
+      rmse: avg(scored, "rmse") ?? 0, mse: avg(scored, "mse") ?? 0,
+      count: scored.length, label: labelFor(r2),
+      dailyMae: null,
+      unscored: forecasted.length - scored.length,
     };
-  }, [forecasted]);
+  }, [productScores, forecasted]);
 
   // ── Loading skeletons ──
   if (historyLoading || showLoading) {
@@ -121,7 +160,7 @@ export default function ForecastingPage() {
           <div className="mt-6 flex justify-center">
             <ForecastRunButton onJobComplete={handleJobComplete} />
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">Takes ~30 seconds. Needs at least 7 days of sales to predict.</p>
+          <p className="mt-3 text-xs text-muted-foreground">Usually about a minute. Stay on this page — progress shows on the button. Needs at least 7 days of sales to predict.</p>
         </div>
       </div>
     );
@@ -186,13 +225,14 @@ export default function ForecastingPage() {
         </div>
       )}
 
-      {/* 7-Day Forecast Plan Chart — filters when product is selected */}
+      {/* 7-Day Forecast Plan Chart — filters when a product or size is selected */}
       {hasData && (
         <SimpleForecastChart
           results={forecasted}
-          selectedVariant={selectedVariant}
+          selectedVariant={chartVariantFilter}
+          selectedProduct={chartProductFilter}
           selectedVariantName={selectedVariantName}
-          onClear={() => setSelectedVariant(null)}
+          onClear={() => { setSelectedVariant(null); setSelectedProduct(null); }}
           isLoading={ingredientsLoading}
         />
       )}
@@ -202,10 +242,13 @@ export default function ForecastingPage() {
         activeTab === "products" ? (
           <ProductDemandTab
             results={forecasted}
+            productScores={productScores}
             activeTab={activeTab}
             onTabChange={setActiveTab}
             selectedVariant={selectedVariant}
-            onSelectVariant={setSelectedVariant}
+            selectedProduct={selectedProduct}
+            onSelectVariant={(v) => { setSelectedVariant(v); if (v) setSelectedProduct(null); }}
+            onSelectProduct={(p) => { setSelectedProduct(p); if (p) setSelectedVariant(null); }}
           />
         ) : (
           <IngredientOrderTab
@@ -225,17 +268,26 @@ export default function ForecastingPage() {
               <p className="text-xs text-muted-foreground">How accurate is this forecast?</p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <span title="R-squared — how well the model fits past sales" className={`hidden sm:inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${evalMetrics.label==="Strong" ? "bg-green-100 text-green-700 border-green-200" : evalMetrics.label==="Moderate" ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-red-100 text-red-700 border-red-200"}`}>
-                Fit {(evalMetrics.r2*100).toFixed(1)}% · {evalMetrics.label}
-              </span>
-              <span title="Mean Absolute Error — typical daily miss" className="inline-flex rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                Typical error {evalMetrics.mae.toFixed(1)}/day
-              </span>
+              {evalMetrics.count != null ? (
+                <>
+                  <span title="R-squared — how well the model fits past sales" className={`hidden sm:inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${evalMetrics.label==="Strong" ? "bg-green-100 text-green-700 border-green-200" : evalMetrics.label==="Moderate" ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-red-100 text-red-700 border-red-200"}`}>
+                    Fit {(evalMetrics.r2*100).toFixed(1)}% · {evalMetrics.label}
+                  </span>
+                  <span title="Mean Absolute Error — typical weekly miss per product" className="inline-flex rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                    Typical error {evalMetrics.mae.toFixed(1)}/week{evalMetrics.dailyMae != null ? ` · ±${evalMetrics.dailyMae.toFixed(1)}/day` : ""}
+                  </span>
+                </>
+              ) : (
+                <span className="inline-flex rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  Not yet scored
+                </span>
+              )}
               <Icon name={showDetails ? "chevronUp" : "chevronDown"} size={14} className="text-muted-foreground" />
             </div>
           </button>
           {showDetails && (
             <div className="border-t border-border px-4 py-3 space-y-4">
+              {evalMetrics.count != null && (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div className="rounded-lg border border-border bg-card px-3 py-2">
                   <p className="text-xs text-muted-foreground">Fit (R²)</p>
@@ -244,12 +296,12 @@ export default function ForecastingPage() {
                 </div>
                 <div className="rounded-lg border border-border bg-card px-3 py-2">
                   <p className="text-xs text-muted-foreground">Typical error (MAE)</p>
-                  <p className="text-sm font-semibold text-foreground">±{evalMetrics.mae.toFixed(2)} units/day</p>
-                  <p className="text-xs text-muted-foreground">Average miss</p>
+                  <p className="text-sm font-semibold text-foreground">±{evalMetrics.mae.toFixed(2)} units/week</p>
+                  <p className="text-xs text-muted-foreground">Average miss per product week</p>
                 </div>
                 <div className="rounded-lg border border-border bg-card px-3 py-2">
                   <p className="text-xs text-muted-foreground">Worst-case (RMSE)</p>
-                  <p className="text-sm font-semibold text-foreground">±{evalMetrics.rmse.toFixed(2)} units/day</p>
+                  <p className="text-sm font-semibold text-foreground">±{evalMetrics.rmse.toFixed(2)} units/week</p>
                   <p className="text-xs text-muted-foreground">Larger errors penalized</p>
                 </div>
                 <div className="rounded-lg border border-border bg-card px-3 py-2">
@@ -258,21 +310,29 @@ export default function ForecastingPage() {
                   <p className="text-xs text-muted-foreground">Mean squared error</p>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">Average across {evalMetrics.count} products · Lower is better for MAE/RMSE/MSE</p>
+              )}
+              {evalMetrics.count != null ? (
+                <p className="text-xs text-muted-foreground">
+                  Whole-menu 7-day-total average across {evalMetrics.count} products (hidden week, zeros included)
+                  {evalMetrics.unscored ? ` · ${evalMetrics.unscored} too new to score` : ""} · Lower is better for MAE/RMSE/MSE
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">Not enough history to score yet — forecasts below still show for prep. Scores appear once a product has 14+ days.</p>
+              )}
 
               <div className="rounded-lg border border-border bg-muted/20 p-3">
                 <h4 className="text-xs font-semibold text-foreground">How it was modeled</h4>
                 <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                  <div><dt className="text-muted-foreground">Model</dt><dd className="font-medium text-foreground">Prophet additive</dd></div>
-                  <div><dt className="text-muted-foreground">Patterns</dt><dd className="font-medium text-foreground">Weekly + yearly</dd></div>
-                  <div><dt className="text-muted-foreground">Trend flexibility</dt><dd className="font-medium text-foreground">Changepoint 0.1</dd></div>
-                  <div><dt className="text-muted-foreground">Seasonality strength</dt><dd className="font-medium text-foreground">10.0</dd></div>
-                  <div><dt className="text-muted-foreground">Training window</dt><dd className="font-medium text-foreground">30-day calendar (missing = 0)</dd></div>
-                  <div><dt className="text-muted-foreground">History</dt><dd className="font-medium text-foreground">Last 60 days completed orders</dd></div>
+                  <div><dt className="text-muted-foreground">Model</dt><dd className="font-medium text-foreground">Prophet additive + PH holidays</dd></div>
+                  <div><dt className="text-muted-foreground">Patterns</dt><dd className="font-medium text-foreground">Weekly (+ yearly past 180 days)</dd></div>
+                  <div><dt className="text-muted-foreground">Level</dt><dd className="font-medium text-foreground">One model per product, split to sizes</dd></div>
+                  <div><dt className="text-muted-foreground">Size split</dt><dd className="font-medium text-foreground">Trailing-30-day share, totals preserved</dd></div>
+                  <div><dt className="text-muted-foreground">Training window</dt><dd className="font-medium text-foreground">All history, full calendar (missing = 0)</dd></div>
+                  <div><dt className="text-muted-foreground">Scoring</dt><dd className="font-medium text-foreground">Hidden 7-day week, totals + daily, zeros in</dd></div>
                   <div><dt className="text-muted-foreground">Forecast</dt><dd className="font-medium text-foreground">Next 7 days</dd></div>
                   <div><dt className="text-muted-foreground">Confidence</dt><dd className="font-medium text-foreground">90% interval</dd></div>
                 </dl>
-                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">We group items sold per product per day, fill missing days with 0, train one Prophet model per product, and sum the 7-day predictions. Lower error means more reliable.</p>
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">We group items sold per product per day, fill missing days with 0 (zeros are true demand), fit one Prophet model per product, split each day across sizes by recent share, and score RMSE/MAE/MSE/R² on a hidden 7-day tail at 7-day-total level (the prep decision). Per-product R² is bounded below at −1 so one freak bulk week can't sink the menu mean; headline R² is volume-weighted across products. Revenue uses real size prices; ingredients use real size recipes.</p>
               </div>
 
               <p className="border-t border-border pt-2 text-xs text-muted-foreground">

@@ -39,9 +39,26 @@ async def _run_in_background(job_id: int):
 
 @router.post("/demand/run", response_model=RunStartedResponse | RunBusyResponse)
 async def start_demand_forecast(background_tasks: BackgroundTasks):
-    for task in _active_jobs.values():
+    # Single-job lock stays (holdout double-fit takes minutes on full
+    # history), but always hand the running job_id back so the client can
+    # attach progress instead of showing a dead "already running" toast.
+    for running_id, task in _active_jobs.items():
         if not task.done():
-            return RunBusyResponse(message="A forecast job is already running")
+            return RunBusyResponse(
+                message="A forecast job is already running. Attached to it.",
+                job_id=running_id,
+            )
+
+    # In-memory lock cleared (e.g. restart) but DB row still running.
+    pool = await get_pool()
+    stale = await pool.fetchrow(
+        "SELECT id FROM forecast_jobs WHERE status = 'running' ORDER BY started_at DESC LIMIT 1"
+    )
+    if stale:
+        return RunBusyResponse(
+            message="A forecast job is already running. Attached to it.",
+            job_id=stale["id"],
+        )
 
     job_id = await _create_pending_job()
     task = asyncio.create_task(_run_in_background(job_id))
@@ -117,8 +134,11 @@ async def demand_results(job_id: int = Query(...)):
         if isinstance(daily, str):
             daily = json.loads(daily)
 
+        # product_id/share exist only on jobs after the product-level split.
+        keys = set(r.keys())
         entry = {
             "variant_id": r["variant_id"],
+            "product_id": r["product_id"] if "product_id" in keys else None,
             "product_name": r["product_name"],
             "size_name": r["size_name"],
             "price": float(r["price"]),
@@ -130,6 +150,7 @@ async def demand_results(job_id: int = Query(...)):
             "days_of_data": r["days_of_data"],
             "skipped": r["skipped"],
             "skip_reason": r["skip_reason"],
+            "share": float(r["share"]) if "share" in keys and r["share"] is not None else None,
             "rmse": float(r["rmse"]) if r["rmse"] is not None else None,
             "mae": float(r["mae"]) if r["mae"] is not None else None,
             "mse": float(r["mse"]) if r["mse"] is not None else None,
@@ -141,6 +162,15 @@ async def demand_results(job_id: int = Query(...)):
         else:
             forecasted.append(entry)
 
+    # product_scores rides on the job row (SELECT * picks it up when migrated).
+    product_scores = None
+    if "product_scores" in set(job.keys()) and job["product_scores"]:
+        raw = job["product_scores"]
+        try:
+            product_scores = json.loads(raw) if isinstance(raw, str) else list(raw)
+        except Exception:
+            product_scores = None
+
     job_summary = JobSummary(
         id=job["id"],
         status=job["status"],
@@ -150,6 +180,7 @@ async def demand_results(job_id: int = Query(...)):
         period=job["period"],
         started_at=job["started_at"].isoformat() if job["started_at"] else None,
         completed_at=job["completed_at"].isoformat() if job["completed_at"] else None,
+        product_scores=product_scores,
     )
 
     return ForecastResultsResponse(

@@ -5,12 +5,10 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 from prophet import Prophet
 from database import get_pool
-from config import PROPHET_CONFIG
-from forecasting.services.data_loader import (
-    load_variant_daily_sales,
-    load_recipe_map,
-    load_current_stock,
-)
+from config import PROPHET_CONFIG, YEARLY_MIN_DAYS, HOLDOUT_DAYS, SHARE_WINDOW_DAYS
+from forecasting.services.data_loader import load_variant_daily_sales
+from forecasting.services.metrics import bound_r2, compute_metrics, weekly_metrics
+from forecasting.services.holidays import philippine_holidays
 
 # Business timezone — the whole web app follows the Asia/Manila calendar day.
 BUSINESS_TZ = ZoneInfo("Asia/Manila")
@@ -58,6 +56,18 @@ async def complete_job(job_id: int, total: int, completed: int, failed: int, fai
     )
 
 
+async def save_product_scores(job_id: int, scores: list):
+    """Whole-menu paper metrics live on the job row; ignored on old DBs."""
+    pool = await get_pool()
+    try:
+        await pool.execute(
+            "UPDATE forecast_jobs SET product_scores = $1 WHERE id = $2",
+            json.dumps(scores), job_id,
+        )
+    except Exception:
+        pass  # column not migrated yet — variant rows still hold the forecast
+
+
 async def fail_job(job_id: int, message: str):
     pool = await get_pool()
     await pool.execute(
@@ -88,34 +98,45 @@ async def cleanup_stale_jobs():
 
 
 # ── Result storage ────────────────────────────────────────────
+# Variant rows carry the split forecast (units/revenue for prep + ingredients).
+# Product-level RMSE/MAE/MSE/R2 live on the job as product_scores JSON.
+# product_id/share ride along when the columns exist; old DBs fall back.
 
-async def save_result(job_id, variant_id, product_name, size_name, price,
+async def save_result(job_id, variant_id, product_id, product_name, size_name, price,
                       category_id, daily_data, total_units, total_revenue,
-                      trend, days_of_data, metrics=None):
+                      trend, days_of_data, share):
     pool = await get_pool()
-    rmse = metrics.get("rmse", 0) if metrics else 0
-    mae = metrics.get("mae", 0) if metrics else 0
-    mse = metrics.get("mse", 0) if metrics else 0
-    r_squared = metrics.get("r_squared", 0) if metrics else 0
-    await pool.execute("""
-        INSERT INTO forecast_results
-            (job_id, variant_id, product_name, size_name, price, category_id,
-             daily_data, total_units, total_revenue, trend, days_of_data, skipped,
-             rmse, mae, mse, r_squared)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, FALSE,$12,$13,$14,$15)
-        ON CONFLICT (job_id, variant_id) DO UPDATE SET
-            daily_data = EXCLUDED.daily_data,
-            total_units = EXCLUDED.total_units,
-            total_revenue = EXCLUDED.total_revenue,
-            trend = EXCLUDED.trend,
-            rmse = EXCLUDED.rmse,
-            mae = EXCLUDED.mae,
-            mse = EXCLUDED.mse,
-            r_squared = EXCLUDED.r_squared
-    """, job_id, variant_id, product_name, size_name, price,
-         category_id, json.dumps(daily_data),
-         total_units, total_revenue, trend, days_of_data,
-         rmse, mae, mse, r_squared)
+    try:
+        await pool.execute("""
+            INSERT INTO forecast_results
+                (job_id, variant_id, product_id, product_name, size_name, price, category_id,
+                 daily_data, total_units, total_revenue, trend, days_of_data, skipped, share)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12, FALSE,$13)
+            ON CONFLICT (job_id, variant_id) DO UPDATE SET
+                daily_data = EXCLUDED.daily_data,
+                total_units = EXCLUDED.total_units,
+                total_revenue = EXCLUDED.total_revenue,
+                trend = EXCLUDED.trend,
+                product_id = EXCLUDED.product_id,
+                share = EXCLUDED.share
+        """, job_id, variant_id, product_id, product_name, size_name, price,
+             category_id, json.dumps(daily_data),
+             total_units, total_revenue, trend, days_of_data, share)
+    except Exception:
+        # Columns product_id/share not migrated yet — store the forecast only.
+        await pool.execute("""
+            INSERT INTO forecast_results
+                (job_id, variant_id, product_name, size_name, price, category_id,
+                 daily_data, total_units, total_revenue, trend, days_of_data, skipped)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, FALSE)
+            ON CONFLICT (job_id, variant_id) DO UPDATE SET
+                daily_data = EXCLUDED.daily_data,
+                total_units = EXCLUDED.total_units,
+                total_revenue = EXCLUDED.total_revenue,
+                trend = EXCLUDED.trend
+        """, job_id, variant_id, product_name, size_name, price,
+             category_id, json.dumps(daily_data),
+             total_units, total_revenue, trend, days_of_data)
 
 
 async def save_skipped(job_id, variant_id, product_name, size_name, price,
@@ -135,11 +156,7 @@ async def save_skipped(job_id, variant_id, product_name, size_name, price,
 # ── Trend computation ─────────────────────────────────────────
 
 def compute_trend(pred_df) -> str:
-    """Compare first-half vs second-half of Prophet's forecast (yhat).
-
-    Uses median instead of mean to be robust against single-day outliers.
-    Threshold raised to 15% to avoid false positives from daily oscillation.
-    """
+    """First-half vs second-half median of yhat; 15% band avoids oscillation noise."""
     import numpy as np
 
     yhat = pred_df["yhat"].values
@@ -163,48 +180,66 @@ def compute_trend(pred_df) -> str:
     return "stable"
 
 
-# ── Evaluation metrics ────────────────────────────────────────
+# ── Prophet factory ───────────────────────────────────────────
 
-def compute_metrics(pred_series, actual_series):
-    """Compare in-sample predictions against actuals.
+_HOLIDAYS = None  # built once per process; spans data years + forecast tail
 
-    Args:
-        pred_series: DataFrame with columns [ds, yhat] (predicted values)
-        actual_series: DataFrame with columns [ds, y] or [ds, units] (actual values)
-    Returns:
-        dict with rmse, mae, mse, r_squared
-    """
-    import numpy as np
 
-    actual_col = "y" if "y" in actual_series.columns else "units"
-    merged = pred_series.merge(actual_series.rename(columns={actual_col: "y"}), on="ds", how="inner")
+def build_prophet(n_days: int) -> Prophet:
+    global _HOLIDAYS
+    if _HOLIDAYS is None:
+        try:
+            _HOLIDAYS = philippine_holidays()
+        except Exception:
+            _HOLIDAYS = None
 
-    if len(merged) < 3:
-        return {"rmse": 0.0, "mae": 0.0, "mse": 0.0, "r_squared": 0.0}
-
-    actual = merged["y"].values.astype(float)
-    predicted = merged["yhat"].values.astype(float)
-
-    mae = float(np.mean(np.abs(actual - predicted)))
-    mse = float(np.mean((actual - predicted) ** 2))
-    rmse = float(np.sqrt(mse))
-
-    ss_res = float(np.sum((actual - predicted) ** 2))
-    ss_tot = float(np.sum((actual - np.mean(actual)) ** 2))
-    r_squared = float(1 - (ss_res / ss_tot)) if ss_tot > 0 else 0.0
-
-    return {
-        "rmse": round(rmse, 2),
-        "mae": round(mae, 2),
-        "mse": round(mse, 2),
-        "r_squared": round(r_squared, 4),
-    }
+    return Prophet(
+        changepoint_prior_scale=PROPHET_CONFIG["changepoint_prior_scale"],
+        seasonality_mode=PROPHET_CONFIG["seasonality_mode"],
+        seasonality_prior_scale=PROPHET_CONFIG["seasonality_prior_scale"],
+        weekly_seasonality=PROPHET_CONFIG["weekly_seasonality"],
+        yearly_seasonality=n_days >= YEARLY_MIN_DAYS,  # short history can't learn a yearly wave
+        changepoint_range=PROPHET_CONFIG["changepoint_range"],
+        interval_width=PROPHET_CONFIG["interval_width"],
+        holidays=_HOLIDAYS,
+        holidays_prior_scale=PROPHET_CONFIG["holidays_prior_scale"],
+    )
 
 
 FORECAST_PERIOD = 7
 
 
+# ── Size-share split ──────────────────────────────────────────
+
+def size_shares(vdf: pd.DataFrame, product_total: float) -> dict:
+    """Trailing-window share per variant; falls back to all history, then even split."""
+    window = vdf[vdf["ds"] >= vdf["ds"].max() - pd.Timedelta(days=SHARE_WINDOW_DAYS)]
+    if window["units"].sum() == 0:
+        window = vdf
+    total = float(window["units"].sum())
+    if total == 0 or product_total == 0:
+        n = vdf["variant_id"].nunique()
+        return {vid: 1.0 / n for vid in vdf["variant_id"].unique()}
+    return {
+        vid: float(g["units"].sum()) / total
+        for vid, g in window.groupby("variant_id")
+    }
+
+
+def split_units(product_units: int, shares: list[float]) -> list[int]:
+    """Largest-remainder split so variant units always sum to the product total."""
+    exact = [product_units * s for s in shares]
+    out = [int(x) for x in exact]
+    remainder = product_units - sum(out)
+    order = sorted(range(len(shares)), key=lambda i: exact[i] - out[i], reverse=True)
+    for i in order[:max(0, remainder)]:
+        out[i] += 1
+    return out
+
+
 # ── Main pipeline ─────────────────────────────────────────────
+# Predict at PRODUCT level (dense series), split to sizes by share.
+# Revenue uses real variant prices; ingredients use real variant recipes.
 
 async def run_demand_forecast(job_id: int | None = None) -> dict:
     period = FORECAST_PERIOD
@@ -218,27 +253,25 @@ async def run_demand_forecast(job_id: int | None = None) -> dict:
             await complete_job(job_id, 0, 0, 0, [])
             return {"job_id": job_id, "message": "No sales data found"}
 
-        variant_groups = df.groupby("variant_id")
-        total = len(variant_groups)
+        product_groups = df.groupby("product_id")
+        total = len(product_groups)
         completed_count = 0
         failed_count = 0
         failed_skips = []
+        product_scores = []
 
         await pool_update_total(job_id, total)
 
-        for variant_id, vdf in variant_groups:
+        for product_id, pdf in product_groups:
             try:
-                row = vdf.iloc[0]
-                product_name = row["product_name"]
-                size_name = row["size_name"]
-                price = float(row["price"])
-                category_id = int(row["category_id"])
+                product_name = pdf.iloc[0]["product_name"]
+                variants = pdf.drop_duplicates("variant_id").to_dict("records")
 
-                daily = vdf.groupby("ds")["units"].sum().reset_index()
+                daily = pdf.groupby("ds")["units"].sum().reset_index()
 
-                # Fill in missing calendar days with zeros so Prophet sees the
-                # full picture: many zero-days + occasional sales spikes.
-                all_dates = pd.date_range(start=vdf["ds"].min(), end=business_today(), freq="D")
+                # Full calendar with zeros: missing days are true zero demand,
+                # dropping them inflates R2 while real prep error gets worse.
+                all_dates = pd.date_range(start=pdf["ds"].min(), end=business_today(), freq="D")
                 daily = (
                     pd.DataFrame({"ds": all_dates})
                     .merge(daily, on="ds", how="left")
@@ -247,110 +280,127 @@ async def run_demand_forecast(job_id: int | None = None) -> dict:
                     .reset_index(drop=True)
                 )
                 daily["units"] = daily["units"].astype(int)
-
                 days_of_data = len(daily)
 
-                if days_of_data < MIN_DATA_DAYS:
-                    reason = f"Insufficient data ({days_of_data} days, need {MIN_DATA_DAYS})"
-                    await save_skipped(job_id, variant_id, product_name, size_name,
-                                       price, category_id, days_of_data, reason)
+                if days_of_data < MIN_DATA_DAYS or daily["units"].sum() == 0:
+                    reason = (
+                        f"Insufficient data ({days_of_data} days, need {MIN_DATA_DAYS})"
+                        if days_of_data < MIN_DATA_DAYS
+                        else "No actual sales in training data"
+                    )
+                    for v in variants:
+                        await save_skipped(job_id, int(v["variant_id"]), product_name,
+                                           v["size_name"], float(v["price"]),
+                                           int(v["category_id"]), days_of_data, reason)
                     failed_count += 1
-                    failed_skips.append(f"{product_name} {size_name}: {reason}")
+                    failed_skips.append(f"{product_name}: {reason}")
                     await update_job_progress(job_id, completed_count, failed_count)
                     continue
-
-                if daily["units"].sum() == 0:
-                    reason = "No actual sales in training data"
-                    await save_skipped(job_id, variant_id, product_name, size_name,
-                                       price, category_id, days_of_data, reason)
-                    failed_count += 1
-                    failed_skips.append(f"{product_name} {size_name}: {reason}")
-                    await update_job_progress(job_id, completed_count, failed_count)
-                    continue
-
-                m = Prophet(
-                    changepoint_prior_scale=PROPHET_CONFIG["changepoint_prior_scale"],
-                    seasonality_mode=PROPHET_CONFIG["seasonality_mode"],
-                    seasonality_prior_scale=PROPHET_CONFIG["seasonality_prior_scale"],
-                    weekly_seasonality=PROPHET_CONFIG["weekly_seasonality"],
-                    yearly_seasonality=PROPHET_CONFIG["yearly_seasonality"],
-                    changepoint_range=PROPHET_CONFIG["changepoint_range"],
-                    interval_width=PROPHET_CONFIG["interval_width"],
-                )
 
                 train = daily[["ds", "units"]].rename(columns={"units": "y"})
 
-                # Pad training data to today so forecast starts from today,
-                # not from the last order date. Cap gap to MAX_PAD_DAYS.
+                # Pad to today so the forecast starts today, not at the last
+                # order date. Cap the gap so dead products don't train on zeros.
                 today = pd.Timestamp(business_today())
-                last_data_date = train["ds"].max()
-                if last_data_date < today:
-                    gap_days = (today - last_data_date).days
-                    if gap_days > MAX_PAD_DAYS:
-                        cutoff = last_data_date - timedelta(days=MAX_PAD_DAYS)
-                        train = train[train["ds"] >= cutoff]
-                        gap_days = MAX_PAD_DAYS
-                    pad = pd.DataFrame({
-                        "ds": pd.date_range(last_data_date + timedelta(days=1), today),
-                        "y": [0] * gap_days,
-                    })
+                if train["ds"].max() < today:
+                    if (today - train["ds"].max()).days > MAX_PAD_DAYS:
+                        train = train[train["ds"] >= train["ds"].max() - timedelta(days=MAX_PAD_DAYS)]
+                    pad_dates = pd.date_range(train["ds"].max() + timedelta(days=1), today)
+                    pad = pd.DataFrame({"ds": pad_dates, "y": [0] * len(pad_dates)})
                     train = pd.concat([train, pad], ignore_index=True)
 
+                # Score on the hidden 7-day tail (same horizon we deploy);
+                # None when too short — excluded from the whole-menu average.
+                # Daily metrics grade typical-day error; weekly totals grade the
+                # prep decision (noise cancels). R2 is floored per product so
+                # one freak bulk week can't sink the menu mean.
+                metrics = None
+                w_metrics = None
+                if len(train) > HOLDOUT_DAYS + MIN_DATA_DAYS:
+                    fit_df = train.iloc[:-HOLDOUT_DAYS]
+                    holdout_df = train.iloc[-HOLDOUT_DAYS:]
+                    m_eval = build_prophet(len(fit_df))
+                    m_eval.fit(fit_df)
+                    eval_pred = m_eval.predict(
+                        m_eval.make_future_dataframe(periods=HOLDOUT_DAYS)
+                    ).tail(HOLDOUT_DAYS)[["ds", "yhat"]]
+                    metrics = compute_metrics(eval_pred, holdout_df)
+                    metrics["r_squared"] = bound_r2(metrics["r_squared"])
+                    w_metrics = weekly_metrics(eval_pred, holdout_df)
+
+                m = build_prophet(len(train))
                 m.fit(train)
-
-                future = m.make_future_dataframe(periods=period)
-                full_pred = m.predict(future)
-                pred = full_pred.tail(period)
-
-                # In-sample evaluation on full calendar (including zero-sales days)
-                hist_pred = full_pred[full_pred["ds"].isin(daily["ds"])][["ds", "yhat"]]
-                metrics = compute_metrics(hist_pred, daily)
-
-                daily_data = []
-                total_units = 0
-                total_revenue = 0.0
-
-                for _, p in pred.iterrows():
-                    units = max(0, round(float(p["yhat"])))
-                    lower = max(0, round(float(p["yhat_lower"])))
-                    upper = max(0, round(float(p["yhat_upper"])))
-                    revenue = round(units * price, 2)
-                    daily_data.append({
-                        "date": p["ds"].strftime("%Y-%m-%d"),
-                        "units": units,
-                        "revenue": revenue,
-                        "lower": lower,
-                        "upper": upper,
-                    })
-                    total_units += units
-                    total_revenue += revenue
-
+                pred = m.predict(m.make_future_dataframe(periods=period)).tail(period)
                 trend = compute_trend(pred)
 
-                await save_result(
-                    job_id, variant_id, product_name, size_name, price,
-                    category_id, daily_data, total_units, total_revenue,
-                    trend, days_of_data, metrics,
-                )
+                shares = size_shares(pdf, float(daily["units"].sum()))
+                vids = [int(v["variant_id"]) for v in variants]
+                share_list = [shares.get(vid, 0.0) for vid in vids]
+
+                for i, (_, p) in enumerate(pred.iterrows()):
+                    p_units = max(0, round(float(p["yhat"])))
+                    p_lower = max(0, round(float(p["yhat_lower"])))
+                    p_upper = max(0, round(float(p["yhat_upper"])))
+                    day_ds = p["ds"].strftime("%Y-%m-%d")
+                    split = split_units(p_units, share_list)
+                    # Interval band follows each size's share of the product band.
+                    lowers = split_units(p_lower, share_list)
+                    uppers = split_units(p_upper, share_list)
+                    for k, v in enumerate(variants):
+                        price = float(v["price"])
+                        units = split[k]
+                        v["__days"] = v.get("__days", [])
+                        v["__days"].append({
+                            "date": day_ds,
+                            "units": units,
+                            "revenue": round(units * price, 2),
+                            "lower": lowers[k],
+                            "upper": uppers[k],
+                        })
+
+                for v in variants:
+                    vid = int(v["variant_id"])
+                    days = v.pop("__days", [])
+                    total_units = sum(d["units"] for d in days)
+                    total_revenue = round(sum(d["revenue"] for d in days), 2)
+                    await save_result(
+                        job_id, vid, int(product_id), product_name, v["size_name"],
+                        float(v["price"]), int(v["category_id"]), days,
+                        total_units, total_revenue, trend, days_of_data,
+                        round(share_list[vids.index(vid)], 4),
+                    )
+
+                if metrics:
+                    product_scores.append({
+                        "product_id": int(product_id),
+                        "product_name": product_name,
+                        "variants": len(variants),
+                        **metrics,
+                        "w_mae": w_metrics["mae"],
+                        "w_mse": w_metrics["mse"],
+                        "w_rmse": w_metrics["rmse"],
+                        "w_pred": w_metrics["w_pred"],
+                        "w_actual": w_metrics["w_actual"],
+                    })
 
                 completed_count += 1
 
             except Exception as e:
                 tb = traceback.format_exc()
+                first = pdf.iloc[0]
                 reason = f"{type(e).__name__}: {str(e)[:150]}"
-                await save_skipped(job_id, variant_id,
-                                   vdf.iloc[0]["product_name"],
-                                   vdf.iloc[0]["size_name"],
-                                   float(vdf.iloc[0]["price"]),
-                                   int(vdf.iloc[0]["category_id"]),
-                                   len(vdf.groupby("ds")), reason)
+                for v in pdf.drop_duplicates("variant_id").to_dict("records"):
+                    await save_skipped(job_id, int(v["variant_id"]), product_name,
+                                       v["size_name"], float(v["price"]),
+                                       int(v["category_id"]), len(pdf.groupby("ds")), reason)
                 failed_count += 1
-                failed_skips.append(f"{vdf.iloc[0]['product_name']} {vdf.iloc[0]['size_name']}: {reason}")
-                print(f"[Forecast Error] variant {variant_id}: {tb}")
+                failed_skips.append(f"{first['product_name']}: {reason}")
+                print(f"[Forecast Error] product {product_id}: {tb}")
 
             await update_job_progress(job_id, completed_count, failed_count)
 
         await complete_job(job_id, total, completed_count, failed_count, failed_skips)
+        await save_product_scores(job_id, product_scores)
         await cleanup_old_jobs()
 
         return {

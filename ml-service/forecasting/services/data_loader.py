@@ -3,6 +3,10 @@ from database import get_pool
 
 
 async def load_variant_daily_sales() -> pd.DataFrame:
+    # One grouped scan over all completed orders (no date cutoff: paper
+    # uses the full history). Zero-sales days are NOT rows here — the
+    # caller expands each variant to a full calendar with 0 fill, because
+    # zeros are true demand and dropping them inflates R2.
     pool = await get_pool()
     rows = await pool.fetch("""
         SELECT
@@ -14,16 +18,16 @@ async def load_variant_daily_sales() -> pd.DataFrame:
             sc.category_id,
             o.order_date::text AS ds,
             SUM(oi.quantity)::int AS units
-        FROM product_variants pv
+        FROM order_items oi
+        JOIN orders o ON o.order_id = oi.order_id
+        JOIN product_variants pv ON pv.variant_id = oi.variant_id
         JOIN products p ON p.product_id = pv.product_id
         JOIN subcategories sc ON sc.subcategory_id = p.subcategory_id
-        JOIN order_items oi ON oi.variant_id = pv.variant_id
-        JOIN orders o ON o.order_id = oi.order_id
         WHERE o.status = 'completed'
+          AND o.order_date IS NOT NULL
+          AND oi.removed_at IS NULL
           AND pv.is_available = TRUE
           AND p.is_archived = FALSE
-          AND oi.removed_at IS NULL
-          AND o.order_date IS NOT NULL
         GROUP BY pv.variant_id, p.product_id, p.product_name,
                  pv.size_name, pv.price, sc.category_id, o.order_date
         ORDER BY pv.variant_id, o.order_date

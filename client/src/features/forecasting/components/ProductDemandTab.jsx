@@ -2,40 +2,85 @@ import React, { useState, useMemo } from "react";
 import { SearchBar } from "@/components/filters/SearchBar";
 import { Pagination } from "@/components/filters/Pagination";
 import { FilterPill } from "@/components/filters/FilterPill";
+import Icon from "@/components/ui/icon";
 
 const TREND_LABEL = { increasing: "Rising", decreasing: "Falling", stable: "Steady" };
 const TREND_COLOR = { increasing: "bg-green-100 text-green-700 border-green-200", decreasing: "bg-red-100 text-red-700 border-red-200", stable: "bg-gray-100 text-gray-600 border-gray-200" };
 
-export default function ProductDemandTab({ results, activeTab, onTabChange, selectedVariant, onSelectVariant }) {
+// Rows are variants; products group them. product_id arrives on new jobs —
+// old jobs fall back to grouping by product_name.
+function groupKey(r) {
+  return r.product_id != null ? `id:${r.product_id}` : `name:${r.product_name}`;
+}
+
+export default function ProductDemandTab({
+  results, productScores, activeTab, onTabChange,
+  selectedVariant, selectedProduct, onSelectVariant, onSelectProduct,
+}) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [expanded, setExpanded] = useState({});
 
-  const demandOnly = useMemo(() => results.filter((r) => r.daily_data.slice(0, 7).reduce((s, d) => s + d.units, 0) > 0), [results]);
+  const scoreByProduct = useMemo(() => {
+    const map = new Map();
+    for (const s of productScores || []) {
+      map.set(s.product_id, s);
+    }
+    return map;
+  }, [productScores]);
+
+  // Group variants under products; hide products with zero total demand.
+  const products = useMemo(() => {
+    const map = new Map();
+    for (const r of results) {
+      const key = groupKey(r);
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          product_id: r.product_id,
+          product_name: r.product_name,
+          category_id: r.category_id,
+          trend: r.trend,
+          variants: [],
+        });
+      }
+      const units = r.daily_data.slice(0, 7).reduce((s, d) => s + d.units, 0);
+      const revenue = r.daily_data.slice(0, 7).reduce((s, d) => s + d.revenue, 0);
+      map.get(key).variants.push({ ...r, units, revenue });
+    }
+    return Array.from(map.values())
+      .map((p) => ({
+        ...p,
+        units: p.variants.reduce((s, v) => s + v.units, 0),
+        revenue: p.variants.reduce((s, v) => s + v.revenue, 0),
+        score: p.product_id != null ? scoreByProduct.get(p.product_id) : null,
+      }))
+      .filter((p) => p.units > 0)
+      .sort((a, b) => b.units - a.units);
+  }, [results, scoreByProduct]);
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return demandOnly;
+    if (!search.trim()) return products;
     const q = search.toLowerCase();
-    return demandOnly.filter((r) => `${r.product_name} ${r.size_name}`.toLowerCase().includes(q));
-  }, [demandOnly, search]);
+    return products.filter((p) => p.product_name.toLowerCase().includes(q));
+  }, [products, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const paged = useMemo(() => {
     const start = (page - 1) * pageSize;
-    return filtered.slice(start, start + pageSize).map((r) => {
-      const units = r.daily_data.slice(0, 7).reduce((s, d) => s + d.units, 0);
-      const revenue = r.daily_data.slice(0, 7).reduce((s, d) => s + d.revenue, 0);
-      return { ...r, units, revenue };
-    });
+    return filtered.slice(start, start + pageSize);
   }, [filtered, page, pageSize]);
 
-  React.useEffect(() => { setPage(1); }, [search, demandOnly]);
+  React.useEffect(() => { setPage(1); }, [search, products]);
+
+  const toggle = (key) => setExpanded((e) => ({ ...e, [key]: !e[key] }));
 
   if (!results.length) {
     return <p className="py-8 text-center text-sm text-muted-foreground">No products in this forecast</p>;
   }
 
-  if (!demandOnly.length) {
+  if (!products.length) {
     return (
       <div className="rounded-xl border border-border bg-card p-8 text-center">
         <p className="text-sm text-muted-foreground">No products with forecasted demand in the next 7 days</p>
@@ -75,26 +120,65 @@ export default function ProductDemandTab({ results, activeTab, onTabChange, sele
             </tr>
           </thead>
           <tbody>
-            {paged.map((r) => {
-              const isSelected = String(selectedVariant) === String(r.variant_id);
+            {paged.map((p) => {
+              const isOpen = !!expanded[p.key];
+              const isProductSelected = selectedProduct && String(selectedProduct) === String(p.product_id ?? p.product_name);
               return (
-                <tr
-                  key={r.variant_id}
-                  onClick={() => onSelectVariant?.(isSelected ? null : String(r.variant_id))}
-                  className={`border-b border-border last:border-0 cursor-pointer transition-colors ${isSelected ? "bg-primary/10 hover:bg-primary/15" : "hover:bg-muted/50"}`}
-                >
-                  <td className="px-4 py-2.5">
-                    <p className="font-medium text-foreground">{r.product_name}</p>
-                    <p className="text-xs text-muted-foreground">{r.size_name}</p>
-                  </td>
-                  <td className="px-4 py-2.5 text-center font-semibold text-foreground">{r.units.toLocaleString()}</td>
-                  <td className="px-4 py-2.5 text-right text-foreground">₱{r.total_revenue.toLocaleString()}</td>
-                  <td className="px-4 py-2.5 text-center">
-                    <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${TREND_COLOR[r.trend] || TREND_COLOR.stable}`}>
-                      {TREND_LABEL[r.trend] || "Steady"}
-                    </span>
-                  </td>
-                </tr>
+                <React.Fragment key={p.key}>
+                  <tr
+                    onClick={() => {
+                      if (p.variants.length > 1) toggle(p.key);
+                      onSelectProduct?.(isProductSelected ? null : (p.product_id ?? p.product_name));
+                    }}
+                    className={`border-b border-border cursor-pointer transition-colors ${isProductSelected ? "bg-primary/10 hover:bg-primary/15" : "hover:bg-muted/50"}`}
+                  >
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-2">
+                        {p.variants.length > 1 && (
+                          <Icon name={isOpen ? "chevronDown" : "chevronRight"} size={14} className="shrink-0 text-muted-foreground" />
+                        )}
+                        <div>
+                          <p className="font-medium text-foreground">{p.product_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {p.variants.length > 1 ? `${p.variants.length} sizes` : p.variants[0].size_name}
+                            {p.score ? ` · R² ${(p.score.r_squared * 100).toFixed(0)}%` : ""}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5 text-center font-semibold text-foreground">{p.units.toLocaleString()}</td>
+                    <td className="px-4 py-2.5 text-right text-foreground">₱{p.revenue.toLocaleString()}</td>
+                    <td className="px-4 py-2.5 text-center">
+                      <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${TREND_COLOR[p.trend] || TREND_COLOR.stable}`}>
+                        {TREND_LABEL[p.trend] || "Steady"}
+                      </span>
+                    </td>
+                  </tr>
+                  {isOpen && p.variants.map((v) => {
+                    const isSelected = String(selectedVariant) === String(v.variant_id);
+                    return (
+                      <tr
+                        key={v.variant_id}
+                        onClick={() => onSelectVariant?.(isSelected ? null : String(v.variant_id))}
+                        className={`border-b border-border last:border-0 cursor-pointer transition-colors ${isSelected ? "bg-primary/10 hover:bg-primary/15" : "bg-muted/20 hover:bg-muted/50"}`}
+                      >
+                        <td className="px-4 py-2 pl-10">
+                          <p className="font-medium text-foreground">{v.size_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {v.share != null ? `${(v.share * 100).toFixed(0)}% of ${p.product_name}` : p.product_name}
+                          </p>
+                        </td>
+                        <td className="px-4 py-2 text-center font-semibold text-foreground">{v.units.toLocaleString()}</td>
+                        <td className="px-4 py-2 text-right text-foreground">₱{v.revenue.toLocaleString()}</td>
+                        <td className="px-4 py-2 text-center">
+                          <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${TREND_COLOR[v.trend] || TREND_COLOR.stable}`}>
+                            {TREND_LABEL[v.trend] || "Steady"}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </React.Fragment>
               );
             })}
           </tbody>
