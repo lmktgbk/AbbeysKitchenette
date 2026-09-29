@@ -122,11 +122,11 @@ export default function IngredientProfitabilityTable({ dateFrom, dateTo }) {
           ) : (
             rows.map((r) => (
               <TableRow key={r.ingredient_id}>
-                <TableCell className="font-medium">{r.ingredient_name} <span className="text-muted-foreground text-xs">({r.unit})</span></TableCell>
-                <TableCell className="text-right tabular-nums">{formatPeso(r.stock_value)}</TableCell>
-                <TableCell className="text-right tabular-nums">{r.restock_count}×</TableCell>
-                <TableCell className="text-right tabular-nums text-amber-600">{formatPeso(r.total_spend)}</TableCell>
-                <TableCell className="text-right tabular-nums text-red-500">{formatPeso(r.total_waste)}</TableCell>
+                <TableCell className="max-w-[260px] truncate font-medium">{r.ingredient_name} <span className="text-muted-foreground text-xs">({r.unit})</span></TableCell>
+                <TableCell className="text-right whitespace-nowrap tabular-nums">{formatPeso(r.stock_value)}</TableCell>
+                <TableCell className="text-right whitespace-nowrap tabular-nums">{r.restock_count}×</TableCell>
+                <TableCell className="text-right whitespace-nowrap tabular-nums text-amber-600">{formatPeso(r.total_spend)}</TableCell>
+                <TableCell className="text-right whitespace-nowrap tabular-nums text-red-500">{formatPeso(r.total_waste)}</TableCell>
               </TableRow>
             ))
           )}

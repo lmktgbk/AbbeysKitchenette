@@ -38,14 +38,14 @@ function MostRestockedTable({ data, isLoading }) {
         <h3 className="text-sm font-semibold text-foreground">Top 10 Most Restocked Ingredients</h3>
       </div>
       <div className="p-2">
-        <table className="w-full">
+        <table className="w-full border-collapse">
           <thead>
             <tr className="text-[11px] font-medium text-muted-foreground">
-              <th className="px-3 py-2 text-left w-8">#</th>
-              <th className="px-3 py-2 text-left">Ingredient</th>
-              <th className="px-3 py-2 text-right">Restocks</th>
-              <th className="px-3 py-2 text-right">Total Qty</th>
-              <th className="px-3 py-2 text-right">Total Cost</th>
+              <th className="whitespace-nowrap px-4 py-3 text-left">#</th>
+              <th className="whitespace-nowrap px-4 py-3 text-left">Ingredient</th>
+              <th className="whitespace-nowrap px-4 py-3 text-right">Restocks</th>
+              <th className="whitespace-nowrap px-4 py-3 text-right">Total Qty</th>
+              <th className="whitespace-nowrap px-4 py-3 text-right">Total Cost</th>
             </tr>
           </thead>
           <tbody>
@@ -54,19 +54,19 @@ function MostRestockedTable({ data, isLoading }) {
                 key={i}
                 className="text-xs hover:bg-muted/50 transition-colors"
               >
-                <td className="px-3 py-2 font-bold text-muted-foreground">{i + 1}</td>
-                <td className="px-3 py-2 font-medium text-foreground truncate max-w-[140px]">
+                <td className="whitespace-nowrap px-4 py-3 font-bold text-muted-foreground tabular-nums">{i + 1}</td>
+                <td className="max-w-[180px] truncate px-4 py-3 font-medium text-foreground">
                   {item.name}
                 </td>
-                <td className="px-3 py-2 text-right">
+                <td className="whitespace-nowrap px-4 py-3 text-right">
                   <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
                     {item.restockCount}
                   </span>
                 </td>
-                <td className="px-3 py-2 text-right text-muted-foreground">
+                <td className="whitespace-nowrap px-4 py-3 text-right text-muted-foreground tabular-nums">
                   {item.totalQuantity} {item.unit}
                 </td>
-                <td className="px-3 py-2 text-right font-semibold text-foreground">
+                <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-foreground tabular-nums">
                   ₱{Number(item.totalCost || 0).toLocaleString()}
                 </td>
               </tr>

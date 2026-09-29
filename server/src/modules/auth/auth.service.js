@@ -20,7 +20,8 @@ const LOGIN_LOCKOUT_MINUTES = 15;
 
 export const authService = {
   // Separate portals, identical failure shape: staff portal is cashier +
-  // kitchen only, admin portal is OTP-gated — but neither reveals the other.
+  // kitchen only, admin portal is admin only — but neither reveals the other.
+  // Both portals are Gmail-OTP-gated (same 2FA format for every role).
   // Staff portal: cashier + kitchen only. Admins are redirected to /admin-login.
   async login(email, password, clientIP) {
     return this._loginCore(email, password, clientIP, "staff");
@@ -80,23 +81,15 @@ export const authService = {
 
     await authRepository.resetFailedLoginAttempts(user.id);
 
-    // Admin → send OTP, don't issue JWT yet
-    if (user.role === "admin") {
-      const otpCode = await generateOtp(user.id);
-      await sendEmail({
-        to: user.email,
-        subject: "Your Verification Code — Abbey's Kitchenette",
-        html: generateOtpEmail(otpCode),
-      });
-      const { passwordHash, ...safeUser } = user;
-      return { requiresOtp: true, user: safeUser };
-    }
-
-    // Staff → JWT directly
-    await authRepository.updateLastLogin(user.id);
-    const token = signToken({ sub: user.id, role: user.role });
+    // Every role → Gmail OTP 2FA (same format as admin), no JWT until verified.
+    const otpCode = await generateOtp(user.id);
+    await sendEmail({
+      to: user.email,
+      subject: "Your Verification Code — Abbey's Kitchenette",
+      html: generateOtpEmail(otpCode),
+    });
     const { passwordHash, ...safeUser } = user;
-    return { token, user: safeUser };
+    return { requiresOtp: true, user: safeUser };
   },
 
   async verifyOtp(userId, code) {

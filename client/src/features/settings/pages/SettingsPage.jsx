@@ -477,56 +477,81 @@ export default function SettingsPage() {
             <CardDescription>Dining tables offered in the POS and ordering checkout, plus takeout.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
               {diningRows.map((table, idx) => {
                 const tableError = errors.diningTables?.tables?.[idx]?.label?.message;
                 return (
-                  <div key={table.id ?? idx} className="flex flex-wrap items-center gap-2">
+                  <div
+                    key={table.id ?? idx}
+                    className={`rounded-xl border border-border bg-card p-3 transition-all hover:border-muted-foreground/30 ${table.enabled ? "" : "opacity-70"}`}
+                  >
+                    <div className="mb-2 flex items-start justify-between gap-2">
+                      <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground tabular-nums">
+                        #{idx + 1}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <span
+                          className={`h-2 w-2 shrink-0 rounded-full ${table.enabled ? "bg-success" : "bg-muted-foreground/40"}`}
+                          title={table.enabled ? "Enabled" : "Disabled"}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeDiningTable(idx)}
+                          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
+                          title="Remove table"
+                        >
+                          <Icon name="x" size={14} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mb-2 flex h-16 items-center justify-center rounded-lg bg-muted/40">
+                      <Icon name="table" size={28} className="text-muted-foreground/50" />
+                    </div>
+                    <Input
+                      value={table.label ?? ""}
+                      onChange={(e) => updateDiningTable(idx, "label", e.target.value)}
+                      placeholder="Table label"
+                      className="h-9 w-full text-sm"
+                    />
+                    {tableError && <p className="mt-1.5 text-xs text-destructive">{tableError}</p>}
                     <button
                       type="button"
                       onClick={() => updateDiningTable(idx, "enabled", !table.enabled)}
-                      className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                      className={`mt-2 w-full rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                         table.enabled ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                       }`}
                     >
                       {table.enabled ? "On" : "Off"}
                     </button>
-                    <Input
-                      value={table.label ?? ""}
-                      onChange={(e) => updateDiningTable(idx, "label", e.target.value)}
-                      placeholder="Table label"
-                      className="h-9 min-w-0 flex-1"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeDiningTable(idx)}
-                      className="shrink-0 rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                      title="Remove table"
-                    >
-                      <Icon name="x" size={14} />
-                    </button>
-                    {tableError && <p className="w-full text-xs text-destructive">{tableError}</p>}
                   </div>
                 );
               })}
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={addDiningTable}
-                  className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                >
-                  + Add table
-                </button>
-                <button
-                  type="button"
-                  onClick={toggleTakeout}
-                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                    diningTables.takeoutEnabled ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {diningTables.takeoutEnabled ? "Takeout: On" : "Takeout: Off"}
-                </button>
-              </div>
+              {/* Add card — dashed tile at the end, like Products' add flow */}
+              <button
+                type="button"
+                onClick={addDiningTable}
+                className="flex min-h-44 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border p-6 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                  <Icon name="plus" size={18} />
+                </span>
+                <span className="text-sm font-medium">Add table</span>
+                <span className="text-xs opacity-70">Table {diningRows.length + 1}</span>
+              </button>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                {diningRows.length} table{diningRows.length !== 1 ? "s" : ""} configured
+              </p>
+              <button
+                type="button"
+                onClick={toggleTakeout}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  diningTables.takeoutEnabled ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {diningTables.takeoutEnabled ? "Takeout: On" : "Takeout: Off"}
+              </button>
             </div>
             <div className="mt-3 flex justify-end"><SectionSaveButton sectionKey="tables" /></div>
           </CardContent>

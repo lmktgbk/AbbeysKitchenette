@@ -349,7 +349,7 @@ export default function AuditLogsPage() {
       </div>
 
       <div className="flex flex-col border border-border rounded-xl overflow-hidden">
-        <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-auto">
           {isLoading ? (
             <div className="p-4 space-y-2">
               {Array.from({ length: 10 }).map((_, i) => (
@@ -362,13 +362,13 @@ export default function AuditLogsPage() {
               <p className="text-sm text-muted-foreground">No audit logs found</p>
             </div>
           ) : (
-            <table className="w-full text-sm border-collapse">
+            <table className="w-full border-collapse min-w-[620px] sm:min-w-0">
               <thead>
                 <tr className="border-b border-border bg-muted/40 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  <th className="py-2.5 pl-4 pr-3 w-[100px]">Time</th>
-                  <th className="py-2.5 pr-3">User</th>
-                  <th className="py-2.5 pr-3 w-[200px]">Action</th>
-                  <th className="py-2.5 pr-4">Details</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 pr-3 sm:px-4 sm:py-3">Time</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 pr-3 sm:px-4 sm:py-3">User</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 pr-3 sm:px-4 sm:py-3">Action</th>
+                  <th className="px-3 py-2.5 pr-4 sm:px-4 sm:py-3">Details</th>
                 </tr>
               </thead>
               <tbody>
@@ -395,10 +395,10 @@ export default function AuditLogsPage() {
                       key={item.key}
                       className={`border-b border-border last:border-0 border-l-[3px] ${borderClass} hover:bg-muted/30 transition-colors`}
                     >
-                      <td className="py-2.5 pl-4 pr-3 whitespace-nowrap text-xs text-muted-foreground">
+                      <td className="whitespace-nowrap px-3 py-2.5 pr-6 text-xs text-muted-foreground tabular-nums sm:px-4 sm:py-3 sm:pr-3">
                         {formatTime(log.createdAt)}
                       </td>
-                      <td className="py-2.5 pr-3">
+                      <td className="max-w-[140px] truncate px-3 py-2.5 pr-6 sm:max-w-none sm:px-4 sm:py-3 sm:pr-3">
                         {log.user ? (
                           <span className="text-sm">
                             <span className="font-medium text-foreground">{log.user.name}</span>
@@ -408,12 +408,12 @@ export default function AuditLogsPage() {
                           <span className="text-sm text-muted-foreground italic">System</span>
                         )}
                       </td>
-                      <td className="py-2.5 pr-3">
+                      <td className="whitespace-nowrap px-3 py-2.5 pr-6 sm:px-4 sm:py-3 sm:pr-3">
                         <span className={`inline-flex items-center whitespace-nowrap rounded-md border px-2 py-0.5 text-[11px] font-medium ${badgeClass}`}>
                           {formatAction(log.action)}
                         </span>
                       </td>
-                      <td className="py-2.5 pr-4 text-sm text-muted-foreground">
+                      <td className="whitespace-nowrap px-3 py-2.5 pr-4 text-sm text-muted-foreground sm:whitespace-normal sm:px-4 sm:py-3">
                         {formatDescription(log)}
                       </td>
                     </tr>

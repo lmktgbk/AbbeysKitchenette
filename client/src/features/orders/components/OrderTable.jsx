@@ -16,30 +16,47 @@ const STATUS_CONFIG = {
 };
 
 /**
+ * COLUMNS — single source of truth for alignment.
+ * The header cell and every body cell of a column share the same
+ * alignment token, so headers always sit exactly over their values.
+ * No fixed widths: auto layout hugs content, so the gap between any
+ * two columns is always the same uniform cell padding (balanced).
+ */
+const COLUMNS = {
+  order: { label: "Order #", align: "", cell: "font-mono font-medium whitespace-nowrap" },
+  customer: { label: "Customer", align: "", cell: "max-w-[240px] truncate" },
+  table: { label: "Table", align: "", cell: "tabular-nums whitespace-nowrap" },
+  total: { label: "Total", align: "text-right pr-10", cell: "text-right font-medium tabular-nums whitespace-nowrap pr-10" },
+  status: { label: "Status", align: "text-center", cell: "text-center whitespace-nowrap" },
+  created: { label: "Created", align: "", cell: "text-xs text-muted-foreground whitespace-nowrap" },
+  time: { label: "Time", align: "", cell: "text-xs text-muted-foreground tabular-nums whitespace-nowrap" },
+};
+const COLUMN_KEYS = ["order", "customer", "table", "total", "status", "created", "time"];
+
+/**
  * OrderTable
  *
  * Scan surface for the orders queue — view-only rows (click opens the
- * detail modal, which owns all actions). Six columns, no wrapping cells.
+ * detail modal, which owns all actions). Seven columns, no wrapping cells.
  */
 export default function OrderTable({ orders, isLoading, onView }) {
   if (isLoading) {
     return (
       <div className="overflow-hidden">
-        <Table className="table-fixed">
+        <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[16%]">Order #</TableHead>
-              <TableHead className="w-[24%]">Customer</TableHead>
-              <TableHead className="w-[9%] whitespace-nowrap">Table</TableHead>
-              <TableHead className="w-[13%] text-right whitespace-nowrap">Total</TableHead>
-              <TableHead className="w-[15%] pl-6 whitespace-nowrap">Status</TableHead>
-              <TableHead className="w-[23%] whitespace-nowrap">Created</TableHead>
+              {COLUMN_KEYS.map((key) => (
+                <TableHead key={key} className={COLUMNS[key].align}>
+                  {COLUMNS[key].label}
+                </TableHead>
+              ))}
             </TableRow>
           </TableHeader>
           <TableBody>
             {Array.from({ length: 5 }).map((_, i) => (
               <TableRow key={i}>
-                {Array.from({ length: 6 }).map((_, j) => (
+                {Array.from({ length: 7 }).map((_, j) => (
                   <TableCell key={j}>
                     <div className="h-4 w-full animate-pulse rounded bg-muted" />
                   </TableCell>
@@ -63,19 +80,15 @@ export default function OrderTable({ orders, isLoading, onView }) {
 
   return (
     <div className="flex flex-col overflow-hidden">
-      {/* Fixed layout + weighted widths (sum 100%): each column fits its
-          content, so inter-column gaps stay visually even. Customer takes
-          the flexible share; compact columns never sprawl. */}
-      <Table className="table-fixed">
+      {/* Auto layout hugs content: every inter-column gap is the same uniform padding. */}
+      <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[16%]">Order #</TableHead>
-            <TableHead className="w-[22%]">Customer</TableHead>
-            <TableHead className="w-[9%] whitespace-nowrap">Table</TableHead>
-            <TableHead className="w-[13%] text-right whitespace-nowrap">Total</TableHead>
-            <TableHead className="w-[15%] pl-6 whitespace-nowrap">Status</TableHead>
-            <TableHead className="w-[15%] whitespace-nowrap">Created</TableHead>
-            <TableHead className="w-[10%] whitespace-nowrap">Time</TableHead>
+            {COLUMN_KEYS.map((key) => (
+              <TableHead key={key} className={COLUMNS[key].align}>
+                {COLUMNS[key].label}
+              </TableHead>
+            ))}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -88,21 +101,21 @@ export default function OrderTable({ orders, isLoading, onView }) {
                 onClick={() => onView?.(order)}
                 className="cursor-pointer hover:bg-muted/50"
               >
-                <TableCell className="font-mono font-medium whitespace-nowrap">
+                <TableCell className={COLUMNS.order.cell}>
                   {orderNumberLabel(order.order_number)}
                 </TableCell>
-                <TableCell className="truncate">{order.customer_name}</TableCell>
-                <TableCell className="tabular-nums whitespace-nowrap">{order.table_number}</TableCell>
-                <TableCell className="text-right font-medium tabular-nums whitespace-nowrap">
+                <TableCell className={COLUMNS.customer.cell}>{order.customer_name}</TableCell>
+                <TableCell className={COLUMNS.table.cell}>{order.table_number}</TableCell>
+                <TableCell className={COLUMNS.total.cell}>
                   ₱{Number(order.total_amount).toLocaleString()}
                 </TableCell>
-                <TableCell className="whitespace-nowrap pl-6">
+                <TableCell className={COLUMNS.status.cell}>
                   <Badge variant={status.variant}>{status.label}</Badge>
                 </TableCell>
-                <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                <TableCell className={COLUMNS.created.cell}>
                   {formatDate(order.created_at, "shortDate")}
                 </TableCell>
-                <TableCell className="text-xs text-muted-foreground tabular-nums whitespace-nowrap">
+                <TableCell className={COLUMNS.time.cell}>
                   {formatTime(order.created_at)}
                 </TableCell>
               </TableRow>

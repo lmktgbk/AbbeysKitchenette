@@ -19,7 +19,7 @@ export async function adminLoginRequest(email, password) {
   return res.data;
 }
 
-/* ── OTP (Admin 2FA)  */
+/* ── OTP (email 2FA — admin + staff, same format)  */
 
 /** Verify OTP code — returns { user, token } */
 export async function verifyOtpRequest(userId, code) {

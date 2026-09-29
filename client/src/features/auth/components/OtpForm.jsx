@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
-/** OtpForm — 6-digit email code verification. WHY it exists: completes admin 2FA after EmailForm and establishes session; consumed by login flow. State: local [serverError, resending]; writes authStore.user. */
+/** OtpForm — 6-digit email code verification. WHY it exists: completes email-OTP 2FA (admin + staff) after EmailForm and establishes session; consumed by login flow. State: local [serverError, resending]; writes authStore.user. */
 export default function OtpForm({ userId }) {
     const [serverError, setServerError] = useState("");
     const [resending, setResending] = useState(false);
@@ -35,7 +35,12 @@ export default function OtpForm({ userId }) {
             toast.success("Login Successful", {
                 description: `Welcome, ${user.name}!`,
             });
-            navigate("/dashboard");
+            switch (user.role) {
+                case "admin": navigate("/dashboard"); break;
+                case "cashier": navigate("/pos"); break;
+                case "kitchen": navigate("/kitchen"); break;
+                default: navigate("/dashboard");
+            }
         } catch (err) {
             setServerError(
                 err.response?.data?.message || "Invalid or expired OTP code."
