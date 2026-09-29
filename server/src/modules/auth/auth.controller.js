@@ -32,6 +32,9 @@ export const authController = {
     try {
       const { email, password } = req.body;
       const result = await authService.login(email, password, req.ip);
+      if (result.requiresOtp) {
+        return successResponse(res, "OTP sent to email", { requiresOtp: true, user: result.user });
+      }
       res.cookie("token", result.token, COOKIE_OPTIONS);
       auditLogService.logAction({ userId: result.user.id, action: ACTIONS.LOGIN_SUCCESS, details: { email, role: result.user.role } }).catch(() => {});
       return successResponse(res, "Login successful", { user: result.user, token: result.token });
