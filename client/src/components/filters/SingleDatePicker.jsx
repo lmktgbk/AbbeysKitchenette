@@ -200,7 +200,7 @@ export default function SingleDatePicker({ value, onChange, disabledDates = [], 
             {DAY_LABELS.map((label) => (
               <div
                 key={label}
-                className="text-center text-[10px] font-semibold text-muted-foreground py-1"
+                className="text-center type-caption font-semibold text-muted-foreground py-1"
               >
                 {label}
               </div>

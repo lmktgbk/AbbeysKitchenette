@@ -31,7 +31,7 @@ function Dialog({ open, onOpenChange, children }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50"
+        className="fixed inset-0 bg-black/50 animate-in fade-in-0 duration-200"
         onClick={() => onOpenChange(false)}
       />
       {/* Content — click outside closes */}
@@ -50,7 +50,7 @@ function DialogContent({ className, children, ...props }) {
   return (
     <div
       className={cn(
-        "w-full max-w-lg relative border border-border bg-card text-card-foreground rounded-xl p-6",
+        "w-full max-w-lg relative border border-border bg-card text-card-foreground rounded-xl p-6 animate-in fade-in-0 zoom-in-95 duration-200",
         className,
       )}
       onClick={(e) => e.stopPropagation()}

@@ -2,10 +2,46 @@ import React, { useState, useMemo } from "react";
 import { SearchBar } from "@/components/filters/SearchBar";
 import { Pagination } from "@/components/filters/Pagination";
 import { FilterPill } from "@/components/filters/FilterPill";
+import FilterModal from "@/components/filters/FilterModal";
+import { TableHead, TableHeader, TableRow, NumCell, MoneyCell } from "@/components/ui/table";
+import { EmptyState } from "@/components/ui/empty-state";
 import Icon from "@/components/ui/icon";
 
-const TREND_LABEL = { increasing: "Rising", decreasing: "Falling", stable: "Steady" };
-const TREND_COLOR = { increasing: "bg-green-100 text-green-700 border-green-200", decreasing: "bg-red-100 text-red-700 border-red-200", stable: "bg-gray-100 text-gray-600 border-gray-200" };
+const SORT_OPTIONS = [
+  { value: "units_desc", label: "Demand: High to Low" },
+  { value: "units_asc", label: "Demand: Low to High" },
+  { value: "revenue_desc", label: "Sales: High to Low" },
+  { value: "revenue_asc", label: "Sales: Low to High" },
+  { value: "name_asc", label: "Name: A to Z" },
+];
+
+const DEMAND_BANDS = [
+  { value: "all", label: "All demand" },
+  { value: "low", label: "Under 10 items" },
+  { value: "mid", label: "10–50 items" },
+  { value: "high", label: "Over 50 items" },
+];
+
+const SALES_BANDS = [
+  { value: "all", label: "All sales" },
+  { value: "low", label: "Under ₱1K" },
+  { value: "mid", label: "₱1K–₱5K" },
+  { value: "high", label: "Over ₱5K" },
+];
+
+function inDemandBand(units, band) {
+  if (band === "low") return units < 10;
+  if (band === "mid") return units >= 10 && units <= 50;
+  if (band === "high") return units > 50;
+  return true;
+}
+
+function inSalesBand(revenue, band) {
+  if (band === "low") return revenue < 1000;
+  if (band === "mid") return revenue >= 1000 && revenue <= 5000;
+  if (band === "high") return revenue > 5000;
+  return true;
+}
 
 // Rows are variants; products group them. product_id arrives on new jobs —
 // old jobs fall back to grouping by product_name.
@@ -21,6 +57,9 @@ export default function ProductDemandTab({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [expanded, setExpanded] = useState({});
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [activeSort, setActiveSort] = useState("units_desc");
+  const [activeFilters, setActiveFilters] = useState({ demand: "all", sales: "all" });
 
   const scoreByProduct = useMemo(() => {
     const map = new Map();
@@ -41,12 +80,12 @@ export default function ProductDemandTab({
           product_id: r.product_id,
           product_name: r.product_name,
           category_id: r.category_id,
-          trend: r.trend,
           variants: [],
         });
       }
-      const units = r.daily_data.slice(0, 7).reduce((s, d) => s + d.units, 0);
-      const revenue = r.daily_data.slice(0, 7).reduce((s, d) => s + d.revenue, 0);
+      const week = r.daily_data.slice(0, 7);
+      const units = week.reduce((s, d) => s + d.units, 0);
+      const revenue = week.reduce((s, d) => s + d.revenue, 0);
       map.get(key).variants.push({ ...r, units, revenue });
     }
     return Array.from(map.values())
@@ -61,10 +100,32 @@ export default function ProductDemandTab({
   }, [results, scoreByProduct]);
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return products;
-    const q = search.toLowerCase();
-    return products.filter((p) => p.product_name.toLowerCase().includes(q));
-  }, [products, search]);
+    const q = search.trim().toLowerCase();
+    const list = products.filter(
+      (p) =>
+        (!q || p.product_name.toLowerCase().includes(q)) &&
+        inDemandBand(p.units, activeFilters.demand) &&
+        inSalesBand(p.revenue, activeFilters.sales),
+    );
+    const sorted = [...list];
+    switch (activeSort) {
+      case "units_asc":
+        sorted.sort((a, b) => a.units - b.units);
+        break;
+      case "revenue_desc":
+        sorted.sort((a, b) => b.revenue - a.revenue);
+        break;
+      case "revenue_asc":
+        sorted.sort((a, b) => a.revenue - b.revenue);
+        break;
+      case "name_asc":
+        sorted.sort((a, b) => a.product_name.localeCompare(b.product_name));
+        break;
+      default: // units_desc — same as the pre-filter default order
+        sorted.sort((a, b) => b.units - a.units);
+    }
+    return sorted;
+  }, [products, search, activeSort, activeFilters]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const paged = useMemo(() => {
@@ -72,31 +133,53 @@ export default function ProductDemandTab({
     return filtered.slice(start, start + pageSize);
   }, [filtered, page, pageSize]);
 
-  React.useEffect(() => { setPage(1); }, [search, products]);
+  React.useEffect(() => { setPage(1); }, [search, products, activeSort, activeFilters]);
 
   const toggle = (key) => setExpanded((e) => ({ ...e, [key]: !e[key] }));
 
+  const filterActive =
+    activeSort !== "units_desc" ||
+    activeFilters.demand !== "all" ||
+    activeFilters.sales !== "all";
+
+  function handleFilterApply(sort, filters) {
+    setActiveSort(sort || "units_desc");
+    setActiveFilters({ demand: "all", sales: "all", ...filters });
+    setPage(1);
+  }
+
   if (!results.length) {
-    return <p className="py-8 text-center text-sm text-muted-foreground">No products in this forecast</p>;
+    return (
+      <div className="rounded-xl border border-border bg-card">
+        <EmptyState
+          icon="trendingUp"
+          title="No products in this forecast"
+          copy="Run a forecast to generate predictions."
+        />
+      </div>
+    );
   }
 
   if (!products.length) {
     return (
-      <div className="rounded-xl border border-border bg-card p-8 text-center">
-        <p className="text-sm text-muted-foreground">No products with forecasted demand in the next 7 days</p>
+      <div className="rounded-xl border border-border bg-card">
+        <EmptyState
+          icon="trendingUp"
+          title="No forecasted demand"
+          copy="No products with forecasted demand in the next 7 days."
+        />
       </div>
     );
   }
 
   return (
     <div className="rounded-xl border border-border bg-card">
-      <div className="border-b border-border px-4 py-3 space-y-3">
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">Product Forecast</h3>
-          <p className="text-xs text-muted-foreground">{filtered.length} products with demand · next 7 days</p>
-        </div>
+      <div className="border-b border-border px-4 py-3">
         <div className="flex items-center justify-between gap-3">
-          <SearchBar value={search} onChange={setSearch} placeholder="Search products..." className="max-w-[280px] flex-1" />
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Product Forecast</h3>
+            <p className="text-xs text-muted-foreground">{filtered.length} products with demand · next 7 days</p>
+          </div>
           {activeTab && onTabChange && (
             <FilterPill
               options={[
@@ -108,17 +191,29 @@ export default function ProductDemandTab({
             />
           )}
         </div>
+        <SearchBar value={search} onChange={setSearch} placeholder="Search products..." className="mt-2.5 w-full" onFilterClick={() => setFilterOpen(true)} filterActive={filterActive} />
       </div>
+      <FilterModal
+        open={filterOpen}
+        onOpenChange={setFilterOpen}
+        sortOptions={SORT_OPTIONS}
+        filterOptions={[
+          { key: "demand", label: "Forecasted Demand", options: DEMAND_BANDS },
+          { key: "sales", label: "Expected Sales", options: SALES_BANDS },
+        ]}
+        onApply={handleFilterApply}
+        currentSort={activeSort}
+        currentFilters={activeFilters}
+      />
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/30 text-xs text-muted-foreground">
-              <th className="px-4 py-2 text-left font-medium">Product</th>
-              <th className="px-4 py-2 text-center font-medium">Forecasted Demand</th>
-              <th className="px-4 py-2 text-right font-medium">Expected Sales</th>
-              <th className="px-4 py-2 text-center font-medium">Trend</th>
-            </tr>
-          </thead>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Product</TableHead>
+              <TableHead className="w-36 text-center">Forecasted Demand</TableHead>
+              <TableHead className="w-40 text-center">Expected Sales</TableHead>
+            </TableRow>
+          </TableHeader>
           <tbody>
             {paged.map((p) => {
               const isOpen = !!expanded[p.key];
@@ -146,13 +241,8 @@ export default function ProductDemandTab({
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-2.5 text-center font-semibold text-foreground">{p.units.toLocaleString()}</td>
-                    <td className="px-4 py-2.5 text-right text-foreground">₱{p.revenue.toLocaleString()}</td>
-                    <td className="px-4 py-2.5 text-center">
-                      <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${TREND_COLOR[p.trend] || TREND_COLOR.stable}`}>
-                        {TREND_LABEL[p.trend] || "Steady"}
-                      </span>
-                    </td>
+                    <NumCell strong align="center" className="whitespace-nowrap py-2.5">{p.units.toLocaleString()}</NumCell>
+                    <MoneyCell strong align="center" className="whitespace-nowrap py-2.5 text-emerald-600 dark:text-emerald-400">₱{p.revenue.toLocaleString()}</MoneyCell>
                   </tr>
                   {isOpen && p.variants.map((v) => {
                     const isSelected = String(selectedVariant) === String(v.variant_id);
@@ -168,13 +258,8 @@ export default function ProductDemandTab({
                             {v.share != null ? `${(v.share * 100).toFixed(0)}% of ${p.product_name}` : p.product_name}
                           </p>
                         </td>
-                        <td className="px-4 py-2 text-center font-semibold text-foreground">{v.units.toLocaleString()}</td>
-                        <td className="px-4 py-2 text-right text-foreground">₱{v.revenue.toLocaleString()}</td>
-                        <td className="px-4 py-2 text-center">
-                          <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${TREND_COLOR[v.trend] || TREND_COLOR.stable}`}>
-                            {TREND_LABEL[v.trend] || "Steady"}
-                          </span>
-                        </td>
+                        <NumCell align="center" className="whitespace-nowrap py-2">{v.units.toLocaleString()}</NumCell>
+                        <MoneyCell align="center" className="whitespace-nowrap py-2 text-emerald-600 dark:text-emerald-400">₱{v.revenue.toLocaleString()}</MoneyCell>
                       </tr>
                     );
                   })}

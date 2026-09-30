@@ -1,6 +1,7 @@
 import React from "react";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatCard } from "@/components/ui/stat";
 import { cn } from "@/lib/utils";
 import { formatPeso } from "@/features/dashboard/utils/dashboardUtils";
 
@@ -28,29 +29,6 @@ function TrendArrow({ value, tone = "good" }) {
       {!isFlat && <Icon name={isUp ? "trendingUp" : "trendingDown"} size={12} />}
       {isFlat ? "0" : `${Math.abs(value)}%`}
     </span>
-  );
-}
-
-function KpiCard({ icon, label, value, sub, delta, tone, iconBg, iconColor }) {
-  return (
-    <div className="rounded-lg border border-border bg-card px-4 py-3">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground truncate">{label}</span>
-        <div className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-md", iconBg)}>
-          <Icon name={icon} size={14} className={iconColor} />
-        </div>
-      </div>
-      <div className="text-lg font-bold text-foreground mb-0.5 truncate whitespace-nowrap">{value}</div>
-      <div className="flex items-center gap-1.5">
-        <span className="text-[11px] text-muted-foreground truncate">{sub}</span>
-        {delta != null && (
-          <>
-            <span className="text-[11px] text-muted-foreground">·</span>
-            <TrendArrow value={delta} tone={tone} />
-          </>
-        )}
-      </div>
-    </div>
   );
 }
 
@@ -154,7 +132,23 @@ export default function AnalyticsKpis({ kpis, isLoading }) {
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {cards.map((card) => (
-        <KpiCard key={card.label} {...card} />
+        <StatCard
+          key={card.label}
+          icon={card.icon}
+          iconBg={card.iconBg}
+          iconColor={card.iconColor}
+          label={card.label}
+          value={card.value}
+          sub={card.sub}
+          extra={
+            card.delta != null ? (
+              <>
+                <span className="type-small text-muted-foreground">·</span>
+                <TrendArrow value={card.delta} tone={card.tone} />
+              </>
+            ) : null
+          }
+        />
       ))}
     </div>
   );

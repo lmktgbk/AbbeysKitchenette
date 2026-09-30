@@ -1,6 +1,6 @@
 import React from "react";
-import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 
 function TopProductsTable({ title, data, isLoading }) {
   if (isLoading) {
@@ -20,14 +20,13 @@ function TopProductsTable({ title, data, isLoading }) {
 
   if (!data?.length) {
     return (
-      <div className="rounded-lg border border-border bg-card p-6">
-        <div className="flex h-64 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
-          <Icon name="barChart2" size={32} className="text-muted-foreground/30" />
-          <p className="font-medium text-foreground/70">No product data</p>
-          <p className="max-w-sm text-center text-xs">
-            No completed orders found for the selected period.
-          </p>
-        </div>
+      <div className="rounded-lg border border-border bg-card">
+        <EmptyState
+          icon="barChart2"
+          title="No product data"
+          copy="No completed orders found for the selected period."
+          className="h-64 py-0"
+        />
       </div>
     );
   }
@@ -40,7 +39,7 @@ function TopProductsTable({ title, data, isLoading }) {
       <div className="p-2">
         <table className="w-full border-collapse">
           <thead>
-            <tr className="text-[11px] font-medium text-muted-foreground">
+            <tr className="type-small font-semibold uppercase tracking-wider text-muted-foreground">
               <th className="whitespace-nowrap px-4 py-3 text-left">#</th>
               <th className="whitespace-nowrap px-4 py-3 text-left">Product</th>
               <th className="whitespace-nowrap px-4 py-3 text-right">Units</th>
@@ -53,14 +52,14 @@ function TopProductsTable({ title, data, isLoading }) {
                 key={i}
                 className="text-xs hover:bg-muted/50 transition-colors"
               >
-                <td className="whitespace-nowrap px-4 py-3 font-bold text-muted-foreground tabular-nums">{i + 1}</td>
+                <td className="whitespace-nowrap px-4 py-3 font-semibold text-muted-foreground">{i + 1}</td>
                 <td className="max-w-[200px] truncate px-4 py-3 font-medium text-foreground">
                   {p.productName}
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-right text-muted-foreground tabular-nums">
+                <td className="whitespace-nowrap px-4 py-3 text-right text-muted-foreground">
                   {p.unitsSold}
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-foreground tabular-nums">
+                <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-foreground">
                   ₱{Number(p.revenue || 0).toLocaleString()}
                 </td>
               </tr>

@@ -25,7 +25,7 @@ export default function ExpiryBadge({ expiryDate, days, className }) {
     <span
       title={`Expires ${expiryDate}`}
       className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap",
+        "inline-flex items-center rounded-full px-2 py-0.5 type-small font-semibold whitespace-nowrap",
         tone,
         className,
       )}

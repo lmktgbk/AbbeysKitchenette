@@ -5,6 +5,7 @@ import {
 } from "recharts";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useReducedMotion } from "@/lib/useReducedMotion";
 
 /**
  * IngredientCostChart — bar chart of top ingredients by cost.
@@ -14,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  * @param {boolean} props.isLoading
  */
 function IngredientCostChart({ data, isLoading }) {
+  const reduced = useReducedMotion();
   if (isLoading) {
     return (
       <div className="rounded-lg border border-border bg-card">
@@ -65,7 +67,7 @@ function IngredientCostChart({ data, isLoading }) {
               }}
               formatter={(value) => [`₱${Number(value).toLocaleString()}`, "Total Cost"]}
             />
-            <Bar dataKey="totalCost" fill="var(--color-chart-2)" radius={[4, 4, 0, 0]} />
+            <Bar isAnimationActive={!reduced} animationDuration={600} animationEasing="ease-out" dataKey="totalCost" fill="var(--color-chart-2)" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

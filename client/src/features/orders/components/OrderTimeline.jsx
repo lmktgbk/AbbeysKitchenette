@@ -69,7 +69,7 @@ export default function OrderTimeline({ order }) {
   return (
     <div className="flex flex-col">
       {/* ── STATUS SECTION ── */}
-      <p className="mb-2.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Status</p>
+      <p className="mb-2.5 type-caption font-medium uppercase tracking-wide text-muted-foreground">Status</p>
       {visibleSteps.map((step, idx) => {
         const isCompleted = isCancelled ? idx <= lastCompletedIdx : idx < currentIdx;
         const isCurrent = idx === currentIdx;
@@ -113,28 +113,28 @@ export default function OrderTimeline({ order }) {
               }`}>
                 {step.label}
                 {isCancelledStep && (
-                  <span className="ml-1.5 inline-flex items-center rounded-full bg-red-500/10 px-1.5 py-px text-[9px] font-medium text-red-600 dark:text-red-400">
+                  <span className="ml-1.5 inline-flex items-center rounded-full bg-red-500/10 px-1.5 py-px type-micro font-medium text-red-600 dark:text-red-400">
                     Terminal
                   </span>
                 )}
                 {isCurrent && !isCancelled && (
-                  <span className="ml-1.5 inline-flex items-center rounded-full bg-primary/10 px-1.5 py-px text-[9px] font-medium text-primary">
+                  <span className="ml-1.5 inline-flex items-center rounded-full bg-primary/10 px-1.5 py-px type-micro font-medium text-primary">
                     Current
                   </span>
                 )}
               </p>
               {timestamp && (
-                <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                <p className="type-small text-muted-foreground leading-tight mt-0.5">
                   {formatDate(timestamp, "shortDate")} {formatTime(timestamp)}
                 </p>
               )}
               {isCancelledStep && order.cancel_reason && (
-                <p className="text-[11px] text-muted-foreground italic mt-0.5 leading-tight">
+                <p className="type-small text-muted-foreground italic mt-0.5 leading-tight">
                   {CANCEL_REASON_LABELS[order.cancel_reason] || order.cancel_reason}
                 </p>
               )}
               {actorLabel && (
-                <p className="text-[11px] text-muted-foreground leading-tight">
+                <p className="type-small text-muted-foreground leading-tight">
                   {actorLabel}
                 </p>
               )}

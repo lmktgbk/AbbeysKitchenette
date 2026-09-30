@@ -6,6 +6,7 @@ import SimpleForecastChart from "../components/SimpleForecastChart";
 import ProductDemandTab from "../components/ProductDemandTab";
 import IngredientOrderTab from "../components/IngredientOrderTab";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatLabel, StatValue, StatSub } from "@/components/ui/stat";
 import Icon from "@/components/ui/icon";
 
 /**
@@ -111,7 +112,6 @@ export default function ForecastingPage() {
     // downstream math runs on product-week pairs uniformly.
     const weekPairsOf = (f) => (f.weeks?.length ? f.weeks : [{ w_pred: f.w_pred, w_actual: f.w_actual, w_mae: f.w_mae, w_mse: f.w_mse }]);
     const naivePairsOf = (f) => (f.n_weeks?.length ? f.n_weeks : [{ w_pred: f.n_w_pred, w_actual: f.n_w_actual, w_mae: f.n_w_mae, w_mse: f.n_w_mse }]);
-    const labelFor = (r2) => (r2 >= 0.8 ? "Strong" : r2 >= 0.5 ? "Moderate" : "Weak");
     if (productScores?.length) {
       const pairs = productScores.flatMap(weekPairsOf);
       const nPairs = productScores.flatMap(naivePairsOf);
@@ -146,7 +146,7 @@ export default function ForecastingPage() {
       return {
         r2, mae: avg(pairs, "w_mae") ?? avg(productScores, "mae") ?? 0,
         rmse: Math.sqrt(mse), mse,
-        count: productScores.length, label: labelFor(r2),
+        count: productScores.length,
         dailyMae: avg(productScores, "mae"),
         naive, range,
         unscored: 0,
@@ -159,7 +159,7 @@ export default function ForecastingPage() {
     return {
       r2, mae: avg(scored, "mae") ?? 0,
       rmse: avg(scored, "rmse") ?? 0, mse: avg(scored, "mse") ?? 0,
-      count: scored.length, label: labelFor(r2),
+      count: scored.length,
       dailyMae: null,
       unscored: forecasted.length - scored.length,
     };
@@ -201,7 +201,7 @@ export default function ForecastingPage() {
   return (
     <div className="flex flex-col gap-4">
       {/* Header + plain summary */}
-      <div className="rounded-xl border border-border bg-card px-4 py-4 sm:px-6">
+      <div className="rounded-xl border border-border bg-card p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-base font-semibold text-foreground">Demand Forecast for 7 Days</h1>
@@ -230,27 +230,27 @@ export default function ForecastingPage() {
       {/* 3 KPI Cards */}
       {hasData && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-border bg-card px-5 py-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Demand — Items to Prepare</p>
-            <p className="mt-1 text-2xl font-bold text-foreground">{periodTotals.units.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground">Total forecast for 7 days · avg {Math.round(periodTotals.units/7)} items/day</p>
+          <div className="rounded-xl border border-border bg-card p-5">
+            <StatLabel>Demand — Items to Prepare</StatLabel>
+            <StatValue size="hero" className="mt-1">{periodTotals.units.toLocaleString()}</StatValue>
+            <StatSub>Total forecast for 7 days · avg {Math.round(periodTotals.units/7)} items/day</StatSub>
           </div>
-          <div className="rounded-xl border border-border bg-card px-5 py-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Expected Sales</p>
-            <p className="mt-1 text-2xl font-bold text-foreground">₱{periodTotals.revenue.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground">Total for 7 days · avg ₱{Math.round(periodTotals.revenue/7).toLocaleString()}/day</p>
+          <div className="rounded-xl border border-border bg-card p-5">
+            <StatLabel>Expected Sales</StatLabel>
+            <StatValue size="hero" className="mt-1">₱{periodTotals.revenue.toLocaleString()}</StatValue>
+            <StatSub>Total for 7 days · avg ₱{Math.round(periodTotals.revenue/7).toLocaleString()}/day</StatSub>
           </div>
-          <div className={`rounded-xl border px-5 py-4 ${lowIngredients.length ? "border-amber-200 bg-amber-50/50 dark:border-amber-900/40 dark:bg-amber-950/10" : "border-border bg-card"}`}>
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">What to Order</p>
+          <div className={`rounded-xl border p-5 ${lowIngredients.length ? "border-amber-200 bg-amber-50/50 dark:border-amber-900/40 dark:bg-amber-950/10" : "border-border bg-card"}`}>
+            <StatLabel>What to Order</StatLabel>
             {lowIngredients.length ? (
               <>
-                <p className="mt-1 text-2xl font-bold text-amber-700">{lowIngredients.length} low</p>
-                <p className="text-xs text-muted-foreground truncate">{topNeed.map((i)=> i.name).join(", ")}{lowIngredients.length > 3 ? ` +${lowIngredients.length-3} more` : ""}</p>
+                <StatValue size="hero" className="mt-1 text-amber-700 dark:text-amber-400">{lowIngredients.length} low</StatValue>
+                <StatSub>{topNeed.map((i)=> i.name).join(", ")}{lowIngredients.length > 3 ? ` +${lowIngredients.length-3} more` : ""}</StatSub>
               </>
             ) : (
               <>
-                <p className="mt-1 text-2xl font-bold text-green-700">All good</p>
-                <p className="text-xs text-muted-foreground">No urgent orders</p>
+                <StatValue size="hero" className="mt-1 text-green-700 dark:text-green-400">All good</StatValue>
+                <StatSub>No urgent orders</StatSub>
               </>
             )}
           </div>
@@ -302,8 +302,8 @@ export default function ForecastingPage() {
             <div className="flex shrink-0 items-center gap-2">
               {evalMetrics.count != null ? (
                 <>
-                  <span title="R-squared — how well the model fits past sales" className={`hidden sm:inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${evalMetrics.label==="Strong" ? "bg-green-100 text-green-700 border-green-200" : evalMetrics.label==="Moderate" ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-red-100 text-red-700 border-red-200"}`}>
-                    Fit {(evalMetrics.r2*100).toFixed(1)}% · {evalMetrics.label}
+                  <span title="R-squared — how well the model fits past sales" className="hidden sm:inline-flex rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                    Fit {(evalMetrics.r2*100).toFixed(1)}%
                   </span>
                   <span title="Mean Absolute Error — typical weekly miss per product" className="inline-flex rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                     Typical error {evalMetrics.mae.toFixed(1)}/week{evalMetrics.dailyMae != null ? ` · ±${evalMetrics.dailyMae.toFixed(1)}/day` : ""}
@@ -323,7 +323,7 @@ export default function ForecastingPage() {
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div className="rounded-lg border border-border bg-card px-3 py-2">
                   <p className="text-xs text-muted-foreground">Fit (R²)</p>
-                  <p className="text-sm font-semibold text-foreground">{(evalMetrics.r2*100).toFixed(1)}% <span className={`ml-1 rounded-full border px-1.5 py-0.5 text-xs ${evalMetrics.label==="Strong" ? "bg-green-100 text-green-700 border-green-200" : evalMetrics.label==="Moderate" ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-red-100 text-red-700 border-red-200"}`}>{evalMetrics.label}</span></p>
+                  <p className="text-sm font-semibold text-foreground">{(evalMetrics.r2*100).toFixed(1)}%</p>
                   <p className="text-xs text-muted-foreground">How well it fits past sales</p>
                 </div>
                 <div className="rounded-lg border border-border bg-card px-3 py-2">
@@ -364,21 +364,6 @@ export default function ForecastingPage() {
               ) : (
                 <p className="text-xs text-muted-foreground">Not enough history to score yet — forecasts below still show for prep. Scores appear once a product has 14+ days.</p>
               )}
-
-              <div className="rounded-lg border border-border bg-muted/20 p-3">
-                <h4 className="text-xs font-semibold text-foreground">How it was modeled</h4>
-                <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                  <div><dt className="text-muted-foreground">Model</dt><dd className="font-medium text-foreground">Prophet additive + PH holidays</dd></div>
-                  <div><dt className="text-muted-foreground">Patterns</dt><dd className="font-medium text-foreground">Weekly (yearly past 730 days)</dd></div>
-                  <div><dt className="text-muted-foreground">Level</dt><dd className="font-medium text-foreground">One model per product, split to sizes</dd></div>
-                  <div><dt className="text-muted-foreground">Size split</dt><dd className="font-medium text-foreground">Trailing-30-day share, totals preserved</dd></div>
-                  <div><dt className="text-muted-foreground">Training window</dt><dd className="font-medium text-foreground">All history, full calendar (missing = 0)</dd></div>
-                  <div><dt className="text-muted-foreground">Scoring</dt><dd className="font-medium text-foreground">3 hidden 7-day weeks, totals + daily, zeros in</dd></div>
-                  <div><dt className="text-muted-foreground">Forecast</dt><dd className="font-medium text-foreground">Next 7 days</dd></div>
-                  <div><dt className="text-muted-foreground">Confidence</dt><dd className="font-medium text-foreground">90% interval</dd></div>
-                </dl>
-                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">We group items sold per product per day, fill missing days with 0 (zeros are true demand), fit one stiff Prophet model per product in square-root space (variance stabilization for spiky counts, squared back before scoring), split each day across sizes by recent share, and score RMSE/MAE/MSE/R² on three staggered hidden 7-day tails (rolling 3-origin procedure) at 7-day-total level (the prep decision), alongside a same-weekday carry-forward baseline on the identical tails, with the per-window range reported. Per-product R² is bounded below at −1 so one freak bulk week can't sink the menu mean; headline R² is volume-weighted across products; weekly RMSE is the square root of mean weekly MSE. Revenue uses real size prices; ingredients use real size recipes.</p>
-              </div>
 
               <p className="border-t border-border pt-2 text-xs text-muted-foreground">
                 Forecast ID: {job?.id} · {forecasted.length} predicted{skipped.length ? ` · ${skipped.length} need more sales (≥7 days)` : ""}

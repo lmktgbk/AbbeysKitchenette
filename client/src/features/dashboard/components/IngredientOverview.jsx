@@ -5,6 +5,7 @@ import {
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatPeso } from "../utils/dashboardUtils";
+import { useReducedMotion } from "@/lib/useReducedMotion";
 
 const STATUS_CONFIG = {
   healthy: { label: "Healthy", color: "#22c55e" },
@@ -22,6 +23,7 @@ const STATUS_CONFIG = {
  * @param {boolean} props.isLoading
  */
 function IngredientOverview({ statusData, lowStockData, stockValue, isLoading }) {
+  const reduced = useReducedMotion();
   const pieData = useMemo(() => {
     if (!statusData) return [];
     return Object.entries(STATUS_CONFIG)
@@ -80,6 +82,7 @@ function IngredientOverview({ statusData, lowStockData, stockValue, isLoading })
             <ResponsiveContainer width="50%" height={200}>
               <PieChart>
                 <Pie
+                  isAnimationActive={!reduced} animationDuration={600} animationEasing="ease-out"
                   data={pieData}
                   cx="50%"
                   cy="50%"

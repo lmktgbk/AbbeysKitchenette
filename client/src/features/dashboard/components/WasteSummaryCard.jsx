@@ -1,13 +1,14 @@
 import React from "react";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatValue } from "@/components/ui/stat";
 import { formatPeso } from "../utils/dashboardUtils";
 
 const WASTE_TYPES = [
-  { key: "cancellation", label: "Cancellations", icon: "x", color: "text-red-500" },
-  { key: "spoilage", label: "Spoilage", icon: "alertTriangle", color: "text-orange-500" },
-  { key: "spillage", label: "Spillage", icon: "droplets", color: "text-blue-500" },
-  { key: "expiry", label: "Expiry", icon: "clock", color: "text-yellow-500" },
+  { key: "cancellation", label: "Cancellations", icon: "x", color: "text-red-500 dark:text-red-400" },
+  { key: "spoilage", label: "Spoilage", icon: "alertTriangle", color: "text-orange-500 dark:text-orange-400" },
+  { key: "spillage", label: "Spillage", icon: "droplets", color: "text-blue-500 dark:text-blue-400" },
+  { key: "expiry", label: "Expiry", icon: "clock", color: "text-yellow-500 dark:text-yellow-400" },
   { key: "other", label: "Other", icon: "moreHorizontal", color: "text-muted-foreground" },
 ];
 
@@ -53,7 +54,7 @@ function WasteSummaryCard({ data, totalLosses, isLoading }) {
         {/* Big total */}
         <div className="mb-4 rounded-lg bg-destructive/5 px-4 py-3 text-center">
           <p className="text-xs text-muted-foreground">Total Waste</p>
-          <p className="text-2xl font-bold text-destructive">{formatPeso(totalFromData || totalLosses || 0)}</p>
+          <StatValue size="hero" className="text-destructive">{formatPeso(totalFromData || totalLosses || 0)}</StatValue>
           <p className="text-xs text-muted-foreground">{totalItems} item{totalItems !== 1 ? "s" : ""} affected</p>
         </div>
 
@@ -87,7 +88,7 @@ function WasteSummaryCard({ data, totalLosses, isLoading }) {
           })}
           {WASTE_TYPES.every((wt) => (typeMap[wt.key]?.count || 0) === 0) && (
             <div className="py-6 text-center">
-              <Icon name="checkCircle" size={28} className="mx-auto mb-2 text-green-500/50" />
+              <Icon name="checkCircle" size={28} className="mx-auto mb-2 text-green-500/50 dark:text-green-400/50" />
               <p className="text-sm font-medium text-foreground/70">No waste recorded</p>
               <p className="text-xs text-muted-foreground">Losses from cancellations, spoilage, spillage, expiry, or other will appear here.</p>
             </div>

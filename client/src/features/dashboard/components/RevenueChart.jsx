@@ -3,10 +3,11 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 import { formatPeso } from "../utils/dashboardUtils";
+import { useReducedMotion } from "@/lib/useReducedMotion";
 
 const GRANULARITY_OPTIONS = [
   { value: "daily", label: "Daily" },
@@ -14,7 +15,8 @@ const GRANULARITY_OPTIONS = [
   { value: "monthly", label: "Monthly" },
 ];
 
-function RevenueChart({ data, isLoading, granularity = "daily", onGranularityChange }) {
+function RevenueChart({ data, isLoading, granularity = "weekly", onGranularityChange }) {
+  const reduced = useReducedMotion();
   const totals = useMemo(() => {
     if (!data?.length) return { revenue: 0, gross: 0, profit: 0, orders: 0 };
     return data.reduce(
@@ -62,14 +64,13 @@ function RevenueChart({ data, isLoading, granularity = "daily", onGranularityCha
 
   if (!data?.length) {
     return (
-      <div className="rounded-lg border border-border bg-card p-6">
-        <div className="flex h-64 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
-          <Icon name="barChart2" size={32} className="text-muted-foreground/30" />
-          <p className="font-medium text-foreground/70">No revenue data</p>
-          <p className="max-w-sm text-center text-xs">
-            No completed orders found for the selected period.
-          </p>
-        </div>
+      <div className="rounded-lg border border-border bg-card">
+        <EmptyState
+          icon="barChart2"
+          title="No revenue data"
+          copy="No completed orders found for the selected period."
+          className="h-64 py-0"
+        />
       </div>
     );
   }
@@ -81,7 +82,7 @@ function RevenueChart({ data, isLoading, granularity = "daily", onGranularityCha
           <h3 className="text-sm font-semibold text-foreground">Revenue Trend</h3>
           {totals.gross > 0 && (
             <p className="text-xs text-muted-foreground">
-              Gross {formatPeso(totals.gross)} · <span className="text-amber-600 font-medium">Gross Profit {formatPeso(totals.profit)}</span>
+              Gross {formatPeso(totals.gross)} · <span className="text-amber-600 dark:text-amber-400 font-medium">Gross Profit {formatPeso(totals.profit)}</span>
             </p>
           )}
         </div>
@@ -127,6 +128,8 @@ function RevenueChart({ data, isLoading, granularity = "daily", onGranularityCha
               dataKey="date"
               tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
               tickFormatter={formatTick}
+              interval="preserveStartEnd"
+              minTickGap={24}
             />
             <YAxis
               tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
@@ -143,8 +146,8 @@ function RevenueChart({ data, isLoading, granularity = "daily", onGranularityCha
               formatter={(value, name) => [`₱${Number(value).toLocaleString()}`, name === "Gross" ? "Gross" : "Gross Profit"]}
               labelFormatter={formatTooltipLabel}
             />
-            <Area type="monotone" dataKey="gross" name="Gross" stroke="var(--color-primary)" strokeWidth={2} fill="url(#colorGross)" dot={{ r: 3, fill: "var(--color-primary)", stroke: "var(--color-card)", strokeWidth: 1.5 }} activeDot={{ r: 5, fill: "var(--color-primary)", stroke: "var(--color-card)", strokeWidth: 2 }} />
-            <Area type="monotone" dataKey="profit" name="Gross Profit" stroke="#f59e0b" strokeWidth={2} strokeDasharray="6 4" fill="url(#colorProfit)" dot={{ r: 3, fill: "#f59e0b", stroke: "var(--color-card)", strokeWidth: 1.5 }} activeDot={{ r: 5, fill: "#f59e0b", stroke: "var(--color-card)", strokeWidth: 2 }} />
+            <Area isAnimationActive={!reduced} animationDuration={600} animationEasing="ease-out" type="monotone" dataKey="gross" name="Gross" stroke="var(--color-primary)" strokeWidth={2} fill="url(#colorGross)" dot={(data?.length ?? 0) > 60 ? false : { r: 3, fill: "var(--color-primary)", stroke: "var(--color-card)", strokeWidth: 1.5 }} activeDot={{ r: 5, fill: "var(--color-primary)", stroke: "var(--color-card)", strokeWidth: 2 }} />
+            <Area isAnimationActive={!reduced} animationDuration={600} animationEasing="ease-out" type="monotone" dataKey="profit" name="Gross Profit" stroke="#f59e0b" strokeWidth={2} strokeDasharray="6 4" fill="url(#colorProfit)" dot={(data?.length ?? 0) > 60 ? false : { r: 3, fill: "#f59e0b", stroke: "var(--color-card)", strokeWidth: 1.5 }} activeDot={{ r: 5, fill: "#f59e0b", stroke: "var(--color-card)", strokeWidth: 2 }} />
           </AreaChart>
         </ResponsiveContainer>
         </div>

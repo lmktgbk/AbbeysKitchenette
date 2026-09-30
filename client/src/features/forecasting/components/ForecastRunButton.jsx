@@ -1,6 +1,7 @@
 import { useState, useEffect, memo } from "react";
 import { useRunDemandForecast, useDemandStatus } from "../query";
 import { cn } from "@/lib/utils";
+import { ButtonSpinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 
 const STORAGE_KEY = "forecastJobId";
@@ -107,7 +108,7 @@ function ForecastRunButton({ onJobComplete }) {
       >
         {showSpinner ? (
           <>
-            <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+            <ButtonSpinner />
             Updating...
           </>
         ) : (

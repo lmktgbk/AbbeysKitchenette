@@ -323,7 +323,7 @@ function BatchesTab({ batches, isLoading, ingredient, fifoLeaderBatchId, onToggl
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <PrimarySpinner size="sm" />
+        <PrimarySpinner size="section" />
       </div>
     );
   }
@@ -561,7 +561,7 @@ function HistoryTab({ history, isLoading, unit }) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <PrimarySpinner size="sm" />
+        <PrimarySpinner size="section" />
       </div>
     );
   }

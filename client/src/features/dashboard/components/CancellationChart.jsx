@@ -4,6 +4,7 @@ import {
 } from "recharts";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useReducedMotion } from "@/lib/useReducedMotion";
 
 const COLORS = [
   "var(--color-chart-1)",
@@ -24,6 +25,7 @@ const REASON_LABELS = {
 };
 
 function CancellationChart({ data, isLoading }) {
+  const reduced = useReducedMotion();
   const pieData = useMemo(() => {
     if (!data?.length) return [];
     // Aggregate by display label: only the known enums get their own slice;
@@ -83,6 +85,7 @@ function CancellationChart({ data, isLoading }) {
         <ResponsiveContainer width="45%" height={180}>
           <PieChart>
             <Pie
+              isAnimationActive={!reduced} animationDuration={600} animationEasing="ease-out"
               data={pieData}
               cx="50%"
               cy="50%"

@@ -42,7 +42,7 @@ export const anomalyService = {
 
   _lastFired: new Map(),
 
-  async runScan(ruleIds = null) {
+  async runScan(ruleIds = null, context = null) {
     const startTime = Date.now();
     const allResults = [];
     const now = Date.now();
@@ -51,10 +51,24 @@ export const anomalyService = {
     for (const rule of RULE_REGISTRY) {
       if (!rule.enabled) continue;
       if (ruleIds && !ruleIds.includes(rule.id)) continue;
-      // 15-min cooldown per rule for real-time hooks
-      if (ruleIds) {
+      // Cash drawer is policeman (per-shift) — no 15-min cooldown so back-
+      // to-back closes each flag. Other hook rules keep the throttle.
+      if (ruleIds && rule.id !== "shift_variance_spike") {
         const last = this._lastFired.get(rule.id) || 0;
         if (now - last < COOLDOWN_MS) continue;
+      }
+      // Policeman path: flag the exact shift(s), one card per shift.
+      if (rule.id === "shift_variance_spike") {
+        try {
+          const flagged = await this._runShiftVariancePoliceman(rule, context);
+          for (const r of flagged) {
+            allResults.push(r);
+            if (ruleIds) this._lastFired.set(rule.id, now);
+          }
+        } catch (err) {
+          console.error(`[anomaly] Rule "${rule.id}" failed:`, err.message);
+        }
+        continue;
       }
       try {
         // Dedup-first: skip before aggregation + Gemini when an active card exists today
@@ -94,16 +108,14 @@ export const anomalyService = {
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`[anomaly] Scan complete: ${allResults.length} anomalies found in ${elapsed}s`);
 
-    // Noise throttle: hook-triggered scans (ruleIds set by POS events) audit
-    // only when they actually find something. Manual Check now + 6am cron
-    // (ruleIds null) always leave a trail.
-    if (allResults.length > 0 || !ruleIds) {
-      auditLogService.logAction({
-        action: ACTIONS.ANOMALY_SCAN,
-        targetType: "anomaly",
-        details: { anomaliesFound: allResults.length, elapsedSeconds: Number(elapsed) },
-      }).catch(() => {});
-    }
+    // Every run leaves a trail (manual, cron, ALL hooks even on 0) so
+    // getStats.lastScan reflects the true last run time. lastAnomaly stays
+    // separate for the last created card.
+    auditLogService.logAction({
+      action: ACTIONS.ANOMALY_SCAN,
+      targetType: "anomaly",
+      details: { anomaliesFound: allResults.length, elapsedSeconds: Number(elapsed), rules: ruleIds ?? "all" },
+    }).catch(() => {});
 
     // Anomaly screens refresh (list, stats, badge). The audit emit above
     // covers the audit page; this covers anomaly state itself.
@@ -117,6 +129,41 @@ export const anomalyService = {
     );
 
     return { anomaliesFound: allResults.length, elapsedSeconds: Number(elapsed) };
+  },
+
+  // Policeman runner for cash drawer: hook context flags one shift,
+  // manual/cron fans out over today's unalarmed mismatched closes (max 5).
+  async _runShiftVariancePoliceman(rule, context) {
+    const out = [];
+    const evaluateOne = async (shift) => {
+      if (!shift?.shiftId || Number(shift.variance ?? 0) === 0) return;
+      if (await anomalyRepository.existsShiftCard(shift.shiftId)) return;
+      rule._pendingShift = shift;
+      try {
+        const result = await engine.evaluate(rule);
+        if (result) {
+          if (rule.id === "supplier_price_jump" && result.ingredientId) {
+            const reviewed = await anomalyRepository.existsReviewedSupplier(result.ingredientId, String(result.actualValue));
+            if (reviewed) return;
+          }
+          out.push(result);
+        }
+      } finally {
+        rule._pendingShift = null;
+      }
+    };
+    // Hook path: closeShift passes { shift: { shiftId, expected, actual, variance } }.
+    if (context?.shift?.shiftId) {
+      await evaluateOne(context.shift);
+      return out;
+    }
+    // Manual/cron path: sweep today's mismatched closes.
+    const data = await rule.dataFetcher.call({ _pendingShift: null, config: rule.config });
+    const candidates = data?.candidates ?? [];
+    for (const shift of candidates.slice(0, 5)) {
+      await evaluateOne(shift);
+    }
+    return out;
   },
 
   async getResults(params) {

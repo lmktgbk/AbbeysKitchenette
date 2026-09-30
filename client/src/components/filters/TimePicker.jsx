@@ -174,7 +174,7 @@ export default function TimePicker({ value, onChange, placeholder = "Select time
           <div className="flex gap-2">
             {/* Hours */}
             <div className="flex-1">
-              <p className="text-[10px] font-semibold text-muted-foreground text-center mb-1 uppercase tracking-wider">Hour</p>
+              <p className="type-caption font-semibold text-muted-foreground text-center mb-1 uppercase tracking-wider">Hour</p>
               <div
                 ref={hourRef}
                 className="h-40 overflow-y-auto rounded-md border border-border"
@@ -194,7 +194,7 @@ export default function TimePicker({ value, onChange, placeholder = "Select time
                     )}
                   >
                     {formatDisplay(`${h}:00`).split(":")[0]}
-                    <span className="text-[10px] ml-1 opacity-60">
+                    <span className="type-caption ml-1 opacity-60">
                       {Number(h) < 12 ? "AM" : "PM"}
                     </span>
                   </button>
@@ -204,7 +204,7 @@ export default function TimePicker({ value, onChange, placeholder = "Select time
 
             {/* Minutes */}
             <div className="flex-1">
-              <p className="text-[10px] font-semibold text-muted-foreground text-center mb-1 uppercase tracking-wider">Min</p>
+              <p className="type-caption font-semibold text-muted-foreground text-center mb-1 uppercase tracking-wider">Min</p>
               <div
                 ref={minuteRef}
                 className="h-40 overflow-y-auto rounded-md border border-border"

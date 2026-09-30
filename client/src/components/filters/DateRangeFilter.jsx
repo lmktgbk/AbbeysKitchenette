@@ -417,7 +417,7 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
             {DAY_LABELS.map((label) => (
               <div
                 key={label}
-                className="text-center text-[10px] font-semibold text-muted-foreground py-1"
+                className="text-center type-caption font-semibold text-muted-foreground py-1"
               >
                 {label}
               </div>
@@ -499,7 +499,7 @@ function PresetButton({ label, onClick, active }) {
     <button
       type="button"
       onClick={onClick}
-      className={`px-2 py-0.5 text-[11px] font-medium rounded-md border transition-colors whitespace-nowrap ${active ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+      className={`px-2 py-0.5 type-small font-medium rounded-md border transition-colors whitespace-nowrap ${active ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"}`}
     >
       {label}
     </button>

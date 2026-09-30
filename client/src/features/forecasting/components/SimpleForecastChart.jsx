@@ -3,6 +3,7 @@ import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
 } from "recharts";
+import { useReducedMotion } from "@/lib/useReducedMotion";
 
 function formatDayLabel(dateStr) {
   const d = new Date(dateStr);
@@ -11,6 +12,7 @@ function formatDayLabel(dateStr) {
 }
 
 export default function SimpleForecastChart({ results, selectedVariant, selectedProduct, selectedVariantName, onClear, isLoading }) {
+  const reduced = useReducedMotion();
   const displayResults = useMemo(() => {
     if (selectedVariant) return results.filter((v) => String(v.variant_id) === String(selectedVariant));
     if (selectedProduct) return results.filter((v) => String(v.product_id ?? v.product_name) === String(selectedProduct));
@@ -93,7 +95,7 @@ export default function SimpleForecastChart({ results, selectedVariant, selected
               labelFormatter={formatDayLabel}
             />
             <Legend verticalAlign="top" height={24} iconType="rect" wrapperStyle={{ fontSize: 12 }} />
-            <Bar yAxisId="left" dataKey="units" name="Items to Prepare" fill="var(--color-primary)" radius={[4, 4, 0, 0]} barSize={22} />
+            <Bar isAnimationActive={!reduced} animationDuration={600} animationEasing="ease-out" yAxisId="left" dataKey="units" name="Items to Prepare" fill="var(--color-primary)" radius={[4, 4, 0, 0]} barSize={22} />
             <Line yAxisId="right" type="monotone" dataKey="revenue" name="Expected Sales" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 3, fill: "#f59e0b", stroke: "var(--color-card)", strokeWidth: 2 }} />
           </ComposedChart>
         </ResponsiveContainer>

@@ -1,6 +1,7 @@
 import React from "react";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Pill } from "@/components/ui/badge";
 
 function MostRestockedTable({ data, isLoading }) {
   if (isLoading) {
@@ -40,7 +41,7 @@ function MostRestockedTable({ data, isLoading }) {
       <div className="p-2">
         <table className="w-full border-collapse">
           <thead>
-            <tr className="text-[11px] font-medium text-muted-foreground">
+            <tr className="type-small font-semibold uppercase tracking-wider text-muted-foreground">
               <th className="whitespace-nowrap px-4 py-3 text-left">#</th>
               <th className="whitespace-nowrap px-4 py-3 text-left">Ingredient</th>
               <th className="whitespace-nowrap px-4 py-3 text-right">Restocks</th>
@@ -54,19 +55,17 @@ function MostRestockedTable({ data, isLoading }) {
                 key={i}
                 className="text-xs hover:bg-muted/50 transition-colors"
               >
-                <td className="whitespace-nowrap px-4 py-3 font-bold text-muted-foreground tabular-nums">{i + 1}</td>
+                <td className="whitespace-nowrap px-4 py-3 font-semibold text-muted-foreground">{i + 1}</td>
                 <td className="max-w-[180px] truncate px-4 py-3 font-medium text-foreground">
                   {item.name}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-right">
-                  <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                    {item.restockCount}
-                  </span>
+                  <Pill variant="primary">{item.restockCount}</Pill>
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-right text-muted-foreground tabular-nums">
+                <td className="whitespace-nowrap px-4 py-3 text-right text-muted-foreground">
                   {item.totalQuantity} {item.unit}
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-foreground tabular-nums">
+                <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-foreground">
                   ₱{Number(item.totalCost || 0).toLocaleString()}
                 </td>
               </tr>

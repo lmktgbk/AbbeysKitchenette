@@ -5,6 +5,7 @@ import {
 } from "recharts";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useReducedMotion } from "@/lib/useReducedMotion";
 
 const CHART_COLORS = [
   "var(--color-chart-1)",
@@ -22,6 +23,7 @@ const CHART_COLORS = [
  * @param {boolean} props.isLoading
  */
 function CategorySalesChart({ data, isLoading }) {
+  const reduced = useReducedMotion();
   if (isLoading) {
     return (
       <div className="rounded-lg border border-border bg-card">
@@ -51,7 +53,7 @@ function CategorySalesChart({ data, isLoading }) {
       <div className="border-b border-border px-4 py-3">
         <h3 className="text-sm font-semibold text-foreground">Sales by Category</h3>
       </div>
-      <div className="px-4 pt-3 pb-4">
+      <div className="p-4">
         <ResponsiveContainer width="100%" height={250}>
           <BarChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
@@ -76,7 +78,7 @@ function CategorySalesChart({ data, isLoading }) {
                 return [value, "Orders"];
               }}
             />
-            <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
+            <Bar isAnimationActive={!reduced} animationDuration={600} animationEasing="ease-out" dataKey="revenue" radius={[4, 4, 0, 0]}>
               {data.map((_, i) => (
                 <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
               ))}

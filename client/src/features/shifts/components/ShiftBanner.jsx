@@ -44,7 +44,7 @@ export default function ShiftBanner({ shifts = [], isLoading, onOpenShift, onClo
           key={s.shift_id}
           className={cn(
             "flex items-center gap-3",
-            compact ? "w-full px-1 py-1" : "rounded-lg border border-border bg-card px-4 py-2.5",
+            compact ? "w-full px-1 py-1" : "rounded-lg border border-border bg-card px-4 py-3",
           )}
         >
           <Icon name="wallet" size={compact ? 15 : 18} className="shrink-0 text-primary" />
@@ -62,10 +62,10 @@ export default function ShiftBanner({ shifts = [], isLoading, onOpenShift, onClo
             )}
           </div>
           <div className="shrink-0 text-right">
-            <p className={cn("text-[10px] font-medium uppercase tracking-wide text-muted-foreground", compact && "hidden")}>
+            <p className={cn("type-caption font-medium uppercase tracking-wide text-muted-foreground", compact && "hidden")}>
               Expected
             </p>
-            <p className={cn("font-bold tabular-nums", compact ? "text-sm" : "text-base")}>
+            <p className={cn("font-bold", compact ? "text-sm" : "text-base")}>
               ₱{Number(s.expected_cash ?? 0).toLocaleString()}
             </p>
           </div>

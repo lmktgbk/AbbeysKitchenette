@@ -7,11 +7,13 @@ import DateRangeFilter from "@/components/filters/DateRangeFilter";
 import FilterModal from "@/components/filters/FilterModal";
 import { Pagination } from "@/components/filters/Pagination";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import Icon from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import { formatPeso } from "@/lib/money";
 import { orderNumberLabel } from "@/lib/orderNumber";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, MoneyCell } from "@/components/ui/table";
+import { StatLabel, StatValue } from "@/components/ui/stat";
 
 const TYPE_OPTIONS = [
   { value: "all", label: "All" },
@@ -188,7 +190,7 @@ export default function TransactionsView({ switcher, actions }) {
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={7}><div className="h-4 w-full animate-pulse rounded bg-muted" /></TableCell>
+                  <TableCell colSpan={7}><Skeleton className="h-4 w-full" /></TableCell>
                 </TableRow>
               ))
             ) : visible.length === 0 ? (
@@ -210,19 +212,21 @@ export default function TransactionsView({ switcher, actions }) {
                       {t.timestamp ? new Date(t.timestamp).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true }) : "—"}
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
-                      <Badge variant={badge.variant} className="text-[10px]">{badge.label}</Badge>
+                      <Badge variant={badge.variant} className="type-caption">{badge.label}</Badge>
                     </TableCell>
                     <TableCell className="text-xs capitalize whitespace-nowrap">{t.method}</TableCell>
                     <TableCell className="font-mono text-xs font-bold whitespace-nowrap">
                       {t.order_number != null ? orderNumberLabel(t.order_number) : "—"}
                     </TableCell>
                     <TableCell className="max-w-[200px] truncate text-xs">{t.staff_name ?? "—"}</TableCell>
-                    <TableCell className={cn(
-                      "text-right text-sm font-bold whitespace-nowrap tabular-nums",
-                      positive ? "text-green-600 dark:text-green-400" : "text-destructive",
-                    )}>
+                    <MoneyCell
+                      strong
+                      className={cn(
+                        "text-sm whitespace-nowrap",
+                        positive ? "text-green-600 dark:text-green-400" : "text-destructive",
+                      )}>
                       {positive ? "+" : "−"}{formatPeso(Math.abs(Number(t.amount)))}
-                    </TableCell>
+                    </MoneyCell>
                     <TableCell className="text-right whitespace-nowrap">
                       {t.type === "payment" && t.order_id ? (
                         <button
@@ -234,7 +238,7 @@ export default function TransactionsView({ switcher, actions }) {
                           <Icon name="receipt" size={14} />
                         </button>
                       ) : (
-                        <span className="text-[11px] text-muted-foreground" title={t.note || undefined}>
+                        <span className="type-small text-muted-foreground" title={t.note || undefined}>
                           {t.note ? `${t.note.slice(0, 24)}${t.note.length > 24 ? "…" : ""}` : "—"}
                         </span>
                       )}
@@ -262,8 +266,8 @@ export default function TransactionsView({ switcher, actions }) {
 function MoneyCard({ label, value, tone }) {
   return (
     <div className="rounded-xl border border-border bg-card px-4 py-3">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className={cn("text-lg font-bold tabular-nums", tone)}>{value}</p>
+      <StatLabel>{label}</StatLabel>
+      <StatValue className={tone}>{value}</StatValue>
     </div>
   );
 }

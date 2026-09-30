@@ -1,8 +1,10 @@
 import { useState, Fragment } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, NumCell, MoneyCell } from "@/components/ui/table";
+import { StatLabel } from "@/components/ui/stat";
 import Icon from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import { formatDate, formatTime } from "@/lib/date";
@@ -104,7 +106,7 @@ export default function OrderDetailModal({
         <DialogHeader className="pl-5 pr-10 pt-5 pb-0">
           <DialogTitle className="flex items-center gap-2">
             {loading ? (
-              <div className="h-5 w-32 animate-pulse rounded bg-muted" />
+              <Skeleton className="h-5 w-32" />
             ) : (
               <>
                 Order {orderNumberLabel(order?.order_number)}
@@ -117,7 +119,7 @@ export default function OrderDetailModal({
             )}
           </DialogTitle>
           {!loading && order?.order_id && (
-            <p className="-mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+            <p className="-mt-1 flex items-center gap-1 type-caption text-muted-foreground">
               <span className="font-mono break-all">Order ID: {order.order_id}</span>
               <button
                 type="button"
@@ -134,7 +136,7 @@ export default function OrderDetailModal({
         {loading ? (
           <div className="space-y-4 py-4 px-5">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-4 w-full animate-pulse rounded bg-muted" />
+              <Skeleton key={i} className="h-4 w-full" />
             ))}
           </div>
         ) : (
@@ -146,15 +148,15 @@ export default function OrderDetailModal({
                 {/* Meta grid — customer, table, payment as stacked cells */}
                 <div className="grid grid-cols-3 gap-2">
                   <div className="rounded-lg border border-border bg-muted/40 px-3 py-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Customer Name</p>
+                    <StatLabel>Customer Name</StatLabel>
                     <p className="truncate text-sm font-semibold" title={order?.customer_name}>{order?.customer_name || "—"}</p>
                   </div>
                   <div className="rounded-lg border border-border bg-muted/40 px-3 py-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Table</p>
+                    <StatLabel>Table</StatLabel>
                     <p className="truncate text-sm font-semibold" title={order?.table_number}>{order?.table_number || "—"}</p>
                   </div>
                   <div className="rounded-lg border border-border bg-muted/40 px-3 py-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Payment</p>
+                    <StatLabel>Payment</StatLabel>
                     <p className="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
                       <PaymentMethodMark method={order?.payment_method} />
                       <span className="truncate capitalize">{order?.payment_method || "cash"}</span>
@@ -222,7 +224,7 @@ export default function OrderDetailModal({
                       Items
                     </p>
                     {isPreparing && (
-                      <span className="text-[10px] font-semibold text-muted-foreground">
+                      <span className="type-caption font-semibold text-muted-foreground">
                         {checkedCount}/{totalItems} prepared
                       </span>
                     )}
@@ -284,13 +286,12 @@ export default function OrderDetailModal({
                                     </span>
                                   </div>
                                 </TableCell>
-                                <TableCell className={cn(
-                                  "text-center",
+                                <NumCell align="center" className={cn(
                                   removed && "text-muted-foreground line-through",
                                 )}>
                                   ×{item.quantity}
-                                </TableCell>
-                                <TableCell className="text-right whitespace-nowrap">
+                                </NumCell>
+                                <MoneyCell className="whitespace-nowrap">
                                   {item.discount_type && item.discount_type !== "none" && Number(item.discount_amount || 0) > 0 ? (
                                     <span
                                       className="font-medium text-green-600 dark:text-green-400"
@@ -301,8 +302,8 @@ export default function OrderDetailModal({
                                   ) : (
                                     <span className="text-muted-foreground">—</span>
                                   )}
-                                </TableCell>
-                                <TableCell className="text-right whitespace-nowrap">
+                                </MoneyCell>
+                                <MoneyCell className="whitespace-nowrap">
                                   <div className="flex items-center justify-end gap-2">
                                     <span className={cn(
                                       "text-right font-medium",
@@ -321,22 +322,22 @@ export default function OrderDetailModal({
                                       </button>
                                     )}
                                   </div>
-                                </TableCell>
-                                <TableCell className="text-right whitespace-nowrap">
+                                </MoneyCell>
+                                <MoneyCell strong className="whitespace-nowrap">
                                   <span className={cn(
                                     "font-semibold",
                                     removed && "text-muted-foreground line-through",
                                   )}>
                                     ₱{(Number(item.subtotal || 0) - Number(item.discount_amount || 0)).toLocaleString()}
                                   </span>
-                                </TableCell>
+                                </MoneyCell>
                               </TableRow>
 
                               {isExpanded && expandable && (
                                 <TableRow className="bg-muted/20 hover:bg-muted/20">
                                   <TableCell colSpan={5} className="py-2 pl-8">
                                     {removed ? (
-                                      <div className="space-y-0.5 text-[10px]">
+                                      <div className="space-y-0.5 type-caption">
                                         <p className="text-destructive font-semibold">Removed</p>
                                         {item.removed_reason && (
                                           <p className="text-muted-foreground">
@@ -365,7 +366,7 @@ export default function OrderDetailModal({
                                         </p>
                                       </div>
                                     ) : done ? (
-                                      <div className="space-y-0.5 text-[10px]">
+                                      <div className="space-y-0.5 type-caption">
                                         {item.prepared_by_name && (
                                           <p className="text-muted-foreground">
                                             <span className="font-medium">Prepared by:</span> {item.prepared_by_name}
@@ -386,7 +387,7 @@ export default function OrderDetailModal({
                                         ) : null}
                                       </div>
                                     ) : item.removed_loss_option ? (
-                                      <div className="space-y-0.5 text-[10px]">
+                                      <div className="space-y-0.5 type-caption">
                                         {item.removed_loss_option === "with_loss" && item.ingredient_loss_cost > 0 ? (
                                           <p className="text-destructive font-semibold">
                                             Ingredient Loss: ₱{Number(item.ingredient_loss_cost).toLocaleString()}
@@ -412,31 +413,31 @@ export default function OrderDetailModal({
                         })}
 
                         <TableRow className="bg-muted/50 hover:bg-muted/50">
-                          <TableCell colSpan={4} className="text-[11px] font-medium text-muted-foreground">Subtotal</TableCell>
-                          <TableCell className="text-right text-xs font-semibold">
+                          <TableCell colSpan={4} className="type-small font-medium text-muted-foreground">Subtotal</TableCell>
+                          <MoneyCell strong className="text-xs">
                             ₱{Number(order?.subtotal_amount ?? total).toLocaleString()}
-                          </TableCell>
+                          </MoneyCell>
                         </TableRow>
                         {Number(order?.discount_amount || 0) > 0 && (
                           <TableRow className="bg-muted/50 hover:bg-muted/50">
-                            <TableCell colSpan={4} className="text-[11px] font-medium text-green-600 dark:text-green-400">Discount</TableCell>
-                            <TableCell className="text-right text-xs font-semibold text-green-600 dark:text-green-400">
+                            <TableCell colSpan={4} className="type-small font-medium text-green-600 dark:text-green-400">Discount</TableCell>
+                            <MoneyCell strong className="text-xs text-green-600 dark:text-green-400">
                               −₱{Number(order.discount_amount).toLocaleString()}
-                            </TableCell>
+                            </MoneyCell>
                           </TableRow>
                         )}
                         <TableRow className="bg-muted/50 hover:bg-muted/50">
-                          <TableCell colSpan={4} className="text-[11px] font-bold">Total</TableCell>
-                          <TableCell className="text-right text-xs font-bold">
+                          <TableCell colSpan={4} className="type-small font-bold">Total</TableCell>
+                          <MoneyCell strong className="text-xs">
                             ₱{Number(order?.total_amount ?? total).toLocaleString()}
-                          </TableCell>
+                          </MoneyCell>
                         </TableRow>
                         {removedTotal > 0 && (
                           <TableRow className="bg-destructive/5 hover:bg-destructive/5">
-                            <TableCell colSpan={4} className="text-[11px] font-medium text-destructive">Removed</TableCell>
-                            <TableCell className="text-right text-[11px] font-semibold text-destructive line-through">
+                            <TableCell colSpan={4} className="type-small font-medium text-destructive">Removed</TableCell>
+                            <MoneyCell strong className="type-small text-destructive line-through">
                               ₱{removedTotal.toLocaleString()}
-                            </TableCell>
+                            </MoneyCell>
                           </TableRow>
                         )}
                       </TableBody>
@@ -470,7 +471,7 @@ export default function OrderDetailModal({
                   </Button>
                 )}
                 {canCancel && checkedCount > 0 && !allPrepared && (
-                  <p className="text-[10px] text-muted-foreground w-full mb-1">
+                  <p className="type-caption text-muted-foreground w-full mb-1">
                     Cannot cancel order — {checkedCount} item(s) have been served. Uncheck served items first, or remove unserved items to proceed.
                   </p>
                 )}
@@ -516,10 +517,10 @@ export default function OrderDetailModal({
 function StatCell({ label, value, valueClassName, hint }) {
   return (
     <div className="px-2">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="type-caption font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className={cn("text-sm font-semibold", valueClassName)}>{value}</p>
       {hint && (
-        <p className="truncate text-[10px] text-muted-foreground" title={hint}>{hint}</p>
+        <p className="truncate type-caption text-muted-foreground" title={hint}>{hint}</p>
       )}
     </div>
   );
@@ -569,16 +570,16 @@ function StatusStepper({ order }) {
                 {isCurrent && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
               </span>
               <span className={cn(
-                "text-[10px] leading-tight",
+                "type-caption leading-tight",
                 step.done ? "font-semibold text-foreground" : isCurrent ? "font-semibold text-primary" : "text-muted-foreground",
               )}>
                 {step.label}
               </span>
-              <span className="w-full truncate text-[10px] leading-tight text-muted-foreground" title={step.at ?? undefined}>
+              <span className="w-full truncate type-caption leading-tight text-muted-foreground" title={step.at ?? undefined}>
                 {step.at ?? "—"}
               </span>
               {step.by && (
-                <span className="w-full truncate text-[10px] leading-tight text-muted-foreground" title={step.by}>
+                <span className="w-full truncate type-caption leading-tight text-muted-foreground" title={step.by}>
                   {step.by}
                 </span>
               )}
@@ -594,12 +595,12 @@ function StatusStepper({ order }) {
       })}
       {isCancelled && (
         <div className="ml-2 flex shrink-0 flex-col items-center gap-0.5 text-center">
-          <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold text-destructive">
+          <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 type-caption font-semibold text-destructive">
             <Icon name="x" size={10} />
             Cancelled
           </span>
           {cancelledAt && (
-            <span className="text-[10px] leading-tight text-muted-foreground" title={cancelledAt}>
+            <span className="type-caption leading-tight text-muted-foreground" title={cancelledAt}>
               {cancelledAt}
             </span>
           )}

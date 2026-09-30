@@ -8,6 +8,7 @@ import ShiftDetailDrawer from "./ShiftDetailDrawer";
 import CloseShiftModal from "./CloseShiftModal";
 import DateRangeFilter from "@/components/filters/DateRangeFilter";
 import { Pagination } from "@/components/filters/Pagination";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatVariance } from "@/lib/money";
 
 
@@ -120,8 +121,12 @@ export default function ShiftsView({ dateFrom, dateTo, onDateChange }) {
           </div>
         </div>
         {closedCards.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border py-10 text-center">
-            <p className="text-sm text-muted-foreground">No shifts in this range. Cashiers open one from the POS to start selling.</p>
+          <div className="rounded-xl border border-dashed border-border">
+            <EmptyState
+              icon="clock"
+              title="No shifts in this range"
+              copy="Cashiers open one from the POS to start selling."
+            />
           </div>
         ) : (
           <div className="grid gap-2 xl:grid-cols-2">

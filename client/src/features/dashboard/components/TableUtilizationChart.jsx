@@ -5,8 +5,10 @@ import {
 } from "recharts";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useReducedMotion } from "@/lib/useReducedMotion";
 
 function TableUtilizationChart({ data, isLoading }) {
+  const reduced = useReducedMotion();
   if (isLoading) {
     return (
       <div className="rounded-lg border border-border bg-card">
@@ -64,7 +66,7 @@ function TableUtilizationChart({ data, isLoading }) {
                 return [`₱${Number(value).toLocaleString()}`, "Revenue"];
               }}
             />
-            <Bar dataKey="orders" fill="var(--color-chart-3)" radius={[0, 3, 3, 0]} />
+            <Bar isAnimationActive={!reduced} animationDuration={600} animationEasing="ease-out" dataKey="orders" fill="var(--color-chart-3)" radius={[0, 3, 3, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

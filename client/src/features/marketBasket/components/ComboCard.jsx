@@ -31,19 +31,19 @@ function ComboCard({ rule, onCreateCombo, isTop, totalOrders }) {
       {/* Evaluation metrics — the paper's Support / Confidence / Lift, per rule */}
       <div className="mt-2 grid grid-cols-3 gap-2">
         <div title="Share of all baskets containing both items" className="rounded-lg border border-border bg-muted/30 px-2 py-1.5 text-center">
-          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Support</p>
+          <p className="type-caption font-medium uppercase tracking-wide text-muted-foreground">Support</p>
           <p className="text-sm font-semibold text-foreground">{(rule.support * 100).toFixed(2)}%</p>
-          <p className="text-[10px] text-muted-foreground">{totalOrders ? `${Math.round(rule.support * totalOrders)} baskets` : "co-occurrence"}</p>
+          <p className="type-caption text-muted-foreground">{totalOrders ? `${Math.round(rule.support * totalOrders)} baskets` : "co-occurrence"}</p>
         </div>
         <div title="Share of A-buyers who also take B" className="rounded-lg border border-border bg-muted/30 px-2 py-1.5 text-center">
-          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Confidence</p>
+          <p className="type-caption font-medium uppercase tracking-wide text-muted-foreground">Confidence</p>
           <p className="text-sm font-semibold text-foreground">{(rule.confidence * 100).toFixed(1)}%</p>
-          <p className="text-[10px] text-muted-foreground">of A-buyers</p>
+          <p className="type-caption text-muted-foreground">of A-buyers</p>
         </div>
         <div title="How many times more likely together than by coincidence (1.0 = independent)" className="rounded-lg border border-border bg-muted/30 px-2 py-1.5 text-center">
-          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Lift</p>
+          <p className="type-caption font-medium uppercase tracking-wide text-muted-foreground">Lift</p>
           <p className="text-sm font-semibold text-foreground">{rule.lift.toFixed(2)}×</p>
-          <p className="text-[10px] text-muted-foreground">vs coincidence</p>
+          <p className="type-caption text-muted-foreground">vs coincidence</p>
         </div>
       </div>
       {/* Pricing preview — flex-1 to align buttons */}

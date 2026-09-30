@@ -4,7 +4,9 @@ import api from "@/config/axios";
 import { SearchBar } from "@/components/filters/SearchBar";
 import FilterModal from "@/components/filters/FilterModal";
 import { Pagination } from "@/components/filters/Pagination";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, MoneyCell, NumCell } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatPeso } from "@/features/dashboard/utils/dashboardUtils";
 
 async function getIngredientProfitabilityRequest(params = {}) {
@@ -116,17 +118,17 @@ export default function IngredientProfitabilityTable({ dateFrom, dateTo }) {
         </TableHeader>
         <TableBody>
           {isLoading ? (
-            <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+            <TableRow><TableCell colSpan={6} className="py-4"><div className="space-y-2"><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-2/3" /></div></TableCell></TableRow>
           ) : rows.length === 0 ? (
-            <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No ingredients</TableCell></TableRow>
+            <TableRow><TableCell colSpan={6}><EmptyState icon="package" title="No ingredients" copy="No ingredients match these filters." className="py-8" /></TableCell></TableRow>
           ) : (
             rows.map((r) => (
               <TableRow key={r.ingredient_id}>
                 <TableCell className="max-w-[260px] truncate font-medium">{r.ingredient_name} <span className="text-muted-foreground text-xs">({r.unit})</span></TableCell>
-                <TableCell className="text-right whitespace-nowrap tabular-nums">{formatPeso(r.stock_value)}</TableCell>
-                <TableCell className="text-right whitespace-nowrap tabular-nums">{r.restock_count}×</TableCell>
-                <TableCell className="text-right whitespace-nowrap tabular-nums text-amber-600">{formatPeso(r.total_spend)}</TableCell>
-                <TableCell className="text-right whitespace-nowrap tabular-nums text-red-500">{formatPeso(r.total_waste)}</TableCell>
+                <MoneyCell className="whitespace-nowrap">{formatPeso(r.stock_value)}</MoneyCell>
+                <NumCell className="whitespace-nowrap">{r.restock_count}×</NumCell>
+                <MoneyCell className="whitespace-nowrap text-amber-600 dark:text-amber-400">{formatPeso(r.total_spend)}</MoneyCell>
+                <MoneyCell className="whitespace-nowrap text-red-500 dark:text-red-400">{formatPeso(r.total_waste)}</MoneyCell>
               </TableRow>
             ))
           )}

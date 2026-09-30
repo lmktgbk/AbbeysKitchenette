@@ -45,4 +45,19 @@ function Badge({ className, variant, ...props }) {
   );
 }
 
-export { Badge, badgeVariants };
+/**
+ * Pill — sanctioned status pill (admin).
+ * Rounded-full, type-caption, semibold. Replaces the
+ * text-[9/10/11px]/text-xs + medium/semibold/bold scatter.
+ */
+function Pill({ className, variant, ...props }) {
+  return (
+    <Badge
+      variant={variant}
+      className={cn("type-caption rounded-full px-2 py-0.5 font-semibold", className)}
+      {...props}
+    />
+  );
+}
+
+export { Badge, Pill, badgeVariants };

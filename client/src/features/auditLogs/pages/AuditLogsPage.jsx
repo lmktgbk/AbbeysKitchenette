@@ -14,7 +14,8 @@ import { useAuditLogs } from "../query";
 import { useAuditRealtime } from "@/realtime/subscriptions";
 import { formatTime } from "@/lib/date";
 import { orderNumberLabel } from "@/lib/orderNumber";
-import Icon from "@/components/ui/icon";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Group filter lists mirror the server audit actions (auditLog.constants.js)
 // — filtering happens server-side via `actions`, so pagination counts stay correct.
@@ -42,67 +43,67 @@ const ACTION_GROUP_MAP = {
 };
 
 const BADGE_STYLES = {
-  PRODUCT_CREATED: "bg-green-50 text-green-700 border-green-200",
-  CATEGORY_CREATED: "bg-green-50 text-green-700 border-green-200",
-  INGREDIENT_CREATED: "bg-green-50 text-green-700 border-green-200",
-  STAFF_CREATED: "bg-green-50 text-green-700 border-green-200",
-  ORDER_CREATED: "bg-green-50 text-green-700 border-green-200",
-  LOGIN_SUCCESS: "bg-green-50 text-green-700 border-green-200",
-  OTP_VERIFIED: "bg-green-50 text-green-700 border-green-200",
-  PRODUCT_ACTIVATED: "bg-green-50 text-green-700 border-green-200",
-  STAFF_ACTIVATED: "bg-green-50 text-green-700 border-green-200",
-  INGREDIENT_RESTORED: "bg-green-50 text-green-700 border-green-200",
+  PRODUCT_CREATED: "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400",
+  CATEGORY_CREATED: "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400",
+  INGREDIENT_CREATED: "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400",
+  STAFF_CREATED: "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400",
+  ORDER_CREATED: "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400",
+  LOGIN_SUCCESS: "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400",
+  OTP_VERIFIED: "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400",
+  PRODUCT_ACTIVATED: "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400",
+  STAFF_ACTIVATED: "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400",
+  INGREDIENT_RESTORED: "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400",
 
-  PRODUCT_DELETED: "bg-red-50 text-red-700 border-red-200",
-  CATEGORY_DELETED: "bg-red-50 text-red-700 border-red-200",
-  INGREDIENT_DELETED: "bg-red-50 text-red-700 border-red-200",
-  STAFF_DELETED: "bg-red-50 text-red-700 border-red-200",
-  LOGIN_FAILED: "bg-red-50 text-red-700 border-red-200",
-  ORDER_CANCELLED: "bg-red-50 text-red-700 border-red-200",
+  PRODUCT_DELETED: "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400",
+  CATEGORY_DELETED: "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400",
+  INGREDIENT_DELETED: "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400",
+  STAFF_DELETED: "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400",
+  LOGIN_FAILED: "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400",
+  ORDER_CANCELLED: "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400",
 
-  PRODUCT_UPDATED: "bg-blue-50 text-blue-700 border-blue-200",
-  CATEGORY_UPDATED: "bg-blue-50 text-blue-700 border-blue-200",
-  INGREDIENT_UPDATED: "bg-blue-50 text-blue-700 border-blue-200",
-  STAFF_UPDATED: "bg-blue-50 text-blue-700 border-blue-200",
-  PRODUCT_VARIANTS_UPDATED: "bg-blue-50 text-blue-700 border-blue-200",
-  PRODUCT_DEACTIVATED: "bg-blue-50 text-blue-700 border-blue-200",
-  INGREDIENT_ARCHIVED: "bg-blue-50 text-blue-700 border-blue-200",
-  ORDER_ACCEPTED: "bg-blue-50 text-blue-700 border-blue-200",
-  ORDER_PREPARING: "bg-blue-50 text-blue-700 border-blue-200",
-  ORDER_UPDATED: "bg-blue-50 text-blue-700 border-blue-200",
-  ORDER_ITEM_REMOVED: "bg-amber-50 text-amber-700 border-amber-200",
-  LOSS_OVERRIDDEN: "bg-amber-50 text-amber-700 border-amber-200",
-  ORDER_COMPLETED: "bg-blue-50 text-blue-700 border-blue-200",
-  SETTINGS_UPDATED: "bg-blue-50 text-blue-700 border-blue-200",
-  FORECAST_RUN: "bg-blue-50 text-blue-700 border-blue-200",
-  MBA_RUN: "bg-blue-50 text-blue-700 border-blue-200",
-  REORDER_RUN: "bg-blue-50 text-blue-700 border-blue-200",
-  REORDER_ACCEPTED: "bg-green-50 text-green-700 border-green-200",
-  REORDER_REJECTED: "bg-amber-50 text-amber-700 border-amber-200",
-  WASTE_RUN: "bg-blue-50 text-blue-700 border-blue-200",
-  WASTE_ACCEPTED: "bg-green-50 text-green-700 border-green-200",
-  WASTE_REJECTED: "bg-amber-50 text-amber-700 border-amber-200",
-  PRICE_RUN: "bg-blue-50 text-blue-700 border-blue-200",
-  PRICE_APPLIED: "bg-green-50 text-green-700 border-green-200",
-  PRICE_DISMISSED: "bg-amber-50 text-amber-700 border-amber-200",
-  MBA_COMBO_CREATED: "bg-blue-50 text-blue-700 border-blue-200",
-  ANOMALY_SCAN: "bg-blue-50 text-blue-700 border-blue-200",
-  ANOMALY_ACKNOWLEDGED: "bg-amber-50 text-amber-700 border-amber-200",
-  DAILY_REPORT_SENT: "bg-blue-50 text-blue-700 border-blue-200",
-  SHIFT_OPENED: "bg-blue-50 text-blue-700 border-blue-200",
-  VARIANT_ACTIVATED: "bg-green-50 text-green-700 border-green-200",
-  VARIANT_DEACTIVATED: "bg-blue-50 text-blue-700 border-blue-200",
-  STOCK_COUNT_RECORDED: "bg-amber-50 text-amber-700 border-amber-200",
-  SHIFT_CLOSED: "bg-amber-50 text-amber-700 border-amber-200",
-  SHIFT_FORCE_CLOSED: "bg-red-50 text-red-700 border-red-200",
+  PRODUCT_UPDATED: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+  CATEGORY_UPDATED: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+  INGREDIENT_UPDATED: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+  STAFF_UPDATED: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+  PRODUCT_VARIANTS_UPDATED: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+  PRODUCT_DEACTIVATED: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+  INGREDIENT_ARCHIVED: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+  ORDER_ACCEPTED: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+  ORDER_PREPARING: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+  ORDER_UPDATED: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+  ORDER_ITEM_REMOVED: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400",
+  LOSS_OVERRIDDEN: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400",
+  ORDER_COMPLETED: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+  SETTINGS_UPDATED: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+  FORECAST_RUN: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+  MBA_RUN: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+  REORDER_RUN: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+  REORDER_ACCEPTED: "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400",
+  REORDER_REJECTED: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400",
+  WASTE_RUN: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+  WASTE_ACCEPTED: "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400",
+  WASTE_REJECTED: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400",
+  PRICE_RUN: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+  PRICE_APPLIED: "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400",
+  PRICE_DISMISSED: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400",
+  MBA_COMBO_CREATED: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+  ANOMALY_SCAN: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+  ANOMALY_ACKNOWLEDGED: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400",
+  DAILY_REPORT_SENT: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+  SHIFT_OPENED: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+  VARIANT_ACTIVATED: "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400",
+  VARIANT_DEACTIVATED: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+  STOCK_COUNT_RECORDED: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400",
+  SHIFT_CLOSED: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400",
+  SHIFT_FORCE_CLOSED: "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400",
 
-  STOCK_RESTOCKED: "bg-amber-50 text-amber-700 border-amber-200",
-  STOCK_LOSS_DECLARED: "bg-amber-50 text-amber-700 border-amber-200",
-  LOGOUT: "bg-amber-50 text-amber-700 border-amber-200",
-  PASSWORD_CHANGED: "bg-amber-50 text-amber-700 border-amber-200",
-  PASSWORD_RESET_REQUESTED: "bg-amber-50 text-amber-700 border-amber-200",
-  PASSWORD_RESET: "bg-amber-50 text-amber-700 border-amber-200",
-  PROFILE_UPDATED: "bg-blue-50 text-blue-700 border-blue-200",
+  STOCK_RESTOCKED: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400",
+  STOCK_LOSS_DECLARED: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400",
+  LOGOUT: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400",
+  PASSWORD_CHANGED: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400",
+  PASSWORD_RESET_REQUESTED: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400",
+  PASSWORD_RESET: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400",
+  PROFILE_UPDATED: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
 };
 
 const ROW_BORDER_COLORS = {
@@ -353,14 +354,15 @@ export default function AuditLogsPage() {
           {isLoading ? (
             <div className="p-4 space-y-2">
               {Array.from({ length: 10 }).map((_, i) => (
-                <div key={i} className="h-9 animate-pulse rounded bg-muted" />
+                <Skeleton key={i} className="h-9" />
               ))}
             </div>
           ) : grouped.length === 0 ? (
-            <div className="py-16 text-center">
-              <Icon name="search" size={40} className="mx-auto text-muted-foreground/40 mb-3" />
-              <p className="text-sm text-muted-foreground">No audit logs found</p>
-            </div>
+            <EmptyState
+              icon="search"
+              title="No audit logs found"
+              copy="Try widening the date range or clearing filters."
+            />
           ) : (
             <table className="w-full border-collapse min-w-[620px] sm:min-w-0">
               <thead>
@@ -409,7 +411,7 @@ export default function AuditLogsPage() {
                         )}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5 pr-6 sm:px-4 sm:py-3 sm:pr-3">
-                        <span className={`inline-flex items-center whitespace-nowrap rounded-md border px-2 py-0.5 text-[11px] font-medium ${badgeClass}`}>
+                        <span className={`inline-flex items-center whitespace-nowrap rounded-md border px-2 py-0.5 type-small font-medium ${badgeClass}`}>
                           {formatAction(log.action)}
                         </span>
                       </td>

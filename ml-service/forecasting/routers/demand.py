@@ -146,7 +146,6 @@ async def demand_results(job_id: int = Query(...)):
             "daily_data": daily,
             "total_units": r["total_units"],
             "total_revenue": float(r["total_revenue"]),
-            "trend": r["trend"],
             "days_of_data": r["days_of_data"],
             "skipped": r["skipped"],
             "skip_reason": r["skip_reason"],

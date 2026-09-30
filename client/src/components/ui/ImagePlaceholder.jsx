@@ -38,7 +38,7 @@ export default function ImagePlaceholder({
             onLoad={() => setLoaded(true)}
             onError={() => setErrored(true)}
             className={cn(
-              "absolute inset-0 h-full w-full p-2",
+              "absolute inset-0 h-full w-full p-2 transition-opacity duration-200",
               objectFit === "cover" ? "object-cover" : "object-contain",
               loaded ? "opacity-100" : "opacity-0"
             )}

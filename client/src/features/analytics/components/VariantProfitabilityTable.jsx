@@ -4,7 +4,9 @@ import { useCategoryList } from "@/features/products/query";
 import { SearchBar } from "@/components/filters/SearchBar";
 import FilterModal from "@/components/filters/FilterModal";
 import { Pagination } from "@/components/filters/Pagination";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, MoneyCell, NumCell } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatPeso } from "@/features/dashboard/utils/dashboardUtils";
 import { cn } from "@/lib/utils";
 
@@ -26,9 +28,9 @@ const MARGIN_BAND_OPTIONS = [
 
 function marginTone(margin) {
   const m = Number(margin);
-  if (m < 20) return "text-red-500";
-  if (m >= 90) return "text-emerald-600";
-  return "text-amber-600";
+  if (m < 20) return "text-red-500 dark:text-red-400";
+  if (m >= 90) return "text-emerald-600 dark:text-emerald-400";
+  return "text-amber-600 dark:text-amber-400";
 }
 
 export default function VariantProfitabilityTable({ dateFrom, dateTo }) {
@@ -117,18 +119,18 @@ export default function VariantProfitabilityTable({ dateFrom, dateTo }) {
         </TableHeader>
         <TableBody>
           {isLoading ? (
-            <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+            <TableRow><TableCell colSpan={6} className="py-4"><div className="space-y-2"><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-2/3" /></div></TableCell></TableRow>
           ) : rows.length === 0 ? (
-            <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No variants</TableCell></TableRow>
+            <TableRow><TableCell colSpan={6}><EmptyState icon="trendingUp" title="No variants" copy="No variants match these filters." className="py-8" /></TableCell></TableRow>
           ) : (
             rows.map((r) => (
               <TableRow key={r.variant_id}>
                 <TableCell className="max-w-[260px] truncate font-medium">{r.product_name} - {r.size_name}</TableCell>
-                <TableCell className="text-right whitespace-nowrap tabular-nums">{r.units}</TableCell>
-                <TableCell className="text-right whitespace-nowrap tabular-nums">{formatPeso(r.net_sales)}</TableCell>
-                <TableCell className="text-right whitespace-nowrap tabular-nums text-amber-600">{formatPeso(r.cogs)}</TableCell>
-                <TableCell className={cn("text-right font-semibold whitespace-nowrap tabular-nums", Number(r.profit) < 0 ? "text-red-500" : "text-emerald-600")}>{formatPeso(r.profit)}</TableCell>
-                <TableCell className={cn("text-right tabular-nums font-medium whitespace-nowrap", marginTone(r.margin))}>{r.margin}%</TableCell>
+                <NumCell className="whitespace-nowrap">{r.units}</NumCell>
+                <MoneyCell className="whitespace-nowrap">{formatPeso(r.net_sales)}</MoneyCell>
+                <MoneyCell className="whitespace-nowrap text-amber-600 dark:text-amber-400">{formatPeso(r.cogs)}</MoneyCell>
+                <MoneyCell strong className={cn("whitespace-nowrap", Number(r.profit) < 0 ? "text-red-500 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400")}>{formatPeso(r.profit)}</MoneyCell>
+                <NumCell className={cn("whitespace-nowrap", marginTone(r.margin))}>{r.margin}%</NumCell>
               </TableRow>
             ))
           )}

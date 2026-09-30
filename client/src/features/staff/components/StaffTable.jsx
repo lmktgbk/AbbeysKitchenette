@@ -6,6 +6,7 @@ import { SearchBar } from "@/components/filters/SearchBar";
 import { Pagination } from "@/components/filters/Pagination";
 import { DropDown } from "@/components/filters/DropDown";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import Icon from "@/components/ui/icon";
@@ -133,7 +134,7 @@ export default function StaffTable({
               <TableRow key={i}>
                 {Array.from({ length: 6 }).map((_, j) => (
                   <TableCell key={j}>
-                    <div className="h-4 w-full animate-pulse rounded bg-muted" />
+                    <Skeleton className="h-4 w-full" />
                   </TableCell>
                 ))}
               </TableRow>

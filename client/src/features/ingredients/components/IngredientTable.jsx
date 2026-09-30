@@ -16,6 +16,7 @@ import {
   TableRow,
   TableHead,
   TableCell,
+  NumCell,
 } from "@/components/ui/table";
 import { formatDate, formatTime } from "@/lib/date";
 
@@ -168,7 +169,7 @@ export default function IngredientTable({
       <div className={`relative ${isRefetching ? "pointer-events-none" : ""}`}>
         {isRefetching && (
           <div className="absolute inset-0 z-10 bg-background/60 flex items-start justify-center pt-8">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <PrimarySpinner size="inline" />
           </div>
         )}
 
@@ -178,7 +179,7 @@ export default function IngredientTable({
               {INGREDIENT_COLUMNS.map((col) => (
                 <TableHead
                   key={col.key}
-                  className={`text-[10px] uppercase tracking-widest ${col.align}`}
+                  className={col.align}
                 >
                   {col.label}
                 </TableHead>
@@ -327,12 +328,12 @@ function IngredientRow({
           {ingredient.ingredient_name}
         </TableCell>
         <TableCell className="text-center whitespace-nowrap text-muted-foreground">{ingredient.unit}</TableCell>
-        <TableCell className={`text-center font-mono font-semibold whitespace-nowrap tabular-nums ${stockColor}`}>
+        <NumCell align="center" strong className={`font-mono whitespace-nowrap ${stockColor}`}>
           {stock.toLocaleString()}
-        </TableCell>
-        <TableCell className="text-center font-mono whitespace-nowrap text-muted-foreground tabular-nums">
+        </NumCell>
+        <NumCell align="center" className="font-mono whitespace-nowrap text-muted-foreground">
           {threshold.toLocaleString()}
-        </TableCell>
+        </NumCell>
         <TableCell className="text-center whitespace-nowrap">
           <Badge variant={statusVariant}>{statusLabel}</Badge>
         </TableCell>
@@ -402,7 +403,7 @@ function ExpandedRow({ ingredient, onRestock, onLoss, onCount, onBatches, onEdit
       <TableRow className="bg-muted/20">
         <TableCell colSpan={6} className="p-0">
           <div className="px-6 py-8 flex justify-center">
-            <PrimarySpinner size="sm" />
+            <PrimarySpinner size="section" />
           </div>
         </TableCell>
       </TableRow>

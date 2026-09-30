@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, MoneyCell } from "@/components/ui/table";
 import Icon from "@/components/ui/icon";
 import { formatDate, formatTime } from "@/lib/date";
 import { orderNumberLabel } from "@/lib/orderNumber";
@@ -26,7 +27,7 @@ const COLUMNS = {
   order: { label: "Order #", align: "", cell: "font-mono font-medium whitespace-nowrap" },
   customer: { label: "Customer", align: "", cell: "max-w-[240px] truncate" },
   table: { label: "Table", align: "", cell: "tabular-nums whitespace-nowrap" },
-  total: { label: "Total", align: "text-right pr-10", cell: "text-right font-medium tabular-nums whitespace-nowrap pr-10" },
+  total: { label: "Total", align: "text-right pr-10", cell: "whitespace-nowrap pr-10" },
   status: { label: "Status", align: "text-center", cell: "text-center whitespace-nowrap" },
   created: { label: "Created", align: "", cell: "text-xs text-muted-foreground whitespace-nowrap" },
   time: { label: "Time", align: "", cell: "text-xs text-muted-foreground tabular-nums whitespace-nowrap" },
@@ -58,7 +59,7 @@ export default function OrderTable({ orders, isLoading, onView }) {
               <TableRow key={i}>
                 {Array.from({ length: 7 }).map((_, j) => (
                   <TableCell key={j}>
-                    <div className="h-4 w-full animate-pulse rounded bg-muted" />
+                    <Skeleton className="h-4 w-full" />
                   </TableCell>
                 ))}
               </TableRow>
@@ -106,9 +107,9 @@ export default function OrderTable({ orders, isLoading, onView }) {
                 </TableCell>
                 <TableCell className={COLUMNS.customer.cell}>{order.customer_name}</TableCell>
                 <TableCell className={COLUMNS.table.cell}>{order.table_number}</TableCell>
-                <TableCell className={COLUMNS.total.cell}>
+                <MoneyCell className={COLUMNS.total.cell}>
                   ₱{Number(order.total_amount).toLocaleString()}
-                </TableCell>
+                </MoneyCell>
                 <TableCell className={COLUMNS.status.cell}>
                   <Badge variant={status.variant}>{status.label}</Badge>
                 </TableCell>

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import Icon from "@/components/ui/icon";
 import { FilterPill } from "@/components/filters/FilterPill";
 import { Pagination } from "@/components/filters/Pagination";
@@ -118,7 +119,7 @@ export default function ShiftDetailDrawer({ open, onOpenChange, shiftId, onClose
         {loading || !summary ? (
           <div className="space-y-2 py-4">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-4 w-full animate-pulse rounded bg-muted" />
+              <Skeleton key={i} className="h-4 w-full" />
             ))}
           </div>
         ) : (
@@ -130,7 +131,7 @@ export default function ShiftDetailDrawer({ open, onOpenChange, shiftId, onClose
                   <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
                   Live drawer
                 </span>
-                <span className="text-xl font-bold tabular-nums">
+                <span className="text-xl font-bold">
                   {formatPeso(summary.expected_cash)}
                 </span>
               </div>
@@ -149,7 +150,7 @@ export default function ShiftDetailDrawer({ open, onOpenChange, shiftId, onClose
                   {variance === 0 ? "Exact" : variance < 0 ? "Short" : "Over"}
                 </span>
                 <span className={cn(
-                  "text-xl font-bold tabular-nums",
+                  "text-xl font-bold",
                   variance === 0
                     ? "text-green-600 dark:text-green-400"
                     : variance < 0

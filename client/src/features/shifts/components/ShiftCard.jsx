@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { StatLabel } from "@/components/ui/stat";
 import { cn } from "@/lib/utils";
 import { formatPeso } from "@/lib/money";
 import VariancePill from "./VariancePill";
@@ -44,7 +45,7 @@ export default function ShiftCard({ shift, onOpen, onClose, canClose }) {
           </p>
         </div>
         {isOpen ? (
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-green-500/10 px-2.5 py-0.5 text-[11px] font-bold text-green-600 dark:text-green-400">
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-green-500/10 px-2.5 py-0.5 type-small font-bold text-green-600 dark:text-green-400">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" />
             LIVE
           </span>
@@ -55,12 +56,12 @@ export default function ShiftCard({ shift, onOpen, onClose, canClose }) {
 
       <div className="mt-3 grid grid-cols-2 divide-x divide-border rounded-lg bg-muted/50 py-2 text-center">
         <div className="px-2">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Expected</p>
-          <p className="text-sm font-bold tabular-nums">{expected != null ? formatPeso(expected) : "—"}</p>
+          <StatLabel>Expected</StatLabel>
+          <p className="text-sm font-bold">{expected != null ? formatPeso(expected) : "—"}</p>
         </div>
         <div className="px-2">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Counted</p>
-          <p className="text-sm font-bold tabular-nums">{actual != null ? formatPeso(actual) : "—"}</p>
+          <StatLabel>Counted</StatLabel>
+          <p className="text-sm font-bold">{actual != null ? formatPeso(actual) : "—"}</p>
         </div>
       </div>
 

@@ -258,7 +258,7 @@ function ListMode({
                           {sub.subcategory_name}
                         </span>
                         {isBundleSub(sub) && (
-                          <span className="ml-2 rounded-full border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          <span className="ml-2 rounded-full border border-border bg-muted px-1.5 py-0.5 type-caption font-medium text-muted-foreground">
                             Auto
                           </span>
                         )}

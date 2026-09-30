@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { usePendingOnlineOrders } from "../query";
 import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
+import PrimarySpinner, { ButtonSpinner } from "@/components/ui/spinner";
 import { orderNumberLabel } from "@/lib/orderNumber";
 
 /**
@@ -47,7 +48,7 @@ export default function PosOnlineOrders({ open, onClose, onAcceptOrder, onReject
               Online Orders
             </span>
             {orders.length > 0 && (
-              <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+              <span className="rounded-full bg-primary/10 px-1.5 py-0.5 type-caption font-bold text-primary">
                 {orders.length}
               </span>
             )}
@@ -78,7 +79,7 @@ export default function PosOnlineOrders({ open, onClose, onAcceptOrder, onReject
         <div className="flex-1 overflow-y-auto p-3 space-y-3 modal-scroll">
           {isLoading && orders.length === 0 ? (
             <div className="flex items-center justify-center py-8">
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              <PrimarySpinner size="inline" />
             </div>
           ) : orders.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 gap-2 text-muted-foreground/40">
@@ -116,7 +117,7 @@ export default function PosOnlineOrders({ open, onClose, onAcceptOrder, onReject
                   >
                     {loadingOrderIds?.has(order.order_id) ? (
                       <span className="flex items-center gap-1.5">
-                        <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        <ButtonSpinner />
                         Loading...
                       </span>
                     ) : (

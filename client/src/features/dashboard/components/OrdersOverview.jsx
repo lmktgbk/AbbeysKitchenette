@@ -5,6 +5,8 @@ import {
 } from "recharts";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { useReducedMotion } from "@/lib/useReducedMotion";
 
 const STATUS_COLORS = {
   pending: "#f59e0b",
@@ -36,6 +38,7 @@ const STATUS_ORDER = ["pending", "accepted", "preparing", "completed", "cancelle
  * @param {"both"|"status"|"source"} props.variant - Which card(s) to render (default: "both")
  */
 function OrdersOverview({ statusData, sourceData, isLoading, variant = "both" }) {
+  const reduced = useReducedMotion();
   const pieData = useMemo(() => {
     if (!statusData) return [];
     const known = STATUS_ORDER
@@ -109,6 +112,7 @@ function OrdersOverview({ statusData, sourceData, isLoading, variant = "both" })
             <ResponsiveContainer width="50%" height={200}>
               <PieChart>
                 <Pie
+                  isAnimationActive={!reduced} animationDuration={600} animationEasing="ease-out"
                   data={pieData}
                   cx="50%"
                   cy="50%"
@@ -160,10 +164,7 @@ function OrdersOverview({ statusData, sourceData, isLoading, variant = "both" })
           <h3 className="text-sm font-semibold text-foreground">Orders by Source</h3>
         </div>
         {barData.length === 0 ? (
-          <div className="flex h-[252px] flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
-            <Icon name="barChart2" size={32} className="text-muted-foreground/30" />
-            <p className="font-medium text-foreground/70">No data</p>
-          </div>
+          <EmptyState icon="barChart2" title="No data" copy="No orders by source for this period." className="h-[252px] py-0" />
         ) : (
           <div className="p-4">
             <ResponsiveContainer width="100%" height={200}>
@@ -187,7 +188,7 @@ function OrdersOverview({ statusData, sourceData, isLoading, variant = "both" })
                   }}
                   formatter={(value) => [value, "Orders"]}
                 />
-                <Bar dataKey="count" fill="var(--color-chart-1)" radius={[3, 3, 0, 0]} />
+                <Bar isAnimationActive={!reduced} animationDuration={600} animationEasing="ease-out" dataKey="count" fill="var(--color-chart-1)" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

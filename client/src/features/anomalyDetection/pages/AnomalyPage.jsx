@@ -95,6 +95,9 @@ export default function AnomalyPage() {
             ) : (
               <p className="mt-1 text-xs text-muted-foreground">Unusual sales, waste and operations</p>
             )}
+            {stats.lastAnomaly && (
+              <p className="mt-0.5 text-xs text-muted-foreground">Last anomaly: {new Date(stats.lastAnomaly).toLocaleString()}</p>
+            )}
             </div>
           </div>
           <div className="shrink-0">

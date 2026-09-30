@@ -3,6 +3,7 @@ import { useAnalyzeMarketBasket, useMarketBasketJob } from "../query";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import Icon from "@/components/ui/icon";
+import { ButtonSpinner } from "@/components/ui/spinner";
 
 const STORAGE_KEY = "mbaJobId";
 
@@ -101,7 +102,7 @@ export default function MarketBasketRunButton({ compact = false }) {
       >
         {showSpinner ? (
           <>
-            <span className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <ButtonSpinner />
             {isRunning ? "Running..." : "Updating..."}
           </>
         ) : (
@@ -127,7 +128,7 @@ export default function MarketBasketRunButton({ compact = false }) {
     >
       {showSpinner ? (
         <>
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+          <ButtonSpinner />
           {isRunning ? "Running..." : isStatusLoading ? "Checking..." : "Starting..."}
         </>
       ) : (

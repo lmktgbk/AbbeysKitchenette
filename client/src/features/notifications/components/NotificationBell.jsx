@@ -131,7 +131,7 @@ export default function NotificationBell() {
       >
         <Icon name="bell" size={18} />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-destructive-foreground">
+          <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 type-caption font-medium text-destructive-foreground">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
@@ -215,7 +215,7 @@ export default function NotificationBell() {
           </div>
 
           {!isLoading && totalItems > 0 && (
-            <div className="border-t px-4 py-2 text-center text-[11px] text-muted-foreground">
+            <div className="border-t px-4 py-2 text-center type-small text-muted-foreground">
               Showing {notifications.length} of {totalItems}
             </div>
           )}

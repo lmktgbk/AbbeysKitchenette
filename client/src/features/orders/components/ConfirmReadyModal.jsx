@@ -28,12 +28,12 @@ export default function ConfirmReadyModal({ order, open, onConfirm, onCancel, lo
         <div className="text-base font-bold mb-1 text-foreground">
           Mark Order as Ready?
         </div>
-        <div className="text-[11px] mb-2 text-muted-foreground">
+        <div className="type-small mb-2 text-muted-foreground">
           {order.customer_name} · Table {order.table_number} · This will advance the queue.
         </div>
         <div className="bg-muted border border-border rounded-xl px-4 py-3 mb-5 text-center">
-          <div className="text-[10px] mb-0.5 text-muted-foreground">Order</div>
-          <div className="font-serif text-xl font-bold text-primary">
+          <div className="type-caption mb-0.5 text-muted-foreground">Order</div>
+          <div className="font-brand text-xl font-bold text-primary">
             {orderNumberLabel(order.order_number)}
           </div>
         </div>

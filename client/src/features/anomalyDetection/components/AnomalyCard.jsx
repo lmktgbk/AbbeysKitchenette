@@ -88,15 +88,15 @@ export default function AnomalyCard({ anomaly, onAcknowledge }) {
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-sm font-semibold text-foreground">{anomaly.title}</h3>
-                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ${config.badge}`}>
+                <span className={`inline-flex items-center rounded-full px-2 py-0.5 type-small font-medium capitalize ${config.badge}`}>
                   {anomaly.severity}
                 </span>
-                <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 type-small font-medium text-muted-foreground">
                   {CATEGORY_LABELS[anomaly.category]}
                 </span>
               </div>
               <p className="text-sm text-foreground/80 mt-1">{anomaly.description}</p>
-              <p className="text-[11px] text-muted-foreground/70 mt-0.5">
+              <p className="type-small text-muted-foreground/70 mt-0.5">
                 {formatTimeAgo(anomaly.detectedAt)}
               </p>
             </div>

@@ -9,8 +9,6 @@ class DailyForecast(BaseModel):
     date: str
     units: int
     revenue: float
-    lower: int
-    upper: int
 
 
 # ── Job schemas ────────────────────────────────────────────────
@@ -93,7 +91,6 @@ class VariantResult(BaseModel):
     daily_data: list[DailyForecast]
     total_units: int
     total_revenue: float
-    trend: str
     days_of_data: int
     skipped: bool
     skip_reason: str | None

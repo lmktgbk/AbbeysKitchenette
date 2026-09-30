@@ -10,7 +10,7 @@ export default function VariancePill({ variance, className }) {
   if (v === 0) {
     return (
       <span className={cn(
-        "inline-flex shrink-0 items-center rounded-full bg-green-500/10 px-2.5 py-0.5 text-[11px] font-bold text-green-600 dark:text-green-400",
+        "inline-flex shrink-0 items-center rounded-full bg-green-500/10 px-2.5 py-0.5 type-small font-bold text-green-600 dark:text-green-400",
         className,
       )}>
         Exact
@@ -20,7 +20,7 @@ export default function VariancePill({ variance, className }) {
   const short = v < 0;
   return (
     <span className={cn(
-      "inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold tabular-nums",
+      "inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 type-small font-bold tabular-nums",
       short
         ? "bg-destructive/10 text-destructive"
         : "bg-amber-500/10 text-amber-700 dark:text-amber-400",

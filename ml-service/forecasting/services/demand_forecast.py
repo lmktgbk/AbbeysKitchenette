@@ -111,39 +111,37 @@ async def cleanup_stale_jobs():
 
 async def save_result(job_id, variant_id, product_id, product_name, size_name, price,
                       category_id, daily_data, total_units, total_revenue,
-                      trend, days_of_data, share):
+                      days_of_data, share):
     pool = await get_pool()
     try:
         await pool.execute("""
             INSERT INTO forecast_results
                 (job_id, variant_id, product_id, product_name, size_name, price, category_id,
-                 daily_data, total_units, total_revenue, trend, days_of_data, skipped, share)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12, FALSE,$13)
+                 daily_data, total_units, total_revenue, days_of_data, skipped, share)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, FALSE,$12)
             ON CONFLICT (job_id, variant_id) DO UPDATE SET
                 daily_data = EXCLUDED.daily_data,
                 total_units = EXCLUDED.total_units,
                 total_revenue = EXCLUDED.total_revenue,
-                trend = EXCLUDED.trend,
                 product_id = EXCLUDED.product_id,
                 share = EXCLUDED.share
         """, job_id, variant_id, product_id, product_name, size_name, price,
              category_id, json.dumps(daily_data),
-             total_units, total_revenue, trend, days_of_data, share)
+             total_units, total_revenue, days_of_data, share)
     except Exception:
         # Columns product_id/share not migrated yet — store the forecast only.
         await pool.execute("""
             INSERT INTO forecast_results
                 (job_id, variant_id, product_name, size_name, price, category_id,
-                 daily_data, total_units, total_revenue, trend, days_of_data, skipped)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, FALSE)
+                 daily_data, total_units, total_revenue, days_of_data, skipped)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, FALSE)
             ON CONFLICT (job_id, variant_id) DO UPDATE SET
                 daily_data = EXCLUDED.daily_data,
                 total_units = EXCLUDED.total_units,
-                total_revenue = EXCLUDED.total_revenue,
-                trend = EXCLUDED.trend
+                total_revenue = EXCLUDED.total_revenue
         """, job_id, variant_id, product_name, size_name, price,
              category_id, json.dumps(daily_data),
-             total_units, total_revenue, trend, days_of_data)
+             total_units, total_revenue, days_of_data)
 
 
 async def save_skipped(job_id, variant_id, product_name, size_name, price,
@@ -158,38 +156,6 @@ async def save_skipped(job_id, variant_id, product_name, size_name, price,
             skipped = TRUE, skip_reason = EXCLUDED.skip_reason
     """, job_id, variant_id, product_name, size_name, price,
          category_id, days_of_data, reason)
-
-
-# ── Trend computation ─────────────────────────────────────────
-
-def compute_trend(pred_df) -> str:
-    """First-half vs second-half median of yhat; 15% band avoids oscillation noise."""
-    import numpy as np
-
-    yhat = pred_df["yhat"].values
-
-    if len(yhat) < 4:
-        return "stable"
-
-    mid = len(yhat) // 2
-    first_half = float(np.median(yhat[:mid]))
-    second_half = float(np.median(yhat[mid:]))
-
-    if first_half == 0:
-        return "stable"
-
-    # Sub-unit wobble (e.g. 0.3 -> 0.5/day) is apportionment noise, not a
-    # trend — without this floor every thin product reads "rising/falling".
-    if abs(second_half - first_half) < 0.5:
-        return "stable"
-
-    pct = ((second_half - first_half) / first_half) * 100
-
-    if pct > 15:
-        return "increasing"
-    elif pct < -15:
-        return "decreasing"
-    return "stable"
 
 
 # ── Prophet factory ───────────────────────────────────────────
@@ -251,17 +217,6 @@ def size_shares(vdf: pd.DataFrame, product_total: float) -> dict:
         vid: float(g["units"].sum()) / total
         for vid, g in window.groupby("variant_id")
     }
-
-
-def split_units(product_units: int, shares: list[float]) -> list[int]:
-    """Largest-remainder split so variant units always sum to the product total."""
-    exact = [product_units * s for s in shares]
-    out = [int(x) for x in exact]
-    remainder = product_units - sum(out)
-    order = sorted(range(len(shares)), key=lambda i: exact[i] - out[i], reverse=True)
-    for i in order[:max(0, remainder)]:
-        out[i] += 1
-    return out
 
 
 # ── Main pipeline ─────────────────────────────────────────────
@@ -386,11 +341,10 @@ async def run_demand_forecast(job_id: int | None = None) -> dict:
                 m = build_prophet(len(train))
                 m.fit(_to_fit(train))
                 pred = m.predict(m.make_future_dataframe(periods=period)).tail(period)
-                # Back-transform point + interval together (square is monotonic,
-                # so lower <= yhat <= upper is preserved for E).
-                for col in ("yhat", "yhat_lower", "yhat_upper"):
-                    pred[col] = _from_fit(pred[col].values)
-                trend = compute_trend(pred)
+                # Back-transform the point forecast only (bands removed: summed
+                # per-variant intervals rendered lopsided and were dropped
+                # from output; interval_width stays Prophet-internal).
+                pred["yhat"] = _from_fit(pred["yhat"].values)
 
                 shares = size_shares(pdf, float(daily["units"].sum()))
                 vids = [int(v["variant_id"]) for v in variants]
@@ -406,8 +360,6 @@ async def run_demand_forecast(job_id: int | None = None) -> dict:
                     days_plan.append({
                         "ds": p["ds"].strftime("%Y-%m-%d"),
                         "units": max(0, round(float(p["yhat"]))),
-                        "lower": max(0, round(float(p["yhat_lower"]))),
-                        "upper": max(0, round(float(p["yhat_upper"]))),
                     })
                 backlog = [0.0] * len(variants)
                 for i, day in enumerate(days_plan):
@@ -422,9 +374,6 @@ async def run_demand_forecast(job_id: int | None = None) -> dict:
                         give[k] += 1
                     backlog = [exact[k] - give[k] for k in range(len(variants))]
                     split = give
-                    # Interval band follows each size's share of the product band.
-                    lowers = split_units(day["lower"], share_list)
-                    uppers = split_units(day["upper"], share_list)
                     for k, v in enumerate(variants):
                         price = float(v["price"])
                         units = split[k]
@@ -433,8 +382,6 @@ async def run_demand_forecast(job_id: int | None = None) -> dict:
                             "date": day_ds,
                             "units": units,
                             "revenue": round(units * price, 2),
-                            "lower": lowers[k],
-                            "upper": uppers[k],
                         })
 
                 for v in variants:
@@ -445,7 +392,7 @@ async def run_demand_forecast(job_id: int | None = None) -> dict:
                     await save_result(
                         job_id, vid, int(product_id), product_name, v["size_name"],
                         float(v["price"]), int(v["category_id"]), days,
-                        total_units, total_revenue, trend, days_of_data,
+                        total_units, total_revenue, days_of_data,
                         round(share_list[vids.index(vid)], 4),
                     )
 

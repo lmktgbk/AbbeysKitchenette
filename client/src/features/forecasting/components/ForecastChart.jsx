@@ -8,6 +8,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { useReducedMotion } from "@/lib/useReducedMotion";
 
 const VIEW_OPTIONS = [
   { value: "7", label: "7 days" },
@@ -19,6 +20,7 @@ const VIEW_OPTIONS = [
  * When "all", shows aggregate. When specific variant, shows that variant only.
  */
 function ForecastChart({ results, previousResults, viewPeriod = 7, onViewPeriodChange, selectedVariant, onVariantChange, activeJobLabel, comparisonJobLabel }) {
+  const reduced = useReducedMotion();
   const [metric, setMetric] = useState("units");
 
   const variantOptions = useMemo(() => {
@@ -196,7 +198,7 @@ function ForecastChart({ results, previousResults, viewPeriod = 7, onViewPeriodC
                         </span>
                       </div>
                     </div>
-                    <p className="text-muted-foreground pt-1 border-t border-border text-[10px]">
+                    <p className="text-muted-foreground pt-1 border-t border-border type-caption">
                       Lower error = more reliable forecast
                     </p>
                   </div>
@@ -210,7 +212,7 @@ function ForecastChart({ results, previousResults, viewPeriod = 7, onViewPeriodC
             )}
           </div>
           {hasPrevious && (
-            <p className="text-[11px] text-muted-foreground">
+            <p className="type-small text-muted-foreground">
               Comparing {activeJobLabel} with {comparisonJobLabel}
             </p>
           )}
@@ -258,7 +260,7 @@ function ForecastChart({ results, previousResults, viewPeriod = 7, onViewPeriodC
       </div>
       {/* Legend + chart area */}
       <div className="px-4 pt-3 pb-4">
-        <div className="mb-2 flex items-center gap-4 text-[11px] text-muted-foreground">
+        <div className="mb-2 flex items-center gap-4 type-small text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <span className="inline-block h-0.5 w-4 rounded-sm bg-primary" />
             Forecast
@@ -323,6 +325,7 @@ function ForecastChart({ results, previousResults, viewPeriod = 7, onViewPeriodC
               }}
             />
             <Area
+              isAnimationActive={!reduced} animationDuration={600} animationEasing="ease-out"
               type="monotone"
               dataKey="upper"
               name="Upper Bound"
@@ -334,6 +337,7 @@ function ForecastChart({ results, previousResults, viewPeriod = 7, onViewPeriodC
               activeDot={false}
             />
             <Area
+              isAnimationActive={!reduced} animationDuration={600} animationEasing="ease-out"
               type="monotone"
               dataKey={metric}
               name="Forecast"
@@ -344,6 +348,7 @@ function ForecastChart({ results, previousResults, viewPeriod = 7, onViewPeriodC
               activeDot={{ r: 4, fill: "var(--color-primary)", stroke: "var(--color-card)", strokeWidth: 2 }}
             />
             <Area
+              isAnimationActive={!reduced} animationDuration={600} animationEasing="ease-out"
               type="monotone"
               dataKey="lower"
               name="Lower Bound"
@@ -356,6 +361,7 @@ function ForecastChart({ results, previousResults, viewPeriod = 7, onViewPeriodC
             />
             {chartData.some((d) => d[`${metric}_prev`] != null) && (
               <Area
+                isAnimationActive={!reduced} animationDuration={600} animationEasing="ease-out"
                 type="monotone"
                 dataKey={`${metric}_prev`}
                 name="Previous"

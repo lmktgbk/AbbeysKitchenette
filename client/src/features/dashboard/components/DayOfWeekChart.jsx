@@ -5,10 +5,12 @@ import {
 } from "recharts";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useReducedMotion } from "@/lib/useReducedMotion";
 
 const DAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 function DayOfWeekChart({ data, isLoading }) {
+  const reduced = useReducedMotion();
   const chartData = useMemo(() => {
     if (!data?.length) return [];
     return DAY_ORDER.map((name) => {
@@ -50,7 +52,7 @@ function DayOfWeekChart({ data, isLoading }) {
       <div className="border-b border-border px-4 py-3">
         <h3 className="text-sm font-semibold text-foreground">Day of Week</h3>
       </div>
-      <div className="px-4 pt-3 pb-4">
+      <div className="p-4">
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={chartData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
@@ -75,7 +77,7 @@ function DayOfWeekChart({ data, isLoading }) {
                 return [`₱${Number(value).toLocaleString()}`, "Revenue"];
               }}
             />
-            <Bar dataKey="orders" fill="var(--color-chart-2)" radius={[3, 3, 0, 0]} />
+            <Bar isAnimationActive={!reduced} animationDuration={600} animationEasing="ease-out" dataKey="orders" fill="var(--color-chart-2)" radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

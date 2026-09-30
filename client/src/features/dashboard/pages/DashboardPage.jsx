@@ -45,7 +45,7 @@ export default function DashboardPage() {
   useDashboardRealtime();
   const [dateFrom, setDateFrom] = useState(null);
   const [dateTo, setDateTo] = useState(null);
-  const [granularity, setGranularity] = useState("daily");
+  const [granularity, setGranularity] = useState("weekly");
   const [wasteOpen, setWasteOpen] = useState(false);
 
   const dateParams = useMemo(() => {

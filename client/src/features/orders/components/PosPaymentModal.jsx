@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import Icon from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
@@ -370,7 +371,7 @@ export default function PosPaymentModal({
                 {linesLoading || linesError ? (
                   <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
                     {[0, 1].map((i) => (
-                      <div key={i} className="h-4 w-full animate-pulse rounded bg-muted" />
+                      <Skeleton key={i} className="h-4 w-full" />
                     ))}
                   </div>
                 ) : (
@@ -394,7 +395,7 @@ export default function PosPaymentModal({
                           </span>
                           <span className="flex shrink-0 items-center gap-1.5 font-semibold">
                             {!expanded && badge && (
-                              <span className="rounded-full bg-green-600/10 px-1.5 py-0.5 text-[10px] font-semibold text-green-600 dark:text-green-400">
+                              <span className="rounded-full bg-green-600/10 px-1.5 py-0.5 type-caption font-semibold text-green-600 dark:text-green-400">
                                 {badge} −₱{calc.amount.toLocaleString()}
                               </span>
                             )}
@@ -431,14 +432,14 @@ export default function PosPaymentModal({
                                 setLineField(idx, { type: opt.value });
                                 if (opt.value === "none") setExpandedIdx(null);
                               }}
-                              className="h-7 whitespace-nowrap px-1 text-[11px]"
+                              className="h-7 whitespace-nowrap px-1 type-small"
                             >
                               {opt.label}
                             </SegButton>
                           ))}
                         </div>
                         {line.type === "senior" || line.type === "pwd" ? (
-                          <p className="mt-1 text-[11px] text-muted-foreground">
+                          <p className="mt-1 type-small text-muted-foreground">
                             {line.type === "senior" ? "Senior" : "PWD"} 20% on this item only — locked for this line.
                           </p>
                         ) : null}
@@ -448,14 +449,14 @@ export default function PosPaymentModal({
                               <SegButton
                                 active={line.promoMode === "percent"}
                                 onClick={() => setLineField(idx, { promoMode: "percent" })}
-                                className="h-6 text-[11px]"
+                                className="h-6 type-small"
                               >
                                 % off
                               </SegButton>
                               <SegButton
                                 active={line.promoMode === "amount"}
                                 onClick={() => setLineField(idx, { promoMode: "amount" })}
-                                className="h-6 text-[11px]"
+                                className="h-6 type-small"
                               >
                                 ₱ off
                               </SegButton>

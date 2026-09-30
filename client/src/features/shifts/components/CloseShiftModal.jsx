@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { useShiftSummary } from "../query";
 import { cn } from "@/lib/utils";
@@ -57,7 +58,7 @@ export default function CloseShiftModal({ open, onOpenChange, shift, forced, onC
         {loadingSummary || !summary ? (
           <div className="space-y-2 py-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-4 w-full animate-pulse rounded bg-muted" />
+              <Skeleton key={i} className="h-4 w-full" />
             ))}
           </div>
         ) : (

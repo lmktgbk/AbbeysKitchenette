@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Icon from "@/components/ui/icon";
+import { ButtonSpinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { DropDown } from "@/components/filters/DropDown";
 
@@ -240,7 +241,7 @@ export default function RemoveItemDialog({
                       >
                         <Icon name="plus" size={10} />
                       </button>
-                      <span className="text-[10px] text-muted-foreground">/ {item?.quantity || 1}</span>
+                      <span className="type-caption text-muted-foreground">/ {item?.quantity || 1}</span>
                     </div>
                   </div>
                 ) : (
@@ -267,7 +268,7 @@ export default function RemoveItemDialog({
                 <button
                   type="button"
                   className={cn(
-                    "flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg border transition-all",
+                    "flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg border transition-colors",
                     lossOption === "no_loss"
                       ? "border-primary bg-primary/5"
                       : "border-border hover:border-border/80 hover:bg-muted/50",
@@ -275,7 +276,7 @@ export default function RemoveItemDialog({
                   onClick={() => setLossOption("no_loss")}
                 >
                   <div className={cn(
-                    "w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
+                    "w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
                     lossOption === "no_loss"
                       ? "border-primary bg-primary"
                       : "border-border",
@@ -287,14 +288,14 @@ export default function RemoveItemDialog({
                   <Icon name="check" size={16} className="text-muted-foreground shrink-0" />
                   <div>
                     <div className="text-sm font-medium text-foreground">No Loss</div>
-                    <div className="text-[11px] text-muted-foreground">Restore all ingredients</div>
+                    <div className="type-small text-muted-foreground">Restore all ingredients</div>
                   </div>
                 </button>
 
                 <button
                   type="button"
                   className={cn(
-                    "flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg border transition-all",
+                    "flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg border transition-colors",
                     lossOption === "with_loss"
                       ? "border-primary bg-primary/5"
                       : "border-border hover:border-border/80 hover:bg-muted/50",
@@ -302,7 +303,7 @@ export default function RemoveItemDialog({
                   onClick={() => setLossOption("with_loss")}
                 >
                   <div className={cn(
-                    "w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
+                    "w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
                     lossOption === "with_loss"
                       ? "border-primary bg-primary"
                       : "border-border",
@@ -314,7 +315,7 @@ export default function RemoveItemDialog({
                   <Icon name="trendingDown" size={16} className="text-muted-foreground shrink-0" />
                   <div>
                     <div className="text-sm font-medium text-foreground">With Loss</div>
-                    <div className="text-[11px] text-muted-foreground">Declare ingredients that were used</div>
+                    <div className="type-small text-muted-foreground">Declare ingredients that were used</div>
                   </div>
                 </button>
               </div>
@@ -334,11 +335,11 @@ export default function RemoveItemDialog({
                     className="shrink-0"
                   />
                   <span>Ingredients</span>
-                  <span className="text-[10px] normal-case tracking-normal font-normal">
+                  <span className="type-caption normal-case tracking-normal font-normal">
                     — select used
                   </span>
                   {lossCount > 0 && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive font-medium ml-auto">
+                    <span className="type-caption px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive font-medium ml-auto">
                       {lossCount}
                     </span>
                   )}
@@ -356,7 +357,7 @@ export default function RemoveItemDialog({
                           <button
                             type="button"
                             className={cn(
-                              "w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-all",
+                              "w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors",
                               isChecked
                                 ? "bg-destructive/10 border-destructive/25"
                                 : "border-border",
@@ -385,19 +386,19 @@ export default function RemoveItemDialog({
                                   recipe.ingredient_id,
                                   e.target.value,
                                 )}
-                                className="w-16 h-6 text-[11px] px-1.5 py-0"
+                                className="w-16 h-6 type-small px-1.5 py-0"
                                 min="0"
                                 step="0.001"
                               />
-                              <span className="text-[10px] text-muted-foreground w-6">
+                              <span className="type-caption text-muted-foreground w-6">
                                 {recipe.unit || "g"}
                               </span>
-                              <span className="text-[10px] text-destructive font-medium w-12 text-right">
+                              <span className="type-caption text-destructive font-medium w-12 text-right">
                                 ₱{lossCost.toFixed(0)}
                               </span>
                             </div>
                           ) : (
-                            <span className="text-[10px] text-muted-foreground shrink-0">
+                            <span className="type-caption text-muted-foreground shrink-0">
                               {recipe.quantity_needed * (item?.quantity || 1)} {recipe.unit || "g"}
                             </span>
                           )}
@@ -444,7 +445,7 @@ export default function RemoveItemDialog({
               <button
                 type="button"
                 className={cn(
-                  "flex items-center gap-3 w-full text-left px-3 py-2 rounded-lg border transition-all",
+                  "flex items-center gap-3 w-full text-left px-3 py-2 rounded-lg border transition-colors",
                   refundOption === "full"
                     ? "border-primary bg-primary/5"
                     : "border-border hover:border-border/80 hover:bg-muted/50",
@@ -452,7 +453,7 @@ export default function RemoveItemDialog({
                 onClick={() => { setRefundOption("full"); setCustomRefundAmount(""); }}
               >
                 <div className={cn(
-                  "w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
+                  "w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
                   refundOption === "full" ? "border-primary bg-primary" : "border-border",
                 )}>
                   {refundOption === "full" && <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />}
@@ -464,7 +465,7 @@ export default function RemoveItemDialog({
               {/* Partial */}
               <div
                 className={cn(
-                  "flex items-center gap-3 w-full px-3 py-2 rounded-lg border transition-all cursor-pointer",
+                  "flex items-center gap-3 w-full px-3 py-2 rounded-lg border transition-colors cursor-pointer",
                   refundOption === "partial"
                     ? "border-primary bg-primary/5"
                     : "border-border hover:border-border/80 hover:bg-muted/50",
@@ -472,7 +473,7 @@ export default function RemoveItemDialog({
                 onClick={() => setRefundOption("partial")}
               >
                 <div className={cn(
-                  "w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
+                  "w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
                   refundOption === "partial" ? "border-primary bg-primary" : "border-border",
                 )}>
                   {refundOption === "partial" && <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />}
@@ -504,7 +505,7 @@ export default function RemoveItemDialog({
               <button
                 type="button"
                 className={cn(
-                  "flex items-center gap-3 w-full text-left px-3 py-2 rounded-lg border transition-all",
+                  "flex items-center gap-3 w-full text-left px-3 py-2 rounded-lg border transition-colors",
                   refundOption === "none"
                     ? "border-primary bg-primary/5"
                     : "border-border hover:border-border/80 hover:bg-muted/50",
@@ -512,7 +513,7 @@ export default function RemoveItemDialog({
                 onClick={() => { setRefundOption("none"); setCustomRefundAmount(""); }}
               >
                 <div className={cn(
-                  "w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
+                  "w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
                   refundOption === "none" ? "border-primary bg-primary" : "border-border",
                 )}>
                   {refundOption === "none" && <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />}
@@ -567,7 +568,7 @@ export default function RemoveItemDialog({
             disabled={loading}
           >
             {loading ? (
-              <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              <ButtonSpinner />
             ) : (
               <Icon name="trash2" size={14} />
             )}

@@ -47,7 +47,7 @@ export default function BatchSidebar({ batches, onClose }) {
                   {batch.product_name}
                 </span>
                 {batch.size_name && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium shrink-0 ml-1">
+                  <span className="type-caption px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium shrink-0 ml-1">
                     {batch.size_name}
                   </span>
                 )}
@@ -58,7 +58,7 @@ export default function BatchSidebar({ batches, onClose }) {
                 <span className="text-lg font-bold text-primary">
                   ×{batch.total_quantity}
                 </span>
-                <span className="text-[11px] text-muted-foreground">
+                <span className="type-small text-muted-foreground">
                   total needed
                 </span>
               </div>
@@ -68,7 +68,7 @@ export default function BatchSidebar({ batches, onClose }) {
                 {batch.orders.map((o) => (
                   <div
                     key={o.order_item_id}
-                    className="flex items-center justify-between text-[11px]"
+                    className="flex items-center justify-between type-small"
                   >
                     <span className="text-muted-foreground">
                       {orderNumberLabel(o.order_number)}

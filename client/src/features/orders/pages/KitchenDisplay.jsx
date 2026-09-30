@@ -166,7 +166,7 @@ export default function KitchenDisplay({ embedded = false }) {
               }`}
             >
               {tab.label}
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+              <span className={`type-caption px-1.5 py-0.5 rounded-full font-bold ${
                 activeTab === tab.key
                   ? "bg-primary/20 text-primary"
                   : "bg-muted text-muted-foreground"
@@ -189,7 +189,7 @@ export default function KitchenDisplay({ embedded = false }) {
           >
             <Icon name="list" size={14} />
             Batches
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-primary/20 text-primary">
+            <span className="type-caption px-1.5 py-0.5 rounded-full font-bold bg-primary/20 text-primary">
               {batches.length}
             </span>
           </button>

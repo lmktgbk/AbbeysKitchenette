@@ -1,5 +1,6 @@
 import { useOrderStats } from "../query";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatLabel, StatValue } from "@/components/ui/stat";
 import Icon from "@/components/ui/icon";
 
 /**
@@ -72,12 +73,8 @@ export default function OrderStats({ activeStatus, onStatusClick, dateFrom, date
             </div>
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {card.label}
-            </p>
-            <p className="text-lg font-bold text-foreground">
-              {stats[card.key] ?? 0}
-            </p>
+            <StatLabel>{card.label}</StatLabel>
+            <StatValue>{stats[card.key] ?? 0}</StatValue>
           </div>
         </button>
       ))}

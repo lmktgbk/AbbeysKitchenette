@@ -248,7 +248,7 @@ export default function SettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         <h1 className="text-lg font-semibold text-foreground">Settings</h1>
         <Skeleton className="h-48" />
         <Skeleton className="h-64" />
@@ -258,11 +258,11 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-lg font-semibold text-foreground">Settings</h1>
         {isDirty && (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[11px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 type-small text-muted-foreground">
             <span className="h-2 w-2 animate-pulse rounded-full bg-muted-foreground/50" />
             Unsaved changes
           </span>
@@ -283,7 +283,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
         {/* Store Information */}
         <Card>
           <CardHeader>

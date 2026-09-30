@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
+import { ButtonSpinner } from "@/components/ui/spinner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { confirm } from "@/components/alerts/ConfirmDialog";
 import {
@@ -124,7 +125,7 @@ export default function PriceOptimizationModal({ open, onOpenChange, product }) 
         >
           {mutations.generate.isPending ? (
             <>
-              <Icon name="loader" size={14} className="mr-2 animate-spin" />
+              <ButtonSpinner className="mr-2" />
               Analyzing prices...
             </>
           ) : (

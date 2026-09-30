@@ -76,7 +76,7 @@ export default function NotificationItem({ notification, onMarkRead, onDelete })
           </button>
         </div>
         <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{message}</p>
-        <p className="text-[11px] text-muted-foreground/70 mt-1">{formatTimeAgo(created_at)}</p>
+        <p className="type-small text-muted-foreground/70 mt-1">{formatTimeAgo(created_at)}</p>
       </div>
       {!is_read && (
         <div className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary" />

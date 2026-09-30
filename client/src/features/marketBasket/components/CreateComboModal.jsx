@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Icon from "@/components/ui/icon";
+import { ButtonSpinner } from "@/components/ui/spinner";
 import { useCreateComboProduct } from "../query";
 import { createComboSchema } from "../comboValidation";
 
@@ -244,7 +245,7 @@ export default function CreateComboModal({ open, onOpenChange, combo }) {
             >
               {createMutation.isPending ? (
                 <>
-                  <Icon name="loader" size={14} className="mr-2 animate-spin" />
+                  <ButtonSpinner className="mr-2" />
                   Creating...
                 </>
               ) : (

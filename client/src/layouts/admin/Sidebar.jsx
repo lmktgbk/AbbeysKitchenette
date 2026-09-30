@@ -50,7 +50,7 @@ export default function Sidebar({ expanded = false }) {
             }`}
         >
             <div className="flex h-14 items-center gap-2 border-b px-4">
-                <img src="/favicon.png" alt="Abbey's Kitchenette" className="h-6 w-6 shrink-0 rounded" />
+                <img src="/favicon.png" alt="Abbey's Kitchenette" className="h-8 w-8 shrink-0 rounded-lg ring-1 ring-border" />
                 {isExpanded && (
                     <span className="truncate text-sm font-semibold animate-in fade-in duration-150">
                         Abbey's Kitchenette

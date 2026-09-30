@@ -48,7 +48,7 @@ export const anomalyRepository = {
   },
 
   async getStats() {
-    const [total, bySeverity, byCategory, lastScan] = await Promise.all([
+    const [total, bySeverity, byCategory, lastAnomalyRows, lastScanRows] = await Promise.all([
       prisma.anomalyResult.count({ where: { isAcknowledged: false } }),
       prisma.anomalyResult.groupBy({
         by: ["severity"],
@@ -65,6 +65,14 @@ export const anomalyRepository = {
         take: 1,
         select: { detectedAt: true },
       }),
+      // Last run (even 0-result) comes from the audit trail, not the last
+      // created card — every scan (manual, cron, all hooks) is audited.
+      prisma.auditLog.findMany({
+        where: { action: "ANOMALY_SCAN" },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { createdAt: true },
+      }),
     ]);
 
     const severityMap = {};
@@ -77,7 +85,8 @@ export const anomalyRepository = {
       total,
       bySeverity: severityMap,
       byCategory: categoryMap,
-      lastScan: lastScan[0]?.detectedAt || null,
+      lastScan: lastScanRows[0]?.createdAt || null,
+      lastAnomaly: lastAnomalyRows[0]?.detectedAt || null,
     };
   },
 
@@ -95,6 +104,18 @@ export const anomalyRepository = {
     const start = manilaDayStart(toManilaDateString());
     const where = { ruleId, detectedAt: { gte: start } };
     const found = await prisma.anomalyResult.findFirst({ where, select: { id: true } });
+    return !!found;
+  },
+
+  // Policeman dedup: one card per shift (shiftId is embedded in the
+  // description since anomaly_results has no shift column). Prevents
+  // duplicate cards for the same close while allowing 2 closes same day.
+  async existsShiftCard(shiftId) {
+    if (!shiftId) return false;
+    const found = await prisma.anomalyResult.findFirst({
+      where: { ruleId: "shift_variance_spike", description: { contains: String(shiftId) } },
+      select: { id: true },
+    });
     return !!found;
   },
 

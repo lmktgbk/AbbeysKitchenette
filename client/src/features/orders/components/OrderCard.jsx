@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
+import PrimarySpinner, { ButtonSpinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { orderNumberLabel } from "@/lib/orderNumber";
 
@@ -63,7 +64,7 @@ export default function OrderCard({
         <div className="flex items-center justify-between mb-0.5">
           <div className="flex items-center gap-1.5">
             <span className={cn(
-              "text-[9px] px-1.5 py-px rounded-full font-bold",
+              "type-micro px-1.5 py-px rounded-full font-bold",
               isPreparing
                 ? "bg-primary text-primary-foreground"
                 : isCompleted
@@ -73,25 +74,25 @@ export default function OrderCard({
               {isPreparing ? "PREPARING" : isCompleted ? "DONE" : "ACCEPTED"}
             </span>
             <span className={cn(
-              "text-[9px] font-semibold",
+              "type-micro font-semibold",
               isLongWait ? "kds-timer-pulse text-destructive" : "text-muted-foreground",
             )}>
               {elapsedDisplay}
             </span>
           </div>
-          <span className="text-[9px] text-muted-foreground">
+          <span className="type-micro text-muted-foreground">
             {new Date(order.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
           </span>
         </div>
         <div className="flex items-end justify-between">
           <div className="min-w-0">
-            <div className="font-serif text-sm font-bold text-foreground leading-tight">
+            <div className="font-brand text-sm font-bold text-foreground leading-tight">
               {orderNumberLabel(order.order_number)}
             </div>
-            <div className="text-[11px] font-semibold text-foreground/80 truncate">
+            <div className="type-small font-semibold text-foreground/80 truncate">
               {order.customer_name}
             </div>
-            <div className="text-[10px] text-muted-foreground">
+            <div className="type-caption text-muted-foreground">
               T{order.table_number} ·{" "}
               <span className={source === "online" ? "text-purple-500" : "text-amber-500"}>
                 {source}
@@ -99,7 +100,7 @@ export default function OrderCard({
             </div>
           </div>
           <div className="text-right shrink-0">
-            <div className="font-serif text-sm font-bold text-amber-500 leading-tight">
+            <div className="font-brand text-sm font-bold text-amber-500 leading-tight">
               {`₱${Number(order.total_amount).toLocaleString("en-PH", { maximumFractionDigits: 0 })}`}
             </div>
           </div>
@@ -136,13 +137,13 @@ export default function OrderCard({
               >
                 {canCheck ? (
                   <div className={cn(
-                    "w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-all",
+                    "w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors",
                     done
                       ? "bg-primary/10 border-primary/25"
                       : "border-border",
                   )}>
                     {isToggling ? (
-                      <div className="h-2.5 w-2.5 animate-spin rounded-full border-[1.5px] border-primary border-t-transparent" />
+                      <PrimarySpinner size="xs" />
                     ) : done ? (
                       <Icon name="check" size={9} className="text-primary" />
                     ) : null}
@@ -159,23 +160,23 @@ export default function OrderCard({
                 )}
                 <div className="flex-1 min-w-0">
                   <span className={cn(
-                    "text-[11px] font-medium block truncate leading-tight",
+                    "type-small font-medium block truncate leading-tight",
                     done && "line-through text-muted-foreground",
                   )}>
                     {label}
                     {isBundle && (
-                      <span className="ml-1 rounded-full border border-amber-500/25 bg-amber-500/10 px-1 py-px align-middle text-[9px] font-bold text-amber-600 dark:text-amber-400">
+                      <span className="ml-1 rounded-full border border-amber-500/25 bg-amber-500/10 px-1 py-px align-middle type-micro font-bold text-amber-600 dark:text-amber-400">
                         Bundle
                       </span>
                     )}
                   </span>
                   {done && item.prepared_by_name && (
-                    <span className="text-[9px] text-muted-foreground leading-tight">
+                    <span className="type-micro text-muted-foreground leading-tight">
                       by {item.prepared_by_name}
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] font-bold text-muted-foreground shrink-0">
+                <span className="type-caption font-bold text-muted-foreground shrink-0">
                   ×{item.quantity}
                 </span>
               </button>
@@ -187,15 +188,15 @@ export default function OrderCard({
               key={item.order_item_id}
               className={cn("flex items-center gap-1.5 px-2 py-0.5", !canCheck && "opacity-40")}
             >
-              <span className="text-[11px] font-medium flex-1 min-w-0 truncate text-foreground/80">
+              <span className="type-small font-medium flex-1 min-w-0 truncate text-foreground/80">
                 {label}
                 {isBundle && (
-                  <span className="ml-1 rounded-full border border-amber-500/25 bg-amber-500/10 px-1 py-px align-middle text-[9px] font-bold text-amber-600 dark:text-amber-400">
+                  <span className="ml-1 rounded-full border border-amber-500/25 bg-amber-500/10 px-1 py-px align-middle type-micro font-bold text-amber-600 dark:text-amber-400">
                     Bundle
                   </span>
                 )}
               </span>
-              <span className="text-[10px] font-bold text-muted-foreground shrink-0">
+              <span className="type-caption font-bold text-muted-foreground shrink-0">
                 ×{item.quantity}
               </span>
             </div>
@@ -216,7 +217,7 @@ export default function OrderCard({
                 }}
               />
             </div>
-            <span className={cn("text-[9px] font-semibold tabular-nums", allItemsChecked ? "text-primary" : "text-muted-foreground")}>
+            <span className={cn("type-micro font-semibold tabular-nums", allItemsChecked ? "text-primary" : "text-muted-foreground")}>
               {preparedCount}/{totalItems}
             </span>
           </div>
@@ -249,7 +250,7 @@ export default function OrderCard({
             disabled={disabled || preparing}
           >
             {preparing ? (
-              <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              <ButtonSpinner />
             ) : (
               <Icon name="play" size={12} />
             )}

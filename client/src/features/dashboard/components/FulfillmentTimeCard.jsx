@@ -1,6 +1,7 @@
 import React from "react";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatValue } from "@/components/ui/stat";
 
 function FulfillmentTimeCard({ data, isLoading }) {
   if (isLoading) {
@@ -31,7 +32,7 @@ function FulfillmentTimeCard({ data, isLoading }) {
       </div>
       <div className="p-5">
         <div className="flex items-end gap-2 mb-3">
-          <span className={`text-3xl font-bold ${avgColor}`}>{avg}</span>
+          <StatValue size="hero" className={avgColor}>{avg}</StatValue>
           <span className="text-sm text-muted-foreground mb-1">min avg</span>
         </div>
         <div className="space-y-2">
@@ -44,7 +45,7 @@ function FulfillmentTimeCard({ data, isLoading }) {
             <span className="font-semibold text-foreground">{count}</span>
           </div>
         </div>
-        <div className="mt-4 flex items-center gap-2 text-[11px] text-muted-foreground">
+        <div className="mt-4 flex items-center gap-2 type-small text-muted-foreground">
           <Icon name="clock" size={12} />
           <span>Time from order placed to completed</span>
         </div>

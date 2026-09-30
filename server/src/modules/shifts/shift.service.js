@@ -311,9 +311,13 @@ export const shiftService = {
       details: { expected, actual, variance },
     }).catch(() => {});
 
-    // Real-time anomaly hook: cash variance (fire-and-forget, only when off)
+    // Real-time anomaly hook: every mismatch flags (policeman, per-shift).
     if (variance !== 0) {
-      anomalyService.runScan(["shift_variance_spike"]).catch((err) => console.warn("[anomaly] hook scan dropped:", err?.message));
+      anomalyService
+        .runScan(["shift_variance_spike"], {
+          shift: { shiftId: String(closed.shift_id ?? closed.shiftId ?? id), expected, actual, variance },
+        })
+        .catch((err) => console.warn("[anomaly] hook scan dropped:", err?.message));
     }
 
     return {

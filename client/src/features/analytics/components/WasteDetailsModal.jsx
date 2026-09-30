@@ -5,6 +5,8 @@ import { FilterPill } from "@/components/filters/FilterPill";
 import { Pagination } from "@/components/filters/Pagination";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatPeso } from "@/features/dashboard/utils/dashboardUtils";
 import { Badge } from "@/components/ui/badge";
 
@@ -61,9 +63,9 @@ export default function WasteDetailsModal({ open, onOpenChange, type, dateFrom, 
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-6">Loading...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="py-4"><div className="space-y-2"><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-2/3" /></div></TableCell></TableRow>
               ) : rows.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">No records</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6}><EmptyState icon="package" title="No records" copy="No waste entries match this filter." className="py-8" /></TableCell></TableRow>
               ) : (
                 rows.map((r) => (
                   <TableRow key={r.loss_id}>

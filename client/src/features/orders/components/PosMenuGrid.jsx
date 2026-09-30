@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useGuestMenu, usePendingOnlineOrders } from "../query";
 import { Skeleton } from "@/components/ui/skeleton";
 import Icon from "@/components/ui/icon";
+import PrimarySpinner from "@/components/ui/spinner";
 import {
   Dialog,
   DialogContent,
@@ -67,7 +68,7 @@ export default function PosMenuGrid({ onAddItem, sidebarOpen, onToggleSidebar })
         >
           <Icon name="bell" size={18} className="mx-auto" />
           {pendingCount > 0 && (
-            <span className="absolute -top-2 -right-2 z-10 inline-flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[11px] font-bold text-destructive-foreground shadow-sm">
+            <span className="absolute -top-2 -right-2 z-10 inline-flex h-5 w-5 items-center justify-center rounded-full bg-destructive type-small font-bold text-destructive-foreground shadow-sm">
               {pendingCount}
             </span>
           )}
@@ -95,7 +96,7 @@ export default function PosMenuGrid({ onAddItem, sidebarOpen, onToggleSidebar })
       <div className="relative grid grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {isFetching && !isPending && (
           <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-background/50">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <PrimarySpinner size="inline" />
           </div>
         )}
         {isPending
@@ -165,7 +166,7 @@ function ProductCard({ product, onAddItem }) {
 
   return (
     <>
-      <div className={`relative overflow-hidden rounded-xl border border-[rgba(139,69,19,0.16)] bg-card shadow-[0_1px_2px_rgba(30,15,5,0.06)] transition-all ${
+      <div className={`relative overflow-hidden rounded-xl border border-[rgba(139,69,19,0.16)] bg-card shadow-[0_1px_2px_rgba(30,15,5,0.06)] transition-all duration-200 ${
         isFullyUnavailable
           ? "opacity-50"
           : "hover:-translate-y-px hover:border-primary/50 hover:shadow-md"
@@ -176,14 +177,14 @@ function ProductCard({ product, onAddItem }) {
           className={`flex w-full flex-col p-3 text-left ${isFullyUnavailable ? "cursor-not-allowed" : ""}`}
         >
           <p className="truncate text-sm font-semibold">{product.product_name}</p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">{product.subcategory_name ?? product.category_name}</p>
+          <p className="mt-0.5 type-small text-muted-foreground">{product.subcategory_name ?? product.category_name}</p>
           {singleVariant && (
             <p className={`mt-1 text-sm font-bold ${singleAvailable ? "text-primary" : "text-muted-foreground line-through"}`}>
               ₱{Number(singleVariant.price).toLocaleString()}
             </p>
           )}
           {hasVariants && availableVariants.length > 0 && (
-            <p className="mt-1 text-[11px] text-muted-foreground">
+            <p className="mt-1 type-small text-muted-foreground">
               {availableVariants.length} size{availableVariants.length !== 1 ? "s" : ""} available
               {manuallyDeactivatedCount > 0 && (
                 <span className="text-destructive"> · {manuallyDeactivatedCount} deactivated</span>
@@ -194,12 +195,12 @@ function ProductCard({ product, onAddItem }) {
             </p>
           )}
           {singleVariant && !singleAvailable && (
-            <p className="mt-1 text-[11px] text-destructive">
+            <p className="mt-1 type-small text-destructive">
               {singleVariant.is_manually_deactivated ? "Unavailable" : "Out of stock"}
             </p>
           )}
           {hasVariants && availableVariants.length === 0 && (
-            <p className="mt-1 text-[11px] font-medium text-destructive">Unavailable</p>
+            <p className="mt-1 type-small font-medium text-destructive">Unavailable</p>
           )}
         </button>
       </div>

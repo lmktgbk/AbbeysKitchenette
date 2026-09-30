@@ -44,7 +44,7 @@ function TableHead({ className, ...props }) {
   return (
     <th
       className={cn(
-        "h-11 whitespace-nowrap px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
+        "type-small h-11 px-4 text-left align-middle font-semibold whitespace-nowrap uppercase tracking-wider text-muted-foreground [&:has([role=checkbox])]:pr-0",
         className,
       )}
       {...props}
@@ -64,4 +64,28 @@ function TableCell({ className, ...props }) {
   );
 }
 
-export { Table, TableHeader, TableBody, TableRow, TableHead, TableCell };
+/**
+ * NumCell / MoneyCell — sanctioned numeric cells (admin).
+ * Right-aligned tabular figures, font-medium (strong → semibold).
+ * Replaces the medium/semibold/bold + tabular-nums scatter.
+ */
+function NumCell({ className, align = "right", strong = false, ...props }) {
+  return (
+    <td
+      className={cn(
+        "px-4 py-3 align-middle tabular-nums",
+        align === "right" && "text-right",
+        align === "center" && "text-center",
+        strong ? "font-semibold" : "font-medium",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+function MoneyCell({ className, strong = false, ...props }) {
+  return <NumCell align="right" strong={strong} className={className} {...props} />;
+}
+
+export { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, NumCell, MoneyCell };
