@@ -1,5 +1,9 @@
 # SmartCafe audit evidence
 
+Use [FINAL_TESTING_CHECKLIST.md](FINAL_TESTING_CHECKLIST.md) for the consolidated
+manual acceptance pass after remediation. Record all final results there;
+automated regression checks should still run after each implementation batch.
+
 Audit of branch `code-revision`, commit `530c4cf064f080ef304c8ba66814d9ecd1f7d8ec`.
 No live database writes or external messages are authorized by these scripts.
 
