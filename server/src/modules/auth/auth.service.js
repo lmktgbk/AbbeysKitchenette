@@ -1,10 +1,13 @@
 import bcrypt from "bcryptjs";
+import crypto from "node:crypto";
 
 import { authRepository } from "./auth.repository.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
-import { signToken } from "../../config/jwt.js";
+import { signToken, signSessionToken, verifyToken } from "../../config/jwt.js";
+import { publicUser } from "./session.js";
+import { revokeLocalSessions } from "../../realtime/sessions.js";
 import { isStoreIP } from "../../utils/ipCheck.js";
-import { generateOtp, verifyOtp as verifyOtpCode } from "../../utils/otp.js";
+import { generateOtp, discardOtp, verifyOtp as verifyOtpCode } from "../../utils/otp.js";
 import {
   sendEmail,
   generateResetPasswordEmail,
@@ -63,15 +66,11 @@ export const authService = {
       const minutesLeft = Math.ceil((user.lockedUntil - new Date()) / 60000);
       throw new AppError(423, `Account locked. Try again in ${minutesLeft} minute${minutesLeft !== 1 ? "s" : ""}.`, "ACCOUNT_LOCKED");
     }
-    if (user.lockedUntil && user.lockedUntil <= new Date()) {
-      await authRepository.resetFailedLoginAttempts(user.id);
-      user.failedLoginAttempts = 0;
-    }
 
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!isPasswordValid) {
-      const updated = await authRepository.incrementFailedLoginAttempts(user.id, user.failedLoginAttempts || 0, LOGIN_LOCKOUT_MINUTES);
+      const updated = await authRepository.incrementFailedLoginAttempts(user.id, LOGIN_LOCKOUT_MINUTES);
       const remaining = LOGIN_MAX_ATTEMPTS - updated.failedLoginAttempts;
       if (remaining <= 0) {
         throw new AppError(423, "Account locked due to too many failed attempts.", "ACCOUNT_LOCKED");
@@ -82,39 +81,65 @@ export const authService = {
     await authRepository.resetFailedLoginAttempts(user.id);
 
     // Every role → Gmail OTP 2FA (same format as admin), no JWT until verified.
-    const otpCode = await generateOtp(user.id);
-    await sendEmail({
-      to: user.email,
-      subject: "Your Verification Code — Abbey's Kitchenette",
-      html: generateOtpEmail(otpCode),
-    });
-    const { passwordHash, ...safeUser } = user;
-    return { requiresOtp: true, user: safeUser };
+    const challengeId = crypto.randomUUID();
+    const challenge = signToken({ sub: user.id, purpose: "login-challenge", challengeId,
+      role: user.role, version: user.sessionVersion }, "10m");
+    const claims = verifyToken(challenge, "login-challenge");
+    const otpCode = await generateOtp(user.id, challengeId, new Date(claims.exp * 1000), false, user);
+    await this._sendLoginCode(user, challengeId, otpCode);
+    return { requiresOtp: true, user: publicUser(user), challenge };
   },
 
-  async verifyOtp(userId, code) {
-    // Throws INVALID_OTP / OTP_ATTEMPTS_EXCEEDED — never returns false.
-    await verifyOtpCode(userId, code);
-    const user = await authRepository.findById(userId);
-    if (!user) {
-      throw new AppError(401, "User not found", "USER_NOT_FOUND");
-    }
+  async verifyOtp(userId, code, challenge, clientIP) {
+    const { user, claims } = await this._resolveChallenge(userId, challenge, clientIP);
+    await verifyOtpCode(userId, claims.challengeId, code, user);
     await authRepository.updateLastLogin(user.id);
-    const token = signToken({ sub: user.id, role: user.role });
-    return { token, user };
+    const token = signSessionToken(user);
+    return { token, user: publicUser(user) };
   },
 
-  async resendOtp(userId) {
-    const user = await authRepository.findById(userId);
-    if (!user) {
-      throw new AppError(401, "User not found", "USER_NOT_FOUND");
+  async resendOtp(userId, challenge, clientIP) {
+    const { user, claims } = await this._resolveChallenge(userId, challenge, clientIP);
+    const otpCode = await generateOtp(user.id, claims.challengeId, new Date(claims.exp * 1000), true, user);
+    await this._sendLoginCode(user, claims.challengeId, otpCode);
+  },
+
+  async _sendLoginCode(user, challengeId, code) {
+    try {
+      await sendEmail({ to: user.email, subject: "Your Verification Code — Abbey's Kitchenette", html: generateOtpEmail(code) });
+    } catch (error) {
+      // An undelivered code must not consume the resend cooldown or remain usable.
+      await discardOtp(user.id, challengeId, code).catch(() => {});
+      throw error;
     }
-    const otpCode = await generateOtp(user.id);
-    await sendEmail({
-      to: user.email,
-      subject: "Your New Verification Code — Abbey's Kitchenette",
-      html: generateOtpEmail(otpCode),
-    });
+  },
+
+  async _resolveChallenge(userId, challenge, clientIP) {
+    let claims;
+    try {
+      claims = verifyToken(challenge, "login-challenge");
+    } catch {
+      throw new AppError(401, "Login challenge expired, please sign in again", "INVALID_CHALLENGE");
+    }
+    if (claims.sub !== userId || typeof claims.challengeId !== "string" || !Number.isSafeInteger(claims.version)) {
+      throw new AppError(401, "Invalid login challenge", "INVALID_CHALLENGE");
+    }
+    const user = await authRepository.findSecurityState(userId);
+    if (!user?.isActive || user.role !== claims.role || user.sessionVersion !== claims.version) {
+      throw new AppError(401, "Account changed, please sign in again", "INVALID_CHALLENGE");
+    }
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      throw new AppError(423, "Account is locked, please try again later", "ACCOUNT_LOCKED");
+    }
+    if (user.role !== "admin" && !await isStoreIP(clientIP)) {
+      throw new AppError(403, "Staff must login from store location", "STORE_IP_REQUIRED");
+    }
+    return { user, claims };
+  },
+
+  async logout(userId, version) {
+    await authRepository.revokeSessions(userId, version);
+    revokeLocalSessions(userId);
   },
 
   async forgotPassword(email) {
@@ -126,12 +151,13 @@ export const authService = {
     if (!user || !user.isActive) {
       return null;
     }
-    const resetToken = signToken({ sub: user.id, purpose: "password-reset" }, "15m");
+    const resetToken = signToken({ sub: user.id, purpose: "password-reset", version: user.sessionVersion }, "15m");
     const resetUrl = `${env.CLIENT_URL}/reset-password?token=${resetToken}`;
     await authRepository.issueResetToken(
       user.id,
       resetToken,
       new Date(Date.now() + 15 * 60 * 1000),
+      user.sessionVersion,
     );
     await sendEmail({
       to: user.email,
@@ -142,34 +168,25 @@ export const authService = {
   },
 
   async resetPassword(token, newPassword) {
-    const { verifyToken } = await import("../../config/jwt.js");
     let decoded;
     try {
-      decoded = verifyToken(token);
+      decoded = verifyToken(token, "password-reset");
     } catch {
       throw new AppError(401, "Invalid or expired reset token", "INVALID_TOKEN");
     }
     if (decoded.purpose !== "password-reset") {
       throw new AppError(401, "Invalid token purpose", "INVALID_TOKEN");
     }
-    // Single-use: link must exist, be unexpired, and be unused.
+    if (!Number.isSafeInteger(decoded.version)) throw new AppError(401, "Invalid reset token", "INVALID_TOKEN");
+    // Reject replays cheaply; the transaction repeats this check when claiming the token.
     const stored = await authRepository.findResetToken(token);
     if (!stored || stored.usedAt || stored.expiresAt <= new Date()) {
       throw new AppError(401, "Invalid or expired reset token", "INVALID_TOKEN");
     }
-    if (stored.userId !== decoded.sub) {
-      throw new AppError(401, "Invalid or expired reset token", "INVALID_TOKEN");
-    }
-    const user = await authRepository.findById(decoded.sub);
-    if (!user) {
-      throw new AppError(401, "User not found", "USER_NOT_FOUND");
-    }
-    // Burn first so replays fail even if a later step errors.
-    await authRepository.consumeResetToken(stored.id);
     const passwordHash = await bcrypt.hash(newPassword, 10);
-    await authRepository.updatePassword(user.id, passwordHash);
-    await authRepository.resetFailedLoginAttempts(user.id);
-    return user;
+    const user = await authRepository.resetPassword(token, decoded.sub, decoded.version, passwordHash);
+    revokeLocalSessions(user.id);
+    return publicUser(user);
   },
 
   async updateProfile(userId, name, email) {
@@ -190,7 +207,9 @@ export const authService = {
       throw new AppError(401, "Current password is incorrect", "INVALID_PASSWORD");
     }
     const newHash = await bcrypt.hash(newPassword, 10);
-    await authRepository.updatePassword(userId, newHash);
+    const user = await authRepository.updatePassword(userId, newHash, passwordHash);
+    revokeLocalSessions(userId);
+    return { user: publicUser(user), token: signSessionToken(user) };
   },
 
   async uploadProfileImage(userId, imageUrl) {

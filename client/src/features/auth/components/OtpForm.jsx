@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { verifyOtpRequest, resendOtpRequest } from "../api";
-import useAuthStore from "@/features/auth/authStore";
+import { establishSession } from "../session";
 import { otpSchema } from "../authValidation";
 import Icon from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,6 @@ import { toast } from "sonner";
 export default function OtpForm({ userId }) {
     const [serverError, setServerError] = useState("");
     const [resending, setResending] = useState(false);
-    const setUser = useAuthStore((s) => s.setUser);
     const navigate = useNavigate();
 
     const {
@@ -31,7 +30,7 @@ export default function OtpForm({ userId }) {
         try {
             const result = await verifyOtpRequest(userId, data.code);
             const { user } = result.data;
-            setUser(user);
+            await establishSession(user);
             toast.success("Login Successful", {
                 description: `Welcome, ${user.name}!`,
             });

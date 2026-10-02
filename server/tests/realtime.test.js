@@ -138,13 +138,14 @@ describe("resolveUser", () => {
     const { resolveUser } = await import("../src/realtime/auth.js");
     const { signToken } = await import("../src/config/jwt.js");
     const prisma = (await import("../src/config/prisma.js")).default;
-    const token = signToken({ sub: "u2", role: "cashier" });
+    const token = signToken({ sub: "u2", role: "cashier", version: 0 });
     prisma.user.findUnique.mockResolvedValueOnce({
       id: "u2",
       name: "C",
       email: "c@x.ph",
       role: "cashier",
       isActive: true,
+      sessionVersion: 0,
     });
     await expect(resolveUser(token)).resolves.toMatchObject({ id: "u2", role: "cashier" });
     prisma.user.findUnique.mockResolvedValueOnce({ id: "u2", role: "cashier", isActive: false });

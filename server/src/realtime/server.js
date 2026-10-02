@@ -22,6 +22,7 @@ import { env } from "../config/env.js";
 import { BUSINESS_TZ } from "../config/time.js";
 import { subscribe, unsubscribe, detachSocket, broadcast } from "./hub.js";
 import { extractUpgradeToken, resolveUser, canSubscribe } from "./auth.js";
+import { registerSessionSocket, unregisterSessionSocket, closeSessionSocket } from "./sessions.js";
 
 export { broadcast };
 
@@ -55,6 +56,8 @@ async function handleMessage(wss, socket, raw) {
     if (socket.__user) return;
     try {
       socket.__user = await resolveUser(msg.token);
+      socket.__token = msg.token;
+      registerSessionSocket(socket, socket.__user.id);
       send(socket, { type: "ready", user: { id: socket.__user.id, role: socket.__user.role } });
     } catch (err) {
       send(socket, { type: "error", code: err.code || "UNAUTHORIZED", message: err.message });
@@ -72,6 +75,14 @@ async function handleMessage(wss, socket, raw) {
     }
     if (!socket.__user) {
       send(socket, { type: "error", code: "UNAUTHORIZED", message: "Authenticate first" });
+      return;
+    }
+    try {
+      const current = await resolveUser(socket.__token);
+      if (socket.readyState !== 1 || !socket.__user) return;
+      socket.__user = current;
+    } catch {
+      closeSessionSocket(socket);
       return;
     }
     if (!topic || !canSubscribe(socket.__user, topic)) {
@@ -111,26 +122,30 @@ export function attachRealtimeServer(httpServer) {
     // socket (guest pages and cross-origin Bearer), but authed topics
     // stay closed until then.
     let user = null;
+    const token = extractUpgradeToken(req);
     try {
-      user = await resolveUser(extractUpgradeToken(req));
+      user = await resolveUser(token);
     } catch {
       user = null;
     }
     wss.handleUpgrade(req, socket, head, (ws) => {
-      wss.emit("connection", ws, req, user);
+      wss.emit("connection", ws, req, user, token);
     });
   });
 
-  wss.on("connection", (socket, _req, user) => {
+  wss.on("connection", (socket, _req, user, token) => {
     socket.__topics = new Set();
     socket.__user = user || null;
+    socket.__token = user ? token : null;
+    if (user) registerSessionSocket(socket, user.id);
     socket.__alive = true;
     socket.on("pong", () => {
       socket.__alive = true;
     });
-    socket.on("message", (raw) => handleMessage(wss, socket, raw));
-    socket.on("close", () => detachSocket(socket));
-    socket.on("error", () => detachSocket(socket));
+    socket.on("message", (raw) => handleMessage(wss, socket, raw).catch(() => closeSessionSocket(socket)));
+    const cleanup = () => { detachSocket(socket); unregisterSessionSocket(socket); };
+    socket.on("close", cleanup);
+    socket.on("error", cleanup);
     if (socket.__user) {
       send(socket, {
         type: "ready",
@@ -143,6 +158,13 @@ export function attachRealtimeServer(httpServer) {
 
   const heartbeat = setInterval(() => {
     for (const socket of wss.clients) {
+      // Revalidate idle connections too; revocations from other instances are DB-backed.
+      if (socket.__user && !socket.__revalidating) {
+        socket.__revalidating = true;
+        resolveUser(socket.__token).then(user => {
+          if (socket.readyState === 1 && socket.__user) socket.__user = user;
+        }).catch(() => closeSessionSocket(socket)).finally(() => { socket.__revalidating = false; });
+      }
       if (socket.__alive === false) {
         detachSocket(socket);
         try {

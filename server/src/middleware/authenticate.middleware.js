@@ -1,6 +1,4 @@
-import { verifyToken } from "../config/jwt.js";
-import { AppError } from "./errorHandler.middleware.js";
-import prisma from "../config/prisma.js";
+import { publicUser, resolveSession } from "../modules/auth/session.js";
 
 /**
  * Authentication Middleware
@@ -12,63 +10,16 @@ import prisma from "../config/prisma.js";
 
 const authenticate = async (req, res, next) => {
   try {
-    // Extract token from httpOnly cookie or bearer header
+    // Cookie sessions and explicit API bearer sessions share one policy.
     const token =
-      req.cookies?.token || req.headers.authorization?.replace("Bearer ", "");
+      req.cookies?.token || req.headers?.authorization?.match(/^Bearer (\S+)$/i)?.[1];
 
-    if (!token) {
-      throw new AppError(401, "Not Authenticated", "UNAUTHORIZED");
-    }
-
-    // Verify jwt signature and decode payload
-    const decoded = verifyToken(token);
-
-    // Fetch user from DB to confirm they still exist and are active
-    // This prevents login after account deletion/deactivation
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.sub },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        imageUrl: true,
-        isActive: true,
-      },
-    });
-
-    if (!user || !user.isActive) {
-      throw new AppError(
-        401,
-        "Account not found or deactivated",
-        "UNAUTHORIZED",
-      );
-    }
-
-    // Attach user to request for downstream middleware/routes
-    req.user = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      imageUrl: user.imageUrl,
-    };
+    const { user } = await resolveSession(token);
+    req.user = publicUser(user);
+    req.sessionVersion = user.sessionVersion;
 
     next();
   } catch (err) {
-    // Handle JWT-specific errors with clear messages
-    if (err.name === "JsonWebTokenError") {
-      return next(new AppError(401, "Invalid token", "UNAUTHORIZED"));
-    }
-    if (err.name === "TokenExpiredError") {
-      return next(
-        new AppError(
-          401,
-          "Session expired, please log in again",
-          "TOKEN_EXPIRED",
-        ),
-      );
-    }
     next(err);
   }
 };

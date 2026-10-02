@@ -21,7 +21,7 @@ export async function adminLoginRequest(email, password) {
 
 /* ── OTP (email 2FA — admin + staff, same format)  */
 
-/** Verify OTP code — returns { user, token } */
+/** Complete the HttpOnly login challenge and receive the public user profile. */
 export async function verifyOtpRequest(userId, code) {
   const res = await api.post("/auth/verify-otp", { userId, code });
   return res.data;

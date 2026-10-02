@@ -1,18 +1,4 @@
-import fs from "node:fs";
-import path from "node:path";
-const root = path.resolve(import.meta.dirname, "..");
-const matrix = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, "endpoint-inventory.json"), "utf8"));
-const controllers = new Map();
-for (const row of matrix) {
-  const source = fs.readFileSync(path.join(root, row.location), "utf8");
-  for (const m of source.matchAll(/import\s+(\{\s*\w+\s*\}|\w+)\s+from\s+"([^"]+\.controller\.js)"/g)) {
-    const target = path.resolve(path.dirname(path.join(root, row.location)), m[2]);
-    const key = "../" + path.relative(path.join(root, "server"), target).replaceAll("\\", "/");
-    const name = m[1].startsWith("{") ? m[1].replace(/[{}\s]/g, "") : "default";
-    controllers.set(key, name);
-  }
-}
-const code = `// Audit HTTP boundary tests. Real Express routing/middleware; fake DB, controllers and services.
+// Audit HTTP boundary tests. Real Express routing/middleware; fake DB, controllers and services.
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import fs from "node:fs";
 const h = vi.hoisted(() => ({ role: "cashier", proxy: () => new Proxy({}, { get: () => (req, res) => res.json({ success: true, auditHandlerReached: true }) }) }));
@@ -21,7 +7,24 @@ vi.mock("../src/config/prisma.js", () => ({ default: { user: { findUnique: async
 vi.mock("../src/middleware/upload.middleware.js", () => ({ uploadProductImage: (req,res,next) => next(), uploadAvatar: (req,res,next) => next() }));
 vi.mock("../src/modules/auditLogs/auditLog.service.js", () => ({ auditLogService: { logAction: vi.fn().mockResolvedValue({}) } }));
 vi.mock("../src/realtime/jobs.js", () => ({ proxyMlStatus: vi.fn() }));
-${[...controllers].map(([p, n]) => `vi.mock(${JSON.stringify(p)}, () => ({ ${n}: h.proxy() }));`).join("\n")}
+vi.mock("../src/modules/auth/auth.controller.js", () => ({ authController: h.proxy() }));
+vi.mock("../src/modules/categories/category.controller.js", () => ({ categoryController: h.proxy() }));
+vi.mock("../src/modules/ingredients/ingredient.controller.js", () => ({ ingredientController: h.proxy() }));
+vi.mock("../src/modules/products/product.controller.js", () => ({ productController: h.proxy() }));
+vi.mock("../src/modules/orders/order.controller.js", () => ({ orderController: h.proxy() }));
+vi.mock("../src/modules/guest/guest.controller.js", () => ({ guestController: h.proxy() }));
+vi.mock("../src/modules/staff/staff.controller.js", () => ({ staffController: h.proxy() }));
+vi.mock("../src/modules/reorderSuggestions/reorderSuggestions.controller.js", () => ({ reorderSuggestionsController: h.proxy() }));
+vi.mock("../src/modules/wasteReduction/wasteReduction.controller.js", () => ({ wasteReductionController: h.proxy() }));
+vi.mock("../src/modules/priceOptimization/priceOptimization.controller.js", () => ({ default: h.proxy() }));
+vi.mock("../src/modules/settings/settings.controller.js", () => ({ settingsController: h.proxy() }));
+vi.mock("../src/modules/auditLogs/auditLog.controller.js", () => ({ auditLogController: h.proxy() }));
+vi.mock("../src/modules/dashboard/dashboard.controller.js", () => ({ dashboardController: h.proxy() }));
+vi.mock("../src/modules/notifications/notification.controller.js", () => ({ notificationController: h.proxy() }));
+vi.mock("../src/modules/anomalyDetection/anomalyDetection.controller.js", () => ({ anomalyController: h.proxy() }));
+vi.mock("../src/modules/shifts/shift.controller.js", () => ({ shiftController: h.proxy() }));
+vi.mock("../src/modules/transactions/transaction.controller.js", () => ({ transactionController: h.proxy() }));
+vi.mock("../src/modules/analytics/analytics.controller.js", () => ({ analyticsController: h.proxy() }));
 import app from "../src/app.js";
 import { signToken } from "../src/config/jwt.js";
 const matrix = JSON.parse(fs.readFileSync(new URL("../../audit/endpoint-inventory.json", import.meta.url), "utf8"));
@@ -59,6 +62,3 @@ describe("AUDIT: HTTP authentication and role boundaries", () => {
     results.push({ scenario: "malformed JSON", status: r.status, desired: 400 });
   });
 });
-`;
-fs.writeFileSync(path.join(root, "server/tests/audit.http.test.js"), code);
-console.log("Generated mocked HTTP tests for", controllers.size, "controller modules and", matrix.length, "route registrations");

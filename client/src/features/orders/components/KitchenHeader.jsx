@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import useAuthStore from "@/features/auth/authStore";
-import { logoutRequest } from "@/features/auth/api";
+import useLogout from "@/features/auth/useLogout";
 import { confirm } from "@/components/alerts/ConfirmDialog";
 import LiveDot from "@/realtime/LiveDot";
 import ProfileMenu from "@/features/profile/components/ProfileMenu";
@@ -10,7 +10,7 @@ import Icon from "@/components/ui/icon";
 
 export default function KitchenHeader({ refreshing }) {
   const navigate = useNavigate();
-  const logout = useAuthStore((s) => s.logout);
+  const logout = useLogout();
   const user = useAuthStore((s) => s.user);
   const [time, setTime] = useState(new Date());
   const [profileOpen, setProfileOpen] = useState(false);
@@ -23,18 +23,13 @@ export default function KitchenHeader({ refreshing }) {
   async function handleLogout() {
     const ok = await confirm({
       title: "Sign out?",
-      message: "Are you sure you want to sign out?",
+      message: "This signs your account out on all devices.",
       confirmLabel: "Sign out",
       variant: "danger",
     });
     if (!ok) return;
 
-    try {
-      await logoutRequest();
-    } catch {
-      // Logout even if request fails
-    } finally {
-      logout();
+    if (await logout()) {
       navigate("/login");
     }
   }

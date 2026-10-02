@@ -1,79 +1,80 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import prisma from "../config/prisma.js";
+import { env } from "../config/env.js";
 import { AppError } from "../middleware/errorHandler.middleware.js";
+import { lockAccount } from "../modules/auth/accountLock.js";
 
-/**
- * OTP Utility (DB-backed)
- *
- * Admin 2FA codes live in otp_codes so they survive restarts and work
- * across instances. One live code per user; verification is attempt-capped
- * (5 strikes burns the code) and resends are cooldown-limited (60s).
- */
+const MAX_ATTEMPTS = 5;
+const RESEND_COOLDOWN_MS = 60_000;
 
-const OTP_EXPIRY_MINUTES = 10;
-const OTP_MAX_ATTEMPTS = 5;
-const OTP_RESEND_COOLDOWN_SECONDS = 60;
-
-/**
- * Generate a 6-digit OTP for a user (replaces any live code).
- * @param {string} userId - The user ID
- * @returns {Promise<string>} - The 6-digit OTP code
- * @throws {AppError} 429 when a code was sent within the cooldown window
- */
-export async function generateOtp(userId) {
-  const recent = await prisma.otpCode.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-  });
-  if (recent && Date.now() - new Date(recent.createdAt).getTime() < OTP_RESEND_COOLDOWN_SECONDS * 1000) {
-    throw new AppError(429, "Please wait before requesting a new code", "OTP_RESEND_COOLDOWN");
-  }
-
-  // Opportunistic janitor: drop expired rows while we're here.
-  await prisma.otpCode.deleteMany({
-    where: { OR: [{ userId }, { expiresAt: { lt: new Date() } }] },
-  });
-
-  const code = crypto.randomInt(100000, 999999).toString();
-  await prisma.otpCode.create({
-    data: {
-      userId,
-      code,
-      expiresAt: new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000),
-    },
-  });
-  return code;
+function hashCode(challengeId, code) {
+  // A keyed digest prevents a database-only attacker from enumerating six-digit codes.
+  return crypto.createHmac("sha256", env.JWT_SECRET).update(`otp:${challengeId}:${code}`).digest("hex");
 }
 
-/**
- * Verify an OTP. Burns the code on success, on expiry, and on strike-out.
- * @param {string} userId - The user ID
- * @param {string} code - The 6-digit code to verify
- * @returns {Promise<true>}
- * @throws {AppError} 401 INVALID_OTP | 429 OTP_ATTEMPTS_EXCEEDED
- */
-export async function verifyOtp(userId, code) {
-  const stored = await prisma.otpCode.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
+export async function discardOtp(userId, challengeId, code) {
+  // Match the delivered code too, so a delayed send failure cannot erase a newer resend.
+  return prisma.otpCode.deleteMany({ where: { userId, challengeId, code: hashCode(challengeId, code) } });
+}
+
+async function validAccount(tx, userId, expected) {
+  const user = await tx.user.findUnique({ where: { id: userId }, select: {
+    isActive: true, sessionVersion: true, role: true, lockedUntil: true,
+  } });
+  return user?.isActive && !(user.lockedUntil > new Date()) && (!expected ||
+    (user.sessionVersion === expected.sessionVersion && user.role === expected.role));
+}
+
+export async function generateOtp(userId, challengeId, expiresAt, resend = false, expected) {
+  return prisma.$transaction(async (tx) => {
+    await lockAccount(tx, userId);
+    if (expiresAt <= new Date()) throw new AppError(401, "Login challenge expired", "INVALID_CHALLENGE");
+    if (!await validAccount(tx, userId, expected)) {
+      throw new AppError(401, "Account changed, please sign in again", "INVALID_CHALLENGE");
+    }
+    const recent = await tx.otpCode.findFirst({ where: { userId }, orderBy: { createdAt: "desc" } });
+    if (resend && (!recent || recent.challengeId !== challengeId || recent.expiresAt <= new Date())) {
+      throw new AppError(401, "Login challenge expired, please sign in again", "INVALID_CHALLENGE");
+    }
+    if (recent && Date.now() - recent.createdAt.getTime() < RESEND_COOLDOWN_MS) {
+      throw new AppError(429, "Please wait before requesting a new code", "OTP_RESEND_COOLDOWN");
+    }
+    const code = crypto.randomInt(100000, 1000000).toString();
+    await tx.otpCode.deleteMany({ where: { userId } });
+    await tx.otpCode.create({ data: { userId, challengeId, code: hashCode(challengeId, code), expiresAt } });
+    return code;
   });
-  if (!stored || stored.expiresAt.getTime() < Date.now()) {
-    if (stored) await prisma.otpCode.delete({ where: { id: stored.id } });
-    throw new AppError(401, "Invalid or expired OTP code", "INVALID_OTP");
-  }
-  if (stored.attempts >= OTP_MAX_ATTEMPTS) {
-    await prisma.otpCode.delete({ where: { id: stored.id } });
+}
+
+export async function verifyOtp(userId, challengeId, code, expected) {
+  const outcome = await prisma.$transaction(async (tx) => {
+    await lockAccount(tx, userId);
+    if (!await validAccount(tx, userId, expected)) return "challenge";
+    const stored = await tx.otpCode.findUnique({ where: { challengeId } });
+    if (!stored || stored.userId !== userId) return "invalid";
+    if (stored.expiresAt <= new Date() || stored.attempts >= MAX_ATTEMPTS) {
+      await tx.otpCode.deleteMany({ where: { id: stored.id } });
+      return stored.attempts >= MAX_ATTEMPTS ? "exhausted" : "invalid";
+    }
+    const supplied = hashCode(challengeId, String(code));
+    const storedDigest = Buffer.from(stored.code, "hex");
+    const candidate = Buffer.from(supplied, "hex");
+    if (storedDigest.length !== candidate.length || !crypto.timingSafeEqual(storedDigest, candidate)) {
+      const updated = await tx.otpCode.update({
+        where: { id: stored.id }, data: { attempts: { increment: 1 } },
+      });
+      // Commit the failed-attempt write before returning an authentication error.
+      return updated.attempts >= MAX_ATTEMPTS ? "exhausted" : "invalid";
+    }
+    const consumed = await tx.otpCode.deleteMany({ where: {
+      id: stored.id, userId, challengeId, attempts: { lt: MAX_ATTEMPTS }, expiresAt: { gt: new Date() },
+    } });
+    return consumed.count === 1 ? "verified" : "invalid";
+  });
+  if (outcome === "challenge") throw new AppError(401, "Account changed, please sign in again", "INVALID_CHALLENGE");
+  if (outcome === "exhausted") {
     throw new AppError(429, "Too many wrong attempts — request a new code", "OTP_ATTEMPTS_EXCEEDED");
   }
-  if (stored.code !== String(code)) {
-    const attempts = stored.attempts + 1;
-    if (attempts >= OTP_MAX_ATTEMPTS) {
-      await prisma.otpCode.delete({ where: { id: stored.id } });
-      throw new AppError(429, "Too many wrong attempts — request a new code", "OTP_ATTEMPTS_EXCEEDED");
-    }
-    await prisma.otpCode.update({ where: { id: stored.id }, data: { attempts } });
-    throw new AppError(401, "Invalid or expired OTP code", "INVALID_OTP");
-  }
-  await prisma.otpCode.delete({ where: { id: stored.id } });
+  if (outcome !== "verified") throw new AppError(401, "Invalid or expired OTP code", "INVALID_OTP");
   return true;
 }

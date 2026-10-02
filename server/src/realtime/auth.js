@@ -5,12 +5,11 @@
  * Bearer path is unavailable — same-origin clients authenticate via the
  * httpOnly session cookie (sent automatically), cross-origin clients via a
  * first-message `{ type: "auth", token }`. Mirrors authenticate.middleware.js
- * (signature verify + active-user check); session tokens carry `role`, so
- * password-reset tokens (purpose-only) are rejected here.
+ * through the shared session resolver: purpose, audience, expiry, role and
+ * database session version are checked at both transport boundaries.
  */
 
-import prisma from "../config/prisma.js";
-import { verifyToken } from "../config/jwt.js";
+import { publicUser, resolveSession } from "../modules/auth/session.js";
 
 function parseCookies(header) {
   const out = {};
@@ -18,7 +17,12 @@ function parseCookies(header) {
   for (const part of String(header).split(";")) {
     const idx = part.indexOf("=");
     if (idx === -1) continue;
-    out[part.slice(0, idx).trim()] = decodeURIComponent(part.slice(idx + 1).trim());
+    try {
+      out[part.slice(0, idx).trim()] = decodeURIComponent(part.slice(idx + 1).trim());
+    } catch {
+      // Malformed cookie encodings must not crash the upgrade handler.
+      return {};
+    }
   }
   return out;
 }
@@ -26,7 +30,8 @@ function parseCookies(header) {
 function bearerFromProtocols(protocols) {
   // Optional convention: Sec-WebSocket-Protocol: ["realtime", "Bearer <jwt>"]
   // (subprotocol echo is harmless; auth is decided below, not by agreement).
-  for (const p of protocols || []) {
+  const values = typeof protocols === "string" ? protocols.split(",").map(p => p.trim()) : protocols ?? [];
+  for (const p of values) {
     if (p.startsWith("Bearer ")) return p.slice("Bearer ".length);
   }
   return null;
@@ -46,38 +51,13 @@ export function extractUpgradeToken(req) {
  * @returns {Promise<{ id, name, email, role }>}
  */
 export async function resolveUser(token) {
-  if (!token) {
-    const err = new Error("Not Authenticated");
-    err.status = 401;
-    err.code = "UNAUTHORIZED";
-    throw err;
-  }
-  let decoded;
   try {
-    decoded = verifyToken(token);
-  } catch (e) {
-    const err = new Error(e.name === "TokenExpiredError" ? "Session expired, please log in again" : "Invalid token");
-    err.status = 401;
-    err.code = e.name === "TokenExpiredError" ? "TOKEN_EXPIRED" : "UNAUTHORIZED";
-    throw err;
+    const { user, expiresAt } = await resolveSession(token);
+    return { ...publicUser(user), expiresAt };
+  } catch (error) {
+    error.status = error.statusCode ?? 503;
+    throw error;
   }
-  if (!decoded?.role) {
-    const err = new Error("Invalid token");
-    err.status = 401;
-    err.code = "UNAUTHORIZED";
-    throw err;
-  }
-  const user = await prisma.user.findUnique({
-    where: { id: decoded.sub },
-    select: { id: true, name: true, email: true, role: true, isActive: true },
-  });
-  if (!user || !user.isActive) {
-    const err = new Error("Account not found or deactivated");
-    err.status = 401;
-    err.code = "UNAUTHORIZED";
-    throw err;
-  }
-  return { id: user.id, name: user.name, email: user.email, role: user.role };
 }
 
 const STAFF_ROLES = new Set(["admin", "cashier", "kitchen"]);

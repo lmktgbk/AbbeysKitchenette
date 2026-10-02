@@ -1,9 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/icon";
-import useAuthStore from "@/features/auth/authStore";
 import useThemeStore from "@/features/theme/themeStore";
-import { logoutRequest } from "@/features/auth/api";
+import useLogout from "@/features/auth/useLogout";
 import { confirm } from "@/components/alerts/ConfirmDialog";
 
 /**
@@ -20,7 +19,7 @@ export default function ProfileMenu({ user, showSettings = false, onSettingsClic
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const navigate = useNavigate();
-  const logout = useAuthStore((s) => s.logout);
+  const logout = useLogout();
   const theme = useThemeStore((s) => s.theme);
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
   const isDark = theme === "dark";
@@ -38,18 +37,13 @@ export default function ProfileMenu({ user, showSettings = false, onSettingsClic
   async function handleLogout() {
     const ok = await confirm({
       title: "Sign out?",
-      message: "Are you sure you want to sign out?",
+      message: "This signs your account out on all devices.",
       confirmLabel: "Sign out",
       variant: "danger",
     });
     if (!ok) return;
 
-    try {
-      await logoutRequest();
-    } catch {
-      // Logout even if request fails
-    } finally {
-      logout();
+    if (await logout()) {
       navigate("/login");
     }
   }

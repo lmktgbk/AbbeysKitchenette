@@ -60,7 +60,7 @@ export function broadcast(topic, event = {}) {
   });
   let reached = 0;
   for (const socket of [...set]) {
-    if (socket.readyState !== 1) {
+    if (socket.readyState !== 1 || (socket.__user?.expiresAt && socket.__user.expiresAt <= Date.now())) {
       detachSocket(socket);
       continue;
     }

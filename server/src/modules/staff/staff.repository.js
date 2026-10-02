@@ -1,4 +1,5 @@
 import prisma from "../../config/prisma.js";
+import { revokeLocalSessions } from "../../realtime/sessions.js";
 
 /**
  * Staff Repository
@@ -83,32 +84,38 @@ export const staffRepository = {
    * Update staff fields.
    */
   async update(id, data) {
-    return prisma.user.update({
+    const user = await prisma.user.update({
       where: { id },
-      data,
+      data: { ...data, sessionVersion: { increment: 1 } },
       select: SAFE_SELECT,
     });
+    revokeLocalSessions(id);
+    return user;
   },
 
   /**
    * Toggle active status.
    */
   async setActive(id, isActive) {
-    return prisma.user.update({
+    const user = await prisma.user.update({
       where: { id },
-      data: { isActive },
+      data: { isActive, sessionVersion: { increment: 1 } },
       select: { id: true, isActive: true },
     });
+    revokeLocalSessions(id);
+    return user;
   },
 
   /**
    * Hard delete staff.
    */
   async deleteUser(id) {
-    return prisma.user.delete({
+    const user = await prisma.user.delete({
       where: { id },
       select: { id: true, name: true },
     });
+    revokeLocalSessions(id);
+    return user;
   },
 
   /**

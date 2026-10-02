@@ -67,13 +67,14 @@ export const staffService = {
     // Email the set-password link. Return emailed flag so UI can warn if mail failed.
     // The link is single-use: stored (hashed) and burned on first reset.
     try {
-      const resetToken = signToken({ sub: user.id, purpose: "password-reset" }, "15m");
+      const resetToken = signToken({ sub: user.id, purpose: "password-reset", version: 0 }, "15m");
       const resetUrl = `${env.CLIENT_URL}/reset-password?token=${resetToken}`;
       const { authRepository } = await import("../auth/auth.repository.js");
       await authRepository.issueResetToken(
         user.id,
         resetToken,
         new Date(Date.now() + 15 * 60 * 1000),
+        0,
       );
       await sendEmail({
         to: user.email,

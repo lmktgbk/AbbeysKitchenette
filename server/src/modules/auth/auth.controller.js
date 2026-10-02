@@ -22,6 +22,13 @@ const COOKIE_OPTIONS = {
   path: "/",
 };
 
+const CHALLENGE_COOKIE = "login_challenge";
+const CHALLENGE_OPTIONS = { ...COOKIE_OPTIONS, path: "/api/auth", maxAge: 10 * 60 * 1000 };
+
+function clearChallenge(res) {
+  res.clearCookie(CHALLENGE_COOKIE, { ...CHALLENGE_OPTIONS, maxAge: undefined });
+}
+
 function handleError(res, error, fallbackCode) {
   return controllerError(res, error, fallbackCode);
 }
@@ -33,11 +40,12 @@ export const authController = {
       const { email, password } = req.body;
       const result = await authService.login(email, password, req.ip);
       if (result.requiresOtp) {
+        res.cookie(CHALLENGE_COOKIE, result.challenge, CHALLENGE_OPTIONS);
         return successResponse(res, "OTP sent to email", { requiresOtp: true, user: result.user });
       }
       res.cookie("token", result.token, COOKIE_OPTIONS);
       auditLogService.logAction({ userId: result.user.id, action: ACTIONS.LOGIN_SUCCESS, details: { email, role: result.user.role } }).catch(() => {});
-      return successResponse(res, "Login successful", { user: result.user, token: result.token });
+      return successResponse(res, "Login successful", { user: result.user });
     } catch (error) {
       if (error instanceof AppError && ["INVALID_CREDENTIALS", "ACCOUNT_LOCKED", "ACCOUNT_DISABLED", "STORE_IP_REQUIRED", "USE_ADMIN_PORTAL", "USE_STAFF_PORTAL"].includes(error.code)) {
         const { email } = req.body || {};
@@ -53,11 +61,12 @@ export const authController = {
       const { email, password } = req.body;
       const result = await authService.adminLogin(email, password, req.ip);
       if (result.requiresOtp) {
+        res.cookie(CHALLENGE_COOKIE, result.challenge, CHALLENGE_OPTIONS);
         return successResponse(res, "OTP sent to email", { requiresOtp: true, user: result.user });
       }
       res.cookie("token", result.token, COOKIE_OPTIONS);
       auditLogService.logAction({ userId: result.user.id, action: ACTIONS.LOGIN_SUCCESS, details: { email, role: result.user.role } }).catch(() => {});
-      return successResponse(res, "Login successful", { user: result.user, token: result.token });
+      return successResponse(res, "Login successful", { user: result.user });
     } catch (error) {
       if (error instanceof AppError && ["INVALID_CREDENTIALS", "ACCOUNT_LOCKED", "ACCOUNT_DISABLED", "STORE_IP_REQUIRED", "USE_ADMIN_PORTAL", "USE_STAFF_PORTAL"].includes(error.code)) {
         const { email } = req.body || {};
@@ -68,9 +77,15 @@ export const authController = {
   },
 
   async logout(req, res) {
-    res.clearCookie("token", { path: "/" });
-    auditLogService.logAction({ userId: req.user.id, action: ACTIONS.LOGOUT, details: { email: req.user.email } }).catch(() => {});
-    return successResponse(res, "Logged out successfully");
+    try {
+      await authService.logout(req.user.id, req.sessionVersion);
+      res.clearCookie("token", { ...COOKIE_OPTIONS, maxAge: undefined });
+      clearChallenge(res);
+      auditLogService.logAction({ userId: req.user.id, action: ACTIONS.LOGOUT, details: { email: req.user.email } }).catch(() => {});
+      return successResponse(res, "Logged out successfully");
+    } catch (error) {
+      return handleError(res, error, "LOGOUT_ERROR");
+    }
   },
 
   async getMe(req, res) {
@@ -80,10 +95,11 @@ export const authController = {
   async verifyOtp(req, res) {
     try {
       const { userId, code } = req.body;
-      const { token, user } = await authService.verifyOtp(userId, code);
+      const { token, user } = await authService.verifyOtp(userId, code, req.cookies?.[CHALLENGE_COOKIE], req.ip);
       res.cookie("token", token, COOKIE_OPTIONS);
+      clearChallenge(res);
       auditLogService.logAction({ userId: user.id, action: ACTIONS.OTP_VERIFIED, details: { email: user.email } }).catch(() => {});
-      return successResponse(res, "OTP verified", { user, token });
+      return successResponse(res, "OTP verified", { user });
     } catch (error) {
       return handleError(res, error, "OTP_VERIFY_ERROR");
     }
@@ -92,7 +108,7 @@ export const authController = {
   async resendOtp(req, res) {
     try {
       const { userId } = req.body;
-      await authService.resendOtp(userId);
+      await authService.resendOtp(userId, req.cookies?.[CHALLENGE_COOKIE], req.ip);
       return successResponse(res, "OTP sent to email");
     } catch (error) {
       return handleError(res, error, "OTP_RESEND_ERROR");
@@ -118,6 +134,8 @@ export const authController = {
     try {
       const { token, newPassword } = req.body;
       const user = await authService.resetPassword(token, newPassword);
+      res.clearCookie("token", { ...COOKIE_OPTIONS, maxAge: undefined });
+      clearChallenge(res);
       auditLogService.logAction({ userId: user.id, action: ACTIONS.PASSWORD_RESET, details: { email: user.email, role: user.role } }).catch(() => {});
       return successResponse(res, "Password reset successful");
     } catch (error) {
@@ -145,9 +163,11 @@ export const authController = {
   async changePassword(req, res) {
     try {
       const { currentPassword, newPassword } = req.body;
-      await authService.changePassword(req.user.id, currentPassword, newPassword);
+      const { token, user } = await authService.changePassword(req.user.id, currentPassword, newPassword);
+      res.cookie("token", token, COOKIE_OPTIONS);
+      clearChallenge(res);
       auditLogService.logAction({ userId: req.user.id, action: ACTIONS.PASSWORD_CHANGED, details: { email: req.user.email } }).catch(() => {});
-      return successResponse(res, "Password changed successfully");
+      return successResponse(res, "Password changed successfully", { user });
     } catch (error) {
       return handleError(res, error, "CHANGE_PASSWORD_ERROR");
     }

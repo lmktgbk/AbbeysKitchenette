@@ -9,7 +9,7 @@
 import { useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import useAuthStore from "@/features/auth/authStore";
-import { logoutRequest } from "@/features/auth/api";
+import useLogout from "@/features/auth/useLogout";
 import { confirm } from "@/components/alerts/ConfirmDialog";
 import { FilterPill } from "@/components/filters/FilterPill";
 import LiveDot from "@/realtime/LiveDot";
@@ -29,7 +29,7 @@ export default function PosTerminal() {
   const navigate = useNavigate();
   const location = useLocation();
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
+  const logout = useLogout();
   const [profileOpen, setProfileOpen] = useState(false);
   const [terminalSettingsOpen, setTerminalSettingsOpen] = useState(false);
 
@@ -52,18 +52,13 @@ export default function PosTerminal() {
   async function handleLogout() {
     const ok = await confirm({
       title: "Sign out?",
-      message: "Are you sure you want to sign out?",
+      message: "This signs your account out on all devices.",
       confirmLabel: "Sign out",
       variant: "danger",
     });
     if (!ok) return;
 
-    try {
-      await logoutRequest();
-    } catch {
-      // Logout even if request fails
-    } finally {
-      logout();
+    if (await logout()) {
       navigate("/login");
     }
   }

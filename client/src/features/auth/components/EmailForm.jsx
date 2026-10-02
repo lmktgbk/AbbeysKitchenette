@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginRequest, adminLoginRequest } from "../api";
-import useAuthStore from "@/features/auth/authStore";
+import { establishSession } from "../session";
 import { loginSchema } from "../authValidation";
 import Icon from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,6 @@ import { toast } from "sonner";
 export default function EmailForm({ onBack, mode = "staff" }) {
     const [serverError, setServerError] = useState("");
     const [otpData, setOtpData] = useState(null);
-    const setUser = useAuthStore((s) => s.setUser);
     const navigate = useNavigate();
 
     const {
@@ -39,7 +38,7 @@ export default function EmailForm({ onBack, mode = "staff" }) {
             }
 
             const { user } = result.data;
-            setUser(user);
+            await establishSession(user);
             toast.success("Login Successful", {
                 description: `Welcome, ${user.name}!`,
             });

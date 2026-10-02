@@ -1,9 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/icon";
-import useAuthStore from "@/features/auth/authStore";
 import useThemeStore from "@/features/theme/themeStore";
-import { logoutRequest } from "@/features/auth/api";
+import useLogout from "@/features/auth/useLogout";
 import { confirm } from "@/components/alerts/ConfirmDialog";
 
 /** AvatarDropdown — sidebar account menu. WHY it exists: keeps profile/settings/logout + outside-click close in one spot so Sidebar stays lean; consumed by Sidebar. State: local [open]. */
@@ -11,7 +10,7 @@ export default function AvatarDropdown({ collapsed, user, onOpenProfile }) {
     const [open, setOpen] = useState(false);
     const ref = useRef(null);
     const navigate = useNavigate();
-    const logout = useAuthStore((s) => s.logout);
+    const logout = useLogout();
     const theme = useThemeStore((s) => s.theme);
     const toggleTheme = useThemeStore((s) => s.toggleTheme);
     const isDark = theme === "dark";
@@ -31,18 +30,13 @@ export default function AvatarDropdown({ collapsed, user, onOpenProfile }) {
     async function handleLogout() {
         const confirmLogout = await confirm({
             title: "Logout?",
-            message: "Are you sure you want to logout?",
+            message: "This signs your account out on all devices.",
             confirmLabel: "Logout",
             variant: "danger",
         });
         if (!confirmLogout) return;
 
-        try {
-            await logoutRequest()
-        } catch {
-            // Logout even if request fails
-        } finally {
-            logout();
+        if (await logout()) {
             navigate("/login");
         }
     }

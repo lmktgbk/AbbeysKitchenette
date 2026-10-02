@@ -6,6 +6,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import useAuthStore from "@/features/auth/authStore";
+import { restoreSession } from "@/features/auth/session";
 import {
   updateProfileRequest,
   changePasswordRequest,
@@ -37,7 +38,8 @@ export function useProfileMutations() {
 
   const changePassword = useMutation({
     mutationFn: changePasswordRequest,
-    onSuccess: () => {
+    onSuccess: (res) => {
+      restoreSession(res.data.user);
       toast.success("Password changed");
     },
     onError: (err) => {
