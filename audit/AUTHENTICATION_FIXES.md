@@ -90,7 +90,13 @@ production-readiness certificate.
 
 ## Supabase rollout prerequisite
 
-**The migration has been prepared, not applied to the live database.**
+**Update 2026-10-03:** The configured Supabase database now has a registered
+Prisma baseline and the applied `20261003000000_auth_sessions` migration.
+Migration status is current and the database-to-Prisma schema diff is empty.
+The migration was rehearsed in an isolated PostgreSQL schema and rolled back
+before deployment. See `server/prisma/MIGRATIONS.md` for subsequent deployments.
+The instructions below remain the rollout checklist for other installations;
+full deployed browser/email authentication checks are still outstanding.
 
 `server/prisma/SEC05_auth_sessions.sql` adds `User.session_version`, adds an OTP
 `challenge_id` unique index, and widens `otp_codes.code` for hashed codes. Existing

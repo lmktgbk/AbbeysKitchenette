@@ -4,6 +4,11 @@
   "description": "",
   "main": "server.js",
   "scripts": {
+    "db:generate": "prisma generate",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:status": "prisma migrate status",
+    "db:migrate:rehearse": "node prisma/verify-baseline.mjs",
     "test": "vitest run",
     "start": "node server.js",
     "dev": "nodemon server.js",

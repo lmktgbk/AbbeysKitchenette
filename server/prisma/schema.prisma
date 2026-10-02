@@ -756,7 +756,7 @@ model OtpCode {
   id        Int      @id @default(autoincrement()) @map("id")
   userId    String   @map("user_id") @db.Uuid
   code      String   @db.VarChar(64)
-  challengeId String @unique @default(uuid()) @map("challenge_id") @db.Uuid
+  challengeId String @unique @default(dbgenerated("gen_random_uuid()")) @map("challenge_id") @db.Uuid
   attempts  Int      @default(0)
   expiresAt DateTime @map("expires_at") @db.Timestamptz
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
