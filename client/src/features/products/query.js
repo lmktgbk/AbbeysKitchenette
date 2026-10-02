@@ -213,6 +213,13 @@ export function usePriceOptimizationMutations() {
     queryClient.invalidateQueries({ queryKey: productKeys.all });
   }
 
+  function refreshResolution() {
+    // A lost response or stale action can follow a committed change. Refetch
+    // both prices and suggestions regardless of the mutation outcome.
+    queryClient.invalidateQueries({ queryKey: priceKeys.all });
+    queryClient.invalidateQueries({ queryKey: productKeys.all });
+  }
+
   return {
     generate: useMutation({
       mutationFn: api.generatePriceSuggestionsRequest,
@@ -223,17 +230,12 @@ export function usePriceOptimizationMutations() {
 
     apply: useMutation({
       mutationFn: api.applyPriceRequest,
-      onSuccess: (_data, vars) => {
-        queryClient.invalidateQueries({ queryKey: priceKeys.all });
-        queryClient.invalidateQueries({ queryKey: productKeys.all });
-      },
+      onSettled: refreshResolution,
     }),
 
     dismiss: useMutation({
       mutationFn: api.dismissPriceSuggestionRequest,
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: productKeys.all });
-      },
+      onSettled: refreshResolution,
     }),
   };
 }

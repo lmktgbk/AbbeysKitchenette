@@ -1,5 +1,7 @@
 **SYSTEM AUDIT STATUS**
 
+Price approval remediation: [PRICE_APPROVAL_FIXES.md](PRICE_APPROVAL_FIXES.md).
+
 Inventory transaction remediation: [INVENTORY_TRANSACTION_FIXES.md](INVENTORY_TRANSACTION_FIXES.md).
 
 **Historical baseline:** Authentication fixes were implemented on 2026-10-03.

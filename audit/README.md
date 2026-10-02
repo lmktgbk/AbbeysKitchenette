@@ -28,5 +28,6 @@ Subsequent changes are tracked in [AUTHENTICATION_FIXES.md](AUTHENTICATION_FIXES
 Order permission/state changes are tracked in [ORDER_STATE_FIXES.md](ORDER_STATE_FIXES.md).
 Request replay/payment/shift changes are tracked in [FINANCIAL_TRANSACTION_FIXES.md](FINANCIAL_TRANSACTION_FIXES.md).
 Original consumption, stock settlement and refund changes are tracked in [INVENTORY_TRANSACTION_FIXES.md](INVENTORY_TRANSACTION_FIXES.md).
+Transactional price approval changes are tracked in [PRICE_APPROVAL_FIXES.md](PRICE_APPROVAL_FIXES.md).
 The baseline auth defect tests have been converted into regressions; remaining
 business defect characterizations are still explicitly unsafe-behavior tests.

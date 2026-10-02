@@ -81,8 +81,8 @@ vulnerabilities. npm audit failures require fixes or a reviewed explicit excepti
 Migration status/validation/generation do not prove data integrity. No migration,
 reset or seed command is intentionally included in this verification block.
 
-Current reference, not a final PASS: the inventory batch has 409 automated tests
-passing, including 38 new inventory/refund regression cases in this batch. The frontend
+Current reference, not a final PASS: the price approval batch has 437 automated tests
+passing, including 28 new approval security/rollback/concurrency cases. The frontend
 build passed with an existing large-bundle warning. Submission code and POS pages
 passed lint; the guest page retains its baseline four errors and one warning.
 The additive submission-ledger migration is applied; schema diff and read-only
@@ -100,6 +100,11 @@ multi-connection transaction tests or a complete browser acceptance pass.
 From `server`, `npm.cmd run db:migrate:rehearse` repeats disposable schema/SQL checks
 and rolls back its fixtures. It requires schema-creation permission and never
 modifies public application orders.
+
+Price approval code uses the existing schema; no new migration is required.
+PostgreSQL expected-price/archived-product guards and decimal-price rollback passed
+with disposable fixtures. Updated price-query code passes lint. Full browser
+approval/dismissal and multi-connection pricing races remain **Not verified**.
 
 From `server`, run `node prisma/verify-ledger-access.mjs` to check ledger access
 without reading business records. A schema/access check does not verify financial
@@ -301,7 +306,7 @@ all cases on the final commit. No case below has been executed by this document.
 
 **Priority:** High
 
-**Implementation:** Open at checklist creation; final acceptance NOT RUN
+**Implementation:** Implemented in price approval batch; PostgreSQL guard SQL checks passed; multi-connection/browser acceptance NOT RUN
 
 **Steps:** Approve a proposed price while another admin edits the same variant. Retry approval, approve a rejected recommendation, and inject a failure during the price write. Inspect approval status and variant price together.
 
@@ -310,6 +315,8 @@ all cases on the final commit. No case below has been executed by this document.
 **Result:** NOT RUN
 
 **Evidence / defect / retest:** ___
+
+**Additional price regression steps:** Use isolated recommendations and variants. Race two approvals, approval versus dismissal (both arrival orders), and two recommendations based on the same original price. Change the variant manually before approval; require a stale-price conflict with the recommendation still pending. Inject failure in the status or price write and verify complete rollback. Fail regeneration insertion and require retention of prior pending suggestions. Deny cashier/kitchen direct requests, reject invalid IDs and prices, and reject archived/deleted targets. After dismissal, conflicts and lost responses, verify suggestion and product views refresh.
 
 ### H10 ? Partial stock restoration uses mutable recipes
 

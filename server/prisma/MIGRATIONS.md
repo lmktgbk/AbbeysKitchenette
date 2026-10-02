@@ -76,3 +76,6 @@ rows remain unattributed; partial restoration requires reconciliation rather
 than a guessed backfill. Rehearsal also exercises actual settlement/restore SQL,
 constraint rejection, duplicate/version guards and rollback using disposable
 fixtures. PostgreSQL multi-connection business contention is still Not verified.
+Rehearsal also checks the expected-price/archived-product approval predicates and
+decimal-price rollback against these disposable fixtures. The price approval batch
+uses existing columns and requires no additional migration.

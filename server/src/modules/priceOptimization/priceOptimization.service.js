@@ -1,13 +1,34 @@
 import repo from "./priceOptimization.repository.js";
 import { generatePriceSuggestions, getCompetitorAverage } from "./priceOptimization.prompts.js";
+import prisma from "../../config/prisma.js";
+import { AppError } from "../../middleware/errorHandler.middleware.js";
+
+async function resolveSuggestion(id, status) {
+  return prisma.$transaction(async tx => {
+    const suggestion = await repo.findById(id, tx);
+    if (!suggestion) throw new AppError(404, "Price suggestion not found", "PRICE_SUGGESTION_NOT_FOUND");
+    const updatedAt = new Date();
+    const claimed = await repo.claimPending(id, status, tx, updatedAt);
+    if (!claimed.count) throw new AppError(409, "Suggestion was already resolved. Refresh before trying again", "PRICE_SUGGESTION_CONFLICT");
+    if (status === "accepted") {
+      const price = Number(suggestion.recommendedPrice);
+      if (!Number.isFinite(price) || price <= 0 || price > 99999999.99 || Math.abs(price * 100 - Math.round(price * 100)) > 0.000001) {
+        throw new AppError(400, "Recommended price must be positive and fit two decimal places", "INVALID_RECOMMENDED_PRICE");
+      }
+      const changed = await repo.updateVariantPrice(suggestion.variantId, suggestion.currentPrice, suggestion.recommendedPrice, tx);
+      if (changed !== 1) throw new AppError(409, "Product price or availability changed. Refresh and generate a new suggestion", "STALE_PRICE_SUGGESTION");
+    }
+    return { ...suggestion, status, updatedAt };
+  }, { timeout: 5000 });
+}
 
 /**
  * Price Optimization Service
  *
  * Orchestrates: gather context → build prompt → call Gemini → parse → save.
  * Suggestions are advisory only and land as pending rows — applying a price
- * moves real money, so a human always clicks apply; nothing here writes to
- * product_variants directly (see applyPrice, which does exactly one update).
+ * changes the sale price, so applying one requires an explicit admin action.
+ * Resolution claims and price writes share a short database transaction.
  */
 const priceOptimizationService = {
   /**
@@ -100,16 +121,14 @@ const priceOptimizationService = {
    * Apply recommended price: update variant + mark suggestion accepted.
    */
   async applyPrice(id) {
-    const suggestion = await repo.updateStatus(id, "accepted");
-    await repo.updateVariantPrice(suggestion.variantId, suggestion.recommendedPrice);
-    return suggestion;
+    return resolveSuggestion(id, "accepted");
   },
 
   /**
    * Dismiss a suggestion.
    */
   async dismiss(id) {
-    return repo.updateStatus(id, "rejected");
+    return resolveSuggestion(id, "rejected");
   },
 };
 

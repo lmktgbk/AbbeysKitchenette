@@ -130,15 +130,15 @@ const priceOptimizationRepository = {
    * to prevent duplicates after regeneration.
    */
   async saveSuggestions(suggestions, productId) {
-    if (productId) {
-      await prisma.priceOptimization.deleteMany({
+    return prisma.$transaction(async (tx) => {
+      if (productId) await tx.priceOptimization.deleteMany({
         where: {
           status: "pending",
           variant: { productId },
         },
       });
-    }
-    return prisma.priceOptimization.createMany({ data: suggestions });
+      return tx.priceOptimization.createMany({ data: suggestions });
+    }, { timeout: 5000 });
   },
 
   /**
@@ -156,23 +156,30 @@ const priceOptimizationRepository = {
   },
 
   /**
-   * Update suggestion status.
+   * Read the recommendation within the caller's resolution transaction.
    */
-  async updateStatus(id, status) {
-    return prisma.priceOptimization.update({
-      where: { id },
-      data: { status },
+  async findById(id, tx) {
+    return tx.priceOptimization.findUnique({ where: { id } });
+  },
+
+  async claimPending(id, status, tx, updatedAt) {
+    return tx.priceOptimization.updateMany({
+      where: { id, status: "pending" },
+      data: { status, updatedAt },
     });
   },
 
   /**
    * Update variant price.
    */
-  async updateVariantPrice(variantId, price) {
-    return prisma.productVariant.update({
-      where: { variantId },
-      data: { price },
-    });
+  async updateVariantPrice(variantId, currentPrice, price, tx) {
+    // PostgreSQL rechecks this predicate after waiting on a concurrent price
+    // writer. A recommendation cannot overwrite a price changed since generation.
+    return tx.$executeRaw`
+      UPDATE product_variants AS v SET price = ${String(price)}::numeric
+      WHERE v.variant_id = ${variantId} AND v.price = ${String(currentPrice)}::numeric
+        AND EXISTS (SELECT 1 FROM products AS p WHERE p.product_id = v.product_id AND p.is_archived = false)
+    `;
   },
 };
 

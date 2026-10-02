@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { orderRepository } from "../src/modules/orders/order.repository.js";
+import priceRepository from "../src/modules/priceOptimization/priceOptimization.repository.js";
 
 // Called only inside verify-baseline's disposable schema and outer transaction.
 // All fixtures and mutation queries disappear when that transaction rolls back.
@@ -48,5 +49,13 @@ export async function verifyConsumption(client) {
   await client.query("ROLLBACK TO SAVEPOINT rollback_settlement");
   assert.equal((await client.query("SELECT reversed_at FROM order_ingredient_deductions WHERE id=$1", [deduction])).rows[0].reversed_at, null);
   assert.equal((await client.query("SELECT quantity_left FROM restock_batches WHERE restock_id=$1", [batch])).rows[0].quantity_left, "6.000");
+  await client.query("SAVEPOINT rollback_price");
+  assert.equal(await priceRepository.updateVariantPrice(variant, 100, 105.25, tx), 1);
+  assert.equal(await priceRepository.updateVariantPrice(variant, 100, 110, tx), 0);
+  await client.query("UPDATE products SET is_archived=true WHERE product_id=$1", [product]);
+  assert.equal(await priceRepository.updateVariantPrice(variant, 105.25, 110, tx), 0);
+  await client.query("ROLLBACK TO SAVEPOINT rollback_price");
+  assert.equal((await client.query("SELECT price FROM product_variants WHERE variant_id=$1", [variant])).rows[0].price, "100.00");
+  console.log("PostgreSQL expected-price/archived-product guards and decimal-price rollback verified in disposable schema.");
   console.log("PostgreSQL item/order FK, quantity checks, guarded settlement, stock version guard and rollback verified in disposable schema.");
 }

@@ -5,5 +5,6 @@ export const generateSchema = z.object({
 });
 
 export const idParamSchema = z.object({
-  id: z.string().regex(/^\d+$/, "ID must be a number"),
+  id: z.string().regex(/^\d+$/, "ID must be a number")
+    .refine(value => Number(value) > 0 && Number(value) <= 2147483647, "ID must be a positive database integer"),
 });
