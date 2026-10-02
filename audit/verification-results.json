@@ -1,0 +1,17 @@
+{
+  "baselineBranch": "code-revision",
+  "baselineCommit": "530c4cf064f080ef304c8ba66814d9ecd1f7d8ec",
+  "serverTests": { "files": 7, "passed": 275, "originalTests": 40, "addedCharacterizations": 10, "httpBoundaryCases": 225 },
+  "pythonReproductions": { "passed": 3 },
+  "frontendBuild": { "status": "pass", "mainMinifiedKB": 1636.52, "mainGzipKB": 445.00, "largeChunkWarning": true },
+  "frontendLint": { "status": "fail", "errors": 46, "warnings": 16 },
+  "npmAdvisories": { "serverAffectedPackageNodes": 15, "clientAffectedPackageNodes": 8 },
+  "pythonCompatibility": { "pipCheck": "pass" },
+  "pythonOSV": { "packagesChecked": 71, "affectedPackages": 2, "paginationComplete": true },
+  "liveDatabaseIntegration": "Not verified",
+  "loadAndRecovery": "Not verified",
+  "fixturePreview": "stopped; connection refused on 127.0.0.1:5189",
+  "applicationChanges": false,
+  "productionDataWrites": false,
+  "warning": "Passing characterization tests confirms current behavior, including defects; it does not establish production safety."
+}

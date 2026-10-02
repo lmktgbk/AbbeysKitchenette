@@ -1,0 +1,372 @@
+{
+  "expressRegistrations": 135,
+  "uniqueEndpoints": 135,
+  "trackedEnvFiles": [
+    "client/.env.example",
+    "server/.env.example"
+  ],
+  "envHistoryPaths": [],
+  "secretCandidateLocations": [
+    {
+      "file": "server/.agents/skills/prisma-compute/references/create-prisma.md",
+      "line": 78,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.agents/skills/prisma-compute/references/troubleshooting.md",
+      "line": 102,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.agents/skills/prisma-compute/references/troubleshooting.md",
+      "line": 209,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.agents/skills/prisma-database-setup/references/cockroachdb.md",
+      "line": 44,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.agents/skills/prisma-database-setup/references/postgresql.md",
+      "line": 45,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.agents/skills/prisma-database-setup/references/postgresql.md",
+      "line": 51,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.agents/skills/prisma-database-setup/references/prisma-postgres.md",
+      "line": 29,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.agents/skills/prisma-postgres-setup/references/endpoints.md",
+      "line": 95,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.agents/skills/prisma-postgres-setup/references/endpoints.md",
+      "line": 187,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.agents/skills/prisma-postgres/references/console-and-connections.md",
+      "line": 55,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.claude/skills/prisma-compute/references/create-prisma.md",
+      "line": 78,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.claude/skills/prisma-compute/references/troubleshooting.md",
+      "line": 102,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.claude/skills/prisma-compute/references/troubleshooting.md",
+      "line": 209,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.claude/skills/prisma-database-setup/references/cockroachdb.md",
+      "line": 44,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.claude/skills/prisma-database-setup/references/postgresql.md",
+      "line": 45,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.claude/skills/prisma-database-setup/references/postgresql.md",
+      "line": 51,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.claude/skills/prisma-database-setup/references/prisma-postgres.md",
+      "line": 29,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.claude/skills/prisma-postgres-setup/references/endpoints.md",
+      "line": 95,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.claude/skills/prisma-postgres-setup/references/endpoints.md",
+      "line": 187,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.claude/skills/prisma-postgres/references/console-and-connections.md",
+      "line": 55,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.env.example",
+      "line": 17,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.env.example",
+      "line": 18,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.windsurf/skills/prisma-compute/references/create-prisma.md",
+      "line": 78,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.windsurf/skills/prisma-compute/references/troubleshooting.md",
+      "line": 102,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.windsurf/skills/prisma-compute/references/troubleshooting.md",
+      "line": 209,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.windsurf/skills/prisma-database-setup/references/cockroachdb.md",
+      "line": 44,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.windsurf/skills/prisma-database-setup/references/postgresql.md",
+      "line": 45,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.windsurf/skills/prisma-database-setup/references/postgresql.md",
+      "line": 51,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.windsurf/skills/prisma-database-setup/references/prisma-postgres.md",
+      "line": 29,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.windsurf/skills/prisma-postgres-setup/references/endpoints.md",
+      "line": 95,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.windsurf/skills/prisma-postgres-setup/references/endpoints.md",
+      "line": 187,
+      "kind": "credential-in-url"
+    },
+    {
+      "file": "server/.windsurf/skills/prisma-postgres/references/console-and-connections.md",
+      "line": 55,
+      "kind": "credential-in-url"
+    }
+  ],
+  "envMetadata": {
+    "client/.env": [
+      {
+        "key": "VITE_API_URL",
+        "present": true,
+        "publicBuildKey": true,
+        "loopbackUrl": true
+      }
+    ],
+    "server/.env": [
+      {
+        "key": "TZ",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "NODE_ENV",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "PORT",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "CLIENT_URL",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": true
+      },
+      {
+        "key": "JWT_SECRET",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "JWT_EXPIRES_IN",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "DATABASE_URL",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "DIRECT_URL",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "FORECAST_URL",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": true
+      },
+      {
+        "key": "ANOMALY_CRON_SCHEDULE",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "WS_HEARTBEAT_MS",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "SMTP_HOST",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "SMTP_PORT",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "SMTP_SECURE",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "SMTP_USER",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "SMTP_PASS",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "GMAIL_USER",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "GMAIL_APP_PASS",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "EMAIL_FROM",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "CLOUDINARY_CLOUD_NAME",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "CLOUDINARY_API_KEY",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "CLOUDINARY_API_SECRET",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "GEMINI_API_KEY",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "GEMINI_MODEL",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "GOOGLE_SERVICE_ACCOUNT_EMAIL",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "GOOGLE_PRIVATE_KEY",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "SHEETS_ORDERS_ID",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      }
+    ],
+    "ml-service/.env": [
+      {
+        "key": "FORECAST_PORT",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "DATABASE_URL",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "GEMINI_API_KEY",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      },
+      {
+        "key": "GEMINI_MODEL",
+        "present": true,
+        "publicBuildKey": false,
+        "loopbackUrl": false
+      }
+    ]
+  },
+  "deploymentFiles": []
+}

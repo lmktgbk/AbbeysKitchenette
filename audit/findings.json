@@ -1,0 +1,962 @@
+[
+  {
+    "id": "C01",
+    "severity": "Critical",
+    "category": "Security",
+    "status": "Confirmed issue",
+    "title": "Password-reset tokens authenticate as staff sessions",
+    "locations": [
+      [
+        "server/src/middleware/authenticate.middleware.js",
+        "verifyToken"
+      ],
+      [
+        "server/src/modules/auth/auth.service.js",
+        "password-reset"
+      ],
+      [
+        "server/src/realtime/auth.js",
+        "if (!decoded?.role)"
+      ]
+    ],
+    "finding": "REST verifies the JWT signature and uses sub without checking token purpose. Reset tokens use the same signing mechanism as session tokens. The WebSocket implementation rejects purpose-only tokens, making the two authentication boundaries inconsistent.",
+    "evidence": "The isolated test “HTTP auth accepts a password-reset JWT and authorizes admin actions” signs an audit reset token, places it in the token cookie, and passes both authenticate and authorize(\"admin\"). It uses a mocked active admin and no real credentials. REST does not consult the reset-token table, so consuming a reset link does not revoke its REST use before JWT expiration.",
+    "impact": "Someone possessing a reset link can bypass the normal password and admin OTP login flow and exercise the account’s REST privileges. This is conditional on acquiring a valid reset link, not the ability to forge arbitrary JWTs.",
+    "fix": "Require a session-specific token type, issuer and audience at every authentication boundary; reject reset tokens explicitly. Separate reset credentials from session credentials and implement server-side session revocation.",
+    "verification": "Change the characterization test to require 401. Test valid, expired, used, revoked and purpose-mismatched reset tokens against every protected endpoint and WebSocket authentication."
+  },
+  {
+    "id": "H01",
+    "severity": "High",
+    "category": "Security",
+    "status": "Confirmed issue",
+    "title": "OTP completion is not bound to a successful password challenge",
+    "locations": [
+      [
+        "server/src/modules/auth/auth.routes.js",
+        "/resend-otp"
+      ],
+      [
+        "server/src/modules/auth/auth.service.js",
+        "async resendOtp"
+      ],
+      [
+        "server/src/modules/auth/auth.service.js",
+        "async verifyOtp"
+      ]
+    ],
+    "finding": "Public resend accepts a user UUID and creates an OTP without a short-lived proof that the password step succeeded. Verify accepts the UUID/code and issues a session without repeating the active-account and staff-IP checks used during initial login.",
+    "evidence": "The isolated resend/verify test obtains a session using only an audit user UUID and the emailed code; it also demonstrates session issuance for a mocked inactive user. Subsequent REST middleware rejects inactive users, so this does not establish continuing inactive-account REST access.",
+    "impact": "For an attacker who knows the UUID and controls the mailbox/code, admin login becomes email-only instead of password plus OTP. Staff location restrictions can be bypassed through this alternate login path. Knowledge of the UUID alone does not grant access.",
+    "fix": "Bind OTP to a random, expiring, single-use login challenge created only after password validation. Repeat active-account and applicable location checks on completion. Hash OTPs and atomically consume the challenge.",
+    "verification": "Reject resend/verify without a password challenge; reject another user’s, expired, already-consumed and deactivated-account challenges. Verify staff location policy at issuance and completion."
+  },
+  {
+    "id": "H02",
+    "severity": "High",
+    "category": "Security",
+    "status": "Confirmed implementation gap",
+    "title": "Sessions and established sockets survive security lifecycle changes",
+    "locations": [
+      [
+        "server/src/modules/auth/auth.controller.js",
+        "async logout"
+      ],
+      [
+        "server/src/config/jwt.js"
+      ],
+      [
+        "server/src/realtime/server.js"
+      ],
+      [
+        "server/src/realtime/auth.js",
+        "resolveUser"
+      ]
+    ],
+    "finding": "Logout clears the cookie but does not revoke the signed token. No token-version/session registry ties sessions to logout or password changes. WebSocket authorization caches the user after authentication; no periodic expiry, role or active-account revalidation was found.",
+    "evidence": "REST rechecks the current database role and isActive, which is a useful safeguard. However, a copied JWT remains signature-valid after logout/password reset, and existing sockets retain their previously resolved user. Live socket behavior after account changes: Not verified.",
+    "impact": "A stolen token may remain usable until expiry; an already connected privileged client may continue receiving events after demotion, deactivation or logout.",
+    "fix": "Introduce revocable session IDs or a token version and increment/revoke on sensitive changes. Disconnect affected sockets and enforce token expiration and current topic permissions throughout their lifetime.",
+    "verification": "With disposable accounts, open REST and WS sessions, then logout, reset the password, demote and deactivate. Old credentials and subscriptions must stop working immediately."
+  },
+  {
+    "id": "H03",
+    "severity": "High",
+    "category": "Security",
+    "status": "Confirmed issue",
+    "title": "Order item updates ignore the parent order boundary",
+    "locations": [
+      [
+        "server/src/modules/orders/order.service.js",
+        "async checkOrderItem"
+      ],
+      [
+        "server/src/modules/orders/order.repository.js",
+        "setOrderItemPrepared"
+      ]
+    ],
+    "finding": "The service validates the order in the URL, then updates an item by item ID alone. It never proves that the item belongs to that order.",
+    "evidence": "The isolated test passes an accepted order A and item 999 belonging to B. The actual repository update uses only the item ID. The parent and status of B are never checked.",
+    "impact": "Authorized staff can update preparation flags for another order, including one whose actual status would forbid the update. This is a resource-integrity/IDOR flaw within staff access, not evidence of a separate tenant system.",
+    "fix": "Scope the item lookup/update to both orderId and itemId, enforce the actual parent status atomically, and return 404 or a conflict if nothing matches.",
+    "verification": "Try item B under order A, nonexistent items, removed items, and concurrent status changes. Only an eligible item of the specified order may change."
+  },
+  {
+    "id": "H04",
+    "severity": "High",
+    "category": "Security",
+    "status": "Confirmed route-boundary issue; financial execution conditional",
+    "title": "Kitchen role can enter the financial acceptance action",
+    "locations": [
+      [
+        "server/src/modules/orders/order.routes.js",
+        "/:id/status"
+      ],
+      [
+        "server/src/modules/orders/order.validation.js",
+        "updateStatusSchema"
+      ],
+      [
+        "server/src/modules/orders/order.service.js",
+        "_handleAcceptance"
+      ]
+    ],
+    "finding": "The general status endpoint authorizes kitchen alongside cashier/admin and accepts status accepted with payment fields. The acceptance path performs money/shift/inventory operations without a status-specific role gate.",
+    "evidence": "The real Express boundary test sends an authenticated kitchen request with status accepted and amount_paid and reaches its mocked controller with 200. Actual acceptance also requires a resolvable open shift; a financial write by a kitchen account was not executed against a database.",
+    "impact": "Kitchen privileges reach a cashier action. An account retaining an open shift after a role change could make the gap operational; the intended least-privilege boundary is absent regardless.",
+    "fix": "Authorize each transition independently. Require admin/cashier for accepting payment; permit kitchen only the explicitly assigned preparation/completion actions.",
+    "verification": "Run a role-by-transition matrix through real controllers and a disposable database, including a cashier demoted to kitchen while its shift is open."
+  },
+  {
+    "id": "H05",
+    "severity": "High",
+    "category": "Reliability",
+    "status": "Confirmed issue in isolated interleaving",
+    "title": "Preparing an order can overwrite a concurrent cancellation/completion",
+    "locations": [
+      [
+        "server/src/modules/orders/order.service.js",
+        "async prepareOrder"
+      ],
+      [
+        "server/src/modules/orders/order.repository.js",
+        "async updateStatus"
+      ]
+    ],
+    "finding": "prepareOrder checks the status in one read and later performs an unconditional status update. A concurrent final transition between those operations is not protected by compare-and-swap.",
+    "evidence": "The isolated test reproduces an accepted read followed by a stale update to preparing. By comparison, other financial transition paths use guarded writes/transactions; this path does not.",
+    "impact": "A cancelled or completed order can reappear in the kitchen queue without reversing the financial/inventory consequences of the other action.",
+    "fix": "Condition the write on the allowed current status/version in the database and return 409 on a lost race. Keep related preparation state changes in the same transaction.",
+    "verification": "Use two real database connections with a barrier: prepare versus cancel, and prepare versus complete. Exactly one compatible transition may win; final money/stock/status must agree."
+  },
+  {
+    "id": "H06",
+    "severity": "High",
+    "category": "Reliability",
+    "status": "Likely issue; missing protection confirmed",
+    "title": "Order creation has no durable idempotency key",
+    "locations": [
+      [
+        "server/src/modules/orders/order.service.js",
+        "async createWalkIn"
+      ],
+      [
+        "server/src/modules/guest/guest.routes.js"
+      ],
+      [
+        "server/prisma/schema.prisma",
+        "model Order"
+      ]
+    ],
+    "finding": "New walk-in/guest submissions create a new order identity each time. No client request key and database uniqueness contract was found for replaying the same submission.",
+    "evidence": "Create paths and schema have order/receipt identity constraints, but no submission identity. These constraints prevent duplicate identifiers, not two valid orders for a repeated request. Lost-response/retry behavior against PostgreSQL: Not verified.",
+    "impact": "Repeated clicks, retry after a network drop, or two tabs can create duplicate orders; walk-in duplicates also duplicate recorded payment and stock deductions.",
+    "fix": "Use a client-generated idempotency key scoped to the action/operator, persist the request hash and result atomically with the order, and reject reuse with a different payload.",
+    "verification": "Submit the same key concurrently and retry after cutting the response. Require one order, receipt and deduction set and an identical returned result."
+  },
+  {
+    "id": "H07",
+    "severity": "High",
+    "category": "Reliability",
+    "status": "Likely race; operation ordering confirmed",
+    "title": "A sale can be attached to a shift after closure starts",
+    "locations": [
+      [
+        "server/src/modules/orders/order.service.js",
+        "shiftService.resolveShiftForUser"
+      ],
+      [
+        "server/src/modules/shifts/shift.service.js"
+      ],
+      [
+        "server/src/modules/shifts/shift.repository.js",
+        "claimed"
+      ]
+    ],
+    "finding": "Sales resolve an open shift before entering their order transaction. The shift-close operation does not share a sale/close lock that guarantees every attached sale precedes the closing totals.",
+    "evidence": "createWalkIn and acceptance resolveShiftForUser outside the financial transaction. Closing has a guarded claim against duplicate closing, but the separately resolved shift ID can still be used by an in-flight sale. PostgreSQL interleaving: Not verified.",
+    "impact": "Final shift balances/reports may exclude an order that commits to the same shift after totals are calculated.",
+    "fix": "Read/lock and validate the shift inside the sale transaction; acquire the same lock for close and compute totals under a defined isolation protocol.",
+    "verification": "Barrier-test sale commit versus close with two connections. Every sale must be included in the closing balance or rejected before any stock/money write."
+  },
+  {
+    "id": "H08",
+    "severity": "High",
+    "category": "Bug",
+    "status": "Confirmed non-atomic implementation; injected failure not executed",
+    "title": "Acceptance commits money and stock before per-line discounts",
+    "locations": [
+      [
+        "server/src/modules/orders/order.service.js",
+        "Persist per-line discounts"
+      ]
+    ],
+    "finding": "_handleAcceptance commits accepted status, payment, receipt and deductions in its transaction, then updates discounted item lines outside that transaction.",
+    "evidence": "The per-line persistence loop follows the awaited prisma.$transaction block. Any query failure in that loop leaves the earlier commit intact and can fail the request after payment was recorded.",
+    "impact": "Order totals, line details, receipts and subsequent item-removal math can disagree. A client seeing an error may retry a transaction that actually committed.",
+    "fix": "Persist item discounts in the same transaction as aggregate totals/payment/deductions. Return the committed canonical result; put optional side effects in an outbox.",
+    "verification": "Inject failure on each line update, including the second line. Require a complete rollback or a complete coherent committed order and a replay-safe response."
+  },
+  {
+    "id": "H09",
+    "severity": "High",
+    "category": "Bug",
+    "status": "Confirmed implementation defect; live outcome Not verified",
+    "title": "Price approval and price change are separate unguarded writes",
+    "locations": [
+      [
+        "server/src/modules/priceOptimization/priceOptimization.service.js",
+        "async applyPrice"
+      ]
+    ],
+    "finding": "applyPrice first marks a suggestion accepted, then changes the variant price. It neither transacts the pair nor requires the suggestion to remain pending or the current price to match its baseline.",
+    "evidence": "The two awaited repository calls are adjacent and outside a transaction. There is no status/baseline condition before either write.",
+    "impact": "A failure can show an accepted suggestion whose price never changed; replaying an old/rejected suggestion can overwrite a newer manually chosen price.",
+    "fix": "Atomically claim a pending suggestion and update the expected current variant price, with bounds and a version check. Treat repeated approvals idempotently.",
+    "verification": "Force the price update to fail; test duplicate approval, rejected approval and concurrent manual editing. Require rollback or a conflict with no overwritten price."
+  },
+  {
+    "id": "H10",
+    "severity": "High",
+    "category": "Reliability",
+    "status": "Likely data-integrity issue; calculation source confirmed",
+    "title": "Partial stock restoration uses mutable recipes",
+    "locations": [
+      [
+        "server/src/modules/orders/order.service.js",
+        "async _restoreIngredientsForItems"
+      ],
+      [
+        "server/src/modules/orders/order.service.js",
+        "async _restorePartialItems"
+      ],
+      [
+        "server/prisma/schema.prisma",
+        "model OrderIngredientDeduction"
+      ]
+    ],
+    "finding": "Partial cancellation/removal calculates per-item ingredient restoration using current recipes, while historical deductions are aggregated by order/ingredient/batch.",
+    "evidence": "The restoration helpers read recipe requirements instead of an immutable per-item deduction allocation. A full-order reversal can use recorded deductions; the partial paths lack the same historical attribution.",
+    "impact": "Changing a recipe after a sale can cause later partial cancellation to restore the wrong quantity/ingredient and distort losses and cost-of-goods accounting.",
+    "fix": "Snapshot recipe consumption and actual batch allocations per order item when accepting the sale. Reverse those immutable allocations, capped by unreversed quantities.",
+    "verification": "Sell an item using recipe A, change it to recipe B, then cancel/remove only that item with prepared/unprepared/loss variants. Restoration must match original actual consumption exactly."
+  },
+  {
+    "id": "H11",
+    "severity": "High",
+    "category": "Security",
+    "status": "Confirmed missing service authentication; deployment exposure Not verified",
+    "title": "ML endpoints bypass the Express authorization boundary",
+    "locations": [
+      [
+        "ml-service/main.py",
+        "allow_origins"
+      ],
+      [
+        "ml-service/forecasting/routers/demand.py"
+      ],
+      [
+        "ml-service/mba/routers/association.py"
+      ]
+    ],
+    "finding": "Nine ML router endpoints have no authentication dependencies. The service can initiate compute jobs and expose analysis/job details directly; wildcard CORS is configured together with credential support.",
+    "evidence": "The isolated Python route-introspection test checks all nine router registrations and finds zero auth dependencies. Main binds the service on all interfaces. Public network reachability/firewall policy: Not verified. CORS is not an authentication control.",
+    "impact": "If this port is reachable outside the trusted service network, callers can bypass admin-only Express wrappers, read analytics and consume expensive compute/database capacity.",
+    "fix": "Bind behind a private network boundary and require an authenticated service identity or verified staff authorization. Remove wildcard CORS, restrict origins and rate-limit job creation.",
+    "verification": "From allowed and disallowed networks, request every ML endpoint without/with invalid credentials and as a low-privilege role. Require denial before job/database activity."
+  },
+  {
+    "id": "H12",
+    "severity": "High",
+    "category": "Reliability",
+    "status": "Confirmed race in isolated execution",
+    "title": "ML job admission and pool initialization race",
+    "locations": [
+      [
+        "ml-service/database.py",
+        "async def get_pool"
+      ],
+      [
+        "ml-service/forecasting/routers/demand.py",
+        "asyncio.create_task"
+      ],
+      [
+        "ml-service/mba/routers/association.py",
+        "INSERT INTO mba_jobs"
+      ]
+    ],
+    "finding": "Job creation separately checks for running rows and inserts a new one, allowing concurrent admissions. In-memory task registries do not coordinate workers. The lazy pool helper also awaits before publishing its singleton and races on concurrent first use; normal lifespan startup currently calls stale-job cleanup and initializes it before serving requests, reducing exposure of that helper defect.",
+    "evidence": "Python tests reproduce two create_pool calls and two forecast job inserts under concurrency without a live DB or fitting a model. MBA follows the same check/insert pattern; its race is source-supported rather than separately reproduced.",
+    "impact": "Overlapping expensive jobs contend for CPU/memory and duplicate results. Multi-worker deployments increase the problem. The pool helper could leak connections if a future caller concurrently initializes it outside the current sequential startup path; a leak in the normal deployed startup was not established.",
+    "fix": "Explicitly own pool initialization/closure in FastAPI lifespan or protect the helper with a lock. Claim a database lease/unique active-job slot atomically, with owner, expiry and crash recovery.",
+    "verification": "Start many simultaneous first requests and job requests across two workers. Require one pool per worker, one active job per job type, lease recovery after a killed worker, and bounded connections."
+  },
+  {
+    "id": "H13",
+    "severity": "High",
+    "category": "Performance",
+    "status": "Confirmed execution model; latency impact Not verified",
+    "title": "CPU-heavy analytics execute inside async request-worker loops",
+    "locations": [
+      [
+        "ml-service/forecasting/services/demand_forecast.py",
+        "m_eval.fit"
+      ],
+      [
+        "ml-service/mba/services/fpgrowth.py",
+        "fpgrowth("
+      ]
+    ],
+    "finding": "Prophet fit/predict and pandas/FP-Growth calculations are synchronous operations called in async workflows. Creating an asyncio background task does not move these computations off the event loop.",
+    "evidence": "Source calls fit and fpgrowth directly; no to_thread/run_in_executor dispatch was found around these workloads. Representative dataset durations and memory use: Not verified.",
+    "impact": "A forecast/basket job can delay health checks and unrelated ML requests, potentially causing false readiness failures for the POS backend.",
+    "fix": "Move compute into a bounded process worker pool or durable job workers with resource limits; keep the HTTP event loop available. Measure data size and compute budget before admission.",
+    "verification": "Run forecasts and basket analysis on representative large data while probing health/list endpoints. Establish latency/memory budgets and ensure concurrent HTTP stays responsive."
+  },
+  {
+    "id": "H14",
+    "severity": "High",
+    "category": "Security",
+    "status": "Confirmed advisory matches; exploit reachability partly Not verified",
+    "title": "Installed dependency trees contain published vulnerabilities",
+    "locations": [
+      [
+        "audit/server-npm-audit.json"
+      ],
+      [
+        "audit/client-npm-audit.json"
+      ],
+      [
+        "audit/python-dependency-audit.json"
+      ]
+    ],
+    "finding": "npm audit reports 15 affected server package nodes (10 high, 5 moderate) and 8 client nodes (5 high, 3 moderate). OSV matches 2 of 71 installed Python packages: pip 25.0.1 and urllib3 2.7.0. Counts are package nodes, not unique exploitable vulnerabilities.",
+    "evidence": "Direct server matches include Cloudinary 1.x, Multer 2.2.0 and Nodemailer 9.x; direct client Axios also matches. Raw reports retain advisory URLs and affected ranges. Python results contain aliases that may refer to the same underlying advisory. No exploitation against real services was attempted.",
+    "impact": "Multipart/upload and outbound integration code has real exposure; some Axios advisories concern Node adapters unused by this browser app, while Prisma/shadcn/build-tool chains are supply-chain risks. A matched package is not proof that every advisory is reachable.",
+    "fix": "Triage each advisory against actual adapters/options, update to patched supported versions and replace incompatible storage adapters as needed. Review major upgrades explicitly; avoid npm audit fix --force, which suggests downgrades for some chains. Upgrade installer tooling and urllib3, lock Python dependencies and enforce scans in CI.",
+    "verification": "Rerun npm audit and OSV/pip-audit on exact deployed artifacts; regression-test uploads, email, Axios and Prisma generation. Require documented exceptions for residual unreachable advisories."
+  },
+  {
+    "id": "H15",
+    "severity": "High",
+    "category": "DevOps",
+    "status": "Not verified; release evidence missing",
+    "title": "Deployment, backups and recovery have no verified release contract",
+    "locations": [
+      [
+        "README.md"
+      ],
+      [
+        "server/package.json",
+        "\"reset\""
+      ],
+      [
+        "server/prisma/SEC01_indexes_checks.sql"
+      ]
+    ],
+    "finding": "No tracked deployment/CI workflow, container/reverse-proxy configuration, backup/restore procedure or practiced disaster-recovery evidence was identified. Local configuration points at external services, so these were not operated during the audit.",
+    "evidence": "Repository inventory found no deployment pipeline manifests. Production HTTPS/DNS/firewalls, DB grants/RLS, backup retention, restore correctness and rollback behavior are all Not verified. Destructive cleanup/reset scripts exist and must be separated from production operation.",
+    "impact": "There is no evidence that a release preserves data or can be recovered after an outage. This is a production-readiness blocker, not a claim that provider backups or infrastructure are absent.",
+    "fix": "Document environments, secret delivery, least-privilege identities, migration gates, readiness, rolling deployment and rollback. Establish encrypted backups with RPO/RTO and perform a restore into an isolated database.",
+    "verification": "Rehearse deployment failure, rollback and point-in-time restore with checksums/business reconciliations. Record actual recovery time and loss window before production approval."
+  },
+  {
+    "id": "M01",
+    "severity": "Medium",
+    "category": "Security",
+    "status": "Confirmed issue in isolated execution",
+    "title": "Failed-login and reset-token operations are not atomic",
+    "locations": [
+      [
+        "server/src/modules/auth/auth.repository.js",
+        "incrementFailedLoginAttempts"
+      ],
+      [
+        "server/src/modules/auth/auth.repository.js",
+        "consumeResetToken"
+      ],
+      [
+        "server/src/modules/auth/auth.service.js",
+        "consumeResetToken"
+      ]
+    ],
+    "finding": "Failed-attempt writes use a previously read counter. Reset consumption updates by ID without a usedAt-is-null condition and is separate from the password write.",
+    "evidence": "Isolated tests reproduce two failed attempts both returning 1 and two successful updates of the same reset-token ID. HTTP IP/account rate limiters still provide protection; these defects do not remove all rate limiting.",
+    "impact": "Concurrent attempts weaken lockout accounting. Concurrent reset requests can both pass validation and race to set different passwords, or a failed write can leave a consumed token.",
+    "fix": "Use atomic increments with lockout decisions in a transaction. Atomically claim an unexpired unused reset token and update the password/session version in that same transaction.",
+    "verification": "Send parallel invalid logins and parallel resets with distinct passwords; assert exact attempt counts, one reset winner and rollback on password-write failure."
+  },
+  {
+    "id": "M02",
+    "severity": "Medium",
+    "category": "Security",
+    "status": "Confirmed implementation gap",
+    "title": "Changing the recovery email needs no independent verification",
+    "locations": [
+      [
+        "server/src/modules/auth/auth.service.js",
+        "async updateProfile"
+      ],
+      [
+        "server/src/modules/auth/auth.routes.js",
+        "router.patch"
+      ]
+    ],
+    "finding": "An authenticated profile edit can immediately replace the email used for OTP/recovery without current-password confirmation or verification of the new mailbox.",
+    "evidence": "updateProfile checks email uniqueness and writes name/email. No challenge/new-address verification was found in this path.",
+    "impact": "An attacker holding an active session can redirect future authentication and recovery messages and retain access after the user loses that session.",
+    "fix": "Require recent reauthentication, verify the pending new address before promotion, notify the previous address and revoke other sessions where appropriate.",
+    "verification": "A stolen session alone must not change the effective recovery address. Test pending, expired and conflicting email changes and notifications to the prior address."
+  },
+  {
+    "id": "M03",
+    "severity": "Medium",
+    "category": "Bug",
+    "status": "Confirmed issue",
+    "title": "Malformed JSON is returned as a server error",
+    "locations": [
+      [
+        "server/src/middleware/errorHandler.middleware.js",
+        "const mapped"
+      ]
+    ],
+    "finding": "Body-parser syntax errors carrying HTTP 400 are not mapped by the global handler and fall through to 500.",
+    "evidence": "Both the isolated handler test and actual Express malformed-JSON POST /api/auth/login test return 500.",
+    "impact": "Client mistakes inflate server-error metrics, encourage inappropriate retry behavior and obscure real outages.",
+    "fix": "Map malformed JSON, oversized bodies, unsupported types and known request parsing failures to safe 400/413/415 responses without leaking content.",
+    "verification": "Send truncated JSON, invalid encoding, an oversized body and unsupported media types. Assert correct 4xx status, a stable error envelope and no sensitive payload logging."
+  },
+  {
+    "id": "M04",
+    "severity": "Medium",
+    "category": "Security",
+    "status": "Confirmed schema acceptance; downstream outcomes Not verified",
+    "title": "Query and numeric bounds allow invalid or excessive work",
+    "locations": [
+      [
+        "server/src/modules/orders/order.validation.js",
+        "getOrdersQuerySchema"
+      ],
+      [
+        "server/src/modules/orders/order.validation.js",
+        "createOrderSchema"
+      ]
+    ],
+    "finding": "Order query validation accepts nonnumeric page strings, limit zero or extremely large limits, and invalid date strings. Order quantity can exceed PostgreSQL integer capacity. Item collections lack a practical maximum.",
+    "evidence": "Isolated schema tests accept page junk, limit 0/999999999, invalid dates and quantity 2147483648. The JSON body-size cap limits byte size but does not impose business or query bounds.",
+    "impact": "Requests can fail later as DB errors or consume disproportionate queries/memory; large money/quantity calculations may overflow DB column precision.",
+    "fix": "Coerce and validate integer page/limit ranges, real dates and date ordering. Bound quantities, amounts, array lengths and text lengths to explicit business/storage limits across every module.",
+    "verification": "Exercise null/missing/type-mismatched, negative, zero, overflow, long Unicode, duplicate items and large-array cases. Reject before controller/database work with a useful 4xx response."
+  },
+  {
+    "id": "M05",
+    "severity": "Medium",
+    "category": "Security",
+    "status": "Potential issue",
+    "title": "Upload checks trust unanchored MIME/extension patterns",
+    "locations": [
+      [
+        "server/src/middleware/upload.middleware.js",
+        "const allowed"
+      ]
+    ],
+    "finding": "The prefilter uses /jpeg|jpg|png|gif|webp/ on supplied extension/MIME strings rather than exact allowlists and decoded content. There is no explicit image dimension/pixel budget or compensation after a later DB failure.",
+    "evidence": "The code has useful 5 MB product and 2 MB avatar limits and Cloudinary resource_type image plus allowed_formats. Thus the weak prefilter does not prove Cloudinary accepts executable files. Real provider rejection/cleanup: Not verified.",
+    "impact": "Misleading metadata reaches the provider; decompression bombs, large dimensions and orphaned public images remain untested. Missing filename sanitization is not proven local path traversal because storage is remote/provider-generated.",
+    "fix": "Use exact metadata allowlists, verify file signatures/decoded content, bound dimensions and multipart fields, use patched upload dependencies, and delete uploaded assets if DB persistence fails.",
+    "verification": "In an isolated storage account, test spoofed MIME, double extensions, corrupt images, huge dimensions, aborted uploads, oversize bodies and DB failure after upload. Verify rejection and cleanup."
+  },
+  {
+    "id": "M06",
+    "severity": "Medium",
+    "category": "Reliability",
+    "status": "Confirmed schema/service inconsistency",
+    "title": "Repeated Sheets adjustment events conflict with uniqueness",
+    "locations": [
+      [
+        "server/prisma/schema.prisma",
+        "sheet_sync_log_order_kind_unique"
+      ],
+      [
+        "server/src/modules/sheets/sheets.service.js",
+        "every"
+      ]
+    ],
+    "finding": "The schema uniquely constrains orderId/kind, but enqueue always creates a fresh row for non-paid adjustment events. Its comment promises every adjustment gets a row.",
+    "evidence": "A second adjusted event for the same order violates the declared unique constraint before appendRow. The serialized chain catches failures without surfacing this conflict. Actual deployed constraint: Not verified.",
+    "impact": "Sheets adjustment history silently drops repeated removals/refunds represented by the same kind, weakening financial reconciliation.",
+    "fix": "Give each immutable adjustment a unique event ID. Store a transactional outbox event and unique external delivery identity, allowing multiple same-kind events for one order.",
+    "verification": "Perform two item adjustments to one paid order. Require two distinct persisted events and two correctly correlated external rows, with safe replay."
+  },
+  {
+    "id": "M07",
+    "severity": "Medium",
+    "category": "Reliability",
+    "status": "Confirmed unbounded failure handling",
+    "title": "Sheets sender can block forever and duplicate external rows",
+    "locations": [
+      [
+        "server/src/modules/sheets/sheets.service.js",
+        "async appendRow"
+      ],
+      [
+        "server/src/modules/sheets/sheets.service.js",
+        "sendSerialized"
+      ]
+    ],
+    "finding": "Sheets fetches lack explicit deadlines. A 401 recursively calls appendRow without a retry counter despite the comment “once.” External append and the DB synced marker are not atomic or externally idempotent.",
+    "evidence": "A stalled first send holds the serialized chain. Persistent 401 repeats indefinitely. Successful append followed by failed DB marking leaves a pending row that reconciliation will append again. Enqueue work may also be lost before a DB log is created on process exit.",
+    "impact": "Integration work accumulates or stops silently; a mirrored sheet can contain duplicates or missing events. The primary POS database remains authoritative, so this is not proof of duplicate primary payments.",
+    "fix": "Use deadlines, bounded classified retries with jitter, circuit breaking and durable outbox claims. Include a deterministic event key in the sheet and reconcile by key; monitor oldest pending age.",
+    "verification": "Stub never-resolving responses, persistent 401/429/500, append-success/DB-failure and process termination. Require bounded completion, eventual delivery and one row per event."
+  },
+  {
+    "id": "M08",
+    "severity": "Medium",
+    "category": "Reliability",
+    "status": "Confirmed architecture limitation",
+    "title": "Cron and asynchronous tasks assume a single long-lived process",
+    "locations": [
+      [
+        "server/src/modules/automation/automation.scheduler.js"
+      ],
+      [
+        "ml-service/forecasting/routers/demand.py",
+        "_active_jobs"
+      ],
+      [
+        "server/server.js",
+        "reschedule"
+      ]
+    ],
+    "finding": "Schedules are process-local, with no shared leader/lease or catch-up ledger. ML execution uses asyncio tasks with database job rows rather than a durable worker queue.",
+    "evidence": "Scheduler source explicitly describes single-server assumptions. ML has running-row/stale cleanup logic, which is helpful, but does not make task execution durable or atomically coordinate multiple workers.",
+    "impact": "Two replicas can run the same schedule; a restart can lose work or leave stale job state until cleanup. Horizontal scaling is unsafe without coordination.",
+    "fix": "Separate scheduling/admission from execution, claim durable jobs with leases, heartbeat ownership and bounded retry, and persist scheduled-run identity for catch-up/replay.",
+    "verification": "Run two replicas, kill a worker mid-job and restart across a schedule boundary. Require one scheduled run, recoverable ownership and accurate terminal job state."
+  },
+  {
+    "id": "M09",
+    "severity": "Medium",
+    "category": "Reliability",
+    "status": "Confirmed design coupling",
+    "title": "Optional ML availability gates core API readiness",
+    "locations": [
+      [
+        "server/src/app.js",
+        "/api/ready"
+      ],
+      [
+        "server/server.js",
+        "SIGTERM"
+      ],
+      [
+        "server/src/config/prisma.js",
+        "new PrismaPg"
+      ]
+    ],
+    "finding": "Readiness requires both database and ML health. Pool/DB readiness checks have no explicit operation deadline in the inspected configuration. Shutdown drains HTTP without a bounded final deadline and does not explicitly stop cron intake.",
+    "evidence": "The ML probe has a useful 3-second timeout, but failed ML health still fails the combined readiness endpoint. The actual load-balancer readiness policy and connection timeouts are Not verified.",
+    "impact": "An optional analytics outage or blocked ML event loop can remove otherwise functional POS API instances from service; long-lived requests can delay deployment shutdown.",
+    "fix": "Separate core readiness from optional dependency degradation. Add DB acquisition/query and shutdown budgets, stop background intake first, and expose optional-service status independently.",
+    "verification": "Disable ML while keeping DB healthy: sales/auth/core reads must stay ready. Hang a DB probe and in-flight request; verify bounded failure and clean deploy termination."
+  },
+  {
+    "id": "M10",
+    "severity": "Medium",
+    "category": "DevOps",
+    "status": "Confirmed configuration gaps; production behavior Not verified",
+    "title": "Proxy, limits and environment policies are not deployment-bound",
+    "locations": [
+      [
+        "server/src/app.js"
+      ],
+      [
+        "server/src/middleware/rateLimitin.middleware.js"
+      ],
+      [
+        "server/src/config/env.js",
+        "NODE_ENV"
+      ],
+      [
+        "server/src/utils/ipCheck.js"
+      ]
+    ],
+    "finding": "No trust-proxy policy was found. IP restrictions and rate limiting therefore see the direct peer, often a reverse proxy. The global limiter wraps endpoints, including health, and cannot be loosened by a later more permissive limiter. NODE_ENV defaults to development.",
+    "evidence": "The global cap is 500 requests/15 minutes/IP; limiter state is process-local. Cookie secure depends on NODE_ENV. Frontend local VITE_API_URL points to loopback; deployed configuration was not inspected.",
+    "impact": "A shared proxy can aggregate unrelated users into one limit or location rule, health probes can receive 429, and an omitted production environment can produce development security behavior.",
+    "fix": "Specify trusted proxy hops/networks only, validate production-only requirements at startup, exempt internal health probes safely, use shared limiter storage and action/account limits, and build with an explicit production API origin.",
+    "verification": "Test trusted/untrusted forwarded headers through the actual proxy, multiple staff on one café IP, two API replicas, health probes and missing production variables. Verify secure cookies and intended rate-limit identity."
+  },
+  {
+    "id": "M11",
+    "severity": "Medium",
+    "category": "Security",
+    "status": "Confirmed excessive exposure",
+    "title": "Session JWT is returned in JavaScript-readable response bodies",
+    "locations": [
+      [
+        "server/src/modules/auth/auth.controller.js",
+        "token: result.token"
+      ],
+      [
+        "server/src/modules/auth/auth.controller.js",
+        "\"OTP verified\""
+      ]
+    ],
+    "finding": "Login/OTP responses return the JWT in JSON in addition to setting an HttpOnly cookie. The frontend does not need to persist this token for its cookie-based API calls.",
+    "evidence": "Actual controller response construction includes token; frontend credentialed Axios uses the cookie. No app JWT localStorage/sessionStorage persistence was found.",
+    "impact": "Returning the bearer credential makes it observable to JavaScript and response-capture tooling despite the cookie’s HttpOnly protection. This is not evidence of an existing XSS exploit.",
+    "fix": "Omit session tokens from browser JSON responses unless an explicit, separately secured client requires them. Keep cookie settings consistent with the chosen same-site deployment.",
+    "verification": "Inspect all successful login/OTP responses and browser storage. No bearer credential should appear outside the secured cookie; test cross-origin deployment only if intentionally supported."
+  },
+  {
+    "id": "M12",
+    "severity": "Medium",
+    "category": "Security",
+    "status": "Potential issue; boundary controls partly present",
+    "title": "WebSocket admission lacks explicit resource budgets and origin policy",
+    "locations": [
+      [
+        "server/src/realtime/server.js"
+      ],
+      [
+        "server/src/realtime/hub.js"
+      ]
+    ],
+    "finding": "No explicit per-IP connection budget, message-rate limit, narrow maxPayload or subscription-count cap was found. Upgrade admission does not validate browser Origin. HTTP request rate limiting does not cover WS traffic.",
+    "evidence": "Heartbeat cleanup and staff topic ACLs exist. Guest subscription only checks a 36-character UUID-shaped topic; it does not validate order existence or cap topic count. Guessing a real random tracking UUID was not demonstrated. Exhaustion testing and cross-origin cookie behavior: Not verified.",
+    "impact": "Repeated sockets/messages/subscription attempts can consume memory, database lookups and event-loop capacity; origin omission reduces defense against cross-site socket use.",
+    "fix": "Validate the intended origins, set a small protocol payload limit, cap connections/topics, rate-limit messages and reject unauthorized/unknown topics cheaply. Avoid logging tokens.",
+    "verification": "Load-test unauthenticated sockets, oversized frames, malformed cookies, subscription floods and hostile origins. Enforce budgets while valid staff/guest tracking stays available."
+  },
+  {
+    "id": "M13",
+    "severity": "Medium",
+    "category": "Security",
+    "status": "Confirmed missing validation; malicious output outcome Not verified",
+    "title": "AI output is treated as trusted pricing structure",
+    "locations": [
+      [
+        "server/src/modules/priceOptimization/priceOptimization.prompts.js",
+        "JSON.parse"
+      ],
+      [
+        "server/src/modules/priceOptimization/priceOptimization.service.js",
+        "variantId: Number"
+      ]
+    ],
+    "finding": "Parsed Gemini recommendations supply variant IDs, current/recommended prices and other fields that are persisted without a strict output schema or proof that each variant belongs to the requested product.",
+    "evidence": "generate maps model output directly into repository rows. Human approval is required before applying a price, which reduces impact; malformed output/prompt injection was not sent to the external service.",
+    "impact": "Invalid, unrelated or implausible recommendations can pollute advisory data and, after approval, change the wrong price. Product labels and narrative prompt text are untrusted input.",
+    "fix": "Validate output count/types/bounds; derive identity/current price from authoritative DB context, reject unknown variants and present provenance. Treat model output as advisory untrusted data.",
+    "verification": "Mock output with unknown IDs, another product’s variant, negative/NaN/huge prices, duplicate recommendations and injected labels. Require rejection before persistence/application."
+  },
+  {
+    "id": "M14",
+    "severity": "Medium",
+    "category": "Reliability",
+    "status": "Confirmed implementation gap",
+    "title": "Audits and derived availability can be lost after primary commits",
+    "locations": [
+      [
+        "server/src/modules/orders/order.service.js",
+        "level check dropped"
+      ],
+      [
+        "server/src/modules/auditLogs/auditLog.service.js"
+      ],
+      [
+        "server/src/modules/products/product.service.js"
+      ]
+    ],
+    "finding": "Many audit/notification/availability hooks run after the financial transaction and swallow failures. No durable outbox or periodic authoritative repair covering all derived state was found.",
+    "evidence": "Order paths use fire-and-forget catches; stock services also have post-write recomputation. The primary transaction can succeed while history/availability processing fails or the process exits.",
+    "impact": "Important financial/security actions may have incomplete audit trails, and menu availability can stay stale. Some awaited post-write operations can instead return an error after the write committed, making retries ambiguous.",
+    "fix": "Write durable audit/domain events in the transaction, process optional effects independently and reconcile derived stock/product state. Return success once the authoritative transaction is committed.",
+    "verification": "Fail each post-commit dependency and kill the process immediately after commit. Require recoverable events, accurate menu state and no repeated primary mutation on retry."
+  },
+  {
+    "id": "M15",
+    "severity": "Medium",
+    "category": "Architecture",
+    "status": "Confirmed source; live migration state Not verified",
+    "title": "Schema guarantees depend on manually applied SQL",
+    "locations": [
+      [
+        "server/prisma/schema.prisma"
+      ],
+      [
+        "server/prisma/SEC01_indexes_checks.sql"
+      ],
+      [
+        "server/prisma/SEC04_sheet_sync_log.sql"
+      ],
+      [
+        "server/package.json"
+      ]
+    ],
+    "finding": "The repository has additive SEC SQL scripts alongside Prisma schema, including a partial unique open-shift index and CHECK constraints not fully represented by normal schema declarations. An ordered, verified migration release process was not found.",
+    "evidence": "SEC01 defines useful indexes and nonnegative stock/order guards. Comments assert earlier checks, but comments do not prove the current deployed DB has those constraints. No database catalog inspection was performed.",
+    "impact": "New environments may miss protections; manual schema push can diverge; large plain CREATE INDEX operations can block writes during deployment.",
+    "fix": "Adopt versioned migrations with tracked application state and catalog verification. Use expand/contract and size-appropriate online indexing. Preserve custom constraints explicitly.",
+    "verification": "Create a DB from empty using the documented pipeline, upgrade an old fixture, inspect pg_constraint/pg_indexes, and run duplicate/open-shift and negative-stock attempts plus rollback rehearsals."
+  },
+  {
+    "id": "M16",
+    "severity": "Medium",
+    "category": "Performance",
+    "status": "Confirmed query shape; production latency Not verified",
+    "title": "Shift statistics scale with historical session count",
+    "locations": [
+      [
+        "server/src/modules/shifts/shift.repository.js",
+        "async getStats"
+      ]
+    ],
+    "finding": "getStats fetches matching shifts and then loops over them, issuing sales/refund aggregation queries for every session. Large reporting windows scale as approximately two initial queries plus two per shift.",
+    "evidence": "The source loop awaits Promise.all per session sequentially. No database EXPLAIN or representative load was run.",
+    "impact": "Growing history increases round trips and pool occupancy, slowing dashboard/statistics responses and competing with POS transactions.",
+    "fix": "Aggregate sales/refunds by shift in set-based SQL, join the result once, cap reporting windows and paginate detailed history. Validate candidate indexes using real plans.",
+    "verification": "Compare query counts and p95 latency at 100, 10,000 and 100,000 shifts. Results must match refunds/date rules while query count remains bounded."
+  },
+  {
+    "id": "M17",
+    "severity": "Medium",
+    "category": "Performance",
+    "status": "Confirmed build result",
+    "title": "Public entry downloads a large eager application bundle",
+    "locations": [
+      [
+        "client/src/app/Router.jsx"
+      ],
+      [
+        "client/src/main.jsx"
+      ],
+      [
+        "client/package.json"
+      ]
+    ],
+    "finding": "The production build eagerly includes public and privileged feature code. The main JS chunk is 1,636.52 kB minified / 445.00 kB gzip; CSS is 193.01 kB / 32.77 kB gzip, and the favicon asset is approximately 681.30 kB.",
+    "evidence": "npm.cmd run build succeeds but Vite emits a large-chunk warning. No Lighthouse/Web Vitals or slow-network timing measurements were run.",
+    "impact": "Guest ordering on mobile pays for admin analytics/POS code and unnecessary assets, increasing startup/parse cost.",
+    "fix": "Lazy-load route groups and expensive chart/analytics features, split shared vendor code based on measured usage, subset fonts and replace the oversized favicon. Enable verified HTTP compression/CDN caching at deployment.",
+    "verification": "Measure cold-cache public-order startup on a low-end mobile/slow network, compare transferred JS and LCP/INP, and test every lazy route/deep link after deployment."
+  },
+  {
+    "id": "M18",
+    "severity": "Medium",
+    "category": "Bug",
+    "status": "Confirmed query-key mismatch",
+    "title": "POS menu realtime invalidates the wrong cache keys",
+    "locations": [
+      [
+        "client/src/features/orders/query.js",
+        "export function useGuestMenu"
+      ],
+      [
+        "client/src/realtime/subscriptions.js",
+        "export function useProductsRealtime"
+      ]
+    ],
+    "finding": "The POS menu uses the guest/menu query family, but product realtime invalidates only products and categories. It does not invalidate the menu family it claims to refresh.",
+    "evidence": "useGuestMenu builds guestKeys.menu; useProductsRealtime passes [[\"products\"],[\"categories\"]]. This is source-confirmed; multi-user real server behavior was not exercised.",
+    "impact": "Availability/price changes from another terminal can remain stale at checkout. Server repricing protects totals, but users can choose unavailable items or see unexpected prices.",
+    "fix": "Invalidate the actual guest/menu family used by POS, or give POS an authenticated product query with a consistent key. Define an appropriate public menu refresh policy.",
+    "verification": "With two clients, deplete stock/change price in A and verify B’s mounted POS menu updates promptly without navigation or manual refresh."
+  },
+  {
+    "id": "M19",
+    "severity": "Medium",
+    "category": "Reliability",
+    "status": "Confirmed missing recovery strategy",
+    "title": "Realtime reconnection does not reconcile events missed offline",
+    "locations": [
+      [
+        "client/src/realtime/socket.js"
+      ],
+      [
+        "client/src/config/queryClient.js",
+        "refetchOnWindowFocus"
+      ],
+      [
+        "client/src/features/orders/query.js"
+      ]
+    ],
+    "finding": "The socket reconnects and resubscribes but does not replay missed events or invalidate live query families on recovery. Critical order feeds have no polling fallback; global window-focus refetch is disabled. TanStack browser-online refetch can help a full network outage, but a WS-only outage/server restart need not trigger that mechanism.",
+    "evidence": "Source has reconnection backoff, which is useful, but no event cursor/snapshot reconciliation. Disabling realtime does not automatically reintroduce the polling described by comments. Browser network-failure/live multi-client test: Not verified.",
+    "impact": "Kitchen/order/tracking screens can show old state indefinitely until a later event or navigation causes a refetch.",
+    "fix": "Refetch active live queries on successful resubscription, optionally use sequence cursors, and add degraded polling with a visible stale/offline indicator.",
+    "verification": "Disconnect B, mutate orders in A, reconnect B without further changes. B must converge immediately. Repeat with realtime disabled and after server restart."
+  },
+  {
+    "id": "M20",
+    "severity": "Medium",
+    "category": "UX",
+    "status": "Confirmed browser issue",
+    "title": "Menu failure is displayed as a legitimate empty menu",
+    "locations": [
+      [
+        "client/src/features/landing/pages/OrderingPage.jsx"
+      ],
+      [
+        "audit/preview.mjs"
+      ]
+    ],
+    "finding": "The ordering screen does not distinguish a failed menu query from an empty result and provides no contextual retry action.",
+    "evidence": "Local fixture preview returning 503 shows a loading state, then “No items found.” The fixture never contacts the real backend/database. Successful one-product fixture rendering was also checked.",
+    "impact": "Customers interpret an outage as no available products and cannot recover confidently.",
+    "fix": "Render explicit isError/error/retry states separately from a successful empty menu, preserving cart selections during retry.",
+    "verification": "Test 200-empty, 200-products, 401 where applicable, 503, timeout and offline mode. Error text and retry must appear only for failures and recover without reloading."
+  },
+  {
+    "id": "M21",
+    "severity": "Medium",
+    "category": "UX",
+    "status": "Confirmed browser issue",
+    "title": "Guest dialogs do not provide keyboard modal semantics",
+    "locations": [
+      [
+        "client/src/features/landing/pages/OrderingPage.jsx"
+      ]
+    ],
+    "finding": "The custom product dialog is a generic container; opening it leaves focus on the background trigger and Escape does not close it. The checkout/cart overlays use similar custom patterns.",
+    "evidence": "Browser accessibility-tree inspection and keyboard interaction on the safe fixture confirmed no dialog role/focus transfer for the product modal and no Escape close. Full screen-reader/contrast audit: Not verified.",
+    "impact": "Keyboard/screen-reader users can interact with background content or lose the context needed to complete ordering.",
+    "fix": "Use a tested accessible Dialog component with accessible title, focus trap/return, Escape handling and inert background. Give inputs explicit labels and error associations.",
+    "verification": "Complete ordering entirely by keyboard at mobile/desktop sizes. Verify focus entry/trap/return, Escape, screen-reader announcement and errors, then automated accessibility checks."
+  },
+  {
+    "id": "M22",
+    "severity": "Medium",
+    "category": "UX",
+    "status": "Confirmed browser issue",
+    "title": "Refresh silently discards the guest cart",
+    "locations": [
+      [
+        "client/src/features/landing/pages/OrderingPage.jsx",
+        "useState"
+      ]
+    ],
+    "finding": "Guest cart state is local component state without safe draft recovery. Refreshing the order page discards a populated cart.",
+    "evidence": "In the local browser fixture, adding Audit Coffee produced cart quantity 1/total 100; reloading reset the cart. No order was submitted and no customer data was entered.",
+    "impact": "Accidental refresh loses work; after a submission response is lost, missing durable order recovery can encourage duplicate ordering. The latter scenario remains Not verified.",
+    "fix": "Persist a non-sensitive cart draft with version/expiry and revalidate product availability/prices on restore. Persist a safe recovery handle for completed guest submissions and pair it with server idempotency.",
+    "verification": "Test refresh, back/forward, two tabs, catalog changes and lost submission responses. Recover the draft/order without replaying a payment or exposing customer details."
+  },
+  {
+    "id": "M23",
+    "severity": "Medium",
+    "category": "DevOps",
+    "status": "Confirmed repository gap; hosted controls Not verified",
+    "title": "Production observability is insufficiently evidenced",
+    "locations": [
+      [
+        "server/src/app.js",
+        "morgan"
+      ],
+      [
+        "server/src/middleware/errorHandler.middleware.js",
+        "console.error"
+      ],
+      [
+        "server/src/modules/auditLogs/auditLog.service.js"
+      ]
+    ],
+    "finding": "Access logging is development-only; unexpected errors log message/stack with a short reference but no common request/trace context. No metrics, tracing, alert definitions or dashboards were found in the repository.",
+    "evidence": "Some domain audit logs and health endpoints exist. Hosted log collection/alerts may exist externally but are Not verified. Stack/provider-error logs have no systematic redaction layer.",
+    "impact": "Operators may not detect failed jobs, stale integration queues, slow queries or inventory/payment discrepancies promptly; debugging cannot reliably correlate a frontend error to downstream calls.",
+    "fix": "Add structured request IDs and redaction, RED metrics, pool/queue/job metrics and traces for critical paths. Alert on auth anomalies, error/latency budgets, pending-event age and reconciliation drift.",
+    "verification": "Trigger representative failures and confirm a traceable redacted event, dashboard signal and actionable alert. Verify no passwords, JWTs, reset links or private keys enter logs."
+  },
+  {
+    "id": "M24",
+    "severity": "Medium",
+    "category": "Reliability",
+    "status": "Confirmed missing test coverage",
+    "title": "Existing tests do not establish complete workflow correctness",
+    "locations": [
+      [
+        "server/tests"
+      ],
+      [
+        "client/package.json"
+      ],
+      [
+        "ml-service/requirements.txt"
+      ],
+      [
+        "audit/http-boundary-results.json"
+      ]
+    ],
+    "finding": "The original server suite has 40 tests in five files, chiefly utilities/middleware/report logic. No existing comprehensive frontend E2E, real PostgreSQL workflow/concurrency, load or disaster-recovery suite was found.",
+    "evidence": "The final seven-file server run has 275 passing tests: original 40 + 10 behavior reproductions + 225 Express boundary tests. Controllers are mocked in the boundary suite. Python adds 3 isolated tests. These passes do not prove business workflows safe.",
+    "impact": "Money/stock/role regressions can ship undetected, and route registration tests cannot validate actual queries, transaction isolation or UI workflows.",
+    "fix": "Add the prioritized suites below using disposable services/seeded data. Convert unsafe-behavior characterizations to desired-behavior regression assertions when fixing each issue. Gate releases on those suites.",
+    "verification": "Execute a clean CI run from empty services with real API/DB interactions and browser workflows. Require deterministic teardown and no production configuration access."
+  },
+  {
+    "id": "L01",
+    "severity": "Low",
+    "category": "Architecture",
+    "status": "Confirmed quality-check failure",
+    "title": "Frontend lint and maintenance debt remain",
+    "locations": [
+      [
+        "client/eslint.config.js"
+      ],
+      [
+        "client/src"
+      ],
+      [
+        "server/src/modules/orders/order.service.js"
+      ]
+    ],
+    "finding": "Client lint fails with 62 findings (46 errors, 16 warnings). Large order-service and dashboard-repository files concentrate many independent business responsibilities and make invariant review harder.",
+    "evidence": "npm.cmd run lint reports unused code, effect-state updates and hook dependency/refresh warnings. The order service exceeds 1,900 lines. This does not alone establish a production bug in every flagged line.",
+    "impact": "Static checks are not a usable release gate; changes to cancellation/payment/discount logic have a broad regression surface.",
+    "fix": "Resolve actionable lint errors without blanket suppression. Extract tested transaction/domain operations and centralize invariant/error handling after financial/security fixes.",
+    "verification": "Require lint to pass and run business regressions after each focused refactor, preserving API contracts."
+  },
+  {
+    "id": "L02",
+    "severity": "Low",
+    "category": "DevOps",
+    "status": "Confirmed documentation gap",
+    "title": "Operational documentation is incomplete and ignored",
+    "locations": [
+      [
+        "README.md"
+      ],
+      [
+        ".gitignore",
+        "docs/"
+      ]
+    ],
+    "finding": "The README largely describes technologies. The docs directory is ignored, limiting reproducible architecture, environment, migration and incident guidance in source control.",
+    "evidence": "Repository inspection found local documentation but the ignore rule excludes docs from normal tracking. Whether a separate maintained operations knowledge base exists: Not verified.",
+    "impact": "New operators cannot reliably recreate or recover the system from the repository alone.",
+    "fix": "Version the essential system map, environment-key descriptions without values, migration/runbook/recovery procedures and role/action policy.",
+    "verification": "Have a developer provision a clean isolated environment using only the committed documentation and record missing steps."
+  }
+]

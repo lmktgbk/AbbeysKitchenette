@@ -1,0 +1,1572 @@
+[
+  {
+    "method": "GET",
+    "endpoint": "/api/auth/me",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/auth/logout",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/auth/me",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/auth/change-password",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/auth/profile-image",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/categories",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/categories/:id/subcategories",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/categories/subcategories/:id",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "DELETE",
+    "endpoint": "/api/categories/subcategories/:id",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/ingredients/summary",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/ingredients/alerts",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/ingredients/stock-value",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/ingredients/archived",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/ingredients",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/ingredients",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/ingredients/:id",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/ingredients/:id/restock",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/ingredients/:id/loss",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/ingredients/:id/count",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/ingredients/:id/batches",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/ingredients/:id/batches/follow-fifo",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/ingredients/:id/batches/:batchId/priority",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/ingredients/:id/batches/:batchId/expiry",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/ingredients/:id/batches/:batchId/declare-expired-loss",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/ingredients/:id/history",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/ingredients/:id/archive",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/ingredients/:id/restore",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "DELETE",
+    "endpoint": "/api/ingredients/:id",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/products/summary",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/products/upload-image",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/products",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/products",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/products/:id",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/products/:id",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/products/:id/variants/:variantId/activate",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/products/:id/variants/:variantId/deactivate",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "PUT",
+    "endpoint": "/api/products/:id/variants",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/products/:id/deactivate",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/products/:id/activate",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "DELETE",
+    "endpoint": "/api/products/:id",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/orders/stats",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/orders/kitchen",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/orders/kitchen/batches",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/orders",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/orders",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/orders/:id",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/orders/:id/receipt",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "PUT",
+    "endpoint": "/api/orders/:id",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "PUT",
+    "endpoint": "/api/orders/:id/status",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/orders/:id/fulfill",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/orders/:id/prepare",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/orders/:id/items/:itemId",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/orders/:id/items/:itemId/remove",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/orders/losses/:lossId/override",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/orders/:id/cancel",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/staff/summary",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/staff",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/staff/:id",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/staff",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/staff/:id",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/staff/:id/toggle-active",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "DELETE",
+    "endpoint": "/api/staff/:id",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/forecasting/demand/run",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/forecasting/demand/status",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/forecasting/demand/results",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/forecasting/demand/history",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/forecasting/demand/ingredients",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/reorder-suggestions",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/reorder-suggestions/generate",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/reorder-suggestions/:id/accept",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/reorder-suggestions/:id/reject",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/waste-reduction",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/waste-reduction/generate",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/waste-reduction/:id/accept",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/waste-reduction/:id/reject",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/price-optimization",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/price-optimization/generate",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/price-optimization/:id/apply",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/price-optimization/:id/dismiss",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/market-basket/analyze",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/market-basket/jobs",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/market-basket/jobs/:id",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/market-basket/analyze",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/market-basket/mark-combo-created",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/promotions/analyze",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/promotions/jobs",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/promotions/jobs/:id",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/promotions/analyze",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/promotions/mark-combo-created",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/settings",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/settings",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/audit-logs",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/dashboard",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/dashboard/revenue-trend",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/notifications",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/notifications/unread-count",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/notifications/read-all",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/notifications/:id/read",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "DELETE",
+    "endpoint": "/api/notifications/:id",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/notifications/cleanup",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/anomaly/results",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/anomaly/active",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/anomaly/stats",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/anomaly/scan",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/anomaly/:id/acknowledge",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/shifts/open",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/shifts/mine",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/shifts/mine/history",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/shifts/stats",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/shifts",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/shifts/:id",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/shifts/:id/summary",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/shifts/:id/ingredient-usage",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/shifts/:id/orders",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/shifts/:id/close",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/shifts/:id/force-close",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/transactions",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/analytics/kpis",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/analytics/trend",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/analytics/variants/profitability",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/analytics/ingredients/profitability",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/analytics/ingredients/units",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/analytics/waste/details",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/analytics/dashboard",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/analytics/export",
+    "scenario": "no session",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/categories",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/categories/:id/subcategories",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/categories/subcategories/:id",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "DELETE",
+    "endpoint": "/api/categories/subcategories/:id",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/ingredients/summary",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/ingredients/alerts",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/ingredients/stock-value",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/ingredients/archived",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/ingredients",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/ingredients",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/ingredients/:id",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/ingredients/:id/restock",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/ingredients/:id/loss",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/ingredients/:id/count",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/ingredients/:id/batches",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/ingredients/:id/batches/follow-fifo",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/ingredients/:id/batches/:batchId/priority",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/ingredients/:id/batches/:batchId/expiry",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/ingredients/:id/batches/:batchId/declare-expired-loss",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/ingredients/:id/history",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/ingredients/:id/archive",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/ingredients/:id/restore",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "DELETE",
+    "endpoint": "/api/ingredients/:id",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/products/summary",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/products/upload-image",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/products",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/products",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/products/:id",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/products/:id",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/products/:id/variants/:variantId/activate",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/products/:id/variants/:variantId/deactivate",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "PUT",
+    "endpoint": "/api/products/:id/variants",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/products/:id/deactivate",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/products/:id/activate",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "DELETE",
+    "endpoint": "/api/products/:id",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/orders/losses/:lossId/override",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/staff/summary",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/staff",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/staff/:id",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/staff",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/staff/:id",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/staff/:id/toggle-active",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "DELETE",
+    "endpoint": "/api/staff/:id",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/forecasting/demand/run",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/forecasting/demand/status",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/forecasting/demand/results",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/forecasting/demand/history",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/forecasting/demand/ingredients",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/reorder-suggestions",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/reorder-suggestions/generate",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/reorder-suggestions/:id/accept",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/reorder-suggestions/:id/reject",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/waste-reduction",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/waste-reduction/generate",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/waste-reduction/:id/accept",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/waste-reduction/:id/reject",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/price-optimization",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/price-optimization/generate",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/price-optimization/:id/apply",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/price-optimization/:id/dismiss",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/market-basket/analyze",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/market-basket/jobs",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/market-basket/jobs/:id",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/market-basket/analyze",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/market-basket/mark-combo-created",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/promotions/analyze",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/promotions/jobs",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/promotions/jobs/:id",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/promotions/analyze",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/promotions/mark-combo-created",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/settings",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/settings",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/audit-logs",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/dashboard",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/dashboard/revenue-trend",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/notifications",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/notifications/unread-count",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/notifications/read-all",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/notifications/:id/read",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "DELETE",
+    "endpoint": "/api/notifications/:id",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/notifications/cleanup",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/anomaly/results",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/anomaly/active",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/anomaly/stats",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/anomaly/scan",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "PATCH",
+    "endpoint": "/api/anomaly/:id/acknowledge",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/shifts/stats",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/shifts",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "POST",
+    "endpoint": "/api/shifts/:id/force-close",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/transactions",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/analytics/kpis",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/analytics/trend",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/analytics/variants/profitability",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/analytics/ingredients/profitability",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/analytics/ingredients/units",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/analytics/waste/details",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/analytics/dashboard",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "method": "GET",
+    "endpoint": "/api/analytics/export",
+    "scenario": "cashier accessing admin endpoint",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "scenario": "kitchen can enter acceptance/payment handler (mocked controller)",
+    "status": 200
+  },
+  {
+    "scenario": "malformed JSON",
+    "status": 500,
+    "desired": 400
+  }
+]

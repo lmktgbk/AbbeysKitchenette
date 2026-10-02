@@ -1,0 +1,366 @@
+{
+  "source": "OSV querybatch",
+  "packages": [
+    {
+      "name": "annotated-doc",
+      "version": "0.0.5"
+    },
+    {
+      "name": "annotated-types",
+      "version": "0.8.0"
+    },
+    {
+      "name": "anyio",
+      "version": "4.14.2"
+    },
+    {
+      "name": "asyncpg",
+      "version": "0.31.0"
+    },
+    {
+      "name": "certifi",
+      "version": "2026.7.22"
+    },
+    {
+      "name": "cffi",
+      "version": "2.1.1"
+    },
+    {
+      "name": "charset-normalizer",
+      "version": "3.5.1"
+    },
+    {
+      "name": "click",
+      "version": "8.5.0"
+    },
+    {
+      "name": "cloudpickle",
+      "version": "3.1.2"
+    },
+    {
+      "name": "cmdstanpy",
+      "version": "1.3.0"
+    },
+    {
+      "name": "colorama",
+      "version": "0.4.6"
+    },
+    {
+      "name": "contourpy",
+      "version": "1.3.3"
+    },
+    {
+      "name": "cryptography",
+      "version": "50.0.1"
+    },
+    {
+      "name": "cycler",
+      "version": "0.12.1"
+    },
+    {
+      "name": "distro",
+      "version": "1.9.0"
+    },
+    {
+      "name": "fastapi",
+      "version": "0.141.1"
+    },
+    {
+      "name": "fonttools",
+      "version": "4.64.0"
+    },
+    {
+      "name": "google-ai-generativelanguage",
+      "version": "0.6.15"
+    },
+    {
+      "name": "google-api-core",
+      "version": "2.33.0"
+    },
+    {
+      "name": "google-api-python-client",
+      "version": "2.200.0"
+    },
+    {
+      "name": "google-auth",
+      "version": "2.57.0"
+    },
+    {
+      "name": "google-auth-httplib2",
+      "version": "0.4.2"
+    },
+    {
+      "name": "google-genai",
+      "version": "2.21.0"
+    },
+    {
+      "name": "google-generativeai",
+      "version": "0.8.6"
+    },
+    {
+      "name": "googleapis-common-protos",
+      "version": "1.75.0"
+    },
+    {
+      "name": "grpcio",
+      "version": "1.83.1"
+    },
+    {
+      "name": "grpcio-status",
+      "version": "1.71.2"
+    },
+    {
+      "name": "h11",
+      "version": "0.16.0"
+    },
+    {
+      "name": "holidays",
+      "version": "0.103"
+    },
+    {
+      "name": "httpcore",
+      "version": "1.0.9"
+    },
+    {
+      "name": "httplib2",
+      "version": "0.32.0"
+    },
+    {
+      "name": "httpx",
+      "version": "0.28.1"
+    },
+    {
+      "name": "idna",
+      "version": "3.19"
+    },
+    {
+      "name": "joblib",
+      "version": "1.6.0"
+    },
+    {
+      "name": "kiwisolver",
+      "version": "1.5.1"
+    },
+    {
+      "name": "matplotlib",
+      "version": "3.11.1"
+    },
+    {
+      "name": "mlxtend",
+      "version": "0.25.0"
+    },
+    {
+      "name": "narwhals",
+      "version": "2.25.0"
+    },
+    {
+      "name": "numpy",
+      "version": "2.5.2"
+    },
+    {
+      "name": "packaging",
+      "version": "26.3"
+    },
+    {
+      "name": "pandas",
+      "version": "3.0.5"
+    },
+    {
+      "name": "pillow",
+      "version": "12.3.0"
+    },
+    {
+      "name": "pip",
+      "version": "25.0.1",
+      "vulns": [
+        {
+          "id": "GHSA-4xh5-x5gv-qwph",
+          "modified": "2026-09-10T03:50:27.949321Z"
+        },
+        {
+          "id": "GHSA-58qw-9mgm-455v",
+          "modified": "2026-09-10T03:50:42.838011Z"
+        },
+        {
+          "id": "GHSA-6vgw-5pg2-w6jp",
+          "modified": "2026-09-10T03:50:34.266257Z"
+        },
+        {
+          "id": "GHSA-jp4c-xjxw-mgf9",
+          "modified": "2026-09-10T03:50:44.656580Z"
+        },
+        {
+          "id": "GHSA-qwm4-qh6w-59xr",
+          "modified": "2026-09-10T03:50:52.923367Z"
+        },
+        {
+          "id": "GHSA-wf93-45jw-7689",
+          "modified": "2026-09-10T03:51:09.636289Z"
+        },
+        {
+          "id": "PYSEC-2026-1795",
+          "modified": "2026-07-07T17:48:06.199964Z"
+        },
+        {
+          "id": "PYSEC-2026-1796",
+          "modified": "2026-07-07T17:48:06.240646Z"
+        },
+        {
+          "id": "PYSEC-2026-196",
+          "modified": "2026-07-13T16:45:04.859457Z"
+        },
+        {
+          "id": "PYSEC-2026-2875",
+          "modified": "2026-07-13T16:31:33.455648Z"
+        },
+        {
+          "id": "PYSEC-2026-2876",
+          "modified": "2026-07-13T16:32:57.447552Z"
+        },
+        {
+          "id": "PYSEC-2026-3721",
+          "modified": "2026-09-10T11:15:08.939447Z"
+        }
+      ]
+    },
+    {
+      "name": "prophet",
+      "version": "1.4.0"
+    },
+    {
+      "name": "proto-plus",
+      "version": "1.28.2"
+    },
+    {
+      "name": "protobuf",
+      "version": "5.29.6"
+    },
+    {
+      "name": "pyasn1",
+      "version": "0.6.4"
+    },
+    {
+      "name": "pyasn1_modules",
+      "version": "0.4.2"
+    },
+    {
+      "name": "pycparser",
+      "version": "3.0"
+    },
+    {
+      "name": "pydantic",
+      "version": "2.13.5"
+    },
+    {
+      "name": "pydantic_core",
+      "version": "2.46.5"
+    },
+    {
+      "name": "pyparsing",
+      "version": "3.3.2"
+    },
+    {
+      "name": "python-dateutil",
+      "version": "2.9.0.post0"
+    },
+    {
+      "name": "python-dotenv",
+      "version": "1.2.3"
+    },
+    {
+      "name": "requests",
+      "version": "2.34.2"
+    },
+    {
+      "name": "scikit-learn",
+      "version": "1.9.0"
+    },
+    {
+      "name": "scipy",
+      "version": "1.18.1"
+    },
+    {
+      "name": "six",
+      "version": "1.17.0"
+    },
+    {
+      "name": "sniffio",
+      "version": "1.3.1"
+    },
+    {
+      "name": "stanio",
+      "version": "0.5.1"
+    },
+    {
+      "name": "starlette",
+      "version": "1.6.0"
+    },
+    {
+      "name": "tenacity",
+      "version": "9.1.4"
+    },
+    {
+      "name": "threadpoolctl",
+      "version": "3.6.0"
+    },
+    {
+      "name": "tqdm",
+      "version": "4.70.0"
+    },
+    {
+      "name": "typing-inspection",
+      "version": "0.4.4"
+    },
+    {
+      "name": "typing_extensions",
+      "version": "4.16.0"
+    },
+    {
+      "name": "tzdata",
+      "version": "2026.3"
+    },
+    {
+      "name": "uritemplate",
+      "version": "4.2.0"
+    },
+    {
+      "name": "urllib3",
+      "version": "2.7.0",
+      "vulns": [
+        {
+          "id": "GHSA-8988-9cw3-xx77",
+          "modified": "2026-10-01T17:55:53.793608Z"
+        },
+        {
+          "id": "GHSA-gh4c-6fx4-qh6g",
+          "modified": "2026-10-01T17:55:40.608255Z"
+        },
+        {
+          "id": "GHSA-vxq7-64xx-v4gw",
+          "modified": "2026-10-01T17:55:57.514829Z"
+        },
+        {
+          "id": "PYSEC-2026-4175",
+          "modified": "2026-10-01T17:45:18.542387Z"
+        },
+        {
+          "id": "PYSEC-2026-4176",
+          "modified": "2026-10-01T17:45:18.545924Z"
+        },
+        {
+          "id": "PYSEC-2026-4177",
+          "modified": "2026-10-01T17:45:18.336090Z"
+        }
+      ]
+    },
+    {
+      "name": "uvicorn",
+      "version": "0.52.4"
+    },
+    {
+      "name": "websockets",
+      "version": "16.1.1"
+    }
+  ],
+  "paginationComplete": true
+}

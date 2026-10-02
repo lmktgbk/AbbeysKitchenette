@@ -1,0 +1,322 @@
+[
+  {
+    "method": "GET",
+    "path": "/login",
+    "at": "2026-10-02T14:51:44.673Z"
+  },
+  {
+    "method": "GET",
+    "path": "/assets/index-BuupscRc.js",
+    "at": "2026-10-02T14:51:44.764Z"
+  },
+  {
+    "method": "GET",
+    "path": "/assets/index-Cid6Wn1Z.css",
+    "at": "2026-10-02T14:51:44.773Z"
+  },
+  {
+    "method": "GET",
+    "path": "/api/auth/me",
+    "at": "2026-10-02T14:51:47.508Z"
+  },
+  {
+    "method": "GET",
+    "path": "/favicon.png",
+    "at": "2026-10-02T14:51:47.510Z"
+  },
+  {
+    "method": "GET",
+    "path": "/favicon.png",
+    "at": "2026-10-02T14:51:47.546Z"
+  },
+  {
+    "method": "GET",
+    "path": "/assets/inter-latin-wght-normal-Dx4kXJAl.woff2",
+    "at": "2026-10-02T14:51:47.630Z"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/login",
+    "at": "2026-10-02T14:51:59.414Z"
+  },
+  {
+    "method": "GET",
+    "path": "/order",
+    "at": "2026-10-02T14:52:05.142Z"
+  },
+  {
+    "method": "GET",
+    "path": "/assets/index-BuupscRc.js",
+    "at": "2026-10-02T14:52:05.187Z"
+  },
+  {
+    "method": "GET",
+    "path": "/assets/index-Cid6Wn1Z.css",
+    "at": "2026-10-02T14:52:05.189Z"
+  },
+  {
+    "method": "GET",
+    "path": "/landing/logo_circle.png",
+    "at": "2026-10-02T14:52:05.308Z"
+  },
+  {
+    "method": "GET",
+    "path": "/fonts/Breathing.ttf",
+    "at": "2026-10-02T14:52:05.324Z"
+  },
+  {
+    "method": "GET",
+    "path": "/api/guest/settings",
+    "at": "2026-10-02T14:52:05.330Z"
+  },
+  {
+    "method": "GET",
+    "path": "/api/guest/menu",
+    "at": "2026-10-02T14:52:05.339Z"
+  },
+  {
+    "method": "GET",
+    "path": "/api/auth/me",
+    "at": "2026-10-02T14:52:05.341Z"
+  },
+  {
+    "method": "GET",
+    "path": "/assets/inter-latin-wght-normal-Dx4kXJAl.woff2",
+    "at": "2026-10-02T14:52:05.463Z"
+  },
+  {
+    "method": "GET",
+    "path": "/order",
+    "at": "2026-10-02T14:53:00.814Z"
+  },
+  {
+    "method": "GET",
+    "path": "/assets/index-BuupscRc.js",
+    "at": "2026-10-02T14:53:00.858Z"
+  },
+  {
+    "method": "GET",
+    "path": "/assets/index-Cid6Wn1Z.css",
+    "at": "2026-10-02T14:53:00.862Z"
+  },
+  {
+    "method": "GET",
+    "path": "/landing/logo_circle.png",
+    "at": "2026-10-02T14:53:00.965Z"
+  },
+  {
+    "method": "GET",
+    "path": "/api/auth/me",
+    "at": "2026-10-02T14:53:01.000Z"
+  },
+  {
+    "method": "GET",
+    "path": "/api/guest/settings",
+    "at": "2026-10-02T14:53:01.004Z"
+  },
+  {
+    "method": "GET",
+    "path": "/fonts/Breathing.ttf",
+    "at": "2026-10-02T14:53:01.008Z"
+  },
+  {
+    "method": "GET",
+    "path": "/api/guest/menu",
+    "at": "2026-10-02T14:53:01.010Z"
+  },
+  {
+    "method": "GET",
+    "path": "/favicon.png",
+    "at": "2026-10-02T14:53:01.064Z"
+  },
+  {
+    "method": "GET",
+    "path": "/assets/inter-latin-wght-normal-Dx4kXJAl.woff2",
+    "at": "2026-10-02T14:53:01.161Z"
+  },
+  {
+    "method": "GET",
+    "path": "/__audit/failure",
+    "at": "2026-10-02T14:53:01.219Z"
+  },
+  {
+    "method": "GET",
+    "path": "/order",
+    "at": "2026-10-02T14:53:01.228Z"
+  },
+  {
+    "method": "GET",
+    "path": "/assets/index-Cid6Wn1Z.css",
+    "at": "2026-10-02T14:53:01.262Z"
+  },
+  {
+    "method": "GET",
+    "path": "/assets/index-BuupscRc.js",
+    "at": "2026-10-02T14:53:01.265Z"
+  },
+  {
+    "method": "GET",
+    "path": "/landing/logo_circle.png",
+    "at": "2026-10-02T14:53:01.370Z"
+  },
+  {
+    "method": "GET",
+    "path": "/fonts/Breathing.ttf",
+    "at": "2026-10-02T14:53:01.383Z"
+  },
+  {
+    "method": "GET",
+    "path": "/api/guest/settings",
+    "at": "2026-10-02T14:53:01.385Z"
+  },
+  {
+    "method": "GET",
+    "path": "/api/guest/menu",
+    "at": "2026-10-02T14:53:01.387Z"
+  },
+  {
+    "method": "GET",
+    "path": "/api/auth/me",
+    "at": "2026-10-02T14:53:01.389Z"
+  },
+  {
+    "method": "GET",
+    "path": "/assets/inter-latin-wght-normal-Dx4kXJAl.woff2",
+    "at": "2026-10-02T14:53:01.491Z"
+  },
+  {
+    "method": "GET",
+    "path": "/api/guest/menu",
+    "at": "2026-10-02T14:53:02.403Z"
+  },
+  {
+    "method": "GET",
+    "path": "/dashboard",
+    "at": "2026-10-02T14:53:44.112Z"
+  },
+  {
+    "method": "GET",
+    "path": "/assets/index-BuupscRc.js",
+    "at": "2026-10-02T14:53:44.144Z"
+  },
+  {
+    "method": "GET",
+    "path": "/assets/index-Cid6Wn1Z.css",
+    "at": "2026-10-02T14:53:44.147Z"
+  },
+  {
+    "method": "GET",
+    "path": "/api/auth/me",
+    "at": "2026-10-02T14:53:44.305Z"
+  },
+  {
+    "method": "GET",
+    "path": "/favicon.png",
+    "at": "2026-10-02T14:53:44.334Z"
+  },
+  {
+    "method": "GET",
+    "path": "/assets/inter-latin-wght-normal-Dx4kXJAl.woff2",
+    "at": "2026-10-02T14:53:44.363Z"
+  },
+  {
+    "method": "GET",
+    "path": "/track/123e4567-e89b-42d3-a456-426614174000",
+    "at": "2026-10-02T14:53:44.476Z"
+  },
+  {
+    "method": "GET",
+    "path": "/assets/index-BuupscRc.js",
+    "at": "2026-10-02T14:53:44.511Z"
+  },
+  {
+    "method": "GET",
+    "path": "/assets/index-Cid6Wn1Z.css",
+    "at": "2026-10-02T14:53:44.513Z"
+  },
+  {
+    "method": "GET",
+    "path": "/favicon.png",
+    "at": "2026-10-02T14:53:44.616Z"
+  },
+  {
+    "method": "GET",
+    "path": "/api/guest/orders/123e4567-e89b-42d3-a456-426614174000",
+    "at": "2026-10-02T14:53:44.626Z"
+  },
+  {
+    "method": "GET",
+    "path": "/api/auth/me",
+    "at": "2026-10-02T14:53:44.635Z"
+  },
+  {
+    "method": "GET",
+    "path": "/assets/inter-latin-wght-normal-Dx4kXJAl.woff2",
+    "at": "2026-10-02T14:53:44.767Z"
+  },
+  {
+    "method": "GET",
+    "path": "/api/guest/orders/123e4567-e89b-42d3-a456-426614174000",
+    "at": "2026-10-02T14:53:45.659Z"
+  },
+  {
+    "method": "GET",
+    "path": "/login",
+    "at": "2026-10-02T14:55:23.196Z"
+  },
+  {
+    "method": "GET",
+    "path": "/assets/index-BuupscRc.js",
+    "at": "2026-10-02T14:55:23.239Z"
+  },
+  {
+    "method": "GET",
+    "path": "/assets/index-Cid6Wn1Z.css",
+    "at": "2026-10-02T14:55:23.240Z"
+  },
+  {
+    "method": "GET",
+    "path": "/api/auth/me",
+    "at": "2026-10-02T14:55:23.381Z"
+  },
+  {
+    "method": "GET",
+    "path": "/favicon.png",
+    "at": "2026-10-02T14:55:23.405Z"
+  },
+  {
+    "method": "GET",
+    "path": "/assets/inter-latin-wght-normal-Dx4kXJAl.woff2",
+    "at": "2026-10-02T14:55:23.434Z"
+  },
+  {
+    "method": "GET",
+    "path": "/reset-password",
+    "at": "2026-10-02T15:03:25.375Z"
+  },
+  {
+    "method": "GET",
+    "path": "/assets/index-BuupscRc.js",
+    "at": "2026-10-02T15:03:25.409Z"
+  },
+  {
+    "method": "GET",
+    "path": "/assets/index-Cid6Wn1Z.css",
+    "at": "2026-10-02T15:03:25.411Z"
+  },
+  {
+    "method": "GET",
+    "path": "/api/auth/me",
+    "at": "2026-10-02T15:03:25.532Z"
+  },
+  {
+    "method": "GET",
+    "path": "/favicon.png",
+    "at": "2026-10-02T15:03:25.535Z"
+  },
+  {
+    "method": "GET",
+    "path": "/assets/inter-latin-wght-normal-Dx4kXJAl.woff2",
+    "at": "2026-10-02T15:03:25.546Z"
+  }
+]
