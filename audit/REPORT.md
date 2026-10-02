@@ -10,6 +10,9 @@ Order permissions and state transitions were subsequently addressed in
 [order remediation](C:/Users/liamk/WebApp/AbbeysKitchenette/audit/ORDER_STATE_FIXES.md).
 That document records the scope, tests and remaining financial/inventory work.
 
+Request replay, atomic acceptance and shift closure changes are recorded in
+[financial remediation](C:/Users/liamk/WebApp/AbbeysKitchenette/audit/FINANCIAL_TRANSACTION_FIXES.md).
+
 Audit completed for the available source, installed dependency trees, isolated executions and selected public browser workflows. **Production readiness is not established; release is blocked by C01 and unresolved financial/security risks.** This is not a certification that the entire deployed system was tested.
 
 Audit date: 2026-10-02 (Asia/Manila). Repository: C:/Users/liamk/WebApp/AbbeysKitchenette. Branch: **code-revision**. Baseline commit: **530c4cf064f080ef304c8ba66814d9ecd1f7d8ec**. Critical: 1 · High: 15 · Medium: 24 · Low: 2. Severity ranks impact; evidence status separately states confidence.

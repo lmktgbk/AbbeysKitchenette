@@ -213,7 +213,7 @@ export default function PosInterface() {
         setShowOpenShift(true);
         return;
       }
-      toast.error(err.response?.data?.message || "Failed to place order");
+      toast.error(err.response?.data?.message || err.message || "Failed to place order");
     }
   }
 

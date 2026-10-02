@@ -261,10 +261,13 @@ export const shiftService = {
     // item removal can ever strand a refund outside the books. Pending
     // online orders are unpaid and never block. Admin force-close bypasses
     // with its mandatory note.
-    // Everything below runs in ONE tx: an order accepted between the
-    // open-orders check and the close lands inside the same snapshot, and a
-    // concurrent close loses the closeIfOpen claim instead of overwriting.
+    // Payment paths lock this same shift before writing orders. Once closure
+    // owns the row, its summary cannot miss a sale assigned concurrently.
     const { row: closed, expected, actual, variance } = await prisma.$transaction(async (tx) => {
+      const current = await shiftRepository.lockById(id, tx);
+      if (!current || current.status !== "open") {
+        throw new AppError(409, "Shift is already closed", "SHIFT_ALREADY_CLOSED");
+      }
       if (!forced) {
         const openOrders = await shiftRepository.getShiftOpenOrders(
           id, shift.openedAt ?? shift.opened_at, null, tx
@@ -349,7 +352,12 @@ export const shiftService = {
    * SHIFT_REQUIRED when none is open.
    * @returns {{ shiftId }}
    */
-  async resolveShiftForUser(userId) {
+  async resolveShiftForUser(userId, tx) {
+    if (tx) {
+      const shiftId = await shiftRepository.lockOpenByUser(userId, tx);
+      if (!shiftId) throw new AppError(409, "Open a shift before taking payments", "SHIFT_REQUIRED");
+      return { shiftId };
+    }
     const open = await shiftRepository.findOpenByUser(userId);
     if (open.length === 0) {
       throw new AppError(409, "Open a shift before taking payments", "SHIFT_REQUIRED");

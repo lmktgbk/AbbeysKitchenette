@@ -47,7 +47,7 @@ export const guestService = {
    * @param {object} data - { customerName, tableNumber, items }
    * @returns {object} - created order with guest_token
    */
-  async placeOrder({ customerName, tableNumber, items }) {
+  async placeOrder({ customerName, tableNumber, items, idempotencyKey, beforeCreate }) {
     const guestToken = crypto.randomUUID();
 
     const order = await orderService.createOnline({
@@ -55,6 +55,8 @@ export const guestService = {
       tableNumber,
       items,
       guestToken,
+      idempotencyKey,
+      beforeCreate,
     });
 
     return order;

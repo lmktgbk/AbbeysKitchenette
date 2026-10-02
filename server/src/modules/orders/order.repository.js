@@ -118,7 +118,7 @@ export const orderRepository = {
 
     // Insert the order row via raw SQL — omits created_by entirely so the
     // DB uses its column default (NULL, now that we ran db push).
-    await client.$executeRaw`
+    const [created] = await client.$queryRaw`
       INSERT INTO orders (
         order_id, order_number, order_date, customer_name, table_number,
         order_source, status, subtotal_amount, total_amount, guest_token,
@@ -139,7 +139,7 @@ export const orderRepository = {
         'none',
         'cash',
         now(), now()
-      )
+      ) RETURNING created_at
     `;
 
     // Create order items using Prisma (these have no optional-relation issues)
@@ -154,7 +154,7 @@ export const orderRepository = {
       })),
     });
 
-    return { orderId };
+    return { orderId, createdAt: created.created_at };
   },
 
 
@@ -577,6 +577,32 @@ export const orderRepository = {
         discountLabel: discount.discountLabel ?? null,
       },
     });
+  },
+
+  async updatePricedItems(orderId, items, tx) {
+    const rows = items.map(item => ({
+      order_item_id: item.order_item_id,
+      unit_price: item.unit_price,
+      subtotal: item.unit_price * item.quantity,
+      discount_type: item.discountType ?? "none",
+      discount_percent: item.discountPercent ?? 0,
+      discount_amount: item.discountAmount ?? 0,
+      discount_label: item.discountLabel ?? null,
+    }));
+    // Match by immutable line ID, not price/quantity: identical product lines
+    // can have different discounts. All lines persist in one transaction query.
+    return tx.$executeRaw`
+      UPDATE order_items AS i SET
+        unit_price = p.unit_price, subtotal = p.subtotal,
+        discount_type = p.discount_type, discount_percent = p.discount_percent,
+        discount_amount = p.discount_amount, discount_label = p.discount_label
+      FROM jsonb_to_recordset(${JSON.stringify(rows)}::jsonb) AS p(
+        order_item_id integer, unit_price numeric, subtotal numeric,
+        discount_type text, discount_percent double precision,
+        discount_amount numeric, discount_label text
+      )
+      WHERE i.order_id = ${orderId}::uuid AND i.order_item_id = p.order_item_id AND i.removed_at IS NULL
+    `;
   },
 
   /**

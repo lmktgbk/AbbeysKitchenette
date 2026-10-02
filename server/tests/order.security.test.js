@@ -12,8 +12,7 @@ vi.mock("../src/middleware/authenticate.middleware.js", () => ({ default: (req, 
 vi.mock("../src/modules/auditLogs/auditLog.service.js", () => ({ auditLogService: { logAction: vi.fn().mockResolvedValue({}) } }));
 vi.mock("../src/modules/notifications/notification.service.js", () => ({ notificationService: { create: vi.fn().mockResolvedValue({}) } }));
 vi.mock("../src/modules/products/product.service.js", () => ({ productService: { recomputeVariantAvailability: vi.fn().mockResolvedValue({}) } }));
-vi.mock("../src/modules/shifts/shift.service.js", () => ({ shiftService: {} }));
-vi.mock("../src/modules/settings/settings.service.js", () => ({ settingsService: {} }));
+vi.mock("../src/modules/settings/settings.service.js", () => ({ settingsService: { getAcceptedPayments: vi.fn().mockResolvedValue(["cash", "gcash", "maya"]) } }));
 vi.mock("../src/modules/anomalyDetection/anomalyDetection.service.js", () => ({ anomalyService: { runScan: vi.fn().mockResolvedValue({}) } }));
 vi.mock("../src/modules/sheets/sheets.service.js", () => ({ sheetsService: { enqueue: vi.fn() } }));
 vi.mock("../src/realtime/events.js", () => ({ emitOrderChanged: vi.fn(), emitStockChanged: vi.fn(), emitGuestForOrder: vi.fn() }));
@@ -22,10 +21,14 @@ import router from "../src/modules/orders/order.routes.js";
 import errorHandler from "../src/middleware/errorHandler.middleware.js";
 import { orderService } from "../src/modules/orders/order.service.js";
 import { orderRepository } from "../src/modules/orders/order.repository.js";
+import { shiftService } from "../src/modules/shifts/shift.service.js";
+import { shiftRepository } from "../src/modules/shifts/shift.repository.js";
+import { orderIdempotency, orderRequest } from "../src/modules/orders/order.idempotency.js";
 
 const A = "123e4567-e89b-42d3-a456-426614174001";
 const B = "123e4567-e89b-42d3-a456-426614174002";
 const USER = "123e4567-e89b-42d3-a456-426614174000";
+const KEY = "123e4567-e89b-42d3-a456-426614174003";
 let server, base;
 beforeAll(async () => {
   const app = express();
@@ -46,7 +49,7 @@ beforeEach(() => {
   vi.spyOn(orderService, "getById").mockImplementation(id => h.db.order.findUnique({ where: { orderId: id } }));
   vi.spyOn(orderService, "_restoreIngredients").mockImplementation(async () => { h.db.state.restores++; });
 });
-const request = (path, method, body) => fetch(base + path, { method, headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
+const request = (path, method, body) => fetch(base + path, { method, headers: { "Content-Type": "application/json", "Idempotency-Key": KEY }, body: body === undefined ? undefined : JSON.stringify(body) });
 
 describe("Order permissions and transaction boundaries", () => {
   it.each(["admin", "cashier", "kitchen"])("%s can start preparation through the API", async role => {
@@ -63,9 +66,9 @@ describe("Order permissions and transaction boundaries", () => {
   it.each(["admin", "cashier"])("%s reaches the authorized acceptance workflow", async role => {
     h.role = role;
     h.db.state.orders[0].status = "pending";
-    const acceptance = vi.spyOn(orderService, "_handleAcceptance").mockResolvedValue({ order_id: A });
+    const acceptance = vi.spyOn(orderService, "_handleAcceptance").mockResolvedValue({ response: { order_id: A }, replayed: false });
     expect((await request(`/${A}/status`, "PUT", { status: "accepted", amount_paid: 100 })).status).toBe(200);
-    expect(acceptance).toHaveBeenCalledWith(A, expect.any(Object), expect.objectContaining({ userRole: role, userId: USER }));
+    expect(acceptance).toHaveBeenCalledWith(A, expect.any(Object), expect.objectContaining({ userRole: role, userId: USER }), expect.any(Object));
   });
   it("service authorization fails closed without a trusted role", async () => {
     await expect(orderService.advanceStatus(A, "accepted", { userId: USER })).rejects.toMatchObject({ statusCode: 403 });
@@ -237,5 +240,178 @@ describe("Order permissions and transaction boundaries", () => {
     expect(h.db.state.orders[0].status).toBe("accepted");
     expect(h.db.state.restores).toBe(0);
     expect(h.db.state.cancellations).toHaveLength(0);
+  });
+});
+
+describe("Financial transactions, request replay and shift closure", () => {
+  const accept = (extra = {}) => orderService.advanceStatus(A, "accepted", { userId: USER, userRole: "cashier", amountPaid: 200, idempotencyKey: KEY, ...extra });
+  const walkIn = (extra = {}) => orderService.createWalkIn({ customerName: "Fixture", tableNumber: "1", items: [{ product_id: B, variant_id: 1, quantity: 1, unit_price: 100 }], amountPaid: 100, createdBy: USER, idempotencyKey: KEY, ...extra });
+  beforeEach(() => {
+    h.db.state.orders[0].status = "pending";
+    Object.assign(h.db.state.items[0], { productId: B, variantId: 1, quantity: 1, unitPrice: 100, discountType: "none" });
+    h.db.state.shifts.push({ shiftId: B, openedBy: USER, status: "open", openingCash: 0, openedAt: new Date() });
+    vi.spyOn(orderRepository, "getVariantPrices").mockResolvedValue(new Map([[1, 100]]));
+    vi.spyOn(orderService, "_assertPaymentValid").mockResolvedValue();
+    vi.spyOn(orderService, "_aggregateIngredientNeeds").mockResolvedValue(new Map());
+    vi.spyOn(orderService, "_deductIngredients").mockImplementation(async id => {
+      h.db.state.deductions.push({ orderId: id });
+      return { deductions: [], needs: new Map() };
+    });
+    vi.spyOn(orderService, "_checkStockLevels").mockResolvedValue();
+    vi.spyOn(shiftRepository, "getShiftOpenOrders").mockImplementation(async () => ({ openCount: h.db.state.orders.filter(row => row.shiftId === B && ["accepted", "preparing"].includes(row.status)).length }));
+    vi.spyOn(shiftService, "buildSummary").mockImplementation(async () => ({ expected_cash: h.db.state.orders.filter(row => row.shiftId === B).reduce((sum, row) => sum + Number(row.totalAmount || 0), 0) }));
+  });
+  it("missing/invalid keys are rejected before any business write", async () => {
+    await expect(walkIn({ idempotencyKey: undefined })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(walkIn({ idempotencyKey: "invalid" })).rejects.toMatchObject({ statusCode: 400 });
+    expect(h.db.state.requests).toHaveLength(0);
+    expect(h.db.state.receipts).toHaveLength(0);
+  });
+  it("concurrent walk-in replay creates one sale, receipt and deduction set", async () => {
+    const results = await Promise.all([walkIn(), walkIn()]);
+    expect(results[0]).toEqual(results[1]);
+    expect(h.db.state.receipts).toHaveLength(1);
+    expect(h.db.state.deductions).toHaveLength(1);
+    expect(h.db.state.requests).toHaveLength(1);
+    expect(h.db.state.orders).toHaveLength(3);
+  });
+  it("retry after a lost response does not require an open shift or fresh prices", async () => {
+    const original = await walkIn();
+    h.db.state.shifts[0].status = "closed";
+    orderRepository.getVariantPrices.mockRejectedValue(new Error("Prices unavailable"));
+    expect(await walkIn()).toEqual(original);
+    expect(h.db.state.receipts).toHaveLength(1);
+  });
+  it("same key with changed details conflicts; a new key permits an intentional sale", async () => {
+    await walkIn();
+    await expect(walkIn({ customerName: "Other" })).rejects.toMatchObject({ statusCode: 409, code: "IDEMPOTENCY_CONFLICT" });
+    await walkIn({ idempotencyKey: A });
+    expect(h.db.state.receipts).toHaveLength(2);
+  });
+  it("request keys are scoped to the authenticated operator", async () => {
+    await walkIn();
+    h.db.state.shifts.push({ shiftId: A, openedBy: B, status: "open" });
+    await walkIn({ createdBy: B });
+    expect(h.db.state.requests).toHaveLength(2);
+  });
+  it.each(["failReceipt", "failRequestResult"])("%s rolls back the order, receipt, deductions and key", async failure => {
+    h.db[failure] = true;
+    await expect(walkIn()).rejects.toThrow();
+    expect(h.db.state.orders).toHaveLength(2);
+    expect(h.db.state.requests).toHaveLength(0);
+    expect(h.db.state.receipts).toHaveLength(0);
+    expect(h.db.state.deductions).toHaveLength(0);
+    h.db[failure] = false;
+    await walkIn();
+    expect(h.db.state.receipts).toHaveLength(1);
+  });
+  it("identical product lines keep their individual discounts and update in one query", async () => {
+    h.db.state.items.push({ ...h.db.state.items[0], orderItemId: 3 });
+    const batch = vi.spyOn(h.db, "$executeRaw");
+    const result = await accept({ item_discounts: [
+      { order_item_id: 1, discount_type: "promo", promo_mode: "percent", promo_value: 10 },
+      { order_item_id: 3, discount_type: "promo", promo_mode: "percent", promo_value: 20 },
+    ] });
+    expect(result.order_id).toBe(A);
+    expect(h.db.state.items.find(row => row.orderItemId === 1).discountAmount).toBe(10);
+    expect(h.db.state.items.find(row => row.orderItemId === 3).discountAmount).toBe(20);
+    expect(h.db.state.orders[0].totalAmount).toBe(170);
+    expect(batch).toHaveBeenCalledTimes(1);
+    expect(h.db.state.receipts[0].totalAmount).toBe(170);
+  });
+  it.each([
+    [{ order_item_id: 999, discount_type: "none" }],
+    [{ order_item_id: 1, discount_type: "none" }, { order_item_id: 1, discount_type: "none" }],
+  ].map(item_discounts => ({ item_discounts })))("invalid discount line references are rejected before settlement (%j)", async ({ item_discounts }) => {
+    await expect(accept({ item_discounts })).rejects.toMatchObject({ code: "INVALID_ITEM_DISCOUNT" });
+    expect(h.db.state.orders[0].status).toBe("pending");
+    expect(h.db.state.receipts).toHaveLength(0);
+  });
+  it("insufficient cash is rejected before claiming a request key", async () => {
+    orderService._assertPaymentValid.mockRestore();
+    await expect(walkIn({ amountPaid: 99 })).rejects.toMatchObject({ code: "INSUFFICIENT_PAYMENT" });
+    expect(h.db.state.requests).toHaveLength(0);
+    expect(h.db.state.deductions).toHaveLength(0);
+  });
+  it.each(["gcash", "maya"])("%s remains a manual record with zero cash change", async payment_method => {
+    orderService._assertPaymentValid.mockRestore();
+    const result = await walkIn({ payment: { payment_method, reference_no: "TEST-REFERENCE" } });
+    const sale = h.db.state.orders.find(row => row.orderId === result.order_id);
+    expect(sale).toMatchObject({ paymentMethod: payment_method, referenceNo: "TEST-REFERENCE", totalAmount: 100, amountPaid: 100, change: 0 });
+    expect(h.db.state.receipts).toHaveLength(1);
+  });
+  it.each(["failLine", "failReceipt", "failRequestResult"])("acceptance %s preserves pending state and rolls back priced lines", async failure => {
+    h.db[failure] = true;
+    await expect(accept({ item_discounts: [{ order_item_id: 1, discount_type: "promo", promo_mode: "percent", promo_value: 20 }] })).rejects.toThrow();
+    expect(h.db.state.orders[0].status).toBe("pending");
+    expect(h.db.state.items[0].discountType).toBe("none");
+    expect(h.db.state.receipts).toHaveLength(0);
+    expect(h.db.state.deductions).toHaveLength(0);
+    expect(h.db.state.requests).toHaveLength(0);
+  });
+  it("concurrent acceptance with the same key returns the same committed result", async () => {
+    const results = await Promise.all([accept(), accept()]);
+    expect(results[0]).toEqual(results[1]);
+    expect(h.db.state.receipts).toHaveLength(1);
+    expect(h.db.state.deductions).toHaveLength(1);
+    expect(h.db.state.orders[0].status).toBe("accepted");
+  });
+  it("acceptance refuses an order changed during pricing", async () => {
+    const price = orderService._priceItemsAndTotals.bind(orderService);
+    vi.spyOn(orderService, "_priceItemsAndTotals").mockImplementation(async (...args) => {
+      const result = await price(...args);
+      h.db.state.items[0].quantity = 2;
+      return result;
+    });
+    await expect(accept()).rejects.toMatchObject({ statusCode: 409 });
+    expect(h.db.state.orders[0].status).toBe("pending");
+    expect(h.db.state.receipts).toHaveLength(0);
+  });
+  it("closed shift rejects payment without leaving a claimed key", async () => {
+    h.db.state.shifts[0].status = "closed";
+    await expect(walkIn()).rejects.toMatchObject({ statusCode: 409, code: "SHIFT_REQUIRED" });
+    expect(h.db.state.requests).toHaveLength(0);
+    expect(h.db.state.deductions).toHaveLength(0);
+  });
+  it.each([true, false])("sale/forced-close scheduling preserves the closing snapshot (sale first: %s)", async saleFirst => {
+    const close = () => shiftService.closeShift({ id: B, actualCash: 0, closeNote: "Fixture", userId: USER, forced: true });
+    const outcomes = await Promise.allSettled(saleFirst ? [walkIn(), close()] : [close(), walkIn()]);
+    const paid = h.db.state.receipts.length;
+    const shift = h.db.state.shifts[0];
+    expect(shift.status).toBe("closed");
+    expect(shift.expectedCash).toBe(paid * 100);
+    expect(h.db.state.deductions).toHaveLength(paid);
+    expect(outcomes.some(result => result.status === "fulfilled")).toBe(true);
+    await expect(walkIn({ idempotencyKey: A })).rejects.toMatchObject({ code: "SHIFT_REQUIRED" });
+  });
+  it("normal closure refuses accepted orders without closing the shift", async () => {
+    await walkIn();
+    await expect(shiftService.closeShift({ id: B, actualCash: 100, userId: USER })).rejects.toMatchObject({ code: "OPEN_ORDERS_PENDING" });
+    expect(h.db.state.shifts[0].status).toBe("open");
+  });
+  it("guest replay keeps the tracking token and bypasses closed-store checks", async () => {
+    const input = { customerName: "Guest", tableNumber: "1", items: [{ product_id: B, variant_id: 1, quantity: 1, unit_price: 100 }], guestToken: A, idempotencyKey: KEY };
+    const original = await orderService.createOnline(input);
+    const beforeCreate = vi.fn().mockRejectedValue(new Error("Store closed"));
+    const replay = await orderService.createOnline({ ...input, guestToken: B, beforeCreate });
+    expect(replay).toEqual(original);
+    expect(replay.guest_token).toBe(A);
+    expect(beforeCreate).not.toHaveBeenCalled();
+    expect(h.db.state.orders).toHaveLength(3);
+  });
+  it("fulfillment replay cannot replace items or deduct stock twice", async () => {
+    const input = { id: A, items: [{ product_id: B, variant_id: 1, quantity: 1, unit_price: 100 }], amountPaid: 100, userId: USER, idempotencyKey: KEY };
+    const results = await Promise.all([orderService.fulfillPendingOrder(input), orderService.fulfillPendingOrder(input)]);
+    expect(results[0]).toEqual(results[1]);
+    expect(h.db.state.receipts).toHaveLength(1);
+    expect(h.db.state.deductions).toHaveLength(1);
+  });
+  it("canonical payload ordering produces the same digest", () => {
+    expect(orderRequest("test", KEY, { a: 1, b: 2 }).requestHash).toBe(orderRequest("test", KEY, { b: 2, a: 1 }).requestHash);
+  });
+  it("incomplete committed keys are rejected instead of executing another sale", async () => {
+    const key = orderRequest("test", KEY, {});
+    await h.db.orderRequest.createMany({ data: key });
+    await expect(orderIdempotency.lookup(key)).rejects.toMatchObject({ statusCode: 409, code: "SUBMISSION_PENDING" });
   });
 });

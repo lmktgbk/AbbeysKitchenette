@@ -81,11 +81,19 @@ vulnerabilities. npm audit failures require fixes or a reviewed explicit excepti
 Migration status/validation/generation do not prove data integrity. No migration,
 reset or seed command is intentionally included in this verification block.
 
-Current reference, not a final PASS: the order batch had 338 automated tests
-passing, changed-file frontend lint passed, and the frontend build passed with
-an existing large-bundle warning. Full frontend lint/dependency findings remain
+Current reference, not a final PASS: the financial batch had 371 automated tests
+passing, including 33 new replay/rollback/browser-submission cases. The frontend
+build passed with an existing large-bundle warning. Submission code and POS pages
+passed lint; the guest page retains its baseline four errors and one warning.
+The additive submission-ledger migration is applied; schema diff and read-only
+backend/public-role access checks passed. Real PostgreSQL contention and complete
+browser workflows remain **Not verified**. Full frontend lint/dependency findings remain
 open. The user reported basic login, OTP, logout and password reset working;
 that report does not replace the security/concurrency cases below.
+
+From `server`, run `node prisma/verify-ledger-access.mjs` to check ledger access
+without reading business records. A schema/access check does not verify financial
+transactions or replace the isolated test cases below.
 
 ## End-to-end business workflows
 
@@ -241,9 +249,9 @@ all cases on the final commit. No case below has been executed by this document.
 
 **Priority:** High
 
-**Implementation:** Open at checklist creation; final acceptance NOT RUN
+**Implementation:** Implemented in financial transaction batch; real PostgreSQL/browser acceptance NOT RUN
 
-**Steps:** Capture a valid order submission with its implemented idempotency key. Replay it concurrently, interrupt the original response and retry the same key. Reuse the key with changed contents. Confirm a new intentional sale uses a different key.
+**Steps:** Capture a valid order submission with its implemented idempotency key. Replay it concurrently, interrupt the original response and retry the same key. Reuse the key with changed contents. Confirm a new intentional sale uses a different key. Repeat for walk-in, guest creation, pending fulfillment and acceptance. Replay guest creation after store closure and paid submission after shift closure. Refresh after a lost response; verify key reuse and blocking of changed unresolved details. Check manual cash/GCash/Maya totals and references without initiating online payments.
 
 **Acceptance criteria:** Submit the same key concurrently and retry after cutting the response. Require one order, receipt and deduction set and an identical returned result.
 
@@ -255,7 +263,7 @@ all cases on the final commit. No case below has been executed by this document.
 
 **Priority:** High
 
-**Implementation:** Open at checklist creation; final acceptance NOT RUN
+**Implementation:** Implemented in financial transaction batch; real PostgreSQL/browser acceptance NOT RUN
 
 **Steps:** Open a test cashier shift. Concurrently submit a paid sale and close that shift, in both arrival orders. Repeat with a delayed sale request; inspect the closing summary, receipt, stock and shift linkage.
 
@@ -269,11 +277,11 @@ all cases on the final commit. No case below has been executed by this document.
 
 **Priority:** High
 
-**Implementation:** Open at checklist creation; final acceptance NOT RUN
+**Implementation:** Implemented in financial transaction batch; real PostgreSQL/browser acceptance NOT RUN
 
-**Steps:** Accept a multi-line pending order with line-specific discounts. In an isolated environment, have a developer inject failure on the second line persistence step. Repeat without failure and retry the original acceptance.
+**Steps:** Accept a multi-line pending order with line-specific discounts. In an isolated environment, have a developer inject failure at the batch line update, receipt insert and ledger-response persistence. Include identical product lines with different discounts. Repeat without failure and retry the original acceptance. After rollback require pending status, unchanged stock, no receipt and no ledger claim; retry succeeds once. Race an item edit against acceptance and require a conflict instead of stale totals.
 
-**Acceptance criteria:** Inject failure on each line update, including the second line. Require a complete rollback or a complete coherent committed order and a replay-safe response.
+**Acceptance criteria:** Inject failure at each transaction stage. Require a complete rollback or a complete coherent committed order and a replay-safe response.
 
 **Result:** NOT RUN
 

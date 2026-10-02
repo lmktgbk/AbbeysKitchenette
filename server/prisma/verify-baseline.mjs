@@ -1,6 +1,6 @@
 import "dotenv/config";
 import pg from "pg";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 
 const schema = `migration_check_${randomUUID().replaceAll("-", "")}`;
@@ -12,7 +12,8 @@ try {
   await client.query(`SET LOCAL search_path TO "${schema}"`);
   // Every object is redirected to a disposable namespace. ROLLBACK removes it,
   // including failed migrations; no public application rows are touched.
-  for (const name of ["00000000000000_baseline", "20261003000000_auth_sessions"]) {
+  const migrations = (await readdir("prisma/migrations", { withFileTypes: true })).filter(entry => entry.isDirectory()).map(entry => entry.name).sort();
+  for (const name of migrations) {
     let sql = await readFile(`prisma/migrations/${name}/migration.sql`, "utf8");
     sql = sql.replaceAll('"public"', `"${schema}"`).replaceAll("public.", `"${schema}".`);
     sql = sql.replace(/^BEGIN;\s*$/gm, "").replace(/^COMMIT;\s*$/gm, "");
@@ -22,7 +23,9 @@ try {
   if (columns.rowCount !== 2) throw new Error("Authentication columns missing");
   const indexes = await client.query("SELECT indexdef FROM pg_indexes WHERE schemaname=$1 AND indexname='shifts_one_open_per_user'", [schema]);
   if (!indexes.rows[0]?.indexdef.includes("WHERE")) throw new Error("Partial shift index predicate missing");
-  console.log("Baseline and authentication migration replay passed; partial index preserved.");
+  const ledger = await client.query("SELECT relrowsecurity FROM pg_class WHERE relnamespace=$1::regnamespace AND relname='order_requests'", [schema]);
+  if (!ledger.rows[0]?.relrowsecurity) throw new Error("Request-ledger RLS missing");
+  console.log(`${migrations.length} migrations replayed; partial index and request-ledger RLS preserved.`);
 } catch (error) {
   console.error("Migration rehearsal failed:", error.message);
   process.exitCode = 1;

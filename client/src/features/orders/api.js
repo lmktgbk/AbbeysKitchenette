@@ -4,6 +4,12 @@
  * State: axios wrappers, no state.
  */
 import api from "@/config/axios";
+import { submitOrder } from "./submission";
+
+function submissionOptions(key) {
+  // A timeout can precede a server commit; submitOrder retains the replay key.
+  return { headers: { "Idempotency-Key": key }, timeout: 30000 };
+}
 
 /**
  * Orders API
@@ -48,19 +54,21 @@ export async function getOrderDetailRequest(id) {
 
 // POST /api/orders — create walk-in order (auto-accepted)
 export async function createOrderRequest(data) {
-  const res = await api.post("/orders", data);
+  const res = await submitOrder("walk-in", data, key => api.post("/orders", data, submissionOptions(key)));
   return res.data;
 }
 
 // PUT /api/orders/:id/status — advance status
 export async function advanceOrderStatusRequest(id, data) {
-  const res = await api.put(`/orders/${id}/status`, data);
+  const res = data.status === "accepted"
+    ? await submitOrder(`accept:${id}`, data, key => api.put(`/orders/${id}/status`, data, submissionOptions(key)))
+    : await api.put(`/orders/${id}/status`, data);
   return res.data;
 }
 
 // POST /api/orders/:id/fulfill — fulfill pending online order (edit + accept)
 export async function fulfillOrderRequest(id, data) {
-  const res = await api.post(`/orders/${id}/fulfill`, data);
+  const res = await submitOrder(`fulfill:${id}`, data, key => api.post(`/orders/${id}/fulfill`, data, submissionOptions(key)));
   return res.data;
 }
 
@@ -98,7 +106,7 @@ export async function getGuestMenuRequest(params = {}) {
 
 // POST /api/guest/orders — place online order
 export async function placeGuestOrderRequest(data) {
-  const res = await api.post("/guest/orders", data);
+  const res = await submitOrder("guest-order", data, key => api.post("/guest/orders", data, submissionOptions(key)));
   return res.data;
 }
 

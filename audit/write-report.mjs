@@ -323,6 +323,9 @@ if (fs.existsSync(path.join(root, 'audit', 'AUTHENTICATION_FIXES.md'))) {
 if (fs.existsSync(path.join(root, 'audit', 'ORDER_STATE_FIXES.md'))) {
   report = report.replace('**SYSTEM AUDIT STATUS**\n', '**SYSTEM AUDIT STATUS**\n\nOrder permission/state remediation: ' + link('audit/ORDER_STATE_FIXES.md') + '.\n');
 }
+if (fs.existsSync(path.join(root, 'audit', 'FINANCIAL_TRANSACTION_FIXES.md'))) {
+  report = report.replace('**SYSTEM AUDIT STATUS**\n', '**SYSTEM AUDIT STATUS**\n\nFinancial transaction remediation: ' + link('audit/FINANCIAL_TRANSACTION_FIXES.md') + '.\n');
+}
 fs.writeFileSync(path.join(root, 'audit', 'REPORT.md'), report);
 fs.writeFileSync(path.join(root, 'audit', 'findings.json'), JSON.stringify(findings, null, 2));
 console.log(JSON.stringify({findings: findings.length, priorities: bySeverity, report: `${root}/audit/REPORT.md`, words: report.split(/\s+/).length}));

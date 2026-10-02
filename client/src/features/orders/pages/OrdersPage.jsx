@@ -387,7 +387,7 @@ export default function OrdersPage({ embedded = false }) {
         setShowOpenShift(true);
         return;
       }
-      toast.error(err.response?.data?.message || "Failed to accept order");
+      toast.error(err.response?.data?.message || err.message || "Failed to accept order");
     }
   }
 

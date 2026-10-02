@@ -105,6 +105,7 @@ export const orderController = {
         discount_type, promo_mode, promo_value, discount_id_no, senior_id_no, pwd_id_no, discount_label,
         payment_method, reference_no } = req.body;
       const order = await orderService.createWalkIn({
+        idempotencyKey: req.get("Idempotency-Key"),
         customerName: customer_name,
         tableNumber: table_number,
         items,
@@ -163,6 +164,7 @@ export const orderController = {
       const { status, amount_paid, discount_type, promo_mode, promo_value,
         discount_id_no, senior_id_no, pwd_id_no, discount_label, item_discounts, payment_method, reference_no } = req.body;
       const order = await orderService.advanceStatus(req.params.id, status, {
+        idempotencyKey: req.get("Idempotency-Key"),
         userId: req.user.id,
         userRole: req.user.role,
         amountPaid: amount_paid,
@@ -193,6 +195,7 @@ export const orderController = {
         discount_type, promo_mode, promo_value, discount_id_no, senior_id_no, pwd_id_no, discount_label,
         payment_method, reference_no } = req.body;
       const order = await orderService.fulfillPendingOrder({
+        idempotencyKey: req.get("Idempotency-Key"),
         id: req.params.id,
         customerName: customer_name,
         tableNumber: table_number,

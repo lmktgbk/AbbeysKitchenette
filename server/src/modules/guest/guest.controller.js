@@ -1,9 +1,10 @@
 import { guestService } from "./guest.service.js";
-import { successResponse, errorResponse, controllerError } from "../../utils/response.js";
+import { successResponse, controllerError } from "../../utils/response.js";
 import { emitOrderChanged } from "../../realtime/events.js";
 import { settingsRepository } from "../settings/settings.repository.js";
 import { DEFAULT_DINING_TABLES } from "../settings/settings.validation.js";
 import { isStoreOpen } from "../../utils/storeHours.js";
+import { AppError } from "../../middleware/errorHandler.middleware.js";
 
 /**
  * Guest Controller
@@ -59,20 +60,15 @@ export const guestController = {
    */
   async placeOrder(req, res) {
     try {
-      const settings = await settingsRepository.find();
-      const { isOpen } = isStoreOpen(settings?.storeHours);
-      if (!isOpen) {
-        return errorResponse(
-          res,
-          "Store is currently closed. Please try again during store hours.",
-          null,
-          403,
-          "STORE_CLOSED"
-        );
-      }
-
       const { customer_name, table_number, items } = req.body;
       const order = await guestService.placeOrder({
+        beforeCreate: async () => {
+          const settings = await settingsRepository.find();
+          if (!isStoreOpen(settings?.storeHours).isOpen) {
+            throw new AppError(403, "Store is currently closed. Please try again during store hours.", "STORE_CLOSED");
+          }
+        },
+        idempotencyKey: req.get("Idempotency-Key"),
         customerName: customer_name,
         tableNumber: table_number,
         items,

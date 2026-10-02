@@ -6,6 +6,19 @@ import prisma from "../../config/prisma.js";
  * All database queries for cashier drawer sessions.
  */
 export const shiftRepository = {
+  async lockOpenByUser(userId, tx) {
+    const rows = await tx.$queryRaw`
+      SELECT shift_id FROM shifts WHERE opened_by = ${userId}::uuid AND status = 'open' FOR UPDATE
+    `;
+    return rows[0]?.shift_id ?? null;
+  },
+
+  async lockById(id, tx) {
+    const rows = await tx.$queryRaw`
+      SELECT shift_id, status FROM shifts WHERE shift_id = ${id}::uuid FOR UPDATE
+    `;
+    return rows[0] ?? null;
+  },
   /* ── Open shifts ─────────────────────────── */
 
   /**

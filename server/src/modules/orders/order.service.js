@@ -1,6 +1,7 @@
 import { orderRepository } from "./order.repository.js";
 import { isValidTransition, formatOrderResponse, formatOrderItemResponse, computeDiscountedTotal, computeLineDiscount, aggregateLineDiscounts, roundMoney, composeOrderNumber, formatOrderNumber } from "./order.utils.js";
 import { assertStatusPermission } from "./order.policy.js";
+import { orderRequest, orderIdempotency } from "./order.idempotency.js";
 import { shiftService } from "../shifts/shift.service.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { productService } from "../products/product.service.js";
@@ -173,13 +174,12 @@ export const orderService = {
 
   /* ── Walk-In Order Creation ──────────── */
 
-  async createWalkIn({ customerName, tableNumber, items, amountPaid, createdBy, discount = {}, payment = {} }) {
-    // BR-02: payment requires an open drawer session.
-    // Independent reads — one round instead of three sequential ones.
-    const [{ shiftId }, { pricedItems, subtotal, discount: discountResult, total }] = await Promise.all([
-      shiftService.resolveShiftForUser(createdBy),
-      this._priceItemsAndTotals(items, discount),
-    ]);
+  async createWalkIn({ customerName, tableNumber, items, amountPaid, createdBy, discount = {}, payment = {}, idempotencyKey }) {
+    const request = orderRequest(`walk-in:${createdBy}`, idempotencyKey, { customerName, tableNumber, items, amountPaid, discount, payment });
+    const cached = await orderIdempotency.lookup(request);
+    if (cached) return cached;
+    // Price outside the transaction; the open shift is locked at commit time.
+    const { pricedItems, subtotal, discount: discountResult, total } = await this._priceItemsAndTotals(items, discount);
 
     await this._assertPaymentValid({ amountPaid, total, paymentMethod: payment.payment_method });
 
@@ -190,6 +190,9 @@ export const orderService = {
     const aggregatedIngredients = await this._aggregateIngredientNeeds(pricedItems);
 
     const order = await prisma.$transaction(async (tx) => {
+      const replay = await orderIdempotency.claim(request, tx);
+      if (replay) return { replay };
+      const { shiftId } = await shiftService.resolveShiftForUser(createdBy, tx);
       const now = new Date();
       // Business date is DB-clock Manila — client-supplied order_date is
       // never trusted (device clocks lie). See config/time.js.
@@ -240,9 +243,11 @@ export const orderService = {
         issuedBy: createdBy,
         totalAmount: total,
       }, tx);
+      await orderIdempotency.complete(request, { order_id: newOrder.orderId, order_number: newOrder.orderNumber }, tx);
       return { order: newOrder, deductions, needs };
     }, { timeout: 15000 });
 
+    if (order.replay) return order.replay;
     const affectedIngredientIds = [...aggregatedIngredients.keys()];
     productService.recomputeVariantAvailability(affectedIngredientIds).catch((err) => console.warn("[menu] availability recompute dropped:", err?.message));
     this._checkStockLevels(order.needs).catch((err) => console.warn("[stock] level check dropped:", err?.message));
@@ -271,13 +276,19 @@ export const orderService = {
 
   /* ── Online Order Creation (Guest) ──── */
 
-  async createOnline({ customerName, tableNumber, items, guestToken }) {
+  async createOnline({ customerName, tableNumber, items, guestToken, idempotencyKey, beforeCreate }) {
+    const request = orderRequest("guest-order", idempotencyKey, { customerName, tableNumber, items });
+    const cached = await orderIdempotency.lookup(request);
+    if (cached) return cached;
+    await beforeCreate?.();
     // Server re-price so guests can't tamper with totals (no discount at placement).
     const { pricedItems, total } = await this._priceItemsAndTotals(items, { discount_type: "none" });
 
     let orderNumber;
 
     const result = await prisma.$transaction(async (tx) => {
+      const replay = await orderIdempotency.claim(request, tx);
+      if (replay) return { replay };
       // DB-clock Manila business date — never client-supplied.
       const businessDay = await getBusinessDate(tx);
       const orderDate = new Date(businessDay + "T00:00:00Z");
@@ -285,7 +296,7 @@ export const orderService = {
       // needs the number without a getById refetch.
       orderNumber = composeOrderNumber(orderDate, await orderRepository.getNextOrderNumber(orderDate, tx));
 
-      return orderRepository.createOnlineOrder({
+      const row = await orderRepository.createOnlineOrder({
         orderNumber,
         orderDate,
         customerName,
@@ -298,31 +309,29 @@ export const orderService = {
         quantity: item.quantity,
         unitPrice: item.unit_price,
       })), tx);
+      const response = { order_id: row.orderId, order_number: orderNumber, guest_token: guestToken, total_amount: total, created_at: row.createdAt.toISOString() };
+      await orderIdempotency.complete(request, response, tx);
+      return { row, response };
     }, { timeout: 15000 });
 
     // Light response: POS only needs the id for receipt printing (the full
     // detail reloads via GET /:id and list invalidation). Skips the 4-query
     // getById tail on the hot path.
-    const created = {
-      order_id: result.orderId,
-      order_number: orderNumber,
-      guest_token: guestToken,
-      total_amount: total,
-      created_at: new Date().toISOString(),
-    };
+    if (result.replay) return result.replay;
+    const created = result.response;
 
     notificationService.create({
       type: "order_new",
       title: "New Online Order",
       message: `Order ${formatOrderNumber(created.order_number)} from ${customerName} — ₱${total.toFixed(2)}`,
       referenceType: "order",
-      referenceId: result.orderId,
+      referenceId: result.row.orderId,
     }).catch(() => {});
 
     auditLogService.logAction({
       action: ACTIONS.ORDER_CREATED,
       targetType: "order",
-      targetId: result.orderId,
+      targetId: result.row.orderId,
       details: { order_number: created.order_number, total, source: "online" },
     }).catch(() => {});
 
@@ -417,19 +426,22 @@ export const orderService = {
 
   /* ── Fulfill Pending Online Order ──── */
 
-  async fulfillPendingOrder({ id, customerName, tableNumber, items, amountPaid, userId, discount = {}, payment = {} }) {
+  async fulfillPendingOrder({ id, customerName, tableNumber, items, amountPaid, userId, discount = {}, payment = {}, idempotencyKey }) {
+    const request = orderRequest(`fulfill:${id}:${userId}`, idempotencyKey, { customerName, tableNumber, items, amountPaid, discount, payment });
+    const cached = await orderIdempotency.lookup(request);
+    if (cached) return cached;
     const existing = await orderRepository.findPendingById(id);
-    if (!existing) throw new AppError(404, "Pending order not found", "ORDER_NOT_FOUND");
+    if (!existing) {
+      const replay = await orderIdempotency.lookup(request);
+      if (replay) return replay;
+      throw new AppError(404, "Pending order not found", "ORDER_NOT_FOUND");
+    }
     if (existing.status !== "pending") {
       throw new AppError(400, "Only pending orders can be fulfilled", "INVALID_STATUS");
     }
 
-    // BR-02: payment requires an open drawer session.
-    // Independent reads — shift lookup and pricing run together.
-    const [{ shiftId }, { pricedItems, subtotal, discount: discountResult, total }] = await Promise.all([
-      shiftService.resolveShiftForUser(userId),
-      this._priceItemsAndTotals(items, discount),
-    ]);
+    // Price outside the transaction; the open shift is locked at commit time.
+    const { pricedItems, subtotal, discount: discountResult, total } = await this._priceItemsAndTotals(items, discount);
 
     await this._assertPaymentValid({ amountPaid, total, paymentMethod: payment.payment_method });
 
@@ -442,7 +454,10 @@ export const orderService = {
 
     let transactionNeeds;
 
-    await prisma.$transaction(async (tx) => {
+    const outcome = await prisma.$transaction(async (tx) => {
+      const replay = await orderIdempotency.claim(request, tx);
+      if (replay) return replay;
+      const { shiftId } = await shiftService.resolveShiftForUser(userId, tx);
       // Claim first: a concurrent fulfill loses here instead of double-deducting.
       const claimed = await orderRepository.claimStatus(id, "pending", "accepted", tx);
       if (claimed === 0) {
@@ -494,8 +509,10 @@ export const orderService = {
         amountPaid: paidToStore,
         change,
       }, tx);
+      return orderIdempotency.complete(request, { order_id: id, order_number: existing.orderNumber }, tx);
     }, { timeout: 15000 });
 
+    if (!transactionNeeds) return outcome;
     const affectedIngredientIds = [...aggregatedIngredients.keys()];
     productService.recomputeVariantAvailability(affectedIngredientIds).catch((err) => console.warn("[menu] availability recompute dropped:", err?.message));
     this._checkStockLevels(transactionNeeds).catch((err) => console.warn("[stock] level check dropped:", err?.message));
@@ -509,18 +526,29 @@ export const orderService = {
     }).catch(() => {});
 
     // Light response (same rationale as createWalkIn above).
-    return { order_id: id, order_number: existing.orderNumber };
+    return outcome;
   },
 
   /* ── Status Transitions ──────────────── */
 
   async advanceStatus(id, targetStatus, meta = {}) {
     assertStatusPermission(meta.userRole, targetStatus);
+    let request;
+    if (targetStatus === "accepted") {
+      const { idempotencyKey, userId, userRole, ...payload } = meta;
+      request = orderRequest(`accept:${id}:${userId}`, idempotencyKey, payload);
+      const cached = await orderIdempotency.lookup(request);
+      if (cached) return cached;
+    }
     if (targetStatus === "preparing") return this.prepareOrder(id, meta.userId);
     const order = await orderRepository.findById(id);
     if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
 
     if (!isValidTransition(order.status, targetStatus)) {
+      if (request) {
+        const replay = await orderIdempotency.lookup(request);
+        if (replay) return replay;
+      }
       throw new AppError(409, `Order is now "${order.status}". Refresh the order before trying again`, "ORDER_STATE_CONFLICT");
     }
 
@@ -571,7 +599,8 @@ export const orderService = {
     }
 
     if (targetStatus === "accepted") {
-      const result = await this._handleAcceptance(id, order, meta);
+      const { response: result, replayed } = await this._handleAcceptance(id, order, meta, request);
+      if (replayed) return result;
       auditLogService.logAction({
         userId: meta.userId,
         action: ACTIONS.ORDER_ACCEPTED,
@@ -1800,13 +1829,10 @@ export const orderService = {
 
   /* ── Acceptance Handler ──────────────── */
 
-  async _handleAcceptance(id, order, meta) {
+  async _handleAcceptance(id, order, meta, request) {
     if (!meta.amountPaid) {
       throw new AppError(400, "Amount paid is required for acceptance", "PAYMENT_REQUIRED");
     }
-
-    // BR-02: payment requires an open drawer session.
-    const { shiftId } = await shiftService.resolveShiftForUser(meta.userId);
 
     // Re-price from live variant prices so acceptance can't use stale totals.
     // Per-item mode: item_discounts (from the accept-payment modal, keyed by
@@ -1815,9 +1841,14 @@ export const orderService = {
     const patchByItemId = new Map(
       (meta.item_discounts ?? []).map((d) => [Number(d.order_item_id), d]),
     );
+    const activeItemIds = new Set(order.items.map(item => item.orderItemId));
+    if (patchByItemId.size !== (meta.item_discounts ?? []).length || [...patchByItemId.keys()].some(id => !activeItemIds.has(id))) {
+      throw new AppError(400, "Discounts must reference distinct active items in this order", "INVALID_ITEM_DISCOUNT");
+    }
     const orderItems = order.items.map((item) => {
       const patch = patchByItemId.get(Number(item.orderItemId ?? item.order_item_id));
       return {
+        order_item_id: item.orderItemId,
         product_id: item.productId,
         variant_id: item.variantId,
         quantity: item.quantity,
@@ -1856,12 +1887,23 @@ export const orderService = {
 
     let transactionNeeds;
 
-    await prisma.$transaction(async (tx) => {
+    const outcome = await prisma.$transaction(async (tx) => {
+      const replay = await orderIdempotency.claim(request, tx);
+      if (replay) return replay;
+      const { shiftId } = await shiftService.resolveShiftForUser(meta.userId, tx);
       // Claim first: a concurrent accept loses here instead of double-deducting.
       const claimed = await orderRepository.claimStatus(id, "pending", "accepted", tx);
       if (claimed === 0) {
         throw new AppError(409, "Order is no longer pending — it was settled concurrently", "ORDER_ALREADY_SETTLED");
       }
+
+      const currentItems = await orderRepository.getOrderItems(id, tx);
+      const signature = lines => JSON.stringify(lines.map(item => [item.orderItemId, item.variantId, item.quantity, Number(item.unitPrice)]).sort((a, b) => a[0] - b[0]));
+      if (signature(currentItems) !== signature(order.items)) {
+        throw new AppError(409, "Order items changed. Refresh before accepting payment", "ORDER_STATE_CONFLICT");
+      }
+      const updated = await orderRepository.updatePricedItems(id, pricedItems, tx);
+      if (updated !== pricedItems.length) throw new AppError(409, "Order items changed during acceptance", "ORDER_STATE_CONFLICT");
 
       const { needs } = await this._deductIngredients(id, ingredientNeeds, tx, meta.userId);
       transactionNeeds = needs;
@@ -1888,37 +1930,15 @@ export const orderService = {
         amountPaid: paidToStore,
         change,
       }, tx);
+      return orderIdempotency.complete(request, { order_id: id, order_number: order.orderNumber }, tx);
     }, { timeout: 15000 });
 
-    // Persist per-line discounts onto the stored lines so receipts, detail
-    // views, and later item-removal math see the same single-discount-per-item.
-    if (pricedItems.some((i) => (i.discountType ?? "none") !== "none")) {
-      const stored = await orderRepository.getOrderItems(id);
-      const byKey = new Map();
-      for (const p of pricedItems) {
-        const key = `${p.variant_id}x${p.quantity}x${p.unit_price}`;
-        if (!byKey.has(key)) byKey.set(key, []);
-        byKey.get(key).push(p);
-      }
-      for (const s of stored) {
-        const key = `${s.variantId}x${s.quantity}x${Number(s.unitPrice)}`;
-        const queue = byKey.get(key);
-        if (queue?.length) {
-          const p = queue.shift();
-          await orderRepository.updateOrderItemDiscount(s.orderItemId, {
-            discountType: p.discountType,
-            discountPercent: p.discountPercent,
-            discountAmount: p.discountAmount,
-            discountLabel: p.discountLabel ?? null,
-          });
-        }
-      }
-    }
+    if (!transactionNeeds) return { response: outcome, replayed: true };
 
     const affectedIngredientIds = [...ingredientNeeds.keys()];
     productService.recomputeVariantAvailability(affectedIngredientIds).catch((err) => console.warn("[menu] availability recompute dropped:", err?.message));
     this._checkStockLevels(transactionNeeds).catch((err) => console.warn("[stock] level check dropped:", err?.message));
 
-    return this.getById(id);
+    return { response: outcome, replayed: false };
   },
 };

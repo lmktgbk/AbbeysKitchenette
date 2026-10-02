@@ -7,6 +7,8 @@ history now contains:
   without executing its table-creation statements against existing tables.
 - `20261003000000_auth_sessions`: the additive SEC05 authentication changes,
   applied with `prisma migrate deploy`.
+- `20261003010000_order_requests`: the durable request ledger, applied on
+  2026-10-03; RLS and public-role revocations protect stored replay results.
 
 The baseline preserves native expression indexes, the partial unique open-shift
 index, and existing check constraints. Supabase-managed schemas, roles, grants,
@@ -43,22 +45,24 @@ schema with this baseline. For a matching pre-SEC05 installation, register
 `00000000000000_baseline` with `prisma migrate resolve --applied`, then deploy.
 If SEC05 was manually applied, verify its columns/defaults/index first, then
 mark `20261003000000_auth_sessions` applied as well. Fresh empty PostgreSQL
-databases can deploy both migrations normally.
+databases can deploy all committed migrations normally.
 
 Legacy BR/SEC SQL files are retained for historical reference. Future changes
 belong in `prisma/migrations`; do not reapply historical standalone scripts.
 
 ## Verification evidence
 
-- Both migrations replayed in a unique disposable schema within a transaction
+- All three migrations replayed in a unique disposable schema within a transaction
   on PostgreSQL; the transaction was rolled back, including all test objects.
 - Authentication columns and the partial shift-index predicate were checked
   during replay.
-- The configured database reports both migrations applied and no Prisma schema
+- The configured database reports all three migrations applied and no Prisma schema
   differences after deployment.
 - The Prisma client was regenerated. Real browser/email authentication and
   account contention tests on a dedicated test database remain outstanding.
 
 `npm run db:migrate:rehearse` repeats the isolated, rolled-back schema replay.
-It requires schema-creation permission and checks the initial two migrations;
-extend it when later migrations are introduced.
+It requires schema-creation permission and discovers and replays every committed
+migration directory. After ledger
+deployment, run `node prisma/verify-ledger-access.mjs` to verify runtime access
+and Supabase public-role isolation without reading application records.

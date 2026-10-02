@@ -821,3 +821,14 @@ model AnomalyResult {
   @@index([detectedAt])
   @@map("anomaly_results")
 }
+
+model OrderRequest {
+  scope       String   @db.VarChar(160)
+  key         String   @db.Uuid
+  requestHash String   @map("request_hash") @db.VarChar(64)
+  response    Json?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@id([scope, key])
+  @@map("order_requests")
+}

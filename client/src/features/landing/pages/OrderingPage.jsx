@@ -737,7 +737,7 @@ function CheckoutModal({ cart, subtotal, onClose, onSuccess }) {
                 createdAt: createdOrder.created_at || new Date().toISOString(),
             });
         } catch (err) {
-            toast.error(err.response?.data?.message || "Failed to place order. Please try again.");
+            toast.error(err.response?.data?.message || err.message || "Failed to place order. Please try again.");
         }
     };
 
