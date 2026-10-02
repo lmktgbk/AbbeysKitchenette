@@ -320,6 +320,9 @@ if (fs.existsSync(path.join(root, 'audit', 'AUTHENTICATION_FIXES.md'))) {
   report = report.replace('**SYSTEM AUDIT STATUS**\n', '**SYSTEM AUDIT STATUS**\n\n**Historical baseline:** See ' +
     link('audit/AUTHENTICATION_FIXES.md') + ' for subsequent authentication fixes, current verification and the required Supabase migration.\n');
 }
+if (fs.existsSync(path.join(root, 'audit', 'ORDER_STATE_FIXES.md'))) {
+  report = report.replace('**SYSTEM AUDIT STATUS**\n', '**SYSTEM AUDIT STATUS**\n\nOrder permission/state remediation: ' + link('audit/ORDER_STATE_FIXES.md') + '.\n');
+}
 fs.writeFileSync(path.join(root, 'audit', 'REPORT.md'), report);
 fs.writeFileSync(path.join(root, 'audit', 'findings.json'), JSON.stringify(findings, null, 2));
 console.log(JSON.stringify({findings: findings.length, priorities: bySeverity, report: `${root}/audit/REPORT.md`, words: report.split(/\s+/).length}));

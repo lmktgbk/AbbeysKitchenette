@@ -1,5 +1,6 @@
 import { orderRepository } from "./order.repository.js";
 import { isValidTransition, formatOrderResponse, formatOrderItemResponse, computeDiscountedTotal, computeLineDiscount, aggregateLineDiscounts, roundMoney, composeOrderNumber, formatOrderNumber } from "./order.utils.js";
+import { assertStatusPermission } from "./order.policy.js";
 import { shiftService } from "../shifts/shift.service.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { productService } from "../products/product.service.js";
@@ -514,11 +515,13 @@ export const orderService = {
   /* ── Status Transitions ──────────────── */
 
   async advanceStatus(id, targetStatus, meta = {}) {
+    assertStatusPermission(meta.userRole, targetStatus);
+    if (targetStatus === "preparing") return this.prepareOrder(id, meta.userId);
     const order = await orderRepository.findById(id);
     if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
 
     if (!isValidTransition(order.status, targetStatus)) {
-      throw new AppError(400, `Cannot move from "${order.status}" to "${targetStatus}"`, "INVALID_TRANSITION");
+      throw new AppError(409, `Order is now "${order.status}". Refresh the order before trying again`, "ORDER_STATE_CONFLICT");
     }
 
     if (targetStatus === "completed") {
@@ -528,11 +531,16 @@ export const orderService = {
       // Check + flip inside one tx: items can't slip to unprepared between
       // the check and the update, and a concurrent settle loses the claim.
       await prisma.$transaction(async (tx) => {
+        const current = await orderRepository.lockOrder(id, tx);
+        if (!current) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
+        if (!isValidTransition(current.status, "completed")) {
+          throw new AppError(409, "Order is no longer ready for completion. Refresh the order", "ORDER_STATE_CONFLICT");
+        }
         const items = await orderRepository.getOrderItems(id, tx);
         if (items.length === 0 || !items.every((i) => i.isPrepared)) {
           throw new AppError(400, "All items must be marked as prepared before completing", "NOT_ALL_PREPARED");
         }
-        const claimed = await orderRepository.claimStatus(id, ["accepted", "preparing"], "completed", tx);
+        const claimed = await orderRepository.claimStatus(id, "preparing", "completed", tx);
         if (claimed === 0) {
           throw new AppError(409, "Order is no longer completable — it was settled concurrently", "ORDER_ALREADY_SETTLED");
         }
@@ -582,11 +590,6 @@ export const orderService = {
 
       return result;
     }
-
-    const updateMeta = { userId: meta.userId };
-    await orderRepository.updateStatus(id, targetStatus, updateMeta);
-
-    return this.getById(id);
   },
 
   /* ── Prepare Order ───────────────────── */
@@ -595,11 +598,12 @@ export const orderService = {
     const order = await orderRepository.findByIdGuard(id);
     if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
 
-    if (!isValidTransition(order.status, "preparing")) {
-      throw new AppError(400, `Cannot prepare order in "${order.status}" status`, "INVALID_TRANSITION");
-    }
-
-    await orderRepository.updateStatus(id, "preparing", { userId });
+    await prisma.$transaction(async (tx) => {
+      const claimed = await orderRepository.updateStatus(id, "preparing", { userId }, tx, "accepted");
+      if (claimed === 0) {
+        throw new AppError(409, "Order is no longer accepted. Refresh the order before preparing", "ORDER_STATE_CONFLICT");
+      }
+    });
 
     auditLogService.logAction({
       userId,
@@ -615,14 +619,15 @@ export const orderService = {
   /* ── Check Order Item ────────────────── */
 
   async checkOrderItem(orderId, orderItemId, isPrepared, userId) {
-    const order = await orderRepository.findByIdGuard(orderId);
-    if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
-
-    if (order.status !== "preparing" && order.status !== "accepted") {
-      throw new AppError(400, "Order must be in accepted or preparing status", "INVALID_STATUS");
-    }
-
-    await orderRepository.setOrderItemPrepared(orderItemId, isPrepared, userId);
+    await prisma.$transaction(async (tx) => {
+      const order = await orderRepository.lockOrder(orderId, tx);
+      if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
+      if (!["accepted", "preparing"].includes(order.status)) {
+        throw new AppError(409, "Order is no longer available for preparation. Refresh the order", "ORDER_STATE_CONFLICT");
+      }
+      const result = await orderRepository.setOrderItemPrepared(orderId, orderItemId, isPrepared, userId, tx);
+      if (result.count !== 1) throw new AppError(404, "Order item not found", "ORDER_ITEM_NOT_FOUND");
+    });
 
     return this.getById(orderId);
   },
@@ -630,72 +635,75 @@ export const orderService = {
   /* ── Cancel / Delete ─────────────────── */
 
   async cancelOrDelete(id, userId, reason, options = {}) {
-    const order = await orderRepository.findByIdGuard(id);
-    if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
-
-    if (order.status === "completed") {
-      throw new AppError(400, "Cannot cancel a completed order", "INVALID_CANCELLATION");
-    }
-
-    const orderItems = await orderRepository.getOrderItems(id);
-    const deductions = (order.status === "accepted" || order.status === "preparing")
-      ? await orderRepository.getActiveDeductions(id)
-      : [];
-    const affectedIngredientIds = [...new Set(deductions.map((d) => d.ingredientId))];
-
-    // Build weighted cost map from deductions
-    const deductionCostMap = new Map();
-    for (const d of deductions) {
-      const cost = d.batch ? Number(d.batch.costPerUnit) : 0;
-      const existing = deductionCostMap.get(d.ingredientId);
-      if (existing) {
-        // Weighted average across multiple batch deductions
-        const totalQty = existing.qty + Number(d.quantityDeducted);
-        const weightedCost = totalQty > 0
-          ? ((existing.cost * existing.qty) + (cost * Number(d.quantityDeducted))) / totalQty
-          : 0;
-        deductionCostMap.set(d.ingredientId, { cost: weightedCost, qty: totalQty });
-      } else {
-        deductionCostMap.set(d.ingredientId, { cost, qty: Number(d.quantityDeducted) });
-      }
-    }
-    const costMap = new Map();
-    for (const [ingId, data] of deductionCostMap) {
-      costMap.set(ingId, data.cost);
-    }
-
-    // Determine loss handling based on options
-    let lossOption = options.loss_option || "no_loss"; // "no_loss" | "with_loss"
-    const refundOption = options.refund_option || "partial"; // "full" | "partial" | "none"
-    const itemLosses = options.item_losses || []; // [{ item_id, ingredient_losses: [{ ingredient_id, quantity_lost }] }]
-
-    // Refund capped at what the customer actually paid (minus prior refunds) —
-    // cumulative refunds can never exceed tender, even across removals + cancel.
-    const paidForCap = order.amountPaid != null ? Number(order.amountPaid) : Number(order.totalAmount) || 0;
-    const paidCap = Math.max(0, roundMoney(paidForCap - Number(order.refund?.amount || 0)));
-    let refundAmount;
-    if (refundOption === "full") {
-      refundAmount = Math.min(Number(order.totalAmount), paidCap);
-    } else if (refundOption === "none") {
-      refundAmount = 0;
-    } else if (options.refund_amount != null) {
-      // partial: user-specified amount, capped at drop-equivalent and paid
-      refundAmount = Math.min(Number(options.refund_amount), Number(order.totalAmount), paidCap);
-    } else {
-      refundAmount = 0;
-    }
-    refundAmount = Math.max(0, roundMoney(refundAmount));
-
+    let order;
+    let affectedIngredientIds = [];
+    let lossOption = options.loss_option || "no_loss";
     await prisma.$transaction(async (tx) => {
+      const locked = await orderRepository.lockOrder(id, tx);
+      if (!locked) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
+      order = await orderRepository.findByIdGuard(id, tx);
+      if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
+
+      if (!["pending", "accepted", "preparing"].includes(order.status)) {
+        throw new AppError(409, "Order is no longer cancellable. Refresh the order", "ORDER_STATE_CONFLICT");
+      }
+
+      const orderItems = await orderRepository.getOrderItems(id, tx);
+      const deductions = (order.status === "accepted" || order.status === "preparing")
+        ? await orderRepository.getActiveDeductions(id, tx)
+        : [];
+      affectedIngredientIds = [...new Set(deductions.map((d) => d.ingredientId))];
+
+      // Build weighted cost map from deductions
+      const deductionCostMap = new Map();
+      for (const d of deductions) {
+        const cost = d.batch ? Number(d.batch.costPerUnit) : 0;
+        const existing = deductionCostMap.get(d.ingredientId);
+        if (existing) {
+          // Weighted average across multiple batch deductions
+          const totalQty = existing.qty + Number(d.quantityDeducted);
+          const weightedCost = totalQty > 0
+            ? ((existing.cost * existing.qty) + (cost * Number(d.quantityDeducted))) / totalQty
+            : 0;
+          deductionCostMap.set(d.ingredientId, { cost: weightedCost, qty: totalQty });
+        } else {
+          deductionCostMap.set(d.ingredientId, { cost, qty: Number(d.quantityDeducted) });
+        }
+      }
+      const costMap = new Map();
+      for (const [ingId, data] of deductionCostMap) {
+        costMap.set(ingId, data.cost);
+      }
+
+      // Determine loss handling based on options
+      const refundOption = options.refund_option || "partial"; // "full" | "partial" | "none"
+      const itemLosses = options.item_losses || []; // [{ item_id, ingredient_losses: [{ ingredient_id, quantity_lost }] }]
+
+      // Refund capped at what the customer actually paid (minus prior refunds) —
+      // cumulative refunds can never exceed tender, even across removals + cancel.
+      const paidForCap = order.amountPaid != null ? Number(order.amountPaid) : Number(order.totalAmount) || 0;
+      const paidCap = Math.max(0, roundMoney(paidForCap - Number(order.refund?.amount || 0)));
+      let refundAmount;
+      if (refundOption === "full") {
+        refundAmount = Math.min(Number(order.totalAmount), paidCap);
+      } else if (refundOption === "none") {
+        refundAmount = 0;
+      } else if (options.refund_amount != null) {
+        // partial: user-specified amount, capped at drop-equivalent and paid
+        refundAmount = Math.min(Number(options.refund_amount), Number(order.totalAmount), paidCap);
+      } else {
+        refundAmount = 0;
+      }
+      refundAmount = Math.max(0, roundMoney(refundAmount));
+
       // Claim first: a concurrent settle loses here instead of double-restoring.
       const claimed = await orderRepository.claimStatus(id, ["pending", "accepted", "preparing"], "cancelled", tx);
       if (claimed === 0) {
         throw new AppError(409, "Order is no longer cancellable — it was settled concurrently", "ORDER_ALREADY_SETTLED");
       }
-      // Re-read inside the tx: the pre-tx `order.status` may have advanced
-      // (e.g. pending → accepted with fresh deductions) before our claim.
-      const fresh = await tx.order.findUnique({ where: { orderId: id }, select: { status: true } });
-      const currentStatus = fresh.status;
+      // The locked pre-transition status determines stock restoration. Reading
+      // after the claim would always return "cancelled" and skip restoration.
+      const currentStatus = order.status;
 
       // Accepted orders: no preparation has started, force no loss
       if (currentStatus === "accepted") {
@@ -704,13 +712,13 @@ export const orderService = {
 
       if (currentStatus === "accepted") {
         // Accepted orders: all ingredients restored (no preparation has started)
-        await this._restoreIngredients(id, userId, tx);
+        await this._restoreIngredients(id, userId, tx, deductions);
       }
 
       if (currentStatus === "preparing") {
         if (lossOption === "no_loss") {
           // No loss: restore ALL ingredients
-          await this._restoreIngredients(id, userId, tx);
+          await this._restoreIngredients(id, userId, tx, deductions);
         } else {
           // With loss: create loss records for items with declared losses, restore the rest
           const itemsWithLosses = orderItems.filter((item) => {
@@ -855,11 +863,13 @@ export const orderService = {
     await prisma.$transaction(async (tx) => {
       // Re-check inside the tx: the item may have been marked prepared, or the
       // order settled, between the pre-tx reads and now.
+      const locked = await orderRepository.lockOrder(orderId, tx);
+      if (!locked) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
       const freshItem = await tx.orderItem.findUnique({
         where: { orderItemId },
-        select: { isPrepared: true, orderId: true },
+        select: { isPrepared: true, orderId: true, removedAt: true },
       });
-      if (!freshItem || freshItem.orderId !== orderId) {
+      if (!freshItem || freshItem.orderId !== orderId || freshItem.removedAt) {
         throw new AppError(404, "Order item not found", "ORDER_ITEM_NOT_FOUND");
       }
       if (freshItem.isPrepared) {
@@ -1327,8 +1337,8 @@ export const orderService = {
     }
   },
 
-  async _restoreIngredients(orderId, userId, tx) {
-    const deductions = await orderRepository.getActiveDeductions(orderId, tx);
+  async _restoreIngredients(orderId, userId, tx, activeDeductions) {
+    const deductions = activeDeductions ?? await orderRepository.getActiveDeductions(orderId, tx);
 
     // Group deductions by ingredient to calculate total restored per ingredient
     const restoreByIngredient = new Map();

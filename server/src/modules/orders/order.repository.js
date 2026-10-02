@@ -194,8 +194,8 @@ export const orderRepository = {
    * no items. For status/total checks on write paths (cancel, remove-item,
    * prepare). Response shaping still uses findById.
    */
-  async findByIdGuard(id) {
-    return prisma.order.findUnique({
+  async findByIdGuard(id, tx) {
+    return (tx || prisma).order.findUnique({
       where: { orderId: id },
       select: {
         orderId: true,
@@ -383,9 +383,10 @@ export const orderRepository = {
    * @param {string} status - new status
    * @param {object} [meta] - { userId, amountPaid, change, subtotalAmount, discountType, discountPercent, discountLabel, discountIdNo, discountAmount, discountBy, paymentMethod, referenceNo, shiftId, totalAmount }
    * @param {object} [tx] - transaction client
-   * @returns {object} - updated order
+   * @param {string} [expectedStatus] - current status required for a guarded write
+   * @returns {object|number} - updated order, or affected count for a guarded write
    */
-  async updateStatus(id, status, meta = {}, tx) {
+  async updateStatus(id, status, meta = {}, tx, expectedStatus) {
     const client = tx || prisma;
 
     const data = { status };
@@ -418,6 +419,14 @@ export const orderRepository = {
       if (meta.fulfillmentMinutes !== undefined) data.fulfillmentMinutes = meta.fulfillmentMinutes;
     }
 
+    if (expectedStatus !== undefined) {
+      // Save the transition and its audit fields in one conditional write.
+      const result = await client.order.updateMany({
+        where: { orderId: id, status: expectedStatus },
+        data,
+      });
+      return result.count;
+    }
     return client.order.update({
       where: { orderId: id },
       data,
@@ -483,16 +492,25 @@ export const orderRepository = {
 
   /* ── Order Item Preparation ───────────── */
 
-  async setOrderItemPrepared(orderItemId, isPrepared, userId, tx) {
+  async setOrderItemPrepared(orderId, orderItemId, isPrepared, userId, tx) {
     const client = tx || prisma;
-    return client.orderItem.update({
-      where: { orderItemId },
+    return client.orderItem.updateMany({
+      where: { orderId, orderItemId, removedAt: null },
       data: {
         isPrepared,
         preparedBy: isPrepared ? userId : null,
         preparedAt: isPrepared ? new Date() : null,
       },
     });
+  },
+
+  async lockOrder(id, tx) {
+    // Every preparation/completion/removal/cancellation locks the parent first,
+    // so item checks and inventory decisions cannot interleave on one order.
+    const rows = await tx.$queryRaw`
+      SELECT order_id, status FROM orders WHERE order_id = ${id}::uuid FOR UPDATE
+    `;
+    return rows[0] ?? null;
   },
 
   async getOrderItems(orderId, tx) {

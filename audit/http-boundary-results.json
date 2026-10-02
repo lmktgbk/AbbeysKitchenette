@@ -1561,8 +1561,9 @@
     "expected": 403
   },
   {
-    "scenario": "kitchen can enter acceptance/payment handler (mocked controller)",
-    "status": 200
+    "scenario": "kitchen is blocked from acceptance/payment handler",
+    "status": 403,
+    "expected": 403
   },
   {
     "scenario": "malformed JSON",

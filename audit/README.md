@@ -21,5 +21,6 @@ Full PostgreSQL integrations, production infrastructure, load and backup/recover
 checks are explicitly Not verified. No application fixes were made by this audit.
 
 Subsequent changes are tracked in [AUTHENTICATION_FIXES.md](AUTHENTICATION_FIXES.md).
+Order permission/state changes are tracked in [ORDER_STATE_FIXES.md](ORDER_STATE_FIXES.md).
 The baseline auth defect tests have been converted into regressions; remaining
 business defect characterizations are still explicitly unsafe-behavior tests.

@@ -164,6 +164,7 @@ export const orderController = {
         discount_id_no, senior_id_no, pwd_id_no, discount_label, item_discounts, payment_method, reference_no } = req.body;
       const order = await orderService.advanceStatus(req.params.id, status, {
         userId: req.user.id,
+        userRole: req.user.role,
         amountPaid: amount_paid,
         discount_type, promo_mode, promo_value,
         discount_id_no, senior_id_no, pwd_id_no, discount_label, item_discounts, payment_method, reference_no,

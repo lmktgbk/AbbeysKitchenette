@@ -218,7 +218,7 @@ export default function KitchenDisplay({ embedded = false }) {
                   order={order}
                   onToggleItem={handleToggleItem}
                   onMarkReady={(id) => handleAction(id, order.status === "accepted" ? "prepare" : "markReady")}
-                  disabled={readyIds.has(order.order_id) || animatingOut}
+                  disabled={readyIds.has(order.order_id) || preparingIds.has(order.order_id) || animatingOut}
                   preparing={preparingIds.has(order.order_id)}
                   togglingIds={togglingIds}
                   roleCategory={categoryFilter}

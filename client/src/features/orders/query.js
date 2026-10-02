@@ -19,6 +19,14 @@ export const orderKeys = {
   kitchenBatches: ["orders", "kitchen", "batches"],
 };
 
+function refreshStaleOrder(queryClient, error) {
+  // Reconcile the screen when another operator settled or removed the order.
+  if ([403, 404, 409].includes(error.response?.status)) {
+    queryClient.invalidateQueries({ queryKey: orderKeys.all });
+    queryClient.invalidateQueries({ queryKey: shiftKeys.all });
+  }
+}
+
 const guestKeys = {
   menu: (params) => ["guest", "menu", params],
   order: (token) => ["guest", "order", token],
@@ -157,6 +165,7 @@ export function useKitchenDisplay() {
       });
       queryClient.invalidateQueries({ queryKey: orderKeys.all });
     },
+    onError: (error) => refreshStaleOrder(queryClient, error),
   });
 
   const toggleItemCheck = useCallback((orderId, orderItemId) => {
@@ -210,6 +219,10 @@ export function useOrderMutations() {
     queryClient.invalidateQueries({ queryKey: shiftKeys.all });
   }
 
+  function refreshOnConflict(error) {
+    refreshStaleOrder(queryClient, error);
+  }
+
   return {
     /** Create walk-in order — invalidates all order queries */
     create: useMutation({
@@ -219,6 +232,7 @@ export function useOrderMutations() {
 
     /** Advance order status — invalidates all */
     advanceStatus: useMutation({
+      onError: refreshOnConflict,
       mutationFn: ({ id, data }) => api.advanceOrderStatusRequest(id, data),
       onSuccess: (_data, vars) => {
         queryClient.invalidateQueries({ queryKey: orderKeys.detail(vars.id) });
@@ -229,24 +243,28 @@ export function useOrderMutations() {
 
     /** Cancel/delete order — invalidates all */
     cancel: useMutation({
+      onError: refreshOnConflict,
       mutationFn: ({ id, data }) => api.cancelOrderRequest(id, data),
       onSuccess: () => invalidateAll(),
     }),
 
     /** Fulfill pending online order — invalidates all */
     fulfill: useMutation({
+      onError: refreshOnConflict,
       mutationFn: ({ id, data }) => api.fulfillOrderRequest(id, data),
       onSuccess: () => invalidateAll(),
     }),
 
     /** Prepare order — transition accepted → preparing */
     prepare: useMutation({
+      onError: refreshOnConflict,
       mutationFn: (id) => api.prepareOrderRequest(id),
       onSuccess: () => invalidateAll(),
     }),
 
     /** Check/uncheck order item */
     checkItem: useMutation({
+      onError: refreshOnConflict,
       mutationFn: ({ orderId, itemId, data }) => api.checkOrderItemRequest(orderId, itemId, data),
       onSuccess: (_data, vars) => {
         queryClient.invalidateQueries({ queryKey: orderKeys.detail(vars.orderId) });
@@ -257,6 +275,7 @@ export function useOrderMutations() {
 
     /** Remove single item from order */
     removeItem: useMutation({
+      onError: refreshOnConflict,
       mutationFn: ({ orderId, itemId, data }) => api.removeOrderItemRequest(orderId, itemId, data),
       onSuccess: () => invalidateAll(),
     }),

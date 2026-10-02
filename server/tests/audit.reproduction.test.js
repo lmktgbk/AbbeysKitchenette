@@ -6,7 +6,7 @@ const db = vi.hoisted(() => ({
   user: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
   otpCode: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(), deleteMany: vi.fn() },
   passwordResetToken: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn() },
-  orderItem: { update: vi.fn() },
+  orderItem: { update: vi.fn(), updateMany: vi.fn() },
   $queryRaw: vi.fn(),
 }));
 db.$transaction = vi.fn(callback => callback(db));
@@ -55,31 +55,29 @@ describe("AUDIT: fixed authentication regressions and open business defects", ()
     await expect(authService.verifyOtp(user.id, "123456")).rejects.toMatchObject({ statusCode: 401 });
     expect(sendEmail).not.toHaveBeenCalled();
   });
-  it("latent cancelled service path skips bookkeeping, but HTTP schema blocks it", async () => {
+  it("status service rejects cancellation outside its bookkeeping workflow", async () => {
     vi.spyOn(orderRepository, "findById").mockResolvedValue({ orderId: "A", status: "accepted" });
     const update = vi.spyOn(orderRepository, "updateStatus").mockResolvedValue({});
     const cancel = vi.spyOn(orderService, "cancelOrDelete");
     vi.spyOn(orderService, "getById").mockResolvedValue({ status: "cancelled" });
-    await orderService.advanceStatus("A", "cancelled", { userId: user.id });
-    expect(update).toHaveBeenCalledWith("A", "cancelled", { userId: user.id });
+    await expect(orderService.advanceStatus("A", "cancelled", { userId: user.id, userRole: "admin" })).rejects.toMatchObject({ statusCode: 400 });
+    expect(update).not.toHaveBeenCalled();
     expect(cancel).not.toHaveBeenCalled();
     expect(updateStatusSchema.safeParse({ status: "cancelled" }).success).toBe(false);
   });
-  it("prepared-item write is scoped only to item ID, not parent order", async () => {
-    vi.spyOn(orderRepository, "findByIdGuard").mockResolvedValue({ orderId: "A", status: "accepted" });
+  it("prepared-item write requires the parent order and an active item", async () => {
+    vi.spyOn(orderRepository, "lockOrder").mockResolvedValue({ status: "accepted" });
     vi.spyOn(orderService, "getById").mockResolvedValue({ order_id: "A" });
-    db.orderItem.update.mockResolvedValue({ orderItemId: 999, orderId: "B", isPrepared: true });
-    await orderService.checkOrderItem("A", 999, true, user.id);
-    expect(db.orderItem.update.mock.calls[0][0].where).toEqual({ orderItemId: 999 });
+    db.orderItem.updateMany.mockResolvedValue({ count: 0 });
+    await expect(orderService.checkOrderItem("A", 999, true, user.id)).rejects.toMatchObject({ statusCode: 404 });
+    expect(db.orderItem.updateMany.mock.calls[0][0].where).toEqual({ orderId: "A", orderItemId: 999, removedAt: null });
   });
-  it("prepare writes unconditionally after a stale accepted-state read", async () => {
+  it("prepare cannot overwrite cancellation after a stale accepted-state read", async () => {
     vi.spyOn(orderRepository, "findByIdGuard").mockResolvedValue({ status: "accepted" });
-    const update = vi.spyOn(orderRepository, "updateStatus").mockResolvedValue({});
-    const claim = vi.spyOn(orderRepository, "claimStatus");
+    const update = vi.spyOn(orderRepository, "updateStatus").mockResolvedValue(0);
     vi.spyOn(orderService, "getById").mockResolvedValue({});
-    await orderService.prepareOrder("A", user.id);
-    expect(update).toHaveBeenCalledWith("A", "preparing", { userId: user.id });
-    expect(claim).not.toHaveBeenCalled();
+    await expect(orderService.prepareOrder("A", user.id)).rejects.toMatchObject({ statusCode: 409 });
+    expect(update).toHaveBeenCalledWith("A", "preparing", { userId: user.id }, db, "accepted");
   });
   it("parallel login-strike writes use atomic increments", async () => {
     let count = 0;

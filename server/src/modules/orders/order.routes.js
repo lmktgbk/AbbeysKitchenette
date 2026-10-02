@@ -4,6 +4,7 @@ import { orderController } from "./order.controller.js";
 import { validate, validateQuery, validateParams } from "../../middleware/validate.middleware.js";
 import authenticate from "../../middleware/authenticate.middleware.js";
 import authorize from "../../middleware/authorize.middleware.js";
+import { authorizeStatus } from "./order.policy.js";
 import {
   createOrderSchema,
   updateOrderSchema,
@@ -112,6 +113,7 @@ router.put(
   authorize("admin", "cashier", "kitchen"),
   validateParams(orderIdParamSchema),
   validate(updateStatusSchema),
+  authorizeStatus,
   orderController.updateStatus,
 );
 

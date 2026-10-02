@@ -49,11 +49,11 @@ describe("AUDIT: HTTP authentication and role boundaries", () => {
       expect(r.status).toBe(403);
     });
   }
-  it("kitchen role reaches payment-acceptance status handler", async () => {
+  it("kitchen role cannot reach payment-acceptance status handler", async () => {
     h.role = "kitchen";
     const r = await fetch(base + "/api/orders/123e4567-e89b-42d3-a456-426614174000/status", { method: "PUT", headers: { "Content-Type": "application/json", Cookie: "token=" + signToken({ sub: "123e4567-e89b-42d3-a456-426614174000", role: "kitchen", version: 0 }) }, body: JSON.stringify({ status: "accepted", amount_paid: 100 }) });
-    results.push({ scenario: "kitchen can enter acceptance/payment handler (mocked controller)", status: r.status });
-    expect(r.status).toBe(200);
+    results.push({ scenario: "kitchen is blocked from acceptance/payment handler", status: r.status, expected: 403 });
+    expect(r.status).toBe(403);
   });
   it("malformed JSON returns 500 from the real Express stack", async () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
