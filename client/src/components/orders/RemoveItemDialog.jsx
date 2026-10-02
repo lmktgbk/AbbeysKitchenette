@@ -38,8 +38,9 @@ export default function RemoveItemDialog({
 }) {
   const isAccepted = orderStatus === "accepted";
   const showLossOptions = !isAccepted;
-  const recipes = item?.recipes || [];
+  const recipes = useMemo(() => item?.recipes || [], [item?.recipes]);
   const itemSubtotal = Number(item?.subtotal || 0);
+  const needsReconciliation = item?.consumption_history_available === false;
 
   const [lossOption, setLossOption] = useState("no_loss");
   const [refundOption, setRefundOption] = useState("full");
@@ -210,6 +211,13 @@ export default function RemoveItemDialog({
             Remove {label}?
           </DialogTitle>
         </DialogHeader>
+
+        {needsReconciliation && (
+          <p role="status" className="text-sm text-destructive">
+            This older order has no item-level stock history. Ask an administrator
+            to reconcile its inventory before removing an item.
+          </p>
+        )}
 
         <div className="grid grid-cols-5 gap-4">
           {/* ── Left Column (3 cols) ── */}
@@ -565,7 +573,7 @@ export default function RemoveItemDialog({
             variant="destructive"
             size="sm"
             onClick={handleConfirm}
-            disabled={loading}
+            disabled={loading || needsReconciliation}
           >
             {loading ? (
               <ButtonSpinner />

@@ -123,6 +123,27 @@ export function computeLineDiscount(lineSubtotal, input = {}) {
   return { discountType: "none", discountPercent: 0, discountAmount: 0, total: base };
 }
 
+export function allocateBillDiscount(items, discount) {
+  const cents = items.map(item => Math.round(roundMoney(item.unit_price * item.quantity) * 100));
+  const subtotal = cents.reduce((sum, value) => sum + value, 0);
+  const discountCents = Math.round(discount.discountAmount * 100);
+  // Allocate whole-bill input once at payment time. Integer ratios and a
+  // deterministic remainder preserve every cent when items are removed later.
+  const allocated = cents.map(value => subtotal
+    ? Number(BigInt(discountCents) * BigInt(value) / BigInt(subtotal)) : 0);
+  let remainder = discountCents - allocated.reduce((sum, value) => sum + value, 0);
+  for (let index = 0; remainder > 0 && index < allocated.length; index++) {
+    if (allocated[index] < cents[index]) { allocated[index]++; remainder--; }
+  }
+  return items.map((item, index) => ({
+    ...item,
+    discountType: discount.discountType,
+    discountPercent: discount.discountPercent,
+    discountAmount: allocated[index] / 100,
+    discountLabel: null,
+  }));
+}
+
 /**
  * Aggregate per-line discounts into order-level totals.
  * discountType: "none" (no lines discounted) | single type (all discounted

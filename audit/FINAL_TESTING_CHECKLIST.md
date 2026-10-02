@@ -81,8 +81,8 @@ vulnerabilities. npm audit failures require fixes or a reviewed explicit excepti
 Migration status/validation/generation do not prove data integrity. No migration,
 reset or seed command is intentionally included in this verification block.
 
-Current reference, not a final PASS: the financial batch had 371 automated tests
-passing, including 33 new replay/rollback/browser-submission cases. The frontend
+Current reference, not a final PASS: the inventory batch has 409 automated tests
+passing, including 38 new inventory/refund regression cases in this batch. The frontend
 build passed with an existing large-bundle warning. Submission code and POS pages
 passed lint; the guest page retains its baseline four errors and one warning.
 The additive submission-ledger migration is applied; schema diff and read-only
@@ -90,6 +90,16 @@ backend/public-role access checks passed. Real PostgreSQL contention and complet
 browser workflows remain **Not verified**. Full frontend lint/dependency findings remain
 open. The user reported basic login, OTP, logout and password reset working;
 that report does not replace the security/concurrency cases below.
+
+The item-consumption migration is also applied, and all four migrations are current
+with an empty Prisma schema diff. Actual PostgreSQL constraint, settlement SQL,
+stock-version and rollback checks passed using disposable fixtures that were rolled
+back. Both updated loss/reconciliation dialogs pass lint. This does not replace
+multi-connection transaction tests or a complete browser acceptance pass.
+
+From `server`, `npm.cmd run db:migrate:rehearse` repeats disposable schema/SQL checks
+and rolls back its fixtures. It requires schema-creation permission and never
+modifies public application orders.
 
 From `server`, run `node prisma/verify-ledger-access.mjs` to check ledger access
 without reading business records. A schema/access check does not verify financial
@@ -305,9 +315,9 @@ all cases on the final commit. No case below has been executed by this document.
 
 **Priority:** High
 
-**Implementation:** Open at checklist creation; final acceptance NOT RUN
+**Implementation:** Implemented in inventory batch; PostgreSQL constraint/SQL checks passed; multi-connection/browser acceptance NOT RUN
 
-**Steps:** Record the consumption of a test sale under recipe A. Change the recipe to B. Remove/cancel only the sold item with no loss and then declared loss using fresh sales. Reconcile restored quantities against the original deduction allocations.
+**Steps:** Record the consumption of a test sale under recipe A. Change the recipe to B. Remove/cancel only the sold item with no loss and then declared loss using fresh sales. Reconcile restored quantities against original item/batch allocations. Include identical product lines, shared ingredients, fractional recipe quantities, multiple batches and a changed batch cost. Race two removals and removal against cancellation; repeat each request. Inject failure at settlement, stock restoration, loss, audit, refund and cancellation writes in the isolated environment. Confirm no partial changes and a successful retry. Test oversized/duplicate/unknown ingredient losses and whole-bill/per-line discount removals. Refunds must exclude cash change and never exceed original net payment. Verify the loss dialogs show original quantities, exclude removed items and preserve cents. Historical item removal, loss cancellation and cancellation after prior removals must require reconciliation without writes; untouched historical no-loss cancellation still uses original aggregate deductions.
 
 **Acceptance criteria:** Sell an item using recipe A, change it to recipe B, then cancel/remove only that item with prepared/unprepared/loss variants. Restoration must match original actual consumption exactly.
 

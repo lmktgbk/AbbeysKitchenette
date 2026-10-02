@@ -9,6 +9,8 @@ history now contains:
   applied with `prisma migrate deploy`.
 - `20261003010000_order_requests`: the durable request ledger, applied on
   2026-10-03; RLS and public-role revocations protect stored replay results.
+- `20261003020000_item_consumption`: original item/batch attribution and guarded
+  settlement quantities, applied on 2026-10-03 without historical backfill.
 
 The baseline preserves native expression indexes, the partial unique open-shift
 index, and existing check constraints. Supabase-managed schemas, roles, grants,
@@ -52,11 +54,11 @@ belong in `prisma/migrations`; do not reapply historical standalone scripts.
 
 ## Verification evidence
 
-- All three migrations replayed in a unique disposable schema within a transaction
+- All four migrations replayed in a unique disposable schema within a transaction
   on PostgreSQL; the transaction was rolled back, including all test objects.
 - Authentication columns and the partial shift-index predicate were checked
   during replay.
-- The configured database reports all three migrations applied and no Prisma schema
+- The configured database reports all four migrations applied and no Prisma schema
   differences after deployment.
 - The Prisma client was regenerated. Real browser/email authentication and
   account contention tests on a dedicated test database remain outstanding.
@@ -66,3 +68,11 @@ It requires schema-creation permission and discovers and replays every committed
 migration directory. After ledger
 deployment, run `node prisma/verify-ledger-access.mjs` to verify runtime access
 and Supabase public-role isolation without reading application records.
+
+`20261003020000_item_consumption` adds original item attribution and settlement
+quantities to deduction records, a composite item/order foreign key, quantity
+checks, an active-consumption index and an order recording marker. Historical
+rows remain unattributed; partial restoration requires reconciliation rather
+than a guessed backfill. Rehearsal also exercises actual settlement/restore SQL,
+constraint rejection, duplicate/version guards and rollback using disposable
+fixtures. PostgreSQL multi-connection business contention is still Not verified.

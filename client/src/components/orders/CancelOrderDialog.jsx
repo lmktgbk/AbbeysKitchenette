@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +45,8 @@ export default function CancelOrderDialog({
   loading,
 }) {
   const [lossOption, setLossOption] = useState("no_loss");
+  const needsReconciliation = order?.consumption_history_available === false
+    && order?.status === "preparing";
   const [refundOption, setRefundOption] = useState("full");
   const [customRefundAmount, setCustomRefundAmount] = useState("");
   const [reason, setReason] = useState("");
@@ -56,22 +58,25 @@ export default function CancelOrderDialog({
   const [manualOverrides, setManualOverrides] = useState({});
 
   const isPreparing = order?.status === "preparing";
-  const allItems = order?.items || [];
+  const allItems = useMemo(() => order?.items || [], [order?.items]);
   const activeItems = useMemo(() => allItems.filter((i) => !i.is_removed), [allItems]);
   const checkedItems = useMemo(() => activeItems.filter((i) => i.is_prepared), [activeItems]);
   const uncheckedItems = useMemo(() => activeItems.filter((i) => !i.is_prepared), [activeItems]);
   const showLossOptions = isPreparing;
 
-  useEffect(() => {
-    if (lossOption !== "with_loss") {
+  function chooseLossOption(option) {
+    if (option === lossOption) return;
+    setLossOption(option);
+    setManualOverrides({});
+    if (option !== "with_loss") {
       setItemLossQuantities({});
       setItemLosses({});
-      setManualOverrides({});
       return;
     }
     const quantities = {};
     const losses = {};
-    for (const item of allItems) {
+    // Removed items have already settled their consumption and cannot be lost again.
+    for (const item of activeItems) {
       const lossQty = item.is_prepared ? item.quantity : 0;
       quantities[item.order_item_id] = lossQty;
       if (lossQty > 0) {
@@ -84,7 +89,7 @@ export default function CancelOrderDialog({
     }
     setItemLossQuantities(quantities);
     setItemLosses(losses);
-  }, [lossOption]);
+  }
 
   const totalAmount = Number(order?.total_amount || 0);
 
@@ -289,6 +294,15 @@ export default function CancelOrderDialog({
           </DialogTitle>
         </DialogHeader>
 
+        {needsReconciliation && (
+          <p role="status" className="text-sm text-destructive">
+            This older order has no item-level stock history. Cancellation with
+            ingredient loss requires administrator inventory reconciliation.
+            No-loss cancellation can restore its recorded batches if no items
+            were previously removed.
+          </p>
+        )}
+
         {/* Summary */}
         <div className="text-xs text-muted-foreground/70 leading-relaxed">
           {isPreparing
@@ -314,7 +328,7 @@ export default function CancelOrderDialog({
                         ? "border-primary bg-primary/5"
                         : "border-border hover:border-border/80 hover:bg-muted/50",
                     )}
-                    onClick={() => setLossOption(opt.value)}
+                    onClick={() => chooseLossOption(opt.value)}
                   >
                     <div className={cn(
                       "w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
@@ -613,7 +627,7 @@ export default function CancelOrderDialog({
             variant="destructive"
             size="sm"
             onClick={handleConfirm}
-            disabled={loading}
+            disabled={loading || (needsReconciliation && lossOption === "with_loss")}
           >
             {loading ? (
               <ButtonSpinner />

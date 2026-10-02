@@ -23,6 +23,8 @@ import { orderService } from "../src/modules/orders/order.service.js";
 import { orderRepository } from "../src/modules/orders/order.repository.js";
 import { shiftService } from "../src/modules/shifts/shift.service.js";
 import { shiftRepository } from "../src/modules/shifts/shift.repository.js";
+import { allocateConsumption, planSettlement, stockUnits } from "../src/modules/orders/order.consumption.js";
+import { allocateBillDiscount } from "../src/modules/orders/order.utils.js";
 import { orderIdempotency, orderRequest } from "../src/modules/orders/order.idempotency.js";
 
 const A = "123e4567-e89b-42d3-a456-426614174001";
@@ -112,9 +114,9 @@ describe("Order permissions and transaction boundaries", () => {
     [{ removedAt: new Date() }, 404],
     [{ isPrepared: true }, 400],
   ])("removal rechecks the item after acquiring the parent lock (%j)", async (change, statusCode) => {
-    vi.spyOn(orderRepository, "getOrderItemById").mockResolvedValue({ orderItemId: 1, orderId: A, isPrepared: false, variantId: 1 });
-    vi.spyOn(orderRepository, "getRecipesByVariantIds").mockResolvedValue([]);
-    vi.spyOn(h.db.orderItem, "findUnique").mockResolvedValue({ orderId: A, isPrepared: false, removedAt: null, ...change });
+    vi.spyOn(orderRepository, "getOrderItemById")
+      .mockResolvedValueOnce({ orderItemId: 1, orderId: A, isPrepared: false, variantId: 1 })
+      .mockResolvedValue({ orderItemId: 1, orderId: A, isPrepared: false, removedAt: null, ...change });
     const lock = vi.spyOn(orderRepository, "lockOrder");
     await expect(orderService.removeOrderItem(A, 1, USER)).rejects.toMatchObject({ statusCode });
     expect(lock).toHaveBeenCalledWith(A, h.db);
@@ -252,7 +254,7 @@ describe("Financial transactions, request replay and shift closure", () => {
     h.db.state.shifts.push({ shiftId: B, openedBy: USER, status: "open", openingCash: 0, openedAt: new Date() });
     vi.spyOn(orderRepository, "getVariantPrices").mockResolvedValue(new Map([[1, 100]]));
     vi.spyOn(orderService, "_assertPaymentValid").mockResolvedValue();
-    vi.spyOn(orderService, "_aggregateIngredientNeeds").mockResolvedValue(new Map());
+    vi.spyOn(orderService, "_aggregateIngredientNeeds").mockResolvedValue({ needs: new Map(), recipes: [] });
     vi.spyOn(orderService, "_deductIngredients").mockImplementation(async id => {
       h.db.state.deductions.push({ orderId: id });
       return { deductions: [], needs: new Map() };
@@ -413,5 +415,220 @@ describe("Financial transactions, request replay and shift closure", () => {
     const key = orderRequest("test", KEY, {});
     await h.db.orderRequest.createMany({ data: key });
     await expect(orderIdempotency.lookup(key)).rejects.toMatchObject({ statusCode: 409, code: "SUBMISSION_PENDING" });
+  });
+});
+
+
+describe("Original consumption, stock settlement and refund correctness", () => {
+  const removal = (id = 1, options = {}) => orderService.removeOrderItem(A, id, USER, "Fixture", { refund_option: "full", ...options });
+  const cancel = (options = {}) => orderService.cancelOrDelete(A, USER, "Fixture", { refund_option: "full", ...options });
+  beforeEach(() => {
+    orderService._restoreIngredients.mockRestore();
+    h.db.reset([{ orderId: A, orderNumber: 1, status: "preparing", totalAmount: 100, subtotalAmount: 100, amountPaid: 200, change: 100, discountType: "none", consumptionRecordedAt: new Date() }], [
+      { orderItemId: 1, orderId: A, variantId: 1, quantity: 1, unitPrice: 60, subtotal: 60, discountType: "none", removedAt: null, isPrepared: false },
+      { orderItemId: 2, orderId: A, variantId: 1, quantity: 1, unitPrice: 40, subtotal: 40, discountType: "none", removedAt: null, isPrepared: false },
+    ]);
+    h.db.state.batches = [{ restockId: 7, ingredientId: B, quantityLeft: 2, version: 0, costPerUnit: 2 }, { restockId: 8, ingredientId: B, quantityLeft: 4, version: 0, costPerUnit: 6 }];
+    h.db.state.deductions = [
+      { id: 1, orderId: A, orderItemId: 1, ingredientId: B, restockBatchId: 7, quantityDeducted: 1.5, costPerUnit: 2, reversedAt: null },
+      { id: 2, orderId: A, orderItemId: 1, ingredientId: B, restockBatchId: 8, quantityDeducted: .5, costPerUnit: 6, reversedAt: null },
+      { id: 3, orderId: A, orderItemId: 2, ingredientId: B, restockBatchId: 8, quantityDeducted: 2, costPerUnit: 6, reversedAt: null },
+    ];
+    h.db.restockBatch = { findMany: async ({ where }) => structuredClone(h.db.state.batches.filter(row => where.restockId ? where.restockId.in.includes(row.restockId) : where.ingredientId.in.includes(row.ingredientId))) };
+    vi.spyOn(orderRepository, "bulkRestoreBatches").mockImplementation(async rows => {
+      if (h.db.failStock) return 0;
+      for (const row of rows) {
+        const batch = h.db.state.batches.find(batch => batch.restockId === row.restockId && batch.version === row.version);
+        if (!batch) throw new Error("Version mismatch");
+        batch.quantityLeft += row.quantity; batch.version++;
+      }
+      return rows.length;
+    });
+    vi.spyOn(orderRepository, "bulkDeductBatches").mockImplementation(async rows => {
+      for (const row of rows) { const batch = h.db.state.batches.find(batch => batch.restockId === row.restockId && batch.version === row.version); if (!batch || batch.quantityLeft < row.quantity) return 0; batch.quantityLeft -= row.quantity; batch.version++; }
+      return rows.length;
+    });
+    vi.spyOn(orderRepository, "getIngredientsTotalStocks").mockImplementation(async () => new Map([[B, h.db.state.batches.reduce((sum, row) => sum + row.quantityLeft, 0)]]));
+    vi.spyOn(orderRepository, "getRecipesByVariantIds").mockResolvedValue([{ variantId: 1, ingredientId: B, quantityNeeded: 100 }]);
+  });
+  const stock = () => h.db.state.batches.reduce((sum, row) => sum + row.quantityLeft, 0);
+  it("removal restores only its original batches despite changed recipes", async () => {
+    await removal();
+    expect(h.db.state.batches.map(row => row.quantityLeft)).toEqual([3.5, 4.5]);
+    expect(h.db.state.deductions.map(row => !!row.reversedAt)).toEqual([true, true, false]);
+    expect(h.db.state.orders[0].totalAmount).toBe(40);
+    expect(h.db.state.refunds[0].amount).toBe(60);
+    expect(orderRepository.getRecipesByVariantIds).not.toHaveBeenCalled();
+  });
+  it("two concurrent removals use fresh totals and cumulative refunds", async () => {
+    await Promise.all([removal(1), removal(2)]);
+    expect(h.db.state.refunds).toHaveLength(1);
+    expect(h.db.state.refunds[0].amount).toBe(100);
+    expect(stock()).toBe(10);
+    expect(h.db.state.orders[0].status).toBe("cancelled");
+  });
+  it("repeating removal restores and refunds once", async () => {
+    const results = await Promise.allSettled([removal(), removal()]);
+    expect(results.filter(row => row.status === "fulfilled")).toHaveLength(1);
+    expect(stock()).toBe(8);
+    expect(h.db.state.refunds[0].amount).toBe(60);
+  });
+  it.each([true, false])("removal versus cancellation preserves stock and refund caps (remove first: %s)", async removeFirst => {
+    await Promise.allSettled(removeFirst ? [removal(), cancel()] : [cancel(), removal()]);
+    expect(stock()).toBe(10);
+    expect(h.db.state.refunds[0].amount).toBe(100);
+    expect(h.db.state.cancellations).toHaveLength(1);
+    expect(h.db.state.deductions.every(row => row.reversedAt)).toBe(true);
+  });
+  it("partial loss settles consumption once and uses original batch costs", async () => {
+    await removal(1, { loss_option: "with_loss", ingredient_losses: [{ ingredient_id: B, quantity_lost: 1.75 }] });
+    expect(stock()).toBe(6.25);
+    expect(h.db.state.losses[0]).toMatchObject({ quantityLost: 1.75, totalCostLost: 4.5 });
+    expect(h.db.state.deductions[0]).toMatchObject({ quantityRestored: 0, quantityLost: 1.5 });
+    expect(h.db.state.deductions[1]).toMatchObject({ quantityRestored: .25, quantityLost: .25 });
+    await cancel();
+    expect(stock()).toBe(8.25);
+    expect(h.db.state.losses).toHaveLength(1);
+    expect(h.db.state.items[0].removedLossOption).toBe("with_loss");
+  });
+  it("whole item loss consumes all slices without restoring stock", async () => {
+    await removal(1, { loss_option: "with_loss", ingredient_losses: [{ ingredient_id: B, quantity_lost: 2 }] });
+    expect(stock()).toBe(6);
+    expect(h.db.state.losses[0].quantityLost).toBe(2);
+    expect(h.db.state.adjustments).toHaveLength(0);
+  });
+  it.each([
+    [{ ingredient_id: B, quantity_lost: 3 }],
+    [{ ingredient_id: USER, quantity_lost: 1 }],
+    [{ ingredient_id: B, quantity_lost: 1 }, { ingredient_id: B, quantity_lost: 1 }],
+    [{ ingredient_id: B, quantity_lost: .0001 }],
+    [{ ingredient_id: B, quantity_lost: -1 }],
+  ].map(losses => [losses]))("rejects invalid loss declarations without writes (%j)", async ingredient_losses => {
+    await expect(removal(1, { loss_option: "with_loss", ingredient_losses })).rejects.toMatchObject({ statusCode: 400 });
+    expect(stock()).toBe(6);
+    expect(h.db.state.deductions.every(row => !row.reversedAt)).toBe(true);
+    expect(h.db.state.refunds).toHaveLength(0);
+  });
+  it.each(["failRefund", "failAdjustment", "failLoss", "failSettlement", "failStock"])("%s rolls back settlement, stock, item and totals", async failure => {
+    h.db[failure] = true;
+    await expect(removal(1, { loss_option: "with_loss", ingredient_losses: [{ ingredient_id: B, quantity_lost: .5 }] })).rejects.toThrow();
+    expect(stock()).toBe(6);
+    expect(h.db.state.deductions.every(row => !row.reversedAt)).toBe(true);
+    expect(h.db.state.items[0].removedAt).toBeNull();
+    expect(h.db.state.orders[0].totalAmount).toBe(100);
+    expect(h.db.state.refunds).toHaveLength(0);
+    expect(h.db.state.losses).toHaveLength(0);
+    expect(h.db.state.adjustments).toHaveLength(0);
+    h.db[failure] = false;
+    await removal();
+    expect(stock()).toBe(8);
+  });
+  it("failed cancellation rolls back restored stock and deduction settlement", async () => {
+    h.db.failCancellation = true;
+    await expect(cancel()).rejects.toThrow("Injected cancellation failure");
+    expect(stock()).toBe(6);
+    expect(h.db.state.orders[0].status).toBe("preparing");
+    expect(h.db.state.deductions.every(row => !row.reversedAt)).toBe(true);
+  });
+  it("removing the discounted line does not discount the remaining regular line", async () => {
+    Object.assign(h.db.state.items[0], { discountType: "senior", discountAmount: 12, discountPercent: 20 });
+    Object.assign(h.db.state.orders[0], { totalAmount: 88, amountPaid: 88, change: 0, discountType: "senior", discountPercent: 20, discountAmount: 12 });
+    await removal();
+    expect(h.db.state.orders[0]).toMatchObject({ totalAmount: 40, discountAmount: 0 });
+    expect(h.db.state.refunds[0].amount).toBe(48);
+  });
+  it("whole-bill input is stored on paid lines and survives partial removal", async () => {
+    vi.spyOn(orderRepository, "getVariantPrices").mockResolvedValue(new Map([[1, 60], [2, 40]]));
+    const result = await orderService._priceItemsAndTotals([
+      { variant_id: 1, quantity: 1, unit_price: 60 },
+      { variant_id: 2, quantity: 1, unit_price: 40 },
+    ], { discount_type: "senior" });
+    expect(result.pricedItems.map(item => item.discountAmount)).toEqual([12, 8]);
+    result.pricedItems.forEach((item, index) => Object.assign(h.db.state.items[index], { discountType: item.discountType, discountAmount: item.discountAmount, discountPercent: item.discountPercent }));
+    Object.assign(h.db.state.orders[0], { totalAmount: 80, amountPaid: 100, change: 20, discountAmount: 20, discountType: "senior" });
+    await removal();
+    expect(h.db.state.orders[0].totalAmount).toBe(32);
+    expect(h.db.state.refunds[0].amount).toBe(48);
+  });
+  it("historical item removal and partial cancellation fail closed", async () => {
+    h.db.state.orders[0].consumptionRecordedAt = null;
+    await expect(removal()).rejects.toMatchObject({ code: "CONSUMPTION_HISTORY_REQUIRED" });
+    await expect(cancel({ loss_option: "with_loss", item_losses: [{ order_item_id: 1, ingredient_losses: [{ ingredient_id: B, quantity_lost: 1 }] }] })).rejects.toMatchObject({ code: "CONSUMPTION_HISTORY_REQUIRED" });
+    expect(stock()).toBe(6);
+    expect(h.db.state.orders[0].status).toBe("preparing");
+  });
+  it("recipe-free paid items can be removed without inventing consumption", async () => {
+    h.db.state.deductions = [];
+    await removal();
+    expect(stock()).toBe(6);
+    expect(h.db.state.refunds[0].amount).toBe(60);
+  });
+  it("empty loss selection restores stock rather than inventing full loss", async () => {
+    await removal(1, { loss_option: "with_loss" });
+    expect(stock()).toBe(8);
+    expect(h.db.state.losses).toHaveLength(0);
+    expect(h.db.state.items[0].removedLossOption).toBe("no_loss");
+  });
+  it("accepted items cannot declare preparation losses through a direct call", async () => {
+    h.db.state.orders[0].status = "accepted";
+    await removal(1, { loss_option: "with_loss", ingredient_losses: [{ ingredient_id: B, quantity_lost: 2 }] });
+    expect(stock()).toBe(8);
+    expect(h.db.state.losses).toHaveLength(0);
+  });
+  it("historical cancellation after prior removal requires reconciliation", async () => {
+    h.db.state.orders[0].consumptionRecordedAt = null;
+    h.db.state.items[0].removedAt = new Date();
+    await expect(cancel()).rejects.toMatchObject({ code: "CONSUMPTION_HISTORY_REQUIRED" });
+    expect(stock()).toBe(6);
+    expect(h.db.state.orders[0].status).toBe("preparing");
+  });
+  it("detail loss inputs expose original consumption instead of changed recipes", async () => {
+    orderService.getById.mockRestore();
+    vi.spyOn(orderRepository, "getOrderItemLosses").mockResolvedValue([]);
+    const detail = await orderService.getById(A);
+    expect(detail.consumption_history_available).toBe(true);
+    expect(detail.items[0].recipes[0]).toMatchObject({ ingredient_id: B, quantity_needed: 2, cost_per_unit: 3 });
+    expect(orderRepository.getRecipesByVariantIds).not.toHaveBeenCalled();
+  });
+  it("deduction records are allocated to persisted item IDs in exact milli-units", async () => {
+    h.db.state.deductions = [];
+    h.db.state.orders[0].consumptionRecordedAt = null;
+    const recipes = [{ variantId: 1, ingredientId: B, quantityNeeded: .333 }];
+    await h.db.$transaction(tx => orderService._deductIngredients(A, new Map([[B, .666]]), tx, USER, recipes));
+    expect(h.db.state.deductions.map(row => [row.orderItemId, row.quantityDeducted])).toEqual([[1, .333], [2, .333]]);
+    expect(h.db.state.orders[0].consumptionRecordedAt).toBeTruthy();
+  });
+  it.each(["failDeduction", "failAdjustment"])("%s rolls back original consumption and stock deduction", async failure => {
+    h.db.state.deductions = [];
+    h.db.state.orders[0].consumptionRecordedAt = null;
+    h.db[failure] = true;
+    const recipes = [{ variantId: 1, ingredientId: B, quantityNeeded: .333 }];
+    await expect(h.db.$transaction(tx => orderService._deductIngredients(A, new Map([[B, .666]]), tx, USER, recipes))).rejects.toThrow();
+    expect(stock()).toBe(6);
+    expect(h.db.state.deductions).toHaveLength(0);
+    expect(h.db.state.orders[0].consumptionRecordedAt).toBeNull();
+  });
+});
+
+describe("Consumption allocation invariants", () => {
+  const items = [{ orderItemId: 1, variantId: 1, quantity: 2 }, { orderItemId: 2, variantId: 1, quantity: 1 }];
+  const recipes = [{ variantId: 1, ingredientId: B, quantityNeeded: .333 }];
+  const slices = [{ orderId: A, ingredientId: B, restockBatchId: 7, quantityDeducted: .5, costPerUnit: 2 }, { orderId: A, ingredientId: B, restockBatchId: 8, quantityDeducted: .499, costPerUnit: 3 }];
+  it("conserves each item and batch across fractional FIFO slices", () => {
+    expect(allocateConsumption(items, recipes, slices).map(row => [row.orderItemId, row.restockBatchId, row.quantityDeducted])).toEqual([[1, 7, .5], [1, 8, .166], [2, 8, .333]]);
+  });
+  it.each([.9, 1.1])("rejects unmatched aggregate deduction %s", quantityDeducted => {
+    expect(() => allocateConsumption(items, recipes, [{ ...slices[0], quantityDeducted }])).toThrow();
+  });
+  it.each([NaN, Infinity, -1, .0001])("rejects unrepresentable stock quantity %s", value => expect(() => stockUnits(value)).toThrow());
+  it("rejects cross-item consumption and duplicate loss item IDs", () => {
+    const rows = [{ ...slices[0], id: 1, orderItemId: 3 }];
+    expect(() => planSettlement(items, rows)).toThrow();
+    expect(() => planSettlement(items, [], [{ order_item_id: 1 }, { order_item_id: 1 }])).toThrow();
+  });
+  it("whole-bill cent allocation preserves the paid discount without exceeding any line", () => {
+    const discounted = allocateBillDiscount(Array.from({ length: 3 }, () => ({ unit_price: .01, quantity: 1 })), { discountType: "promo", discountPercent: 0, discountAmount: .02 });
+    expect(discounted.reduce((sum, item) => sum + Math.round(item.discountAmount * 100), 0)).toBe(2);
+    expect(discounted.every(item => item.discountAmount <= .01)).toBe(true);
   });
 });

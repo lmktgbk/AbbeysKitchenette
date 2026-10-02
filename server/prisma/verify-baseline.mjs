@@ -2,6 +2,7 @@ import "dotenv/config";
 import pg from "pg";
 import { readFile, readdir } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
+import { verifyConsumption } from "./verify-consumption.mjs";
 
 const schema = `migration_check_${randomUUID().replaceAll("-", "")}`;
 const client = new pg.Client({ connectionString: process.env.DIRECT_URL, connectionTimeoutMillis: 10000, statement_timeout: 30000 });
@@ -25,6 +26,7 @@ try {
   if (!indexes.rows[0]?.indexdef.includes("WHERE")) throw new Error("Partial shift index predicate missing");
   const ledger = await client.query("SELECT relrowsecurity FROM pg_class WHERE relnamespace=$1::regnamespace AND relname='order_requests'", [schema]);
   if (!ledger.rows[0]?.relrowsecurity) throw new Error("Request-ledger RLS missing");
+  await verifyConsumption(client);
   console.log(`${migrations.length} migrations replayed; partial index and request-ledger RLS preserved.`);
 } catch (error) {
   console.error("Migration rehearsal failed:", error.message);

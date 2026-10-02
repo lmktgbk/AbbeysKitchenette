@@ -1,6 +1,7 @@
 import { orderRepository } from "./order.repository.js";
-import { isValidTransition, formatOrderResponse, formatOrderItemResponse, computeDiscountedTotal, computeLineDiscount, aggregateLineDiscounts, roundMoney, composeOrderNumber, formatOrderNumber } from "./order.utils.js";
+import { isValidTransition, formatOrderResponse, formatOrderItemResponse, computeDiscountedTotal, computeLineDiscount, allocateBillDiscount, aggregateLineDiscounts, roundMoney, composeOrderNumber, formatOrderNumber } from "./order.utils.js";
 import { assertStatusPermission } from "./order.policy.js";
+import { allocateConsumption, planSettlement, stockUnits } from "./order.consumption.js";
 import { orderRequest, orderIdempotency } from "./order.idempotency.js";
 import { shiftService } from "../shifts/shift.service.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
@@ -82,23 +83,32 @@ export const orderService = {
     const order = await orderRepository.findById(id);
     if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
 
-    // Fetch recipes for all items (needed for cancel dialog partial loss)
-    const variantIds = [...new Set(order.items.map((i) => i.variantId))];
-    const recipes = variantIds.length > 0
-      ? await orderRepository.getRecipesByVariantIds(variantIds)
-      : [];
-    const recipeMap = new Map();
-    for (const r of recipes) {
-      if (!recipeMap.has(r.variantId)) recipeMap.set(r.variantId, []);
-      recipeMap.get(r.variantId).push(r);
-    }
-
-    // Get actual weighted costs from deduction records
-    // Independent of the recipe lookup above — one round instead of two.
-    const [deductionCosts, lossRecords] = await Promise.all([
-      orderRepository.getDeductionIngredientCosts(id),
+    // Paid orders expose their original consumption to loss dialogs. Current
+    // recipes are only meaningful before payment or for historical display.
+    const variantIds = [...new Set(order.items.map(item => item.variantId))];
+    const [consumption, recipes, deductionCosts, lossRecords] = await Promise.all([
+      order.consumptionRecordedAt ? orderRepository.getItemConsumption(id) : [],
+      !order.consumptionRecordedAt && variantIds.length ? orderRepository.getRecipesByVariantIds(variantIds) : [],
+      order.consumptionRecordedAt ? [] : orderRepository.getDeductionIngredientCosts(id),
       orderRepository.getOrderItemLosses(id),
     ]);
+    const recipeMap = new Map(), itemRecipeMap = new Map();
+    if (order.consumptionRecordedAt) {
+      for (const row of consumption) {
+        if (!itemRecipeMap.has(row.orderItemId)) itemRecipeMap.set(row.orderItemId, new Map());
+        const byIngredient = itemRecipeMap.get(row.orderItemId);
+        const aggregate = byIngredient.get(row.ingredientId) || { ingredientId: row.ingredientId, ingredient: row.ingredient, quantity: 0, cost: 0 };
+        aggregate.quantity += Number(row.quantityDeducted);
+        aggregate.cost += Number(row.quantityDeducted) * Number(row.costPerUnit);
+        byIngredient.set(row.ingredientId, aggregate);
+      }
+    } else {
+      for (const recipe of recipes) {
+        if (!recipeMap.has(recipe.variantId)) recipeMap.set(recipe.variantId, []);
+        recipeMap.get(recipe.variantId).push(recipe);
+      }
+    }
+
     const deductionCostMap = new Map();
     for (const dc of deductionCosts) {
       deductionCostMap.set(dc.ingredient_id, Number(dc.weighted_cost_per_unit));
@@ -136,6 +146,7 @@ export const orderService = {
             cancel_reason: order.refund.reason?.match(/— (.+?) \(/)?.[1] || null,
           }
         : null,
+      consumption_history_available: !!order.consumptionRecordedAt,
       items: order.items.map((item) => ({
         ...formatOrderItemResponse({
           ...item,
@@ -148,11 +159,14 @@ export const orderService = {
         removed_reason: item.removedReason ?? null,
         removed_loss_option: item.removedLossOption ?? null,
         ingredient_loss_cost: lossCostMap.get(item.orderItemId) || 0,
-        recipes: (recipeMap.get(item.variantId) || []).map((r) => ({
+        consumption_history_available: !!order.consumptionRecordedAt,
+        recipes: (order.consumptionRecordedAt
+          ? [...(itemRecipeMap.get(item.orderItemId)?.values() || [])].map(row => ({ ...row, quantityNeeded: row.quantity / item.quantity, originalCost: row.quantity ? row.cost / row.quantity : 0 }))
+          : recipeMap.get(item.variantId) || []).map((r) => ({
           ingredient_id: r.ingredientId,
           ingredient_name: r.ingredient?.ingredientName ?? null,
           quantity_needed: Number(r.quantityNeeded),
-          cost_per_unit: deductionCostMap.get(r.ingredientId) || 0,
+          cost_per_unit: r.originalCost ?? deductionCostMap.get(r.ingredientId) ?? 0,
           unit: r.ingredient?.unit ?? null,
         })),
       })),
@@ -187,7 +201,7 @@ export const orderService = {
     const change = paymentMethod === "cash" ? roundMoney(amountPaid - total) : 0;
     const identity = this._resolveDiscountIdentity(discount, pricedItems, discountResult.discountType);
 
-    const aggregatedIngredients = await this._aggregateIngredientNeeds(pricedItems);
+    const { needs: aggregatedIngredients, recipes: consumptionRecipes } = await this._aggregateIngredientNeeds(pricedItems);
 
     const order = await prisma.$transaction(async (tx) => {
       const replay = await orderIdempotency.claim(request, tx);
@@ -236,7 +250,7 @@ export const orderService = {
         discountLabel: item.discountLabel ?? null,
       })), tx);
 
-      const { deductions, needs } = await this._deductIngredients(newOrder.orderId, aggregatedIngredients, tx, createdBy);
+      const { deductions, needs } = await this._deductIngredients(newOrder.orderId, aggregatedIngredients, tx, createdBy, consumptionRecipes);
       // BR-03: issuance record for the receipt/ledger (reprint-safe).
       await orderRepository.upsertReceipt({
         orderId: newOrder.orderId,
@@ -450,7 +464,7 @@ export const orderService = {
     const paidToStore = paymentMethod === "cash" ? amountPaid : total;
     const identity = this._resolveDiscountIdentity(discount, pricedItems, discountResult.discountType);
 
-    const aggregatedIngredients = await this._aggregateIngredientNeeds(pricedItems);
+    const { needs: aggregatedIngredients, recipes: consumptionRecipes } = await this._aggregateIngredientNeeds(pricedItems);
 
     let transactionNeeds;
 
@@ -482,7 +496,7 @@ export const orderService = {
         discountLabel: item.discountLabel ?? null,
       })), tx);
 
-      const { needs } = await this._deductIngredients(id, aggregatedIngredients, tx, userId);
+      const { needs } = await this._deductIngredients(id, aggregatedIngredients, tx, userId, consumptionRecipes);
       transactionNeeds = needs;
 
       await orderRepository.upsertReceipt({
@@ -683,34 +697,13 @@ export const orderService = {
         : [];
       affectedIngredientIds = [...new Set(deductions.map((d) => d.ingredientId))];
 
-      // Build weighted cost map from deductions
-      const deductionCostMap = new Map();
-      for (const d of deductions) {
-        const cost = d.batch ? Number(d.batch.costPerUnit) : 0;
-        const existing = deductionCostMap.get(d.ingredientId);
-        if (existing) {
-          // Weighted average across multiple batch deductions
-          const totalQty = existing.qty + Number(d.quantityDeducted);
-          const weightedCost = totalQty > 0
-            ? ((existing.cost * existing.qty) + (cost * Number(d.quantityDeducted))) / totalQty
-            : 0;
-          deductionCostMap.set(d.ingredientId, { cost: weightedCost, qty: totalQty });
-        } else {
-          deductionCostMap.set(d.ingredientId, { cost, qty: Number(d.quantityDeducted) });
-        }
-      }
-      const costMap = new Map();
-      for (const [ingId, data] of deductionCostMap) {
-        costMap.set(ingId, data.cost);
-      }
-
       // Determine loss handling based on options
       const refundOption = options.refund_option || "partial"; // "full" | "partial" | "none"
       const itemLosses = options.item_losses || []; // [{ item_id, ingredient_losses: [{ ingredient_id, quantity_lost }] }]
 
       // Refund capped at what the customer actually paid (minus prior refunds) —
       // cumulative refunds can never exceed tender, even across removals + cancel.
-      const paidForCap = order.amountPaid != null ? Number(order.amountPaid) : Number(order.totalAmount) || 0;
+      const paidForCap = order.amountPaid != null ? Number(order.amountPaid) - Number(order.change || 0) : Number(order.totalAmount) || 0;
       const paidCap = Math.max(0, roundMoney(paidForCap - Number(order.refund?.amount || 0)));
       let refundAmount;
       if (refundOption === "full") {
@@ -739,36 +732,16 @@ export const orderService = {
         lossOption = "no_loss";
       }
 
-      if (currentStatus === "accepted") {
-        // Accepted orders: all ingredients restored (no preparation has started)
-        await this._restoreIngredients(id, userId, tx, deductions);
-      }
-
-      if (currentStatus === "preparing") {
-        if (lossOption === "no_loss") {
-          // No loss: restore ALL ingredients
-          await this._restoreIngredients(id, userId, tx, deductions);
+      if (currentStatus !== "pending") {
+        const losses = lossOption === "with_loss" ? itemLosses : [];
+        if (order.consumptionRecordedAt) {
+          await this._settleItemConsumption(id, orderItems, deductions, userId, tx, losses);
+        } else if (losses.length) {
+          throw new AppError(409, "Historical order requires inventory reconciliation before partial cancellation", "CONSUMPTION_HISTORY_REQUIRED");
         } else {
-          // With loss: create loss records for items with declared losses, restore the rest
-          const itemsWithLosses = orderItems.filter((item) => {
-            const itemLoss = itemLosses.find((il) => il.order_item_id === item.orderItemId);
-            return itemLoss && itemLoss.ingredient_losses.length > 0;
-          });
-          const itemsWithoutLosses = orderItems.filter((item) => {
-            const itemLoss = itemLosses.find((il) => il.order_item_id === item.orderItemId);
-            return !itemLoss || itemLoss.ingredient_losses.length === 0;
-          });
-
-          // Fully restore items with no declared losses
-          if (itemsWithoutLosses.length > 0) {
-            await this._restoreIngredientsForItems(id, itemsWithoutLosses, tx, userId);
-          }
-
-          // For items with declared losses: create loss records + restore non-lost portions
-          if (itemsWithLosses.length > 0) {
-            await this._createLossRecords(id, itemsWithLosses, userId, tx, itemLosses, costMap);
-            await this._restorePartialItems(id, itemsWithLosses, itemLosses, tx, userId);
-          }
+          const historicalItems = await tx.orderItem.findMany({ where: { orderId: id }, select: { removedAt: true } });
+          if (historicalItems.some(item => item.removedAt)) throw new AppError(409, "Historical item removals require inventory reconciliation before cancellation", "CONSUMPTION_HISTORY_REQUIRED");
+          await this._restoreIngredients(id, userId, tx, deductions);
         }
       }
 
@@ -780,7 +753,7 @@ export const orderService = {
         })
         .map((item) => item.orderItemId);
       await tx.orderItem.updateMany({
-        where: { orderId: id },
+        where: { orderId: id, removedAt: null },
         data: { removedLossOption: "no_loss" },
       });
       if (withLossIds.length > 0) {
@@ -837,14 +810,14 @@ export const orderService = {
   /* ── Remove Single Item ────────────── */
 
   async removeOrderItem(orderId, orderItemId, userId, reason, options = {}) {
-    const order = await orderRepository.findByIdGuard(orderId);
+    let order = await orderRepository.findByIdGuard(orderId);
     if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
 
     if (order.status !== "accepted" && order.status !== "preparing") {
       throw new AppError(400, "Only accepted or preparing orders can have items removed", "INVALID_STATUS");
     }
 
-    const orderItem = await orderRepository.getOrderItemById(orderItemId);
+    let orderItem = await orderRepository.getOrderItemById(orderItemId);
     if (!orderItem || orderItem.orderId !== orderId) {
       throw new AppError(404, "Order item not found", "ORDER_ITEM_NOT_FOUND");
     }
@@ -853,124 +826,48 @@ export const orderService = {
       throw new AppError(400, "Cannot remove a prepared item — it has already been served", "ITEM_ALREADY_SERVED");
     }
 
-    const lossOption = options.loss_option || "no_loss";
+    let lossOption = options.loss_option || "no_loss";
     const refundOption = options.refund_option || "partial";
     const ingredientLosses = options.ingredient_losses || [];
 
-    // Fetch recipes for this item's variant
-    const recipes = await orderRepository.getRecipesByVariantIds([orderItem.variantId]);
-    const itemRecipes = recipes.filter((r) => r.variantId === orderItem.variantId);
-
-    // Get active deductions for restore/loss calculations
-    const deductions = await orderRepository.getActiveDeductions(orderId);
-    const affectedIngredientIds = [...new Set(deductions.map((d) => d.ingredientId))];
-
-    // Build weighted cost map from deductions
-    const deductionCostMap = new Map();
-    for (const d of deductions) {
-      const cost = d.batch ? Number(d.batch.costPerUnit) : 0;
-      const existing = deductionCostMap.get(d.ingredientId);
-      if (existing) {
-        const totalQty = existing.qty + Number(d.quantityDeducted);
-        const weightedCost = totalQty > 0
-          ? ((existing.cost * existing.qty) + (cost * Number(d.quantityDeducted))) / totalQty
-          : 0;
-        deductionCostMap.set(d.ingredientId, { cost: weightedCost, qty: totalQty });
-      } else {
-        deductionCostMap.set(d.ingredientId, { cost, qty: Number(d.quantityDeducted) });
-      }
-    }
-    const itemCostMap = new Map();
-    for (const [ingId, data] of deductionCostMap) {
-      itemCostMap.set(ingId, data.cost);
-    }
+    let affectedIngredientIds = [];
 
     // Refund resolved inside the tx after totals are recomputed:
     // refund = net drop caused by the removal, capped at what was actually paid.
     let refundAmount = 0;
+    let remainingCount = 0;
 
     await prisma.$transaction(async (tx) => {
       // Re-check inside the tx: the item may have been marked prepared, or the
       // order settled, between the pre-tx reads and now.
       const locked = await orderRepository.lockOrder(orderId, tx);
       if (!locked) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
-      const freshItem = await tx.orderItem.findUnique({
-        where: { orderItemId },
-        select: { isPrepared: true, orderId: true, removedAt: true },
-      });
-      if (!freshItem || freshItem.orderId !== orderId || freshItem.removedAt) {
-        throw new AppError(404, "Order item not found", "ORDER_ITEM_NOT_FOUND");
-      }
-      if (freshItem.isPrepared) {
-        throw new AppError(400, "Cannot remove a prepared item — it has already been served", "ITEM_ALREADY_SERVED");
-      }
-      const freshOrder = await tx.order.findUnique({
-        where: { orderId },
-        select: { status: true },
-      });
-      if (!freshOrder || (freshOrder.status !== "accepted" && freshOrder.status !== "preparing")) {
-        throw new AppError(409, "Order is no longer editable — it was settled concurrently", "ORDER_ALREADY_SETTLED");
-      }
-
-      if (lossOption === "no_loss") {
-        // No loss: restore this item's ingredients
-        await this._restoreIngredientsForSingleItem(orderItem, itemRecipes, deductions, tx, orderId, userId);
-      } else {
-        // With loss: create loss records, restore non-lost portions
-        await this._createLossRecordsForSingleItem(orderId, orderItem, itemRecipes, userId, tx, ingredientLosses, itemCostMap);
-        await this._restorePartialForSingleItem(orderItem, itemRecipes, ingredientLosses, deductions, tx, orderId, userId);
-      }
+      order = await orderRepository.findByIdGuard(orderId, tx);
+      orderItem = await orderRepository.getOrderItemById(orderItemId, tx);
+      if (!orderItem || orderItem.orderId !== orderId || orderItem.removedAt) throw new AppError(404, "Order item not found", "ORDER_ITEM_NOT_FOUND");
+      if (orderItem.isPrepared) throw new AppError(400, "Cannot remove a prepared item: it has already been served", "ITEM_ALREADY_SERVED");
+      if (!order || !["accepted", "preparing"].includes(order.status)) throw new AppError(409, "Order is no longer editable", "ORDER_ALREADY_SETTLED");
+      if (!order.consumptionRecordedAt) throw new AppError(409, "Historical order requires inventory reconciliation before item removal", "CONSUMPTION_HISTORY_REQUIRED");
+      if (order.status === "accepted" || ingredientLosses.length === 0) lossOption = "no_loss";
+      const deductions = await orderRepository.getActiveDeductions(orderId, tx, orderItemId);
+      affectedIngredientIds = [...new Set(deductions.map(row => row.ingredientId))];
+      const losses = lossOption === "with_loss" ? [{ order_item_id: orderItemId, ingredient_losses: ingredientLosses }] : [];
+      await this._settleItemConsumption(orderId, [orderItem], deductions, userId, tx, losses);
 
       // Soft-delete the order item
       await orderRepository.removeOrderItem(orderItemId, { userId, reason, lossOption }, tx);
 
-      // Recompute totals from remaining items, preserving each line's own
-      // discount (one discount per item — a removal never re-discounts or
-      // stacks anything). Falls back to the legacy whole-bill discount for
-      // orders created before per-item discounts existed.
+      // Each stored line carries its paid discount. Removing the discounted
+      // line must not transfer that discount to the remaining regular items.
       const remainingItems = await tx.orderItem.findMany({
         where: { orderId, removedAt: null },
         select: { subtotal: true, unitPrice: true, quantity: true, discountType: true, discountPercent: true, discountAmount: true },
       });
-      const remainingSubtotal = roundMoney(
-        remainingItems.reduce((sum, i) => sum + Number(i.subtotal ?? Number(i.unitPrice || 0) * Number(i.quantity || 0)), 0)
-      );
-      let priced;
-      if (remainingItems.some((i) => (i.discountType ?? "none") !== "none")) {
-        const agg = aggregateLineDiscounts(
-          remainingItems.map((i) => {
-            const lineSubtotal = roundMoney(Number(i.subtotal ?? Number(i.unitPrice || 0) * Number(i.quantity || 0)));
-            // Stored per-line amount is authoritative; recompute only when missing.
-            let dAmount = Number(i.discountAmount || 0);
-            let dPercent = Number(i.discountPercent || 0);
-            const dType = i.discountType ?? "none";
-            if (!dAmount && dType !== "none") {
-              const d = computeLineDiscount(lineSubtotal, {
-                discount_type: dType,
-                promo_mode: dPercent > 0 ? "percent" : "amount",
-                promo_value: dPercent > 0 ? dPercent : dAmount,
-              });
-              dAmount = d.discountAmount;
-              dPercent = d.discountPercent;
-            }
-            return { lineSubtotal, discount: { discountType: dType, discountPercent: dPercent, discountAmount: dAmount } };
-          }),
-        );
-        priced = { discountType: agg.discountType, discountPercent: agg.discountPercent, discountAmount: agg.discountAmount, total: agg.total };
-      } else {
-        const discountInput = { discount_type: order.discountType ?? "none" };
-        if (discountInput.discount_type === "promo") {
-          if (Number(order.discountPercent) > 0) {
-            discountInput.promo_mode = "percent";
-            discountInput.promo_value = Number(order.discountPercent);
-          } else {
-            discountInput.promo_mode = "peso";
-            discountInput.promo_value = Number(order.discountAmount) || 0;
-          }
-        }
-        const legacy = computeDiscountedTotal(remainingSubtotal, discountInput);
-        priced = { discountType: legacy.discountType, discountPercent: legacy.discountPercent, discountAmount: legacy.discountAmount, total: legacy.total };
-      }
+      const priced = aggregateLineDiscounts(remainingItems.map(item => ({
+        lineSubtotal: roundMoney(Number(item.subtotal ?? Number(item.unitPrice) * item.quantity)),
+        discount: { discountType: item.discountType ?? "none", discountPercent: Number(item.discountPercent || 0), discountAmount: Number(item.discountAmount || 0) },
+      })));
+      const remainingSubtotal = priced.subtotal;
       const oldTotal = roundMoney(Number(order.totalAmount) || 0);
       await orderRepository.updateOrder(orderId, {
         subtotalAmount: remainingSubtotal,
@@ -980,11 +877,9 @@ export const orderService = {
         totalAmount: priced.total,
       }, tx);
 
-      // Refund = net drop caused by the removal. Cumulative refunds can never
-      // exceed what the customer paid (invariant: refunds + current total =
-      // original total ≤ paid + change given). Note: cap is against paid,
-      // NOT oldTotal — oldTotal shrinks with each removal.
-      const paid = order.amountPaid != null ? Number(order.amountPaid) : oldTotal;
+      // Refund the net drop using locked totals. Cash change is already returned
+      // to the customer and cannot increase the cumulative refundable balance.
+      const paid = order.amountPaid != null ? Number(order.amountPaid) - Number(order.change || 0) : oldTotal;
       const priorRefunded = Number(order.refund?.amount || 0);
       const maxRefundable = Math.max(0, roundMoney(paid - priorRefunded));
       const drop = roundMoney(oldTotal - priced.total);
@@ -999,8 +894,7 @@ export const orderService = {
       }
       refundAmount = Math.max(0, roundMoney(refundAmount));
 
-      // Count remaining items
-      const remainingCount = await orderRepository.countOrderItems(orderId, tx);
+      remainingCount = remainingItems.length;
 
       // If no items left, cancel the entire order
       if (remainingCount === 0) {
@@ -1047,7 +941,6 @@ export const orderService = {
       },
     }).catch(() => {});
 
-    const remainingCount = await orderRepository.countOrderItems(orderId);
 
     // Real-time anomaly hooks (fire-and-forget, never block response)
     if (refundAmount > 0) {
@@ -1158,13 +1051,7 @@ export const orderService = {
     );
     const result = computeDiscountedTotal(subtotal, discount);
     return {
-      pricedItems: pricedItems.map((item) => ({
-        ...item,
-        discountType: "none",
-        discountPercent: 0,
-        discountAmount: 0,
-        discountLabel: null,
-      })),
+      pricedItems: allocateBillDiscount(pricedItems, result),
       subtotal,
       discount: result,
       total: result.total,
@@ -1241,16 +1128,19 @@ export const orderService = {
       const itemRecipes = recipeMap.get(item.variant_id) || [];
       for (const recipe of itemRecipes) {
         const key = recipe.ingredientId;
-        const needed = Number(recipe.quantityNeeded) * item.quantity;
-        needs.set(key, (needs.get(key) || 0) + needed);
+        const needed = stockUnits(recipe.quantityNeeded) * item.quantity / 1000;
+        needs.set(key, (stockUnits(needs.get(key) || 0) + stockUnits(needed)) / 1000);
       }
     }
 
-    return needs;
+    return { needs, recipes };
   },
 
-  async _deductIngredients(orderId, needs, tx, userId) {
-    if (needs.size === 0) return { deductions: [], needs };
+  async _deductIngredients(orderId, needs, tx, userId, recipes) {
+    if (needs.size === 0) {
+      await tx.order.update({ where: { orderId }, data: { consumptionRecordedAt: new Date() } });
+      return { deductions: [], needs };
+    }
 
     // Phase 2: Single query to fetch all available batches for all ingredients
     const ingredientIds = [...needs.keys()];
@@ -1264,16 +1154,16 @@ export const orderService = {
     for (const [ingredientId, totalNeeded] of needs) {
       const batches = allBatches.get(ingredientId) || [];
       const stockBefore = batches.reduce((sum, b) => sum + Number(b.quantityLeft), 0);
-      let remaining = totalNeeded;
+      let remaining = stockUnits(totalNeeded);
 
       for (const batch of batches) {
         if (remaining <= 0) break;
-        const available = Number(batch.quantityLeft);
+        const available = stockUnits(batch.quantityLeft);
         const toDeduct = Math.min(remaining, available);
 
         deductPayloads.push({
           restockId: batch.restockId,
-          quantity: toDeduct,
+          quantity: toDeduct / 1000,
           version: batch.version,
         });
 
@@ -1281,7 +1171,7 @@ export const orderService = {
           orderId,
           ingredientId,
           restockBatchId: batch.restockId,
-          quantityDeducted: toDeduct,
+          quantityDeducted: toDeduct / 1000,
           costPerUnit: Number(batch.costPerUnit),
         });
 
@@ -1311,14 +1201,17 @@ export const orderService = {
       throw new AppError(400, "Insufficient ingredient stock (concurrent modification)", "INSUFFICIENT_STOCK");
     }
 
-    // Final batch writes: 2 queries total (createMany × 2)
+    // Persist item attribution and stock audit in batches; the recording marker
+    // commits with these writes, including orders with no ingredient recipes.
     if (deductions.length > 0) {
-      await orderRepository.createDeductions(deductions, tx);
+      const items = await orderRepository.getConsumptionItems(orderId, tx);
+      await orderRepository.createDeductions(allocateConsumption(items, recipes, deductions), tx);
     }
     if (adjustments.length > 0) {
       await tx.stockAdjustment.createMany({ data: adjustments });
     }
 
+    await tx.order.update({ where: { orderId }, data: { consumptionRecordedAt: new Date() } });
     return { deductions, needs };
   },
 
@@ -1443,388 +1336,41 @@ export const orderService = {
     }
   },
 
-  async _restoreIngredientsForItems(orderId, unpreparedItems, tx, userId) {
-    const allDeductions = await orderRepository.getActiveDeductions(orderId, tx);
-
-    const variantIds = [...new Set(unpreparedItems.map((i) => i.variantId))];
-    const recipes = await orderRepository.getRecipesByVariantIds(variantIds);
-
-    const recipeMap = new Map();
-    for (const r of recipes) {
-      if (!recipeMap.has(r.variantId)) recipeMap.set(r.variantId, []);
-      recipeMap.get(r.variantId).push(r);
-    }
-
-    const restoreNeeds = new Map();
-    for (const item of unpreparedItems) {
-      const itemRecipes = recipeMap.get(item.variantId) || [];
-      for (const recipe of itemRecipes) {
-        const needed = Number(recipe.quantityNeeded) * item.quantity;
-        restoreNeeds.set(recipe.ingredientId, (restoreNeeds.get(recipe.ingredientId) || 0) + needed);
-      }
-    }
-
-    const restoreTracker = new Map(restoreNeeds);
-    const slices = [];
-    for (const deduction of allDeductions) {
-      const remaining = restoreTracker.get(deduction.ingredientId) || 0;
-      if (remaining <= 0) continue;
-
-      const restoreQty = Math.min(remaining, Number(deduction.quantityDeducted));
-      if (restoreQty > 0) {
-        slices.push({ restockBatchId: deduction.restockBatchId, qty: restoreQty });
-        restoreTracker.set(deduction.ingredientId, remaining - restoreQty);
-      }
-    }
-    await this._bulkRestoreBatches(slices, tx);
-
-    // Audit what was actually restored (needs minus unmet remainder).
-    const restoredByIngredient = new Map();
-    for (const [ingredientId, needed] of restoreNeeds) {
-      const restored = needed - (restoreTracker.get(ingredientId) || 0);
-      if (restored > 0) restoredByIngredient.set(ingredientId, restored);
-    }
-
-    // Create stock adjustment records for audit trail
-    if (userId) {
-      const restoreIngredientIds = [...restoredByIngredient.keys()];
-      if (restoreIngredientIds.length > 0) {
-        const stockMap = await orderRepository.getIngredientsTotalStocks(restoreIngredientIds, tx);
-        const adjustments = [];
-        for (const ingredientId of restoreIngredientIds) {
-          const totalRestored = restoredByIngredient.get(ingredientId);
-          const currentStock = stockMap.get(ingredientId) || 0;
-          adjustments.push({
-            ingredientId,
-            adjustedById: userId,
-            adjustmentType: "manual",
-            quantityBefore: currentStock - totalRestored,
-            quantityChanged: totalRestored,
-            quantityAfter: currentStock,
-            relatedOrderId: orderId,
-            notes: "Order cancelled — unprepared items restored",
-          });
-        }
-        if (adjustments.length > 0) {
-          await tx.stockAdjustment.createMany({ data: adjustments });
-        }
-      }
-    }
-  },
-
-  async _restorePartialItems(orderId, preparedItems, itemLosses, tx, userId) {
-    const allDeductions = await orderRepository.getActiveDeductions(orderId, tx);
-
-    const variantIds = [...new Set(preparedItems.map((i) => i.variantId))];
-    const recipes = await orderRepository.getRecipesByVariantIds(variantIds);
-
-    const recipeMap = new Map();
-    for (const r of recipes) {
-      if (!recipeMap.has(r.variantId)) recipeMap.set(r.variantId, []);
-      recipeMap.get(r.variantId).push(r);
-    }
-
-    // Build loss lookup: { order_item_id -> Set<ingredient_id> }
-    const lossSetMap = new Map();
-    for (const entry of itemLosses) {
-      const lostIds = new Set((entry.ingredient_losses || []).map((il) => il.ingredient_id));
-      lossSetMap.set(entry.order_item_id, lostIds);
-    }
-
-    // For each prepared item, calculate total recipe needs per ingredient,
-    // then restore the difference (total - lost amount)
-    const restoreNeeds = new Map();
-    for (const item of preparedItems) {
-      const lostIds = lossSetMap.get(item.orderItemId);
-      if (!lostIds) continue; // No partial loss specified for this item — auto mode, no restore
-
-      const itemRecipes = recipeMap.get(item.variantId) || [];
-      for (const recipe of itemRecipes) {
-        const totalNeeded = Number(recipe.quantityNeeded) * item.quantity;
-        if (lostIds.has(recipe.ingredientId)) {
-          const lossEntry = (itemLosses.find((e) => e.order_item_id === item.orderItemId))
-            ?.ingredient_losses?.find((il) => il.ingredient_id === recipe.ingredientId);
-          const lostQty = lossEntry ? Number(lossEntry.quantity_lost) : totalNeeded;
-          const restoreQty = totalNeeded - lostQty;
-          if (restoreQty > 0) {
-            restoreNeeds.set(recipe.ingredientId, (restoreNeeds.get(recipe.ingredientId) || 0) + restoreQty);
-          }
-        } else {
-          restoreNeeds.set(recipe.ingredientId, (restoreNeeds.get(recipe.ingredientId) || 0) + totalNeeded);
-        }
-      }
-    }
-
-    // Carry the unmet remainder across ALL matching deductions (FIFO) instead
-    // of zeroing after the first batch — needs may span multiple batches.
-    const originalNeeds = new Map(restoreNeeds);
-    const slices = [];
-    for (const deduction of allDeductions) {
-      const remaining = restoreNeeds.get(deduction.ingredientId) || 0;
-      if (remaining <= 0) continue;
-
-      const restoreQty = Math.min(remaining, Number(deduction.quantityDeducted));
-      if (restoreQty > 0) {
-        slices.push({ restockBatchId: deduction.restockBatchId, qty: restoreQty });
-        restoreNeeds.set(deduction.ingredientId, remaining - restoreQty);
-      }
-    }
-    await this._bulkRestoreBatches(slices, tx);
-
-    // Audit what was actually restored (original need minus unmet remainder).
-    // restoreNeeds now holds only the unrestored leftover — never audit that.
-    const restoredByIngredient = new Map();
-    for (const [ingredientId, needed] of originalNeeds) {
-      const restored = needed - (restoreNeeds.get(ingredientId) || 0);
-      if (restored > 0) restoredByIngredient.set(ingredientId, restored);
-    }
-
-    // Create stock adjustment records for audit trail (partial restore)
-    if (userId) {
-      const restoreIngredientIds = [...restoredByIngredient.keys()];
-      if (restoreIngredientIds.length > 0) {
-        const stockMap = await orderRepository.getIngredientsTotalStocks(restoreIngredientIds, tx);
-        const adjustments = [];
-        for (const ingredientId of restoreIngredientIds) {
-          const totalRestored = restoredByIngredient.get(ingredientId);
-          const currentStock = stockMap.get(ingredientId) || 0;
-          adjustments.push({
-            ingredientId,
-            adjustedById: userId,
-            adjustmentType: "manual",
-            quantityBefore: currentStock - totalRestored,
-            quantityChanged: totalRestored,
-            quantityAfter: currentStock,
-            relatedOrderId: orderId,
-            notes: "Order cancelled — partial restore (with loss)",
-          });
-        }
-        if (adjustments.length > 0) {
-          await tx.stockAdjustment.createMany({ data: adjustments });
-        }
-      }
-    }
-  },
-
-  /* ── Single-Item Restore/Loss Helpers ── */
-
-  /**
-   * Restore ingredients for a single item proportionally from deductions.
-   */
-  async _restoreIngredientsForSingleItem(orderItem, itemRecipes, allDeductions, tx, orderId, userId) {
-    // Calculate what this item needs per ingredient
-    const needs = new Map();
-    for (const recipe of itemRecipes) {
-      const needed = Number(recipe.quantityNeeded) * orderItem.quantity;
-      needs.set(recipe.ingredientId, (needs.get(recipe.ingredientId) || 0) + needed);
-    }
-
-    // Restore from deductions (FIFO order)
-    const restoreTracker = new Map(); // ingredientId -> remaining to restore
-    for (const [ingId, qty] of needs) {
-      restoreTracker.set(ingId, qty);
-    }
-
-    const slices = [];
-    for (const deduction of allDeductions) {
-      const remaining = restoreTracker.get(deduction.ingredientId) || 0;
-      if (remaining <= 0) continue;
-
-      const restoreQty = Math.min(remaining, Number(deduction.quantityDeducted));
-      if (restoreQty > 0) {
-        slices.push({ restockBatchId: deduction.restockBatchId, qty: restoreQty });
-        restoreTracker.set(deduction.ingredientId, remaining - restoreQty);
-      }
-    }
-    await this._bulkRestoreBatches(slices, tx);
-
-    // Create stock adjustment records for audit trail
-    if (userId && orderId) {
-      const ingredientIds = [...needs.keys()];
-      if (ingredientIds.length > 0) {
-        const stockMap = await orderRepository.getIngredientsTotalStocks(ingredientIds, tx);
-        const adjustments = [];
-        for (const [ingredientId, totalNeeded] of needs) {
-          const currentStock = stockMap.get(ingredientId) || 0;
-          adjustments.push({
-            ingredientId,
-            adjustedById: userId,
-            adjustmentType: "manual",
-            quantityBefore: currentStock - totalNeeded,
-            quantityChanged: totalNeeded,
-            quantityAfter: currentStock,
-            relatedOrderId: orderId,
-            notes: "Item removed — stock restored",
-          });
-        }
-        if (adjustments.length > 0) {
-          await tx.stockAdjustment.createMany({ data: adjustments });
-        }
-      }
-    }
-  },
-
-  /**
-   * Create loss records for a single checked item.
-   */
-  async _createLossRecordsForSingleItem(orderId, orderItem, itemRecipes, userId, tx, ingredientLosses = [], deductionCostMap = new Map()) {
-    // Build lookup for user-specified losses: { ingredient_id -> quantity_lost }
-    const lossMap = new Map();
-    for (const entry of ingredientLosses) {
-      lossMap.set(entry.ingredient_id, entry.quantity_lost);
-    }
-
-    const itemLabel = orderItem.product?.productName
-      ? (orderItem.variant?.sizeName ? `${orderItem.product.productName} (${orderItem.variant.sizeName})` : orderItem.product.productName)
-      : null;
-
-    const lossRows = [];
-    for (const recipe of itemRecipes) {
-      const totalNeeded = Number(recipe.quantityNeeded) * orderItem.quantity;
-      const quantityLost = lossMap.has(recipe.ingredientId)
-        ? Number(lossMap.get(recipe.ingredientId))
-        : totalNeeded;
-
-      if (quantityLost <= 0) continue;
-
-      const costPerUnit = deductionCostMap.get(recipe.ingredientId) || 0;
-
-      lossRows.push({
-        ingredientId: recipe.ingredientId,
+  async _settleItemConsumption(orderId, items, deductions, userId, tx, itemLosses = []) {
+    const { settlements, losses } = planSettlement(items, deductions, itemLosses);
+    if (!settlements.length) return;
+    // The caller owns the order lock. The guarded batch claim, stock credits,
+    // loss records and financial changes all roll back together on failure.
+    const claimed = await orderRepository.settleDeductions(orderId, settlements, userId, tx);
+    if (claimed !== settlements.length) throw new AppError(409, "Consumption was already settled", "CONSUMPTION_CONFLICT");
+    await this._bulkRestoreBatches(settlements.map(row => ({ restockBatchId: row.restockBatchId, qty: row.quantityRestored })), tx);
+    if (losses.length) {
+      await orderRepository.createOrderItemLosses(losses.map(row => ({
+        ...row,
         declaredById: userId,
         lossType: "cancellation",
-        quantityLost,
-        costPerUnit,
-        totalCostLost: quantityLost * costPerUnit,
         relatedOrderId: orderId,
-        relatedOrderItemId: orderItem.orderItemId,
-        notes: lossMap.has(recipe.ingredientId)
-          ? `${itemLabel}: Partial loss declared`
-          : `${itemLabel}: Item cancelled mid-preparation`,
+        notes: "Original item consumption: declared loss",
+      })), tx);
+    }
+    const restored = new Map();
+    for (const row of settlements) restored.set(row.ingredientId, (stockUnits(restored.get(row.ingredientId) || 0) + stockUnits(row.quantityRestored)) / 1000);
+    const ingredientIds = [...restored.keys()].filter(id => restored.get(id) > 0);
+    if (userId && ingredientIds.length) {
+      const stockMap = await orderRepository.getIngredientsTotalStocks(ingredientIds, tx);
+      await tx.stockAdjustment.createMany({
+        data: ingredientIds.map(ingredientId => ({
+          ingredientId,
+          adjustedById: userId,
+          adjustmentType: "manual",
+          quantityBefore: stockMap.get(ingredientId) - restored.get(ingredientId),
+          quantityChanged: restored.get(ingredientId),
+          quantityAfter: stockMap.get(ingredientId),
+          relatedOrderId: orderId,
+          notes: "Original item consumption: stock restored",
+        })),
       });
     }
-    await orderRepository.createOrderItemLosses(lossRows, tx);
-  },
-
-  /**
-   * Restore non-lost portion of a single checked item's ingredients.
-   */
-  async _restorePartialForSingleItem(orderItem, itemRecipes, ingredientLosses, allDeductions, tx, orderId, userId) {
-    const lossMap = new Map();
-    for (const entry of ingredientLosses) {
-      lossMap.set(entry.ingredient_id, entry.quantity_lost);
-    }
-
-    const restoreNeeds = new Map();
-    for (const recipe of itemRecipes) {
-      const totalNeeded = Number(recipe.quantityNeeded) * orderItem.quantity;
-      if (lossMap.has(recipe.ingredientId)) {
-        const lostQty = Number(lossMap.get(recipe.ingredientId));
-        const restoreQty = totalNeeded - lostQty;
-        if (restoreQty > 0) {
-          restoreNeeds.set(recipe.ingredientId, (restoreNeeds.get(recipe.ingredientId) || 0) + restoreQty);
-        }
-      } else {
-        restoreNeeds.set(recipe.ingredientId, (restoreNeeds.get(recipe.ingredientId) || 0) + totalNeeded);
-      }
-    }
-
-    const restoreTracker = new Map(restoreNeeds);
-    const slices = [];
-    for (const deduction of allDeductions) {
-      const remaining = restoreTracker.get(deduction.ingredientId) || 0;
-      if (remaining <= 0) continue;
-
-      const restoreQty = Math.min(remaining, Number(deduction.quantityDeducted));
-      if (restoreQty > 0) {
-        slices.push({ restockBatchId: deduction.restockBatchId, qty: restoreQty });
-        restoreTracker.set(deduction.ingredientId, remaining - restoreQty);
-      }
-    }
-    await this._bulkRestoreBatches(slices, tx);
-
-    // Create stock adjustment records for audit trail (partial restore)
-    if (userId && orderId) {
-      const restoreIngredientIds = [...restoreNeeds.keys()].filter(id => restoreNeeds.get(id) > 0);
-      if (restoreIngredientIds.length > 0) {
-        const stockMap = await orderRepository.getIngredientsTotalStocks(restoreIngredientIds, tx);
-        const adjustments = [];
-        for (const ingredientId of restoreIngredientIds) {
-          const totalRestored = restoreNeeds.get(ingredientId);
-          const currentStock = stockMap.get(ingredientId) || 0;
-          adjustments.push({
-            ingredientId,
-            adjustedById: userId,
-            adjustmentType: "manual",
-            quantityBefore: currentStock - totalRestored,
-            quantityChanged: totalRestored,
-            quantityAfter: currentStock,
-            relatedOrderId: orderId,
-            notes: "Item removed — partial restore (with loss)",
-          });
-        }
-        if (adjustments.length > 0) {
-          await tx.stockAdjustment.createMany({ data: adjustments });
-        }
-      }
-    }
-  },
-
-  async _createLossRecords(orderId, preparedItems, userId, tx, itemLosses = [], deductionCostMap = new Map()) {
-    const variantIds = [...new Set(preparedItems.map((i) => i.variantId))];
-    const recipes = await orderRepository.getRecipesByVariantIds(variantIds);
-
-    const recipeMap = new Map();
-    for (const r of recipes) {
-      if (!recipeMap.has(r.variantId)) recipeMap.set(r.variantId, []);
-      recipeMap.get(r.variantId).push(r);
-    }
-
-    // Build lookup for user-specified partial losses: { order_item_id -> { ingredient_id -> quantity_lost } }
-    const partialLossMap = new Map();
-    for (const entry of itemLosses) {
-      const ingredientMap = new Map();
-      for (const il of entry.ingredient_losses || []) {
-        ingredientMap.set(il.ingredient_id, il.quantity_lost);
-      }
-      partialLossMap.set(entry.order_item_id, ingredientMap);
-    }
-
-    const lossRows = [];
-    for (const item of preparedItems) {
-      const itemRecipes = recipeMap.get(item.variantId) || [];
-      const partialMap = partialLossMap.get(item.orderItemId);
-
-      for (const recipe of itemRecipes) {
-        // If partial loss specified for this item, use user-declared quantity; otherwise auto-calculate
-        const quantityLost = partialMap?.has(recipe.ingredientId)
-          ? Number(partialMap.get(recipe.ingredientId))
-          : Number(recipe.quantityNeeded) * item.quantity;
-
-        if (quantityLost <= 0) continue;
-
-        const costPerUnit = deductionCostMap.get(recipe.ingredientId) || 0;
-
-        const itemLabel = item.product?.productName
-          ? (item.variant?.sizeName ? `${item.product.productName} (${item.variant.sizeName})` : item.product.productName)
-          : null;
-
-        lossRows.push({
-          ingredientId: recipe.ingredientId,
-          declaredById: userId,
-          lossType: "cancellation",
-          quantityLost,
-          costPerUnit,
-          totalCostLost: quantityLost * costPerUnit,
-          relatedOrderId: orderId,
-          relatedOrderItemId: item.orderItemId,
-          notes: partialMap?.has(recipe.ingredientId)
-            ? `${itemLabel}: Partial loss declared`
-            : `${itemLabel}: Item cancelled mid-preparation`,
-        });
-      }
-    }
-    await orderRepository.createOrderItemLosses(lossRows, tx);
   },
 
   /* ── Acceptance Handler ──────────────── */
@@ -1883,7 +1429,7 @@ export const orderService = {
     const paidToStore = paymentMethod === "cash" ? meta.amountPaid : total;
 
     // Batch recipe lookup (1 query instead of N per-item queries)
-    const ingredientNeeds = await this._aggregateIngredientNeeds(orderItems);
+    const { needs: ingredientNeeds, recipes: consumptionRecipes } = await this._aggregateIngredientNeeds(orderItems);
 
     let transactionNeeds;
 
@@ -1905,7 +1451,7 @@ export const orderService = {
       const updated = await orderRepository.updatePricedItems(id, pricedItems, tx);
       if (updated !== pricedItems.length) throw new AppError(409, "Order items changed during acceptance", "ORDER_STATE_CONFLICT");
 
-      const { needs } = await this._deductIngredients(id, ingredientNeeds, tx, meta.userId);
+      const { needs } = await this._deductIngredients(id, ingredientNeeds, tx, meta.userId, consumptionRecipes);
       transactionNeeds = needs;
       await orderRepository.upsertReceipt({
         orderId: id,

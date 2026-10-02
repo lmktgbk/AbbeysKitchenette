@@ -9,6 +9,7 @@ export function createOrderDatabase() {
     async findUnique({ where }) {
       const row = copy(db.state.orders.find(row => matches(row, where)));
       if (row) row.items = copy(db.state.items.filter(item => item.orderId === row.orderId && item.removedAt === null));
+      if (row) row.refund = copy(db.state.refunds.find(refund => refund.orderId === row.orderId)) || row.refund;
       return row;
     },
     async findFirst({ where }) { return this.findUnique({ where }); },
@@ -36,19 +37,48 @@ export function createOrderDatabase() {
     async deleteMany({ where }) { db.state.items = db.state.items.filter(row => !matches(row, where)); },
     async findUnique({ where }) { return copy(db.state.items.find(row => matches(row, where))); },
     async findMany({ where }) { return copy(db.state.items.filter(row => matches(row, where))); },
+    async update({ where, data }) {
+      const row = db.state.items.find(row => matches(row, where));
+      Object.assign(row, data);
+      return copy(row);
+    },
     async updateMany({ where, data }) {
       const rows = db.state.items.filter(row => matches(row, where));
       rows.forEach(row => Object.assign(row, data));
       return { count: rows.length };
     },
   };
-  db.orderIngredientDeduction = { async findMany() { return []; } };
+  db.orderIngredientDeduction = {
+    async findMany({ where }) { return copy(db.state.deductions.filter(row => matches(row, where))); },
+    async createMany({ data }) {
+      if (db.failDeduction) throw new Error("Injected deduction failure");
+      data.forEach(row => db.state.deductions.push({ id: ++db.state.sequence, reversedAt: null, quantityRestored: 0, quantityLost: 0, ...row }));
+    },
+    async updateMany({ where, data }) {
+      const rows = db.state.deductions.filter(row => matches(row, where));
+      rows.forEach(row => Object.assign(row, data));
+      return { count: rows.length };
+    },
+  };
+  db.stockAdjustment = { async createMany({ data }) {
+    if (db.failAdjustment) throw new Error("Injected adjustment failure");
+    db.state.adjustments.push(...copy(data));
+  } };
+  db.lossRecord = { async createMany({ data }) {
+    if (db.failLoss) throw new Error("Injected loss failure");
+    db.state.losses.push(...copy(data));
+  } };
   db.orderCancellation = { async create({ data }) {
     if (db.failCancellation) throw new Error("Injected cancellation failure");
     db.state.cancellations.push(copy(data));
     return copy(data);
   } };
-  db.paymentRefund = { async upsert({ create }) { db.state.refunds.push(copy(create)); return copy(create); } };
+  db.paymentRefund = { async upsert({ create, update }) {
+    if (db.failRefund) throw new Error("Injected refund failure");
+    const row = db.state.refunds.find(row => row.orderId === create.orderId);
+    if (row) { row.amount += update.amount.increment; return copy(row); }
+    db.state.refunds.push(copy(create)); return copy(create);
+  } };
   db.receipt = { async upsert({ create }) {
     if (db.failReceipt) throw new Error("Injected receipt failure");
     db.state.receipts.push(copy(create));
@@ -93,7 +123,19 @@ export function createOrderDatabase() {
     const row = db.state.orders.find(row => row.orderId === id);
     return row ? [{ order_id: id, status: row.status }] : [];
   };
-  db.$executeRaw = async (_sql, data, orderId) => {
+  db.$executeRaw = async (_sql, data, orderId, settlementOrderId) => {
+    if (_sql.join("?").includes("UPDATE order_ingredient_deductions")) {
+      if (db.failSettlement) return 0;
+      const rows = JSON.parse(orderId);
+      let count = 0;
+      for (const settled of rows) {
+        const row = db.state.deductions.find(row => row.id === settled.id && row.orderId === settlementOrderId && row.reversedAt === null);
+        if (!row) continue;
+        Object.assign(row, { quantityRestored: settled.restored, quantityLost: settled.lost, reversedAt: new Date(), reversedBy: data });
+        count++;
+      }
+      return count;
+    }
     const rows = JSON.parse(data);
     let count = 0;
     for (const priced of rows) {
@@ -117,11 +159,12 @@ export function createOrderDatabase() {
     finally { release(); }
   };
   db.reset = (orders, items) => {
-    db.state = { orders: copy(orders), items: copy(items), cancellations: [], refunds: [], restores: 0, requests: [], receipts: [], shifts: [], sequence: 10, counter: 0, deductions: [] };
+    db.state = { orders: copy(orders), items: copy(items), cancellations: [], refunds: [], restores: 0, requests: [], receipts: [], shifts: [], sequence: 10, counter: 0, deductions: [], batches: [], adjustments: [], losses: [] };
     db.failCancellation = false;
     db.failReceipt = false;
     db.failLine = false;
     db.failRequestResult = false;
+    db.failAdjustment = db.failLoss = db.failRefund = db.failSettlement = db.failDeduction = false;
   };
   return db;
 }

@@ -354,6 +354,7 @@ model Order {
   completedAt     DateTime?   @map("completed_at") @db.Timestamptz
   completedBy     String?     @map("completed_by") @db.Uuid
   fulfillmentMinutes Int?    @map("fulfillment_minutes")
+  consumptionRecordedAt DateTime? @map("consumption_recorded_at") @db.Timestamptz(6)
 
   // Pricing (BR-01: subtotal -> discount -> total)
   // Order-level columns are aggregates of per-item discounts:
@@ -436,7 +437,9 @@ model OrderItem {
   variant  ProductVariant  @relation(fields: [variantId], references: [variantId])
   preparedByUser User?    @relation("OrderItemPreparedBy", fields: [preparedBy], references: [id])
   removedByUser   User?    @relation("OrderItemRemovedBy", fields: [removedBy], references: [id])
+  deductions OrderIngredientDeduction[]
 
+  @@unique([orderId, orderItemId], map: "order_items_order_id_item_id_key")
   @@index([orderId], map: "order_items_order_id_idx")
   @@index([orderId, removedAt], map: "order_items_order_id_removed_at_idx")
   @@index([variantId], map: "order_items_variant_id_idx")
@@ -473,20 +476,25 @@ model PaymentRefund {
 model OrderIngredientDeduction {
   id               Int       @id @default(autoincrement()) @map("id")
   orderId          String    @map("order_id") @db.Uuid
+  orderItemId      Int?      @map("order_item_id")
   ingredientId     String    @map("ingredient_id") @db.Uuid
   restockBatchId   Int       @map("restock_batch_id")
   quantityDeducted Decimal   @map("quantity_deducted") @db.Decimal(10, 3)
+  quantityRestored Decimal   @default(0) @map("quantity_restored") @db.Decimal(10, 3)
+  quantityLost     Decimal   @default(0) @map("quantity_lost") @db.Decimal(10, 3)
   costPerUnit      Decimal   @default(0) @map("cost_per_unit") @db.Decimal(10, 4)
   reversedAt       DateTime? @map("reversed_at") @db.Timestamptz
   reversedBy       String?   @map("reversed_by") @db.Uuid
 
   order      Order        @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  orderItem  OrderItem?   @relation(fields: [orderId, orderItemId], references: [orderId, orderItemId], onDelete: NoAction, onUpdate: NoAction)
   ingredient Ingredient   @relation(fields: [ingredientId], references: [ingredientId])
   batch      RestockBatch @relation(fields: [restockBatchId], references: [restockId])
 
   @@index([orderId])
   @@index([ingredientId])
   @@index([orderId, reversedAt], map: "deductions_order_id_reversed_at_idx")
+  @@index([orderId, orderItemId, reversedAt], map: "deductions_order_item_active_idx")
   @@map("order_ingredient_deductions")
 }
 

@@ -212,6 +212,7 @@ export const orderRepository = {
         completedAt: true,
         completedBy: true,
         fulfillmentMinutes: true,
+        consumptionRecordedAt: true,
         subtotalAmount: true,
         discountType: true,
         discountPercent: true,
@@ -526,15 +527,20 @@ export const orderRepository = {
   },
 
   /**
-   * Get a single order item by ID with order relation.
-   * @param {number} orderItemId - order item integer ID
-   * @returns {object|null} - order item or null
+   * Read only allocation inputs; product/actor joins are unnecessary in the
+   * deduction transaction and would lengthen its lock/connection occupancy.
    */
-  async getOrderItemById(orderItemId) {
-    return prisma.orderItem.findUnique({
+  async getConsumptionItems(orderId, tx) {
+    return tx.orderItem.findMany({
+      where: { orderId, removedAt: null },
+      select: { orderItemId: true, variantId: true, quantity: true },
+    });
+  },
+
+  async getOrderItemById(orderItemId, tx) {
+    return (tx || prisma).orderItem.findUnique({
       where: { orderItemId },
       include: {
-        order: { select: { orderId: true, status: true, amountPaid: true } },
         product: { select: { productName: true } },
         variant: { select: { sizeName: true } },
       },
@@ -661,12 +667,33 @@ export const orderRepository = {
    * @param {object} [tx] - transaction client
    * @returns {Array<object>} - deduction records
    */
-  async getActiveDeductions(orderId, tx) {
+  async getActiveDeductions(orderId, tx, orderItemId) {
     const client = tx || prisma;
     return client.orderIngredientDeduction.findMany({
-      where: { orderId, reversedAt: null },
-      include: { batch: { select: { costPerUnit: true } } },
+      where: { orderId, reversedAt: null, ...(orderItemId == null ? {} : { orderItemId }) },
+      orderBy: { id: "asc" },
     });
+  },
+
+  async getItemConsumption(orderId) {
+    return prisma.orderIngredientDeduction.findMany({
+      where: { orderId },
+      include: { ingredient: { select: { ingredientName: true, unit: true } } },
+      orderBy: { id: "asc" },
+    });
+  },
+
+  async settleDeductions(orderId, rows, userId, tx) {
+    const data = rows.map(row => ({ id: row.id, restored: row.quantityRestored, lost: row.quantityLost }));
+    // One guarded update marks precisely the claimed slices, retaining the
+    // original consumption quantity and cost for receipts and reconciliation.
+    return tx.$executeRaw`
+      UPDATE order_ingredient_deductions AS d SET
+        quantity_restored = s.restored, quantity_lost = s.lost,
+        reversed_at = now(), reversed_by = ${userId}::uuid
+      FROM jsonb_to_recordset(${JSON.stringify(data)}::jsonb) AS s(id integer, restored numeric, lost numeric)
+      WHERE d.order_id = ${orderId}::uuid AND d.id = s.id AND d.reversed_at IS NULL
+    `;
   },
 
   /**

@@ -1,5 +1,7 @@
 **SYSTEM AUDIT STATUS**
 
+Inventory transaction remediation: [INVENTORY_TRANSACTION_FIXES.md](INVENTORY_TRANSACTION_FIXES.md).
+
 **Historical baseline:** Authentication fixes were implemented on 2026-10-03.
 See [authentication remediation](C:/Users/liamk/WebApp/AbbeysKitchenette/audit/AUTHENTICATION_FIXES.md)
 for current status, test results and the required Supabase migration. Findings
