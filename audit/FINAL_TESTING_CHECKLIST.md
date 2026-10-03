@@ -81,7 +81,7 @@ vulnerabilities. npm audit failures require fixes or a reviewed explicit excepti
 Migration status/validation/generation do not prove data integrity. No migration,
 reset or seed command is intentionally included in this verification block.
 
-Current reference, not a final PASS: the completed backend batches have 623 automated tests
+Current reference, not a final PASS: the completed backend batches have 626 automated tests
 passing, including 23 recovery-email security/rollback cases. Six additional isolated PostgreSQL tests pass; they are opt-in and skipped in the ordinary suite. The frontend
 build passed with an existing large-bundle warning. Submission code and POS pages
 passed lint; the guest page retains its baseline four errors and one warning.
@@ -819,3 +819,5 @@ Do not check off items without recorded evidence from the final tested commit.
 Lifecycle implementation and rollout evidence: [DEPLOYMENT_LIFECYCLE_FIXES.md](./DEPLOYMENT_LIFECYCLE_FIXES.md). Seven additional Sheets PostgreSQL checks passed in a disposable schema; live Google delivery remains Not verified.
 
 Live Sheets paid-order check verified on 2026-10-03: #261003003 delivered to row 1001 with correct items, total, payment, cashier and identity in M. Adjustment/outage/hosting acceptance remains NOT RUN; see SHEETS_SYNC_FIXES.md. Eight isolated Sheets PostgreSQL checks now pass.
+
+Empty-sheet reset regression: verify headers at row 1, next new event at row 2, populated-sheet reset refusal, no replay of synced events, and preservation of concurrent-sender exclusion. Ten isolated Sheets PostgreSQL cases now pass. Actual cleared-sheet reset remains pending user clarification.

@@ -7,6 +7,30 @@ const leaseKey = () => `sheets:${createHash("sha256").update(env.GOOGLE_SERVICE_
 
 /** Database-clock leases serialize replicas without keeping a transaction open during Google calls. */
 export const sheetsRepository = {
+  async maintenanceLease() {
+    const owner = randomUUID(), key = leaseKey();
+    const rows = await prisma.$queryRaw`INSERT INTO background_leases (key, owner, expires_at)
+      VALUES (${key}, ${owner}::uuid, clock_timestamp() + interval '90 seconds')
+      ON CONFLICT (key) DO UPDATE SET owner = EXCLUDED.owner, expires_at = EXCLUDED.expires_at
+      WHERE background_leases.expires_at IS NULL OR background_leases.expires_at <= clock_timestamp()
+      RETURNING key`;
+    if (!rows.length) throw new Error("SHEETS_SENDER_BUSY_RETRY_LATER");
+    return { owner, key };
+  },
+  async resetEmptyDestination(spreadsheetId, lease) {
+    return prisma.$transaction(async tx => {
+      const owned = await tx.$queryRaw`SELECT key FROM background_leases WHERE key = ${lease.key}
+        AND owner = ${lease.owner}::uuid AND expires_at > clock_timestamp() FOR UPDATE`;
+      if (!owned.length) throw new Error("SHEETS_MAINTENANCE_LEASE_LOST");
+      const processing = await tx.sheetSyncLog.count({ where: { spreadsheetId, status: "processing" } });
+      if (processing) throw new Error("SHEETS_PROCESSING_EVENTS_REQUIRE_RECOVERY");
+      // External history was explicitly cleared. Retain event history and synced
+      // status, but detach obsolete row coordinates so future rows can be reused.
+      await tx.sheetSyncLog.updateMany({ where: { spreadsheetId }, data: { sheetRow: null } });
+      await tx.sheetSyncDestination.upsert({ where: { spreadsheetId },
+        create: { spreadsheetId, nextRow: 2 }, update: { nextRow: 2 } });
+    }, { timeout: 5000 });
+  },
   async retryHeaderBlocked() {
     // Retry only immutable events rejected by the layout check, never legacy rows.
     return prisma.$executeRaw`UPDATE sheet_sync_log SET status = 'pending', attempts = 0,

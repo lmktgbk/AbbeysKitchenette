@@ -27,6 +27,7 @@ beforeAll(async () => {
     }
     const range = path.split("/values/")[1];
     if (req.method === "GET") {
+      if (range === "Orders!A:M") return json({ values: cells.get(range) || [] });
       if (range === "Orders!A1:M1" && !cells.has(range)) {
         const header = Array(13).fill("");
         header[11] = cells.get("Orders!L1")?.[0] || "";
@@ -45,7 +46,12 @@ beforeAll(async () => {
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve)); base = `http://127.0.0.1:${server.address().port}`;
 });
 afterAll(async () => { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); });
-beforeEach(() => { mode = "normal"; cells = new Map(); calls = []; rows = 3; columns = 11; });
+beforeEach(() => {
+  mode = "normal"; cells = new Map(); calls = []; rows = 3; columns = 11;
+  const header = ["Orders #", "Date", "Time", "Customer", "Table", "Items", "Gross", "Discount", "Net", "Payment", "Cashier"];
+  cells.set("Orders!A1:M1", header);
+  cells.set("Orders!A:M", [header, ["#old1"], ["#old2"]]);
+});
 const transport = (timeoutMs = 200) => createSheetsTransport({ config, timeoutMs, fetchImpl: (url, options) => {
   const provider = new URL(url); return fetch(base + provider.pathname + provider.search, options);
 } });
@@ -83,8 +89,24 @@ describe("bounded Google Sheets transport", () => {
   });
   it("does not overwrite an occupied event-ID header", async () => {
     cells.set("Orders!L1", ["Private notes"]);
+    cells.get("Orders!A1:M1")[11] = "Private notes";
     await expect(transport().initialize("fixture-sheet")).rejects.toMatchObject({ code: "SHEETS_EVENT_COLUMN_OCCUPIED", retryable: false });
     expect(cells.get("Orders!L1")).toEqual(["Private notes"]);
+  });
+  it("starts immediately after actual data rather than allocated grid capacity", async () => {
+    rows = 2000;
+    expect(await transport().initialize("fixture-sheet")).toBe(4);
+  });
+  it("restores headers on a fully cleared sheet and starts the first sale at row two", async () => {
+    cells.clear(); rows = 2000;
+    expect(await transport().initialize("fixture-sheet", undefined, { requireEmpty: true })).toBe(2);
+    expect(cells.get("Orders!A1:M1")[12]).toBe("Sync Event ID");
+    expect(cells.get("Orders!A1:M1")[11]).toBe("Cashier");
+  });
+  it("refuses resetting a populated sheet without writing headers or changing data", async () => {
+    await expect(transport().initialize("fixture-sheet", undefined, { requireEmpty: true }))
+      .rejects.toMatchObject({ code: "SHEETS_RESET_REQUIRES_EMPTY_DATA" });
+    expect(calls.some(call => call.method === "PUT")).toBe(false);
   });
   it("preserves the existing Adjustment and Cashier columns and uses M for identity", async () => {
     cells.set("Orders!A1:M1", ["Orders #", "Date", "Time", "Customer", "Table", "Adjustment", "Items", "Gross", "Discount", "Net", "Payment", "Cashier"]);

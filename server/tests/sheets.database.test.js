@@ -114,4 +114,24 @@ describe.skipIf(process.env.SHEETS_DB_CHECK !== "1")("PostgreSQL Sheets outbox a
     expect(saved.eventId).toBe(event.eventId); expect(saved.payload).toEqual(event.payload);
     expect(await h.db.sheetSyncLog.count({ where: { status: "blocked" } })).toBe(2);
   });
+  it("empty-sheet reset detaches old coordinates without replaying synced history", async () => {
+    await record(); const event = await sheetsRepository.claim();
+    await sheetsRepository.initialize(event.spreadsheetId, 1001); await sheetsRepository.reserve(event);
+    await sheetsRepository.finish(event, { status: "synced" }); await sheetsRepository.release(event);
+    const lease = await sheetsRepository.maintenanceLease();
+    await sheetsRepository.resetEmptyDestination(event.spreadsheetId, lease);
+    expect((await h.db.sheetSyncDestination.findFirst()).nextRow).toBe(2);
+    const history = await h.db.sheetSyncLog.findFirst();
+    expect(history.status).toBe("synced"); expect(history.sheetRow).toBeNull();
+    await sheetsRepository.release(lease);
+  });
+  it("does not reset a destination while an event is processing", async () => {
+    await record(); const event = await sheetsRepository.claim();
+    await sheetsRepository.initialize(event.spreadsheetId, 1001);
+    await expect(sheetsRepository.resetEmptyDestination(event.spreadsheetId, event))
+      .rejects.toThrow("SHEETS_PROCESSING_EVENTS_REQUIRE_RECOVERY");
+    expect((await h.db.sheetSyncDestination.findFirst()).nextRow).toBe(1001);
+    await expect(sheetsRepository.maintenanceLease()).rejects.toThrow("SHEETS_SENDER_BUSY_RETRY_LATER");
+    await sheetsRepository.release(event);
+  });
 });

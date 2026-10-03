@@ -92,11 +92,12 @@ export function createSheetsTransport({ fetchImpl = fetch, config = env, timeout
     const normalize = value => String(value ?? "").trim().toLowerCase();
     // Existing workbooks have an explicit Adjustment column before Items.
     // Preserve that layout and its Cashier column rather than claiming column L.
-    const adjustment = normalize(cells[5]) === "adjustment" && normalize(cells[6]) === "items" && normalize(cells[11]) === "cashier";
+    const emptyHeader = !cells.some(value => value !== "" && value !== null);
+    const adjustment = emptyHeader || (normalize(cells[5]) === "adjustment" && normalize(cells[6]) === "items" && normalize(cells[11]) === "cashier");
     const column = adjustment ? "M" : "L";
     const existing = cells[adjustment ? 12 : 11];
     if (existing && existing !== "Sync Event ID") throw new SheetsError("SHEETS_EVENT_COLUMN_OCCUPIED", false);
-    properties.layout = { adjustment, column, width: adjustment ? 13 : 12, hasHeader: Boolean(existing) };
+    properties.layout = { adjustment, column, width: adjustment ? 13 : 12, hasHeader: Boolean(existing), emptyHeader };
     return properties.layout;
   }
   async function grow(spreadsheetId, row, signal, width = 12) {
@@ -113,16 +114,26 @@ export function createSheetsTransport({ fetchImpl = fetch, config = env, timeout
     }
   }
   return {
-    async initialize(spreadsheetId, signal) {
+    async initialize(spreadsheetId, signal, { requireEmpty = false } = {}) {
       const properties = await grid(spreadsheetId, signal);
       const format = await layout(spreadsheetId, signal);
+      // Google omits trailing empty rows. Grid capacity is not the last used row.
+      // The response cap and deadline also bound this one-time history inspection.
+      const history = await google(spreadsheetId, valuesPath("Orders!A:M") + "?valueRenderOption=FORMULA", {}, signal);
+      const occupied = history.values || [];
+      const hasData = occupied.slice(1).some(row => row.some(value => value !== "" && value !== null));
+      if (requireEmpty && hasData) throw new SheetsError("SHEETS_RESET_REQUIRES_EMPTY_DATA", false);
+      const nextRow = Math.max(2, occupied.length + 1);
       await grow(spreadsheetId, properties.rows, signal, format.width);
-      if (!format.hasHeader) {
+      if (format.emptyHeader) {
+        const headings = ["Orders #", "Date", "Time", "Customer", "Table", "Adjustment", "Items", "Gross", "Discount", "Net", "Payment", "Cashier", "Sync Event ID"];
+        await google(spreadsheetId, valuesPath("Orders!A1:M1") + "?valueInputOption=RAW", { method: "PUT", body: JSON.stringify({ values: [headings] }) }, signal);
+        format.emptyHeader = false; format.hasHeader = true;
+      } else if (!format.hasHeader) {
         await google(spreadsheetId, valuesPath(`Orders!${format.column}1`) + "?valueInputOption=RAW", { method: "PUT", body: JSON.stringify({ values: [["Sync Event ID"]] }) }, signal);
         format.hasHeader = true;
       }
-      // Starting beyond the existing grid preserves history without downloading the whole sheet.
-      return properties.rows + 1;
+      return nextRow;
     },
     async deliver(event, signal) {
       const values = event.payload?.values;
