@@ -1,5 +1,6 @@
 import prisma from "../../config/prisma.js";
 import { MANILA_TODAY_SQL } from "../../config/time.js";
+import { AppError } from "../../middleware/errorHandler.middleware.js";
 
 /**
  * Price Optimization Repository
@@ -35,7 +36,7 @@ const priceOptimizationRepository = {
       variant_sales AS (
         SELECT
           oi.variant_id,
-          COUNT(*) AS total_units,
+          SUM(oi.quantity) AS total_units,
           COALESCE(SUM(oi.subtotal), 0) AS total_revenue
         FROM order_items oi
         JOIN orders o ON o.order_id = oi.order_id
@@ -131,12 +132,22 @@ const priceOptimizationRepository = {
    */
   async saveSuggestions(suggestions, productId) {
     return prisma.$transaction(async (tx) => {
-      if (productId) await tx.priceOptimization.deleteMany({
+      const products = await tx.$queryRaw`SELECT product_name, is_archived FROM products WHERE product_id = ${productId}::uuid FOR UPDATE`;
+      if (!products.length || products[0].is_archived) throw new AppError(409, "Product changed during generation", "STALE_PRICE_SUGGESTION");
+      // Claim pending rows before locking variants, matching approval's suggestion-first order.
+      // Any later validation or insert failure rolls this deletion back.
+      await tx.priceOptimization.deleteMany({
         where: {
           status: "pending",
           variant: { productId },
         },
       });
+      const variants = await tx.$queryRaw`SELECT variant_id, size_name, price FROM product_variants WHERE product_id = ${productId}::uuid ORDER BY variant_id FOR UPDATE`;
+      const allowed = new Map(variants.map(v => [v.variant_id, v]));
+      if (suggestions.some(row => {
+        const variant = allowed.get(row.variantId);
+        return !variant || Number(variant.price) !== row.currentPrice || variant.size_name !== row.sizeName || products[0].product_name !== row.productName;
+      })) throw new AppError(409, "Product pricing changed during generation. Generate again", "STALE_PRICE_SUGGESTION");
       return tx.priceOptimization.createMany({ data: suggestions });
     }, { timeout: 5000 });
   },

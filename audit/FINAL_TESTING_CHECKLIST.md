@@ -887,3 +887,13 @@ Implementation: [FRONTEND_RELIABILITY_FIXES.md](FRONTEND_RELIABILITY_FIXES.md). 
 - [ ] Name/table/consent validation is announced and associated with inputs. Verify screen readers, contrast and focus indicators across supported browsers.
 - [ ] At phone/tablet/desktop sizes, long names/descriptions and large carts stay scrollable with reachable actions and no horizontal overflow. Verify the virtual keyboard does not obscure checkout controls.
 - [ ] Measure cold/warm page loads, Web Vitals, total assets and menu payload/capacity on slow connections and representative data. The smaller main chunk alone is not a production benchmark.
+# AI pricing validation acceptance — M13 (2026-10-04)
+
+- [ ] As admin, generate for a disposable product; verify every recommendation belongs to that product and current prices/names match the database.
+- [ ] Verify derived differences, percentages and direction for increase, decrease and unchanged prices; inspect margins against the captured costing context.
+- [ ] Review old pending suggestions and regenerate them before approval; new validation does not retroactively establish old provenance.
+- [ ] Confirm cashier/kitchen users cannot generate, apply or dismiss recommendations.
+- [ ] In a mocked provider test environment, return foreign/duplicate IDs, extra fields, invalid amounts, invalid confidence, empty/overlong reasoning and malformed JSON. Verify clear errors and preservation of existing pending suggestions.
+- [ ] Delay the mocked AI response, change the product's sale price/archive state, then release it. Verify 409 and no replacement of prior pending suggestions.
+- [ ] Generate concurrently and race generation with approval on isolated data; verify no mixed batches, stale price overwrite or partially committed approval.
+- [ ] With approved live AI usage, verify actual delivery and useful recommendations. Check provider failure/timeout handling; cancellation can still incur provider usage. Live provider behavior remains **Not verified**.

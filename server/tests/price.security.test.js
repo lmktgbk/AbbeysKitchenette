@@ -48,6 +48,9 @@ beforeEach(() => {
     if (!row) return 0;
     row.price = Number(price); db.state.priceWrites++; return 1;
   };
+  db.$queryRaw = async sql => sql.join("").includes("FROM products")
+    ? [{ product_name: "Fixture", is_archived: false }]
+    : [{ variant_id: 7, size_name: "Regular", price: db.state.variants[0].price }];
   // The double verifies atomicity, rollback and alternate request ordering;
   // PostgreSQL row-lock scheduling needs the final multi-connection tests.
   let queue = Promise.resolve();
@@ -144,8 +147,13 @@ describe("Price approval authorization and transactional correctness", () => {
   });
   it("failed regeneration retains prior pending recommendations", async () => {
     h.db.failInsert = true;
-    await expect(repo.saveSuggestions([{ id: 2, status: "pending" }], "fixture-product")).rejects.toThrow("Injected insert failure");
+    await expect(repo.saveSuggestions([{ id: 2, variantId: 7, productName: "Fixture", sizeName: "Regular", currentPrice: 85, status: "pending" }], "fixture-product")).rejects.toThrow("Injected insert failure");
     expect(h.db.state.suggestions).toHaveLength(1);
+    expect(h.db.state.suggestions[0].id).toBe(1);
+  });
+  it("a price changed during generation rolls back pending replacement", async () => {
+    await expect(repo.saveSuggestions([{ variantId: 7, productName: "Fixture", sizeName: "Regular", currentPrice: 80 }], "fixture-product"))
+      .rejects.toMatchObject({ statusCode: 409 });
     expect(h.db.state.suggestions[0].id).toBe(1);
   });
 });

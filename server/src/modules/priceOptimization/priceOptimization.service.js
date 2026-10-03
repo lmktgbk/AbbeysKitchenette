@@ -1,4 +1,5 @@
 import repo from "./priceOptimization.repository.js";
+import { normalizeRecommendations } from "./priceOptimization.output.js";
 import { generatePriceSuggestions, getCompetitorAverage } from "./priceOptimization.prompts.js";
 import prisma from "../../config/prisma.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
@@ -42,10 +43,13 @@ const priceOptimizationService = {
   async generate(productId) {
     // Step 1: Gather context
     const product = await repo.getProductInfo(productId);
-    if (!product) throw new Error("Product not found");
+    if (!product) throw new AppError(404, "Product not found", "PRODUCT_NOT_FOUND");
+    if (product.isArchived) throw new AppError(409, "Archived products cannot receive recommendations", "PRODUCT_ARCHIVED");
 
-    const variants = await repo.getVariantPricingContext(productId);
-    const recipes = await repo.getRecipeDetails(productId);
+    const [variants, recipes] = await Promise.all([
+      repo.getVariantPricingContext(productId), repo.getRecipeDetails(productId),
+    ]);
+    if (!variants.length || variants.length > 50) throw new AppError(409, "Product must have between 1 and 50 variants", "INVALID_PRICING_CONTEXT");
 
     // Step 2: Build sales summary string
     const salesLines = variants.map(
@@ -85,29 +89,17 @@ const priceOptimizationService = {
       sales,
     });
 
-    // Step 4: Save to DB
-    if (result.recommendations && result.recommendations.length > 0) {
-      const rows = result.recommendations.map((r) => ({
-        variantId: Number(r.variant_id),
-        productName: r.product_name,
-        sizeName: r.size_name,
-        currentPrice: r.current_price,
-        recommendedPrice: r.recommended_price,
-        priceChange: r.recommended_price - r.current_price,
-        changePercent: r.change_percent,
-        direction: r.direction,
-        confidence: r.confidence,
-        reasoning: r.reasoning,
-        marginBefore: r.margin_before,
-        marginAfter: r.margin_after,
-        competitorAvg: getCompetitorAverage(r.size_name),
-        status: "pending",
-      }));
-
-      await repo.saveSuggestions(rows, productId);
-    }
-
-    return result.recommendations || [];
+    const rows = normalizeRecommendations(result, variants).map(row => ({
+      ...row, competitorAvg: getCompetitorAverage(row.sizeName),
+    }));
+    await repo.saveSuggestions(rows, productId);
+    return rows.map(row => ({
+      variant_id: row.variantId, product_name: row.productName, size_name: row.sizeName,
+      current_price: row.currentPrice, recommended_price: row.recommendedPrice,
+      price_change: row.priceChange, change_percent: row.changePercent, direction: row.direction,
+      confidence: row.confidence, reasoning: row.reasoning,
+      margin_before: row.marginBefore, margin_after: row.marginAfter,
+    }));
   },
 
   /**
