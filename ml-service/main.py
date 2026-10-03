@@ -25,22 +25,28 @@ app = FastAPI(
     title="Abbey's Kitchenette ML Service",
     version="1.0.0",
     lifespan=lifespan,
-    dependencies=[Depends(require_service_key)],
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
 )
 
 # Authentication applies to every business route and the private health probe.
-app.include_router(demand.router)
+app.include_router(demand.router, dependencies=[Depends(require_service_key)])
 
 # ── MBA routers ────────────────────────────────
-app.include_router(association.router)
+app.include_router(association.router, dependencies=[Depends(require_service_key)])
 
 
-@app.get("/health")
+@app.get("/health", dependencies=[Depends(require_service_key)])
 async def health():
     return {"status": "ok", "service": "ml-service"}
+
+
+# Hosting probes cannot supply the private service credential. This endpoint
+# exposes process liveness only; business routes and /health remain private.
+@app.get("/livez")
+async def liveness():
+    return {"status": "ok"}
 
 
 if __name__ == "__main__":

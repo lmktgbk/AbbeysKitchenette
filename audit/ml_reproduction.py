@@ -25,6 +25,12 @@ mba = importlib.import_module("mba.routers.association")
 app = importlib.import_module("main").app
 
 class Audit(unittest.IsolatedAsyncioTestCase):
+    async def test_public_liveness_exposes_no_private_service_details(self):
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/livez")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json(), {"status": "ok"})
+
     async def test_concurrent_pool_initialization_creates_one_pool(self):
         pool = object()
         async def create(*args, **kwargs):

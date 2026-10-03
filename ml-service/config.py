@@ -12,7 +12,9 @@ if not 60 <= ML_JOB_TIMEOUT_SECONDS <= 7200:
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 CLIENT_URL = os.getenv("CLIENT_URL", "http://localhost:5173")
-FORECAST_PORT = int(os.getenv("FORECAST_PORT", "8000"))
+FORECAST_PORT = int(os.getenv("PORT", os.getenv("FORECAST_PORT", "8000")))
+if not 1 <= FORECAST_PORT <= 65535:
+    raise ValueError("PORT/FORECAST_PORT must be between 1 and 65535")
 FORECASTER_URL = os.getenv("FORECASTER_URL", "http://localhost:5000")
 
 # Prophet — one config for every product. Additive because a weekend bump

@@ -20,6 +20,7 @@
 import { WebSocketServer } from "ws";
 import { env } from "../config/env.js";
 import { BUSINESS_TZ } from "../config/time.js";
+import { acceptsWebSocketOrigin } from "../middleware/browserSecurity.middleware.js";
 import { subscribe, unsubscribe, detachSocket, broadcast } from "./hub.js";
 import { extractUpgradeToken, resolveUser, canSubscribe } from "./auth.js";
 import { registerSessionSocket, unregisterSessionSocket, closeSessionSocket } from "./sessions.js";
@@ -113,6 +114,10 @@ export function attachRealtimeServer(httpServer) {
   const heartbeatMs = env.WS_HEARTBEAT_MS;
 
   httpServer.on("upgrade", async (req, socket, head) => {
+    if (!acceptsWebSocketOrigin(req)) {
+      socket.end("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n");
+      return;
+    }
     if (!req.url.startsWith("/ws")) {
       socket.destroy();
       return;

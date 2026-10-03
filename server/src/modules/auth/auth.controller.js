@@ -6,21 +6,15 @@ import { AppError } from "../../middleware/errorHandler.middleware.js";
  * Auth Controller
  *
  * Thin HTTP layer over authService. Owns the session cookie (httpOnly,
- * 8h, strict) — login/adminLogin set it, logout clears it. Login handlers
+ * 8h, configured SameSite policy) — login/adminLogin set it, logout clears it. Login handlers
  * special-case credential AppErrors inline (instead of plain handleError)
  * to keep brute-force responses indistinguishable across portals.
  */
-import { env } from "../../config/env.js";
+import { sessionCookieOptions } from "../../config/cookies.js";
 import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
-const COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: env.NODE_ENV === "production",
-  sameSite: "strict",
-  maxAge: 8 * 60 * 60 * 1000,
-  path: "/",
-};
+const COOKIE_OPTIONS = sessionCookieOptions();
 
 const CHALLENGE_COOKIE = "login_challenge";
 const CHALLENGE_OPTIONS = { ...COOKIE_OPTIONS, path: "/api/auth", maxAge: 10 * 60 * 1000 };

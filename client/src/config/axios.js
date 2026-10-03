@@ -6,8 +6,11 @@ import { clearSession, getSessionEpoch } from "@/features/auth/session";
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
   withCredentials: true,
+  // Browser writes must carry a non-simple header for backend origin checks.
+  // This is a request marker, not an authentication secret.
   headers: {
     "Content-Type": "application/json",
+    "X-SmartCafe-Request": "1",
   },
 });
 

@@ -14,6 +14,7 @@ import http from "http";
 import app from "./src/app.js";
 import { readiness } from "./src/services/readiness.js";
 import { createShutdown } from "./src/services/shutdown.js";
+import { rateLimitMaintenance } from "./src/services/rateLimitMaintenance.js";
 import { env } from "./src/config/env.js";
 import prisma from "./src/config/prisma.js";
 import { automationScheduler } from "./src/modules/automation/automation.scheduler.js";
@@ -49,6 +50,7 @@ async function boot() {
 
     // Recover pending Sheets deliveries (no-op unless configured)
     sheetsService.startReconciler();
+    rateLimitMaintenance.start();
 
     // Discover due schedules and recover durable background runs
     automationScheduler.reschedule().catch((err) => console.error("[automation] Boot load failed:", err.message));
@@ -59,7 +61,7 @@ const shutdown = createShutdown({
   readiness,
   getServer: () => httpServer,
   getRealtime: () => realtime,
-  workers: [automationScheduler, sheetsService],
+  workers: [automationScheduler, sheetsService, rateLimitMaintenance],
   disconnect: () => prisma.$disconnect(),
   exit: code => process.exit(code),
 });

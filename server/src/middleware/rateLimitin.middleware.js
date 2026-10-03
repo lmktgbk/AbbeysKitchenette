@@ -1,8 +1,11 @@
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
+import { sharedRateLimitStore } from "./rateLimit.store.js";
+import { env } from "../config/env.js";
 
 // Authenticated identity prevents rotating IPs from bypassing this outer budget.
 // Durable password/code counters and issuance cooldowns remain the cross-instance backstop.
 export const emailChangeLimiter = rateLimit({
+  store: sharedRateLimitStore("emailChange"),
   windowMs: 15 * 60 * 1000,
   max: 10,
   keyGenerator: req => `email-change:${req.user.id}`,
@@ -34,8 +37,9 @@ export const emailChangeLimiter = rateLimit({
  * Applied to all routes via app.use().
  */
 export const generalLimiter = rateLimit({
+  store: sharedRateLimitStore("general"),
   windowMs: 15 * 60 * 1000,
-  max: 500,
+  max: env.GENERAL_RATE_LIMIT_MAX ?? 500,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -52,6 +56,7 @@ export const generalLimiter = rateLimit({
  * Prevents brute-force attacks from a single IP.
  */
 export const authLimiter = rateLimit({
+  store: sharedRateLimitStore("auth"),
   windowMs: 15 * 60 * 1000,
   max: 10,
   keyGenerator: (req) => ipKeyGenerator(req.ip ?? "unknown"),
@@ -77,6 +82,7 @@ export const authLimiter = rateLimit({
  * This means a legitimate user who mistypes once won't be blocked.
  */
 export const accountLimiter = rateLimit({
+  store: sharedRateLimitStore("account"),
   windowMs: 15 * 60 * 1000,
   max: 10,
   keyGenerator: (req) =>
@@ -99,6 +105,7 @@ export const accountLimiter = rateLimit({
  * Admin viewing orders, notifications, forecasts, etc.
  */
 export const liberalLimiter = rateLimit({
+  store: sharedRateLimitStore("liberal"),
   windowMs: 15 * 60 * 1000,
   max: 3000,
   standardHeaders: true,
@@ -116,6 +123,7 @@ export const liberalLimiter = rateLimit({
  * Public checkout is the easiest spam target — mirrors authLimiter.
  */
 export const guestOrderLimiter = rateLimit({
+  store: sharedRateLimitStore("guestOrder"),
   windowMs: 15 * 60 * 1000,
   max: 10,
   keyGenerator: (req) => ipKeyGenerator(req.ip ?? "unknown"),
@@ -135,6 +143,7 @@ export const guestOrderLimiter = rateLimit({
  * per window, with headroom for families sharing store WiFi.
  */
 export const guestTrackLimiter = rateLimit({
+  store: sharedRateLimitStore("guestTrack"),
   windowMs: 15 * 60 * 1000,
   max: 120,
   keyGenerator: (req) => ipKeyGenerator(req.ip ?? "unknown"),

@@ -1,5 +1,5 @@
 import express from "express";
-import cors from "cors";
+import { browserCors, browserWriteGuard } from "./middleware/browserSecurity.middleware.js";
 import helmet from "helmet";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
@@ -36,6 +36,7 @@ import analyticsRoutes from "./modules/analytics/analytics.routes.js";
 
 const app = express();
 app.disable("etag");
+app.set("trust proxy", env.TRUST_PROXY_HOPS);
 
 /**
  * Security Headers
@@ -43,13 +44,8 @@ app.disable("etag");
  */
 app.use(helmet());
 
-// Cors - allow only permitted frontend to make req
-app.use(
-  cors({
-    origin: env.CLIENT_URL,
-    credentials: true,
-  }),
-);
+app.use(browserCors());
+app.use(browserWriteGuard());
 
 // Logs method, URL, status code, response time.
 // Only in development to avoid noise in production logs.

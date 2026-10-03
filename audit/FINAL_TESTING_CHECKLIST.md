@@ -825,3 +825,19 @@ Empty-sheet reset regression: verify headers at row 1, next new event at row 2, 
 Cleared-sheet reset verified after explicit user approval: headers retained, zero data rows remain, saved nextRow is 2. Create the next real/test order to verify delivery at row 2, followed by row 3. Synced history was not requeued.
 
 Automation follow-up: 637 ordinary tests passed; eleven isolated automation PostgreSQL checks replay all nine migrations. Remaining implementation findings: sixteen open plus two partially complete (upload cleanup and migration verification), excluding final acceptance work. See AUTOMATION_RELIABILITY_FIXES.md.
+
+## Deployment configuration acceptance — NOT RUN
+
+Implementation and provider setup: [DEPLOYMENT_CONFIGURATION_FIXES.md](./DEPLOYMENT_CONFIGURATION_FIXES.md). M10 proxy/shared rate protection is implemented. H15 deployment/recovery is partially addressed; actual hosting and restored backups remain Not verified. M12 WebSocket origin checks are implemented, but socket resource budgets remain open.
+
+- [ ] Apply reviewed pending migrations with `db:migrate:deploy`, generate the client during build, confirm migration status and successful production environment validation.
+- [ ] Vercel deep links and refresh work; frontend API URL targets the intended HTTPS backend. No secrets appear in client assets.
+- [ ] Hosted login, OTP, logout, password reset and email change work with the chosen domains in intended browsers; cookie set/clear paths, Secure/HttpOnly/SameSite and session revocation verified.
+- [ ] Wrong/missing Origin and missing request marker reject mutations. Valid frontend requests and preflights succeed. Unauthorized users still cannot perform protected actions.
+- [ ] Proxy IP matches the actual client; forged forwarding headers cannot bypass staff IP restrictions or rate limits. Two backend replicas enforce a shared limit and database failure returns a safe failure.
+- [ ] WSS connection/reconnection works; attacker/missing production origins are rejected. Remaining socket budgets are separately resolved before public exposure.
+- [ ] Backend readiness and ML `/livez` work through hosting; ML business routes and `/health` reject missing/wrong service keys. Verify actual TLS certificates and database pool budgets.
+- [ ] SIGTERM, restart and failed deployment preserve pending job/order data; hosted schedules, Sheets and private ML delivery verified without duplicate execution.
+- [ ] Measure request latency and capacity with shared counters, concurrent terminals and ML work; tune general request budget from recorded results.
+- [ ] Verify Supabase backup retention and recover into a separate database. Reconcile financial/inventory data, migration history, outbox and automation state; record measured RPO/RTO and independent storage recovery.
+- [ ] Continuous health/error/latency alerts verified; secrets remain in provider settings, not logs, client bundles or repository.

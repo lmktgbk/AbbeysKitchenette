@@ -857,6 +857,15 @@ model AutomationRun {
   @@map("automation_runs")
 }
 
+model RateLimitBucket {
+  bucketKey String   @id @map("bucket_key") @db.Char(64)
+  hits      Int
+  resetAt   DateTime @map("reset_at") @db.Timestamptz
+
+  @@index([resetAt], map: "rate_limit_buckets_expiry_idx")
+  @@map("rate_limit_buckets")
+}
+
 model AnomalyResult {
   id            String   @id @default(uuid()) @db.Uuid
   ruleId        String   @map("rule_id") @db.VarChar(50)
