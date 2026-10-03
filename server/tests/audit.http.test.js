@@ -55,10 +55,10 @@ describe("AUDIT: HTTP authentication and role boundaries", () => {
     results.push({ scenario: "kitchen is blocked from acceptance/payment handler", status: r.status, expected: 403 });
     expect(r.status).toBe(403);
   });
-  it("malformed JSON returns 500 from the real Express stack", async () => {
+  it("malformed JSON returns a safe 400 from the real Express stack", async () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     const r = await fetch(base + "/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{" });
-    expect(r.status).toBe(500); spy.mockRestore();
+    expect(r.status).toBe(400); spy.mockRestore();
     results.push({ scenario: "malformed JSON", status: r.status, desired: 400 });
   });
 });

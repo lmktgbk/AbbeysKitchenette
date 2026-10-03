@@ -105,12 +105,12 @@ describe("AUDIT: fixed authentication regressions and open business defects", ()
       items: [{ product_id: user.id, variant_id: 1, quantity: 2147483648, unit_price: 1 }],
     }).success).toBe(true);
   });
-  it("malformed JSON is serialized as a 500 rather than a 400", () => {
+  it("malformed JSON is serialized as a safe 400", () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     const err = Object.assign(new SyntaxError("invalid JSON"), { status: 400, type: "entity.parse.failed" });
     const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
     errorHandler(err, {}, res, vi.fn());
-    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.status).toHaveBeenCalledWith(400);
     spy.mockRestore();
   });
 });

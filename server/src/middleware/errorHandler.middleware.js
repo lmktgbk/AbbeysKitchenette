@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { mapPrismaError, mapUploadError } from "../utils/response.js";
+import { mapRequestError, mapPrismaError, mapUploadError } from "../utils/response.js";
 
 /**
  * Custom Error Class for Expected Errors
@@ -27,6 +27,7 @@ export class AppError extends Error {
  * - Unexpected errors: return generic message + reference ID (hide internals)
  */
 const errorHandler = (err, req, res, next) => {
+  if (res.headersSent) return next(err);
   // Expected error — show message and code
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({
@@ -38,7 +39,7 @@ const errorHandler = (err, req, res, next) => {
   }
 
   // Known Prisma races/conflicts + upload rejections — never 500s.
-  const mapped = mapPrismaError(err) || mapUploadError(err);
+  const mapped = mapRequestError(err) || mapPrismaError(err) || mapUploadError(err);
   if (mapped) {
     return res.status(mapped.statusCode).json({
       success: false,

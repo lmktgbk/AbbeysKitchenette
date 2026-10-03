@@ -39,3 +39,5 @@ ML concurrency, worker isolation and forecast UUID fixes are tracked in [ML_RELI
 Dependency updates and the residual Prisma CLI advisory are tracked in [DEPENDENCY_SECURITY_FIXES.md](DEPENDENCY_SECURITY_FIXES.md).
 
 Recovery-email verification is tracked in [RECOVERY_EMAIL_FIXES.md](RECOVERY_EMAIL_FIXES.md). Its additive migration is prepared and rehearsed, pending deployment.
+
+Request parsing remediation: [REQUEST_VALIDATION_FIXES.md](REQUEST_VALIDATION_FIXES.md).

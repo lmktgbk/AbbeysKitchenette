@@ -1,5 +1,7 @@
 **SYSTEM AUDIT STATUS**
 
+Request parsing remediation: [REQUEST_VALIDATION_FIXES.md](REQUEST_VALIDATION_FIXES.md).
+
 Recovery-email remediation: [RECOVERY_EMAIL_FIXES.md](RECOVERY_EMAIL_FIXES.md). Its new migration is prepared and rehearsed; deployment and browser acceptance remain pending.
 
 Dependency remediation: [DEPENDENCY_SECURITY_FIXES.md](DEPENDENCY_SECURITY_FIXES.md). One underlying Prisma CLI advisory remains.

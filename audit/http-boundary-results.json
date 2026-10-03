@@ -1567,7 +1567,7 @@
   },
   {
     "scenario": "malformed JSON",
-    "status": 500,
+    "status": 400,
     "desired": 400
   }
 ]

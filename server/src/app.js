@@ -9,6 +9,7 @@ import { env } from "./config/env.js";
 import { fetchMl } from "./services/mlClient.js";
 import prisma from "./config/prisma.js";
 import errorHandler from "./middleware/errorHandler.middleware.js";
+import { requestBodyParsers } from "./middleware/requestBody.middleware.js";
 import { generalLimiter } from "./middleware/rateLimitin.middleware.js";
 
 // Routes
@@ -59,8 +60,7 @@ if (process.env.NODE_ENV === "development") {
 // parses incoming req bodies
 // - JSON: { "email": "test@test.com" }
 // - URL-encoded: email=test%40test.com
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(requestBodyParsers());
 
 // Makes req.cookies available (for JWT httpOnly cookie).
 app.use(cookieParser());

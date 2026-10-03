@@ -89,6 +89,22 @@ export const mapPrismaError = (error) => {
   return null;
 };
 
+// Parser messages can embed credentials or request fragments; return fixed text instead.
+export const mapRequestError = (error) => {
+  const errors = {
+    "entity.parse.failed": [400, "Malformed request body", "INVALID_BODY"],
+    "entity.too.large": [413, "Request body is too large", "BODY_TOO_LARGE"],
+    "parameters.too.many": [413, "Too many form fields", "TOO_MANY_FIELDS"],
+    "querystring.parse.rangeError": [400, "Form nesting is too deep", "INVALID_BODY"],
+    "encoding.unsupported": [415, "Unsupported content encoding", "UNSUPPORTED_ENCODING"],
+    "charset.unsupported": [415, "Unsupported character encoding", "UNSUPPORTED_CHARSET"],
+    "request.aborted": [400, "Request was interrupted", "INVALID_BODY"],
+    "request.size.invalid": [400, "Invalid request length", "INVALID_BODY"],
+  };
+  const mapped = Object.hasOwn(errors, error?.type) ? errors[error.type] : null;
+  return mapped ? { statusCode: mapped[0], message: mapped[1], code: mapped[2] } : null;
+};
+
 /**
  * Maps multer upload rejections to safe client responses.
  * Covers the image fileFilter ("Only image files…") and size limits —
@@ -125,7 +141,7 @@ export const controllerError = (res, error, fallbackCode) => {
   if (error instanceof AppError) {
     return errorResponse(res, error.message, null, error.statusCode, error.code);
   }
-  const mapped = mapPrismaError(error) || mapUploadError(error);
+  const mapped = mapRequestError(error) || mapPrismaError(error) || mapUploadError(error);
   if (mapped) {
     return errorResponse(res, mapped.message, null, mapped.statusCode, mapped.code);
   }

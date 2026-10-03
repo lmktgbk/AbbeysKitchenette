@@ -442,7 +442,7 @@ Confirm UUID product keys match catalog products in variant results and product 
 
 **Priority:** Medium
 
-**Implementation:** Open at checklist creation; final acceptance NOT RUN
+**Implementation:** Implemented; actual HTTP parser regressions pass; final deployed acceptance NOT RUN
 
 **Steps:** Send truncated JSON, invalid encoding, unsupported content types and an oversized request body to test APIs. Check response status/envelope and redacted logs; ensure the process stays responsive.
 
