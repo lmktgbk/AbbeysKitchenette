@@ -1,7 +1,6 @@
 import { orderService } from "./order.service.js";
 import { successResponse, controllerError } from "../../utils/response.js";
 import { emitOrderChanged, emitStockChanged, emitGuestForOrder } from "../../realtime/events.js";
-import { sheetsService } from "../sheets/sheets.service.js";
 
 /**
  * Order Controller
@@ -118,8 +117,6 @@ export const orderController = {
       });
       emitOrderChanged(order?.order_id);
       emitStockChanged();
-      // Live sheet sync — post-commit, fire-and-forget, never blocks the sale.
-      sheetsService.enqueue(order?.order_id, "paid");
       return successResponse(res, "Order created", { order }, 201);
     } catch (error) {
       return handleError(res, error, "CREATE_ORDER_ERROR");
@@ -176,8 +173,6 @@ export const orderController = {
       // Accepting payment deducts stock — refresh stock screens + menus.
       if (status === "accepted") {
         emitStockChanged();
-        // Paid (or re-settled) — sheet row for the final state.
-        sheetsService.enqueue(req.params.id, "paid");
       }
       return successResponse(res, "Order status updated", { order });
     } catch (error) {
@@ -208,7 +203,6 @@ export const orderController = {
       emitOrderChanged(req.params.id);
       emitGuestForOrder(req.params.id);
       emitStockChanged();
-      sheetsService.enqueue(req.params.id, "paid");
       return successResponse(res, "Order fulfilled", { order });
     } catch (error) {
       return handleError(res, error, "FULFILL_ORDER_ERROR");
@@ -228,9 +222,6 @@ export const orderController = {
       emitOrderChanged(req.params.id);
       emitGuestForOrder(req.params.id);
       emitStockChanged();
-      // Only previously-paid orders have a sheet row to adjust; pending
-      // deletes never reached the sheet.
-      if (result?.wasPaid) sheetsService.enqueue(req.params.id, "cancelled");
       return successResponse(res, "Order cancelled", result);
     } catch (error) {
       return handleError(res, error, "CANCEL_ORDER_ERROR");
@@ -256,10 +247,6 @@ export const orderController = {
       emitOrderChanged(req.params.id);
       emitGuestForOrder(req.params.id);
       emitStockChanged();
-      // Paid orders only (remove-item rejects pending): cancelled wipes the
-      // row, otherwise append the adjusted totals as a new history row.
-      if (result?.action === "cancelled") sheetsService.enqueue(req.params.id, "cancelled");
-      else sheetsService.enqueue(req.params.id, "adjusted");
       return successResponse(res, result.action === "cancelled" ? "Order cancelled (no items left)" : "Item removed", result);
     } catch (error) {
       return handleError(res, error, "REMOVE_ITEM_ERROR");

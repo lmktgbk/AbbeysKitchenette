@@ -344,7 +344,7 @@ if (fs.existsSync(path.join(root, 'audit', 'DEPENDENCY_SECURITY_FIXES.md'))) {
 if (fs.existsSync(path.join(root, 'audit', 'RECOVERY_EMAIL_FIXES.md'))) {
   report = report.replace('**SYSTEM AUDIT STATUS**\n', '**SYSTEM AUDIT STATUS**\n\nRecovery-email remediation: ' + link('audit/RECOVERY_EMAIL_FIXES.md') + '.\n');
 }
-for (const remediation of ['REQUEST_VALIDATION_FIXES.md', 'UPLOAD_SECURITY_FIXES.md']) {
+for (const remediation of ['REQUEST_VALIDATION_FIXES.md', 'UPLOAD_SECURITY_FIXES.md', 'SHEETS_SYNC_FIXES.md']) {
   if (fs.existsSync(path.join(root, 'audit', remediation))) {
     report = report.replace('**SYSTEM AUDIT STATUS**\n', '**SYSTEM AUDIT STATUS**\n\nAdditional remediation: ' + link('audit/' + remediation) + '.\n');
   }

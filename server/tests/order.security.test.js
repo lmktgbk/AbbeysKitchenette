@@ -2,9 +2,13 @@ import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vites
 import express from "express";
 import { createOrderDatabase } from "./helpers/orderDatabase.js";
 
-const h = vi.hoisted(() => ({ db: null, role: "cashier" }));
+const h = vi.hoisted(() => ({ db: null, role: "cashier", sheets: false }));
 vi.mock("../src/config/prisma.js", () => ({ default: new Proxy({}, { get: (_target, key) => h.db[key] }) }));
-vi.mock("../src/config/env.js", () => ({ env: { NODE_ENV: "test" } }));
+vi.mock("../src/config/env.js", () => ({ env: { NODE_ENV: "test",
+  get GOOGLE_SERVICE_ACCOUNT_EMAIL() { return h.sheets ? "fixture@example.invalid" : undefined; },
+  get GOOGLE_PRIVATE_KEY() { return h.sheets ? "fixture-not-a-real-key" : undefined; },
+  get SHEETS_ORDERS_ID() { return h.sheets ? "fixture-spreadsheet" : undefined; },
+} }));
 vi.mock("../src/middleware/authenticate.middleware.js", () => ({ default: (req, _res, next) => {
   req.user = { id: "123e4567-e89b-42d3-a456-426614174000", role: h.role };
   next();
@@ -14,7 +18,6 @@ vi.mock("../src/modules/notifications/notification.service.js", () => ({ notific
 vi.mock("../src/modules/products/product.service.js", () => ({ productService: { recomputeVariantAvailability: vi.fn().mockResolvedValue({}) } }));
 vi.mock("../src/modules/settings/settings.service.js", () => ({ settingsService: { getAcceptedPayments: vi.fn().mockResolvedValue(["cash", "gcash", "maya"]) } }));
 vi.mock("../src/modules/anomalyDetection/anomalyDetection.service.js", () => ({ anomalyService: { runScan: vi.fn().mockResolvedValue({}) } }));
-vi.mock("../src/modules/sheets/sheets.service.js", () => ({ sheetsService: { enqueue: vi.fn() } }));
 vi.mock("../src/realtime/events.js", () => ({ emitOrderChanged: vi.fn(), emitStockChanged: vi.fn(), emitGuestForOrder: vi.fn() }));
 
 import router from "../src/modules/orders/order.routes.js";
@@ -45,6 +48,7 @@ beforeEach(() => {
   vi.restoreAllMocks();
   vi.clearAllMocks();
   h.role = "cashier";
+  h.sheets = false;
   h.db = createOrderDatabase();
   h.db.reset([A, B].map(orderId => ({ orderId, orderNumber: 1, status: "accepted", totalAmount: 100, amountPaid: 0, createdAt: new Date() })),
     [{ orderItemId: 1, orderId: A, removedAt: null, isPrepared: false }, { orderItemId: 2, orderId: B, removedAt: null, isPrepared: false }]);
@@ -283,6 +287,23 @@ describe("Financial transactions, request replay and shift closure", () => {
     expect(h.db.state.requests).toHaveLength(1);
     expect(h.db.state.orders).toHaveLength(3);
   });
+  it("persists one frozen Sheets event with the sale and does not recreate it on replay", async () => {
+    h.sheets = true;
+    await walkIn(); await walkIn();
+    expect(h.db.state.sheetEvents).toHaveLength(1);
+    const event = h.db.state.sheetEvents[0];
+    expect(event.payload.values[8]).toBe(100);
+    expect(event.payload.values[11]).toBe(event.eventId);
+    h.db.state.orders.at(-1).totalAmount = 20;
+    expect(event.payload.values[8]).toBe(100);
+  });
+  it.each(["failSheetEvent", "failRequestResult"])("%s rolls back the business writes and Sheets event together", async failure => {
+    h.sheets = true; h.db[failure] = true;
+    await expect(walkIn()).rejects.toThrow();
+    expect(h.db.state.sheetEvents).toHaveLength(0);
+    expect(h.db.state.orders).toHaveLength(2);
+    expect(h.db.state.receipts).toHaveLength(0);
+  });
   it("retry after a lost response does not require an open shift or fresh prices", async () => {
     const original = await walkIn();
     h.db.state.shifts[0].status = "closed";
@@ -428,6 +449,16 @@ describe("Financial transactions, request replay and shift closure", () => {
 describe("Original consumption, stock settlement and refund correctness", () => {
   const removal = (id = 1, options = {}) => orderService.removeOrderItem(A, id, USER, "Fixture", { refund_option: "full", ...options });
   const cancel = (options = {}) => orderService.cancelOrDelete(A, USER, "Fixture", { refund_option: "full", ...options });
+  it("retains distinct immutable snapshots for two adjustments and final cancellation", async () => {
+    h.sheets = true;
+    Object.assign(h.db.state.orders[0], { totalAmount: 120, subtotalAmount: 120, change: 80 });
+    h.db.state.items.push({ orderItemId: 3, orderId: A, variantId: 1, quantity: 1, unitPrice: 20, subtotal: 20, discountType: "none", removedAt: null, isPrepared: false });
+    await removal(1); await removal(2); await removal(3);
+    expect(h.db.state.sheetEvents.map(event => event.kind)).toEqual(["adjusted", "adjusted", "cancelled"]);
+    expect(h.db.state.sheetEvents.map(event => event.payload.values[8])).toEqual([60, 20, 0]);
+    expect(new Set(h.db.state.sheetEvents.map(event => event.eventKey)).size).toBe(3);
+    expect(new Set(h.db.state.sheetEvents.map(event => event.eventId)).size).toBe(3);
+  });
   beforeEach(() => {
     orderService._restoreIngredients.mockRestore();
     h.db.reset([{ orderId: A, orderNumber: 1, status: "preparing", totalAmount: 100, subtotalAmount: 100, amountPaid: 200, change: 100, discountType: "none", consumptionRecordedAt: new Date() }], [

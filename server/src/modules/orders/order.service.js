@@ -14,6 +14,7 @@ import { settingsService } from "../settings/settings.service.js";
 import { anomalyService } from "../anomalyDetection/anomalyDetection.service.js";
 import { getBusinessDate } from "../../config/time.js";
 
+import { recordSheetEvent } from "../sheets/sheets.outbox.js";
 import { LIMITS } from "../../utils/validation.js";
 
 export const orderService = {
@@ -259,6 +260,7 @@ export const orderService = {
         issuedBy: createdBy,
         totalAmount: total,
       }, tx);
+      await recordSheetEvent(tx, newOrder.orderId, "paid");
       await orderIdempotency.complete(request, { order_id: newOrder.orderId, order_number: newOrder.orderNumber }, tx);
       return { order: newOrder, deductions, needs };
     }, { timeout: 15000 });
@@ -525,6 +527,7 @@ export const orderService = {
         amountPaid: paidToStore,
         change,
       }, tx);
+      await recordSheetEvent(tx, id, "paid");
       return orderIdempotency.complete(request, { order_id: id, order_number: existing.orderNumber }, tx);
     }, { timeout: 15000 });
 
@@ -781,6 +784,7 @@ export const orderService = {
           refundedById: userId,
         }, tx);
       }
+      if (currentStatus !== "pending") await recordSheetEvent(tx, id, "cancelled");
     }, { timeout: 15000 });
 
     if (affectedIngredientIds.length > 0) {
@@ -922,6 +926,7 @@ export const orderService = {
           refundedById: userId,
         }, tx);
       }
+      await recordSheetEvent(tx, orderId, remainingCount === 0 ? "cancelled" : "adjusted", orderItemId);
     }, { timeout: 15000 });
 
     if (affectedIngredientIds.length > 0) {
@@ -1482,6 +1487,7 @@ export const orderService = {
         amountPaid: paidToStore,
         change,
       }, tx);
+      await recordSheetEvent(tx, id, "paid");
       return orderIdempotency.complete(request, { order_id: id, order_number: order.orderNumber }, tx);
     }, { timeout: 15000 });
 

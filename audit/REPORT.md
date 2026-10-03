@@ -1,5 +1,7 @@
 **SYSTEM AUDIT STATUS**
 
+Sheets remediation: [SHEETS_SYNC_FIXES.md](SHEETS_SYNC_FIXES.md). Prepared migration pending deployment; live acceptance remains outstanding.
+
 Upload remediation: [UPLOAD_SECURITY_FIXES.md](UPLOAD_SECURITY_FIXES.md). Crash-safe orphan reconciliation remains outstanding.
 
 Request parsing remediation: [REQUEST_VALIDATION_FIXES.md](REQUEST_VALIDATION_FIXES.md).

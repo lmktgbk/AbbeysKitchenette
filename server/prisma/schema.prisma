@@ -798,22 +798,47 @@ model PasswordResetToken {
 
 // ── Sheet Sync Log (Google Sheets live order sync — retry/backfill ledger) ──
 model SheetSyncLog {
-  id        Int       @id @default(autoincrement()) @map("id")
-  orderId   String    @map("order_id") @db.Uuid
-  kind      String    @default("paid") @map("kind") @db.VarChar(20)
-  status    String    @default("pending") @map("status") @db.VarChar(20)
-  attempts  Int       @default(0)
-  lastError String?   @map("last_error")
-  syncedAt  DateTime? @map("synced_at") @db.Timestamptz
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  id             Int       @id @default(autoincrement())
+  orderId        String    @map("order_id") @db.Uuid
+  kind           String    @default("paid") @db.VarChar(20)
+  status         String    @default("pending") @db.VarChar(20)
+  eventId        String    @unique(map: "sheet_sync_log_event_id_key") @default(dbgenerated("gen_random_uuid()")) @map("event_id") @db.Uuid
+  eventKey       String    @unique(map: "sheet_sync_log_event_key_key") @map("event_key") @db.VarChar(120)
+  payload        Json?
+  spreadsheetId  String?   @map("spreadsheet_id") @db.VarChar(200)
+  sheetRow       Int?      @map("sheet_row")
+  leaseOwner     String?   @map("lease_owner") @db.Uuid
+  leaseExpiresAt DateTime? @map("lease_expires_at") @db.Timestamptz
+  nextAttemptAt  DateTime  @default(now()) @map("next_attempt_at") @db.Timestamptz
+  attempts       Int       @default(0)
+  lastError      String?   @map("last_error")
+  syncedAt       DateTime? @map("synced_at") @db.Timestamptz
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
-  @@unique([orderId, kind], map: "sheet_sync_log_order_kind_unique")
+  @@unique([spreadsheetId, sheetRow], map: "sheet_sync_log_destination_row_key")
   @@index([status], map: "sheet_sync_log_status_idx")
+  @@index([status, nextAttemptAt, id], map: "sheet_sync_log_due_idx")
   @@map("sheet_sync_log")
 }
 
-// ── Anomaly Detection ─────────────────────────────────
+model SheetSyncDestination {
+  spreadsheetId String   @id @map("spreadsheet_id") @db.VarChar(200)
+  nextRow       Int      @map("next_row")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("sheet_sync_destinations")
+}
+
+model BackgroundLease {
+  key       String    @id @db.VarChar(120)
+  owner     String?   @db.Uuid
+  expiresAt DateTime? @map("expires_at") @db.Timestamptz
+  nextRunAt DateTime  @default(now()) @map("next_run_at") @db.Timestamptz
+
+  @@map("background_leases")
+}
+
 model AnomalyResult {
   id            String   @id @default(uuid()) @db.Uuid
   ruleId        String   @map("rule_id") @db.VarChar(50)

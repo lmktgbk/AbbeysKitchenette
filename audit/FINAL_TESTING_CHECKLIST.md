@@ -484,7 +484,7 @@ Confirm UUID product keys match catalog products in variant results and product 
 
 **Priority:** Medium
 
-**Implementation:** Open at checklist creation; final acceptance NOT RUN
+**Implementation:** Implemented: atomic immutable events, stable reserved rows, PostgreSQL sender leases and bounded retries. Isolated HTTP/PostgreSQL checks pass; migration deployment/live Google acceptance NOT RUN
 
 **Steps:** Make two separate adjustments to the same paid order. Inspect persisted sync events and the test spreadsheet. Retry each event and verify that both distinct adjustments remain represented exactly once.
 
@@ -498,11 +498,11 @@ Confirm UUID product keys match catalog products in variant results and product 
 
 **Priority:** Medium
 
-**Implementation:** Open at checklist creation; final acceptance NOT RUN
+**Implementation:** Implemented: atomic immutable events, stable reserved rows, PostgreSQL sender leases and bounded retries. Isolated HTTP/PostgreSQL checks pass; migration deployment/live Google acceptance NOT RUN
 
 **Steps:** With a stub Sheets transport, simulate hangs, repeated 401/429/500, successful append followed by DB failure, and worker restart. Observe bounded attempts, persisted status and duplicate prevention.
 
-**Acceptance criteria:** Stub never-resolving responses, persistent 401/429/500, append-success/DB-failure and process termination. Require bounded completion, eventual delivery and one row per event.
+**Acceptance criteria:** Stub never-resolving responses, persistent 401/429/500, append-success/DB-failure and process termination. Require bounded completion, eventual delivery and one row per event. Verify the Orders tab, dedicated event-ID column L, legacy blocked rows and the managed row boundary before delivery. Preserve reserved row coordinates across retries/restarts and do not sort or insert into the managed range.
 
 **Result:** NOT RUN
 

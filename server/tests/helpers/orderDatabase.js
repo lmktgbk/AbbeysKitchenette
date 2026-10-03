@@ -84,6 +84,11 @@ export function createOrderDatabase() {
     db.state.receipts.push(copy(create));
     return copy(create);
   } };
+  db.sheetSyncLog = { async createMany({ data }) {
+    if (db.failSheetEvent) throw new Error("Injected sheet-event failure");
+    if (db.state.sheetEvents.some(row => row.eventKey === data.eventKey)) return { count: 0 };
+    db.state.sheetEvents.push(copy(data)); return { count: 1 };
+  } };
   db.orderRequest = {
     async findUnique({ where }) { return copy(db.state.requests.find(row => matches(row, where.scope_key))); },
     async createMany({ data }) {
@@ -159,7 +164,8 @@ export function createOrderDatabase() {
     finally { release(); }
   };
   db.reset = (orders, items) => {
-    db.state = { orders: copy(orders), items: copy(items), cancellations: [], refunds: [], restores: 0, requests: [], receipts: [], shifts: [], sequence: 10, counter: 0, deductions: [], batches: [], adjustments: [], losses: [] };
+    db.state = { orders: copy(orders), items: copy(items), cancellations: [], refunds: [], restores: 0, requests: [], receipts: [], shifts: [], sequence: 10, counter: 0, deductions: [], batches: [], adjustments: [], losses: [], sheetEvents: [] };
+    db.failSheetEvent = false;
     db.failCancellation = false;
     db.failReceipt = false;
     db.failLine = false;
