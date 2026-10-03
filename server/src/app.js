@@ -6,8 +6,8 @@ import cookieParser from "cookie-parser";
 
 // Imports
 import { env } from "./config/env.js";
-import { fetchMl } from "./services/mlClient.js";
-import prisma from "./config/prisma.js";
+import { healthRoutes } from "./services/readiness.js";
+
 import errorHandler from "./middleware/errorHandler.middleware.js";
 import { requestBodyParsers } from "./middleware/requestBody.middleware.js";
 import { generalLimiter } from "./middleware/rateLimitin.middleware.js";
@@ -68,6 +68,7 @@ app.use(cookieParser());
 // Protects against DDoS and accidental high-volume requests.
 // 500 req / 15 min per IP globally; tighter limiters guard auth,
 // checkout, and other sensitive endpoints individually.
+app.use(healthRoutes());
 app.use(generalLimiter);
 
 // Routes endpoints
@@ -94,40 +95,6 @@ app.use("/api/anomaly", anomalyDetectionRoutes);
 app.use("/api/shifts", shiftRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/analytics", analyticsRoutes);
-
-// Health check endpoint (used by hosting platforms to verify server is running)
-app.get("/api/health", (req, res) => {
-  res.json({
-    status: "ok",
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV,
-  });
-});
-
-// Readiness probe — verifies dependencies, not just the process.
-// Hosting should gate traffic on this: 200 only when DB + ML are reachable.
-app.get("/api/ready", async (req, res) => {
-  const checks = { database: false, mlService: false };
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    checks.database = true;
-  } catch {
-    // reported below
-  }
-  try {
-    const response = await fetchMl("/health", { timeoutMs: 3000 });
-    checks.mlService = response.ok;
-  } catch {
-    // reported below
-  }
-  const ready = checks.database && checks.mlService;
-  return res.status(ready ? 200 : 503).json({
-    success: ready,
-    message: ready ? "Ready" : "Dependency check failed",
-    error: ready ? null : "NOT_READY",
-    data: { ready, checks, timestamp: new Date().toISOString() },
-  });
-});
 
 // Global error handler: Catches all errors thrown by middleware/routes.
 // Must be last

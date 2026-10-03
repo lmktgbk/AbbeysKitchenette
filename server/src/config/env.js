@@ -11,6 +11,7 @@ const envSchema = z.object({
   CLIENT_URL: z.url(),
   JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
   JWT_EXPIRES_IN: z.string().min(1),
+  DATABASE_POOL_SIZE: z.coerce.number().int().min(1).max(50).default(10),
   DATABASE_URL: z.string().min(1).refine(
     (v) => v.startsWith("postgresql://") || v.startsWith("prisma+postgres://"),
     "DATABASE_URL must be a postgres connection string",

@@ -43,3 +43,5 @@ Recovery-email verification is tracked in [RECOVERY_EMAIL_FIXES.md](RECOVERY_EMA
 Request parsing remediation: [REQUEST_VALIDATION_FIXES.md](REQUEST_VALIDATION_FIXES.md).
 Upload validation and persistence remediation: [UPLOAD_SECURITY_FIXES.md](UPLOAD_SECURITY_FIXES.md).
 Sheets event/delivery remediation: [SHEETS_SYNC_FIXES.md](SHEETS_SYNC_FIXES.md). Prepared migration pending deployment; live Google acceptance remains outstanding.
+
+Readiness and shutdown follow-up: [DEPLOYMENT_LIFECYCLE_FIXES.md](./DEPLOYMENT_LIFECYCLE_FIXES.md). Hosting acceptance remains outstanding.

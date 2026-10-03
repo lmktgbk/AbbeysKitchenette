@@ -81,7 +81,7 @@ vulnerabilities. npm audit failures require fixes or a reviewed explicit excepti
 Migration status/validation/generation do not prove data integrity. No migration,
 reset or seed command is intentionally included in this verification block.
 
-Current reference, not a final PASS: the request/input/upload batches have 584 automated tests
+Current reference, not a final PASS: the completed backend batches have 620 automated tests
 passing, including 23 recovery-email security/rollback cases. Six additional isolated PostgreSQL tests pass; they are opt-in and skipped in the ordinary suite. The frontend
 build passed with an existing large-bundle warning. Submission code and POS pages
 passed lint; the guest page retains its baseline four errors and one warning.
@@ -526,7 +526,7 @@ Confirm UUID product keys match catalog products in variant results and product 
 
 **Priority:** Medium
 
-**Implementation:** Open at checklist creation; final acceptance NOT RUN
+**Implementation:** Implemented: optional ML degradation, bounded cached DB probes, shared pool, SIGTERM/SIGINT worker and HTTP draining. Automated lifecycle tests pass; hosting acceptance NOT RUN
 
 **Steps:** Stop only the staging ML service while PostgreSQL remains healthy. Check core readiness, login and sale paths. Separately delay a DB probe and restart the API during an in-flight fixture request.
 
@@ -815,3 +815,5 @@ Tester / reviewer / date: ___
 
 Passing automated tests or a basic login does not establish production readiness.
 Do not check off items without recorded evidence from the final tested commit.
+
+Lifecycle implementation and rollout evidence: [DEPLOYMENT_LIFECYCLE_FIXES.md](./DEPLOYMENT_LIFECYCLE_FIXES.md). Seven additional Sheets PostgreSQL checks passed in a disposable schema; live Google delivery remains Not verified.

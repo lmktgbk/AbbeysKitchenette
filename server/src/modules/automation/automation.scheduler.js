@@ -55,9 +55,12 @@ const runners = {
 
 export const automationScheduler = {
   _tasks: {},
+  _active: new Set(),
+  _stopping: false,
 
-  /** (Re)load schedules from DB. Keeps last-good schedule on invalid rows. */
+  /** Reload schedules; shutdown prevents new timers even if the DB read completes late. */
   async reschedule() {
+    if (this._stopping) return;
     let automation = {};
     try {
       const settings = await settingsRepository.find();
@@ -67,6 +70,7 @@ export const automationScheduler = {
       return;
     }
 
+    if (this._stopping) return;
     for (const [key, def] of Object.entries(JOB_DEFS)) {
       const job = automation?.[key];
       this._stop(key);
@@ -87,9 +91,12 @@ export const automationScheduler = {
 
       // Automation times are Manila wall-clock regardless of host tz.
       this._tasks[key] = cron.schedule(expr, () => {
-        this._run(key).catch((err) =>
+        if (this._stopping) return;
+        const work = this._run(key).catch((err) =>
           console.error(`[automation] Scheduled ${key} failed:`, err.message),
         );
+        this._active.add(work);
+        work.finally(() => this._active.delete(work));
       }, { timezone: BUSINESS_TZ });
       console.log(`[automation] Scheduled ${key}: ${expr} (${BUSINESS_TZ})`);
     }
@@ -102,7 +109,7 @@ export const automationScheduler = {
       console.log(`[automation] Scheduled ${key} complete`);
       // Daily report audits itself (recipients, day) — skip the generic log.
       if (!def.audit) return result;
-      auditLogService
+      await auditLogService
         .logAction({
           action: def.audit,
           targetType: def.targetType,
@@ -112,7 +119,8 @@ export const automationScheduler = {
       return result;
     } catch (err) {
       console.error(`[automation] Scheduled ${key} failed:`, err.message);
-      auditLogService
+      if (!def.audit) return;
+      await auditLogService
         .logAction({
           action: def.audit,
           targetType: def.targetType,
@@ -120,6 +128,12 @@ export const automationScheduler = {
         })
         .catch(() => {});
     }
+  },
+
+  async stop() {
+    this._stopping = true;
+    for (const key of Object.keys(this._tasks)) this._stop(key);
+    await Promise.allSettled([...this._active]);
   },
 
   _stop(key) {

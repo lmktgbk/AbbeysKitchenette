@@ -12,6 +12,8 @@ if (!process.env.TZ) process.env.TZ = "Asia/Manila";
 
 import http from "http";
 import app from "./src/app.js";
+import { readiness } from "./src/services/readiness.js";
+import { createShutdown } from "./src/services/shutdown.js";
 import { env } from "./src/config/env.js";
 import prisma from "./src/config/prisma.js";
 import { automationScheduler } from "./src/modules/automation/automation.scheduler.js";
@@ -24,17 +26,19 @@ let realtime = null;
 async function boot() {
   // Fail fast when the database is unreachable — never serve a dead API.
   try {
-    await prisma.$queryRaw`SELECT 1`;
+    if (!(await readiness.check()).ready) throw new Error("Database readiness failed");
   } catch (err) {
     console.error("[boot] Database unreachable:", err.message);
     process.exit(1);
   }
 
+  if (readiness.isShuttingDown()) return;
   // Plain http server (not app.listen) so Express + WebSocket share one port.
   httpServer = http.createServer(app);
   realtime = attachRealtimeServer(httpServer);
 
   httpServer.listen(env.PORT, () => {
+    if (readiness.isShuttingDown()) return;
     console.log(
       `Server running in ${env.NODE_ENV} mode on http://localhost:${env.PORT}`,
     );
@@ -43,7 +47,7 @@ async function boot() {
     // manual Check-now — no scheduled scans. ANOMALY_CRON_SCHEDULE is inert.
     // (startScheduler remains for one-off/manual use, but boot no longer arms it.)
 
-    // Nightly Google Sheets backfill (no-op unless Sheets env is set)
+    // Recover pending Sheets deliveries (no-op unless configured)
     sheetsService.startReconciler();
 
     // Load automation schedules (ML jobs) from settings
@@ -51,23 +55,15 @@ async function boot() {
   });
 }
 
-// Graceful shutdown — close sockets, then drain the pool instead of
-// dropping queries mid-flight.
-process.on("SIGTERM", async () => {
-  try {
-    realtime?.stop();
-    for (const socket of realtime?.wss.clients ?? []) {
-      try {
-        socket.close(1001, "server shutting down");
-      } catch {
-        // already gone
-      }
-    }
-    await new Promise((resolve) => (httpServer ? httpServer.close(resolve) : resolve()));
-    await prisma.$disconnect();
-  } finally {
-    process.exit(0);
-  }
+const shutdown = createShutdown({
+  readiness,
+  getServer: () => httpServer,
+  getRealtime: () => realtime,
+  workers: [automationScheduler, sheetsService],
+  disconnect: () => prisma.$disconnect(),
+  exit: code => process.exit(code),
 });
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
 
 boot();

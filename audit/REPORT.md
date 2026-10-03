@@ -970,3 +970,5 @@ The fixture preview depends on a separately built audit/ui-dist with VITE_API_UR
 ## Reference standards
 
 Reset-token single use, secure storage and post-reset session invalidation are consistent with the [OWASP Forgot Password Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html). The installed Python scan uses the documented [OSV batch API](https://google.github.io/osv.dev/post-v1-querybatch/). npm raw reports link directly to the advisories supporting each matched version; no advisory is assumed exploitable solely from its package presence.
+
+Readiness and shutdown follow-up: [DEPLOYMENT_LIFECYCLE_FIXES.md](./DEPLOYMENT_LIFECYCLE_FIXES.md). Hosting acceptance remains outstanding.
