@@ -31,9 +31,9 @@ Broad fallback writes that previously hid arbitrary database errors were removed
 
 Linux process-tree behavior, abrupt parent-kill behavior, representative large-dataset memory/latency, deployed multi-instance recovery and final browser acceptance: **Not verified**. Windows spawned computation and active-worker shutdown were exercised. Full ACID/production readiness is not inferred from these selected tests.
 
-## Deployment sequence — migrations are pending
+## Deployment status and sequence
 
-The shared database still has four applied migrations. These two new migrations were prepared and rehearsed, **not applied**:
+The user applied these two migrations successfully on 2026-10-03. A subsequent read-only Prisma status check confirms all six migrations are applied and the database is up to date:
 
 1. `20261003030000_ml_job_leases`
 2. `20261003040000_forecast_product_ids`

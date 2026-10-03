@@ -34,4 +34,6 @@ business defect characterizations are still explicitly unsafe-behavior tests.
 
 ML service authentication and bounded requests are tracked in [ML_SERVICE_SECURITY_FIXES.md](ML_SERVICE_SECURITY_FIXES.md).
 
-ML concurrency, worker isolation and forecast UUID fixes are tracked in [ML_RELIABILITY_FIXES.md](ML_RELIABILITY_FIXES.md). Two deployment migrations are pending.
+ML concurrency, worker isolation and forecast UUID fixes are tracked in [ML_RELIABILITY_FIXES.md](ML_RELIABILITY_FIXES.md). All six migrations are applied; Prisma status confirms the database is up to date.
+
+Dependency updates and the residual Prisma CLI advisory are tracked in [DEPENDENCY_SECURITY_FIXES.md](DEPENDENCY_SECURITY_FIXES.md).

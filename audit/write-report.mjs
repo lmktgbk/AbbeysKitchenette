@@ -338,6 +338,9 @@ if (fs.existsSync(path.join(root, 'audit', 'ML_SERVICE_SECURITY_FIXES.md'))) {
 if (fs.existsSync(path.join(root, 'audit', 'ML_RELIABILITY_FIXES.md'))) {
   report = report.replace('**SYSTEM AUDIT STATUS**\n', '**SYSTEM AUDIT STATUS**\n\nML concurrency/worker remediation: ' + link('audit/ML_RELIABILITY_FIXES.md') + '.\n');
 }
+if (fs.existsSync(path.join(root, 'audit', 'DEPENDENCY_SECURITY_FIXES.md'))) {
+  report = report.replace('**SYSTEM AUDIT STATUS**\n', '**SYSTEM AUDIT STATUS**\n\nDependency remediation: ' + link('audit/DEPENDENCY_SECURITY_FIXES.md') + '. One underlying Prisma CLI advisory remains.\n');
+}
 fs.writeFileSync(path.join(root, 'audit', 'REPORT.md'), report);
 fs.writeFileSync(path.join(root, 'audit', 'findings.json'), JSON.stringify(findings, null, 2));
 console.log(JSON.stringify({findings: findings.length, priorities: bySeverity, report: `${root}/audit/REPORT.md`, words: report.split(/\s+/).length}));

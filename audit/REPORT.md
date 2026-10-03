@@ -1,6 +1,8 @@
 **SYSTEM AUDIT STATUS**
 
-ML concurrency/worker remediation: [ML_RELIABILITY_FIXES.md](ML_RELIABILITY_FIXES.md). Two migrations are prepared; shared-database deployment is pending.
+Dependency remediation: [DEPENDENCY_SECURITY_FIXES.md](DEPENDENCY_SECURITY_FIXES.md). One underlying Prisma CLI advisory remains.
+
+ML concurrency/worker remediation: [ML_RELIABILITY_FIXES.md](ML_RELIABILITY_FIXES.md). All six migrations are applied; Prisma status confirms the database is up to date.
 
 ML service security remediation: [ML_SERVICE_SECURITY_FIXES.md](ML_SERVICE_SECURITY_FIXES.md).
 

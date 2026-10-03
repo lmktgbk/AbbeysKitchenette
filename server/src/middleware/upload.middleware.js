@@ -1,6 +1,5 @@
 import multer from "multer";
-import { CloudinaryStorage } from "multer-storage-cloudinary";
-import cloudinary from "../config/cloudinary.js";
+import { cloudinaryStorage } from "../services/cloudinaryStorage.js";
 
 /**
  * Upload Middleware
@@ -23,13 +22,10 @@ const imageFilter = (req, file, cb) => {
 };
 
 // Cloudinary storage for product images
-const productStorage = new CloudinaryStorage({
-  cloudinary,
-  params: {
-    folder: "abbseys-kitchenette/products",
-    allowed_formats: ["jpg", "jpeg", "png", "gif", "webp"],
-    resource_type: "image",
-  },
+const productStorage = cloudinaryStorage({
+  folder: "abbseys-kitchenette/products",
+  allowed_formats: ["jpg", "jpeg", "png", "gif", "webp"],
+  resource_type: "image",
 });
 
 // Multer instance for product images
@@ -40,13 +36,10 @@ export const uploadProductImage = multer({
 }).single("image");
 
 // Cloudinary storage for user avatars
-const avatarStorage = new CloudinaryStorage({
-  cloudinary,
-  params: {
-    folder: "abbseys-kitchenette/avatars",
-    allowed_formats: ["jpg", "jpeg", "png", "webp"],
-    resource_type: "image",
-  },
+const avatarStorage = cloudinaryStorage({
+  folder: "abbseys-kitchenette/avatars",
+  allowed_formats: ["jpg", "jpeg", "png", "webp"],
+  resource_type: "image",
 });
 
 // Multer instance for user avatars

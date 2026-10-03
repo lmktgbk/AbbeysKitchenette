@@ -81,7 +81,7 @@ vulnerabilities. npm audit failures require fixes or a reviewed explicit excepti
 Migration status/validation/generation do not prove data integrity. No migration,
 reset or seed command is intentionally included in this verification block.
 
-Current reference, not a final PASS: the price approval batch has 457 automated tests
+Current reference, not a final PASS: the dependency remediation batch has 468 automated tests
 passing, including 28 new approval security/rollback/concurrency cases. The frontend
 build passed with an existing large-bundle warning. Submission code and POS pages
 passed lint; the guest page retains its baseline four errors and one warning.
@@ -356,7 +356,7 @@ Call every deployed ML route directly without credentials, with invalid credenti
 
 **Steps:** Using a concurrency harness, send simultaneous first requests and forecast/basket job submissions to two ML workers. Kill one worker mid-job. Measure connection counts, active job uniqueness and recovery.
 
-Apply the two pending ML migrations before restarting the updated service. Check that another instance starting does not reset a healthy job. Expire an owner and ensure it cannot publish; recover failed jobs without partial rows. Submit a new job after failure. Test worker deadlines and database outages.
+All six migrations are applied in the current database. Verify migration status in each deployment environment before restarting the updated service. Check that another instance starting does not reset a healthy job. Expire an owner and ensure it cannot publish; recover failed jobs without partial rows. Submit a new job after failure. Test worker deadlines and database outages.
 
 **Acceptance criteria:** Start many simultaneous first requests and job requests across two workers. Require one pool per worker, one active job per job type, lease recovery after a killed worker, and bounded connections.
 
@@ -384,9 +384,9 @@ Confirm UUID product keys match catalog products in variant results and product 
 
 **Priority:** High
 
-**Implementation:** Open at checklist creation; final acceptance NOT RUN
+**Implementation:** Dependency updates implemented; one Prisma CLI advisory remains documented. Final acceptance NOT RUN
 
-**Steps:** Audit exact server/client lockfile dependencies and the deployed Python environment. Exercise image upload, email, requests and Prisma generation after dependency fixes. Record any remaining advisory exception and its justification.
+**Steps:** Audit exact server/client lockfile dependencies and the deployed Python environment. Exercise image upload, email, requests and Prisma generation after dependency fixes. Install with npm ci and ml-service/requirements.lock. Verify product/avatar upload size limits and failure handling, real email delivery, workbook export and frontend styling after the local CSS import. Record the remaining Prisma CLI advisory and its review date.
 
 **Acceptance criteria:** Rerun npm audit and OSV/pip-audit on exact deployed artifacts; regression-test uploads, email, Axios and Prisma generation. Require documented exceptions for residual unreachable advisories.
 
