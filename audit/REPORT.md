@@ -1,8 +1,10 @@
 **SYSTEM AUDIT STATUS**
 
+Recovery-email remediation: [RECOVERY_EMAIL_FIXES.md](RECOVERY_EMAIL_FIXES.md). Its new migration is prepared and rehearsed; deployment and browser acceptance remain pending.
+
 Dependency remediation: [DEPENDENCY_SECURITY_FIXES.md](DEPENDENCY_SECURITY_FIXES.md). One underlying Prisma CLI advisory remains.
 
-ML concurrency/worker remediation: [ML_RELIABILITY_FIXES.md](ML_RELIABILITY_FIXES.md). All six migrations are applied; Prisma status confirms the database is up to date.
+ML concurrency/worker remediation: [ML_RELIABILITY_FIXES.md](ML_RELIABILITY_FIXES.md). The six migrations from that batch are applied.
 
 ML service security remediation: [ML_SERVICE_SECURITY_FIXES.md](ML_SERVICE_SECURITY_FIXES.md).
 

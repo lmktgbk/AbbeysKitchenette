@@ -3,7 +3,7 @@ import { Router } from "express";
 import { authController } from "./auth.controller.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import authenticate from "../../middleware/authenticate.middleware.js";
-import { authLimiter, accountLimiter } from "../../middleware/rateLimitin.middleware.js";
+import { authLimiter, accountLimiter, emailChangeLimiter } from "../../middleware/rateLimitin.middleware.js";
 import { uploadAvatar } from "../../middleware/upload.middleware.js";
 import {
   loginSchema,
@@ -12,6 +12,7 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
   updateProfileSchema,
+  confirmEmailChangeSchema,
   changePasswordSchema,
 } from "./auth.validation.js";
 
@@ -56,9 +57,12 @@ router.post(
 router.patch(
   "/me",
   authenticate,
+  emailChangeLimiter,
   validate(updateProfileSchema),
   authController.updateProfile,
 );
+
+router.post("/verify-email-change", authenticate, emailChangeLimiter, validate(confirmEmailChangeSchema), authController.confirmEmailChange);
 
 // POST /api/auth/change-password — change own password (protected)
 router.post(

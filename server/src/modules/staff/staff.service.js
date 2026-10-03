@@ -94,6 +94,7 @@ export const staffService = {
     const user = await staffRepository.findById(id);
     if (!user) throw new AppError(404, "Staff not found", "STAFF_NOT_FOUND");
     if (email && email !== user.email) {
+      if (id === userId) throw new AppError(400, "Verify your own email through My Profile", "EMAIL_VERIFICATION_REQUIRED");
       const existing = await staffRepository.findByEmail(email);
       if (existing) throw new AppError(409, "Email already in use", "EMAIL_IN_USE");
     }

@@ -9,6 +9,7 @@ import useAuthStore from "@/features/auth/authStore";
 import { restoreSession } from "@/features/auth/session";
 import {
   updateProfileRequest,
+  confirmEmailChangeRequest,
   changePasswordRequest,
   uploadImageRequest,
 } from "./api";
@@ -28,12 +29,22 @@ export function useProfileMutations() {
     onSuccess: (res) => {
       setUser({ ...user, ...res.data.user });
       queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
-      toast.success("Profile updated");
+      toast.success(res.data.emailChange ? "Verification code sent to your new email" : "Profile updated");
     },
     onError: (err) => {
       const msg = err.response?.data?.message || "Failed to update profile";
       toast.error(msg);
     },
+  });
+
+  const confirmEmailChange = useMutation({
+    mutationFn: confirmEmailChangeRequest,
+    onSuccess: (res) => {
+      restoreSession(res.data.user);
+      queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+      toast.success("Email verified; other sessions revoked");
+    },
+    onError: (err) => toast.error(err.response?.data?.message || "Email verification failed"),
   });
 
   const changePassword = useMutation({
@@ -62,5 +73,5 @@ export function useProfileMutations() {
     },
   });
 
-  return { updateProfile, changePassword, uploadImage };
+  return { updateProfile, confirmEmailChange, changePassword, uploadImage };
 }

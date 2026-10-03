@@ -145,19 +145,31 @@ export const authController = {
 
   async updateProfile(req, res) {
     try {
-      const { name, email } = req.body;
-      const user = await authService.updateProfile(req.user.id, name, email);
+      const { name, email, currentPassword } = req.body;
+      const result = await authService.updateProfile(req.user.id, name, email, currentPassword, req.sessionVersion);
       auditLogService.logAction({
         userId: req.user.id,
         action: ACTIONS.PROFILE_UPDATED,
         targetType: "staff",
         targetId: req.user.id,
-        details: { name: user.name, fields: [name !== undefined ? "name" : null, email !== undefined ? "email" : null].filter(Boolean) },
+        details: { fields: result.emailChange ? ["email-change-request"] : ["name"] },
       }).catch(() => {});
-      return successResponse(res, "Profile updated", { user });
+      return successResponse(res, result.emailChange ? "Verification sent; current email remains active" : "Profile updated", result);
     } catch (error) {
       return handleError(res, error, "UPDATE_PROFILE_ERROR");
     }
+  },
+
+  async confirmEmailChange(req, res) {
+    try {
+      const { id, code } = req.body;
+      const { user, token } = await authService.confirmEmailChange(req.user.id, req.sessionVersion, id, code);
+      res.cookie("token", token, COOKIE_OPTIONS);
+      clearChallenge(res);
+      auditLogService.logAction({ userId: user.id, action: ACTIONS.PROFILE_UPDATED,
+        targetType: "staff", targetId: user.id, details: { fields: ["email"], verified: true } }).catch(() => {});
+      return successResponse(res, "Email verified; other sessions revoked", { user });
+    } catch (error) { return handleError(res, error, "EMAIL_CHANGE_ERROR"); }
   },
 
   async changePassword(req, res) {

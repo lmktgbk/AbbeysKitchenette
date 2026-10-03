@@ -26,6 +26,8 @@ try {
   if (!indexes.rows[0]?.indexdef.includes("WHERE")) throw new Error("Partial shift index predicate missing");
   const ledger = await client.query("SELECT relrowsecurity FROM pg_class WHERE relnamespace=$1::regnamespace AND relname='order_requests'", [schema]);
   if (!ledger.rows[0]?.relrowsecurity) throw new Error("Request-ledger RLS missing");
+  const emailRequests = await client.query("SELECT relrowsecurity FROM pg_class WHERE relnamespace=$1::regnamespace AND relname='email_change_requests'", [schema]);
+  if (!emailRequests.rows[0]?.relrowsecurity) throw new Error("Email verification RLS missing");
   await verifyConsumption(client);
   const leaseColumns = await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema=$1 AND table_name IN ('forecast_jobs','mba_jobs') AND column_name IN ('lease_owner','lease_expires_at')", [schema]);
   if (leaseColumns.rowCount !== 4) throw new Error("ML ownership columns missing");

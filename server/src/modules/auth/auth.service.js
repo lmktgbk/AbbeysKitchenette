@@ -1,3 +1,4 @@
+import { emailChange } from "./emailChange.js";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
 
@@ -189,12 +190,15 @@ export const authService = {
     return publicUser(user);
   },
 
-  async updateProfile(userId, name, email) {
-    const isTaken = await authRepository.isEmailTaken(email, userId);
-    if (isTaken) {
-      throw new AppError(409, "Email is already taken by another account", "EMAIL_TAKEN");
-    }
-    return authRepository.updateProfile(userId, { name, email });
+  async updateProfile(userId, name, email, currentPassword, version) {
+    const user = await authRepository.findById(userId);
+    if (!user?.isActive) throw new AppError(401, "Account is unavailable", "UNAUTHORIZED");
+    if (email !== user.email) return emailChange.request(userId, version, name, email, currentPassword);
+    return { user: await authRepository.updateProfile(userId, { name }) };
+  },
+
+  async confirmEmailChange(userId, version, id, code) {
+    return emailChange.confirm(userId, version, id, code);
   },
 
   async changePassword(userId, currentPassword, newPassword) {

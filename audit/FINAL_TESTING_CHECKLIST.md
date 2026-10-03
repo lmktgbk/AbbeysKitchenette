@@ -81,8 +81,8 @@ vulnerabilities. npm audit failures require fixes or a reviewed explicit excepti
 Migration status/validation/generation do not prove data integrity. No migration,
 reset or seed command is intentionally included in this verification block.
 
-Current reference, not a final PASS: the dependency remediation batch has 468 automated tests
-passing, including 28 new approval security/rollback/concurrency cases. The frontend
+Current reference, not a final PASS: the recovery-email batch has 491 automated tests
+passing, including 23 recovery-email security/rollback cases. Six additional isolated PostgreSQL tests pass; they are opt-in and skipped in the ordinary suite. The frontend
 build passed with an existing large-bundle warning. Submission code and POS pages
 passed lint; the guest page retains its baseline four errors and one warning.
 The additive submission-ledger migration is applied; schema diff and read-only
@@ -426,11 +426,13 @@ Confirm UUID product keys match catalog products in variant results and product 
 
 **Priority:** Medium
 
-**Implementation:** Open at checklist creation; final acceptance NOT RUN
+**Implementation:** Implemented; isolated HTTP/PostgreSQL regressions pass. New email-change migration pending; final acceptance NOT RUN
 
 **Steps:** Attempt to change the recovery email with only an existing session. Complete the intended reauthentication/email-verification flow, then test expired verification and conflicting changes. Inspect the old and new test inboxes.
 
 **Acceptance criteria:** A stolen session alone must not change the effective recovery address. Test pending, expired and conflicting email changes and notifications to the prior address.
+
+**Additional regression steps:** Apply the email-change migration in the test environment first. For admin, cashier and kitchen, require the current password before code issuance; keep the prior email/name unchanged until confirmation. Test wrong passwords/account lockout, five wrong codes, expiry, cross-account and replaced request IDs, and the one-minute cooldown. Race requests and confirmations, address claims, password changes and logout. Inject credential-cleanup failure and require full rollback. Fail either issuance email and require no usable request; fail the completion notice and require the committed change to remain successful with a generic warning. Confirm old-device sessions, login codes and reset links are invalidated, and the caller gets only a replacement HttpOnly cookie. Verify the admin staff-edit route cannot bypass own-email verification. Refresh or close the modal before verification, then request a fresh code after cooldown.
 
 **Result:** NOT RUN
 

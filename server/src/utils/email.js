@@ -129,10 +129,12 @@ export function generateStaffInviteEmail(resetUrl, name = "") {
  * @param {string} code - 6-digit OTP code
  * @returns {string} - HTML string
  */
-export function generateOtpEmail(code) {
+export function generateOtpEmail(code, purpose = "login") {
   return baseEmailLayout({
-    heading: "Your Verification Code",
-    introHtml: "Enter this 6-digit code to complete your login:",
+    heading: purpose === "email-change" ? "Verify Your Recovery Email" : "Your Verification Code",
+    introHtml: purpose === "email-change"
+      ? "Enter this 6-digit code in My Profile to verify your new recovery email:"
+      : "Enter this 6-digit code to complete your login:",
     actionHtml: `<div style="display:inline-block;background-color:${THEME.tintBg};border:1px solid ${THEME.border};border-radius:8px;padding:16px 36px;font-size:32px;font-weight:bold;letter-spacing:8px;color:${THEME.ink};font-family:'Space Grotesk',Arial,Helvetica,sans-serif;">${code}</div>
       <p style="font-size:13px;color:${THEME.muted};margin:16px 0 0;">This code expires in <strong>10 minutes</strong>.</p>`,
     footNote: "If you didn't request this, you can safely ignore this email.",

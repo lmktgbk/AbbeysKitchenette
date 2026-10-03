@@ -43,6 +43,7 @@ model User {
   closedShifts    Shift[]          @relation("ShiftCloser")
   auditLogs        AuditLog[]
   otpCodes         OtpCode[]
+  emailChangeRequest EmailChangeRequest?
   resetTokens      PasswordResetToken[]
 }
 
@@ -844,4 +845,20 @@ model OrderRequest {
 
   @@id([scope, key])
   @@map("order_requests")
+}
+
+// One replaceable, short-lived request per account; verification never changes login OTP state.
+model EmailChangeRequest {
+  id String @id @db.Uuid
+  userId String @unique @map("user_id") @db.Uuid
+  oldEmail String @map("old_email")
+  newEmail String @map("new_email")
+  name String
+  codeHash String @map("code_hash") @db.VarChar(64)
+  sessionVersion Int @map("session_version")
+  attempts Int @default(0)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("email_change_requests")
 }

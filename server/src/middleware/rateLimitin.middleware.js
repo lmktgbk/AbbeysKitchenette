@@ -1,5 +1,18 @@
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 
+// Authenticated identity prevents rotating IPs from bypassing this outer budget.
+// Durable password/code counters and issuance cooldowns remain the cross-instance backstop.
+export const emailChangeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  keyGenerator: req => `email-change:${req.user.id}`,
+  skip: req => req.method === "PATCH" && req.body?.email === req.user.email,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: "Too many email verification attempts; try again later",
+    error: "EMAIL_CHANGE_RATE_LIMIT", data: null },
+});
+
 /**
  * Rate Limiters
  *

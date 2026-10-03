@@ -6,7 +6,8 @@ export const updateProfileSchema = z.object({
     .string()
     .min(1, "Name is required")
     .max(100, "Name must not exceed 100 characters"),
-  email: z.string().email("Invalid email format"),
+  email: z.string().trim().email("Invalid email format").max(254),
+  currentPassword: z.string().max(128).optional(),
 });
 
 // Used by ChangePasswordForm — current + new + confirm

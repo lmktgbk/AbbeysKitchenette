@@ -1,7 +1,7 @@
 // Transactional test double. PostgreSQL lock/isolation semantics require a separate DB suite.
 export function createAuthDatabase() {
   const db = { state: {}, failPasswordWrite: false };
-  const names = ["user", "otpCode", "passwordResetToken"];
+  const names = ["user", "otpCode", "passwordResetToken", "emailChangeRequest"];
   function matches(row, where = {}) {
     return Object.entries(where).every(([key, value]) => {
       if (value && typeof value === "object" && !(value instanceof Date)) {
@@ -46,6 +46,12 @@ export function createAuthDatabase() {
         found.forEach(row => mutate(row, data));
         return { count: found.length };
       },
+      async delete({ where }) {
+        const row = rows().find(r => matches(r, where));
+        if (!row) throw new Error("Test record not found");
+        db.state[name] = rows().filter(r => r !== row);
+        return project(row);
+      },
       async deleteMany({ where }) {
         const before = rows().length;
         db.state[name] = rows().filter(r => !matches(r, where));
@@ -66,7 +72,7 @@ export function createAuthDatabase() {
     finally { release(); }
   };
   db.reset = user => {
-    db.state = { user: [structuredClone(user)], otpCode: [], passwordResetToken: [], sequence: 0 };
+    db.state = { user: [structuredClone(user)], otpCode: [], passwordResetToken: [], emailChangeRequest: [], sequence: 0 };
     db.failPasswordWrite = false;
   };
   return db;

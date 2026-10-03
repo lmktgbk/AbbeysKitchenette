@@ -1,5 +1,5 @@
-import { useRef } from "react";
-import { useForm } from "react-hook-form";
+import { useRef, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Icon from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
@@ -15,11 +15,16 @@ import { updateProfileSchema } from "../validation";
  */
 export default function ProfileForm({ mutation }) {
   const fileInputRef = useRef(null);
+  const [pendingEmail, setPendingEmail] = useState(null);
+  const [code, setCode] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const user = useAuthStore((s) => s.user);
 
   const {
     register,
     handleSubmit,
+    control,
+    setValue,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(updateProfileSchema),
@@ -29,8 +34,28 @@ export default function ProfileForm({ mutation }) {
     },
   });
 
+  const emailChanged = useWatch({ control, name: "email" }) !== user?.email;
   function handleFormSubmit(data) {
-    mutation.updateProfile.mutate(data);
+    if (pendingEmail) {
+      mutation.confirmEmailChange.mutate({ id: pendingEmail.id, code }, {
+        onSuccess: (res) => {
+          setPendingEmail(null); setCode("");
+          setValue("email", res.data.user.email);
+        },
+      });
+      return;
+    }
+    if (emailChanged && !data.currentPassword) {
+      setPasswordError("Confirm your current password to change your email");
+      return;
+    }
+    setPasswordError("");
+    mutation.updateProfile.mutate(data, {
+      onSuccess: (res) => {
+        setValue("currentPassword", "");
+        setPendingEmail(res.data.emailChange || null);
+      },
+    });
   }
 
   function handleImageChange(e) {
@@ -52,7 +77,7 @@ export default function ProfileForm({ mutation }) {
     : "??";
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+    <form onSubmit={pendingEmail ? (event) => { event.preventDefault(); handleFormSubmit({}); } : handleSubmit(handleFormSubmit)} className="space-y-4">
       <div className="flex flex-col items-center gap-3">
         <button
           type="button"
@@ -96,6 +121,7 @@ export default function ProfileForm({ mutation }) {
           Name
         </label>
         <Input
+          disabled={!!pendingEmail}
           placeholder="Your name"
           error={errors.name?.message}
           {...register("name")}
@@ -108,15 +134,34 @@ export default function ProfileForm({ mutation }) {
         </label>
         <Input
           type="email"
+          disabled={!!pendingEmail}
           placeholder="Your email"
           error={errors.email?.message}
           {...register("email")}
         />
       </div>
 
+      {emailChanged && !pendingEmail && (
+        <div>
+          <label htmlFor="email-change-password" className="mb-1.5 block text-sm font-semibold">Current password</label>
+          <Input id="email-change-password" type="password" autoComplete="current-password"
+            error={passwordError || errors.currentPassword?.message} {...register("currentPassword")} />
+          <p className="mt-2 text-sm text-muted-foreground">Your current email stays active until you verify the new address.</p>
+        </div>
+      )}
+      {pendingEmail && (
+        <div className="space-y-2" aria-live="polite">
+          <p className="text-sm">Enter the code sent to {pendingEmail.email}. It expires in ten minutes.</p>
+          <label htmlFor="email-change-code" className="block text-sm font-semibold">Verification code</label>
+          <Input id="email-change-code" value={code} onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            inputMode="numeric" autoComplete="one-time-code" maxLength={6} required pattern="[0-9]{6}" />
+          <Button type="button" variant="outline" disabled={mutation.confirmEmailChange.isPending}
+            onClick={() => { setPendingEmail(null); setCode(""); }}>Request another code or address</Button>
+        </div>
+      )}
       <div className="flex justify-end pt-2">
-        <Button type="submit" disabled={mutation.updateProfile.isPending}>
-          {mutation.updateProfile.isPending ? "Saving..." : "Save Changes"}
+        <Button type="submit" disabled={mutation.updateProfile.isPending || mutation.confirmEmailChange.isPending}>
+          {mutation.updateProfile.isPending || mutation.confirmEmailChange.isPending ? "Saving..." : pendingEmail ? "Verify Email" : "Save Changes"}
         </Button>
       </div>
     </form>

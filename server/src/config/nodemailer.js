@@ -10,10 +10,14 @@ import nodemailer from "nodemailer";
  * Gmail shortcut (if SMTP_HOST is not set but GMAIL_USER/GMAIL_APP_PASS are):
  *   GMAIL_USER, GMAIL_APP_PASS, EMAIL_FROM
  */
+// Bound stalled SMTP connections without holding credential transactions open.
+const SMTP_TIMEOUTS = { connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 30000 };
+
 function createTransport() {
   // 1. SMTP direct (host/port/user/pass)
   if (process.env.SMTP_HOST) {
     return nodemailer.createTransport({
+      ...SMTP_TIMEOUTS,
       host: process.env.SMTP_HOST,
       port: Number(process.env.SMTP_PORT) || 587,
       secure: process.env.SMTP_SECURE === "true",

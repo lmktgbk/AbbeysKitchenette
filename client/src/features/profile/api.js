@@ -1,13 +1,13 @@
 /**
  * Profile API — owns self-profile / password / avatar transport.
- * WHY: groups own-user writes separately from admin staff CRUD. Contract: PATCH /auth/me, POST /auth/change-password, POST /auth/profile-image (multipart FormData with image); returns res.data envelope.
+ * WHY: groups own-user writes separately from admin staff CRUD. Contract: PATCH /auth/me, POST /auth/verify-email-change, POST /auth/change-password, POST /auth/profile-image (multipart FormData with image); returns res.data envelope.
  * State: axios wrappers, no state.
  */
 import api from "@/config/axios";
 
 /* ── Profile */
 
-/** Update own name and email */
+/** Save ordinary profile fields or request verification of a recovery address. */
 export async function updateProfileRequest(data) {
   const res = await api.patch("/auth/me", data);
   return res.data;
@@ -26,5 +26,10 @@ export async function uploadImageRequest(file) {
   const res = await api.post("/auth/profile-image", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
+  return res.data;
+}
+
+export async function confirmEmailChangeRequest(data) {
+  const res = await api.post("/auth/verify-email-change", data);
   return res.data;
 }
