@@ -25,6 +25,7 @@ router.get(
   "/revenue-trend",
   authenticate,
   authorize("admin"),
+  validateQuery(dashboardQuerySchema),
   dashboardController.getRevenueTrend,
 );
 
