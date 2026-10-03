@@ -66,7 +66,7 @@ export const getIngredientProfitQuerySchema = withDateRange(z.object({
 export const getWasteDetailsQuerySchema = withDateRange(z.object({
   date_from: calendarDate.optional(),
   date_to: calendarDate.optional(),
-  type: z.enum(["all", "spoilage", "spillage", "expiry", "other"]).optional().default("all"),
+  type: z.enum(["all", "spoilage", "spillage", "expiry", "cancellation", "other"]).optional().default("all"),
   search: searchQuery,
   limit: limitQuery("20"),
   page: pageQuery,

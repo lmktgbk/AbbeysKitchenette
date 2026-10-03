@@ -58,6 +58,10 @@ describe("Input and query bounds", () => {
     expect(forecastJobQuerySchema.safeParse({ jobId: ["12"] }).success).toBe(false);
     expect(cleanupSchema.safeParse({ days: true }).success).toBe(false);
   });
+  it("preserves the existing cancellation waste filter while rejecting unknown types", () => {
+    expect(analytics.getWasteDetailsQuerySchema.safeParse({ type: "cancellation" }).success).toBe(true);
+    expect(analytics.getWasteDetailsQuerySchema.safeParse({ type: "unknown" }).success).toBe(false);
+  });
   it("checks storage precision, finite values and numeric boundaries without rounding inputs", () => {
     expect(money().safeParse(0.1 + 0.2).success).toBe(true);
     expect(money().safeParse(99999999.99).success).toBe(true);
