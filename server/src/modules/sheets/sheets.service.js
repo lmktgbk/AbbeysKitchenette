@@ -7,7 +7,7 @@ export function sheetRetryDelay(attempts) {
 }
 
 export function createSheetsWorker({ repository = sheetsRepository, transport = createSheetsTransport(), configured = sheetsConfigured } = {}) {
-  let running = false, timer, inFlight = null, controller = new AbortController();
+  let running = false, timer, inFlight = null, startup = null, controller = new AbortController();
   async function deliverNext() {
     if (!configured()) return { ran: false, reason: "not-configured" };
     const event = await repository.claim();
@@ -51,10 +51,16 @@ export function createSheetsWorker({ repository = sheetsRepository, transport = 
         try { await api.processOne(); } catch { console.warn("[sheets] Worker database operation failed; retry deferred"); }
         if (running) { timer = setTimeout(tick, SHEETS_GAP_MS); timer.unref(); }
       };
-      void tick();
+      // A restart after a layout repair can recover saved events without repeating sales.
+      startup = (async () => {
+        try { await repository.retryHeaderBlocked?.(); }
+        catch { console.warn("[sheets] Header recovery unavailable; saved events retained"); }
+        if (running) await tick();
+      })().finally(() => { startup = null; });
     },
     async stop() {
       running = false; clearTimeout(timer); controller.abort();
+      await startup?.catch(() => {});
       await inFlight?.catch(() => {});
     },
   };

@@ -7,6 +7,13 @@ const leaseKey = () => `sheets:${createHash("sha256").update(env.GOOGLE_SERVICE_
 
 /** Database-clock leases serialize replicas without keeping a transaction open during Google calls. */
 export const sheetsRepository = {
+  async retryHeaderBlocked() {
+    // Retry only immutable events rejected by the layout check, never legacy rows.
+    return prisma.$executeRaw`UPDATE sheet_sync_log SET status = 'pending', attempts = 0,
+      last_error = NULL, next_attempt_at = clock_timestamp(), updated_at = clock_timestamp()
+      WHERE status = 'blocked' AND last_error = 'SHEETS_EVENT_COLUMN_OCCUPIED'
+        AND payload IS NOT NULL AND payload <> 'null'::jsonb`;
+  },
   async claim() {
     const owner = randomUUID(), key = leaseKey();
     return prisma.$transaction(async tx => {
@@ -24,7 +31,7 @@ export const sheetsRepository = {
       ) UPDATE sheet_sync_log AS event SET status = 'processing', lease_owner = ${owner}::uuid,
         lease_expires_at = clock_timestamp() + interval '90 seconds', attempts = attempts + 1,
         updated_at = clock_timestamp() FROM candidate WHERE event.id = candidate.id
-        RETURNING event.id, event.event_id AS "eventId", event.payload, event.spreadsheet_id AS "spreadsheetId",
+        RETURNING event.id, event.kind, event.event_id AS "eventId", event.payload, event.spreadsheet_id AS "spreadsheetId",
           event.sheet_row AS "sheetRow", event.attempts`;
       if (!events.length) {
         await tx.$executeRaw`UPDATE background_leases SET owner = NULL, expires_at = NULL WHERE key = ${key} AND owner = ${owner}::uuid`;

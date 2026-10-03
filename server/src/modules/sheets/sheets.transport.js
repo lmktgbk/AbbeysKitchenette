@@ -84,11 +84,26 @@ export function createSheetsTransport({ fetchImpl = fetch, config = env, timeout
     if (grids.size >= 20) grids.delete(grids.keys().next().value);
     grids.set(spreadsheetId, result); return result;
   }
-  async function grow(spreadsheetId, row, signal) {
+  async function layout(spreadsheetId, signal) {
+    const properties = await grid(spreadsheetId, signal);
+    if (properties.layout) return properties.layout;
+    const header = await google(spreadsheetId, valuesPath("Orders!A1:M1"), {}, signal);
+    const cells = header.values?.[0] || [];
+    const normalize = value => String(value ?? "").trim().toLowerCase();
+    // Existing workbooks have an explicit Adjustment column before Items.
+    // Preserve that layout and its Cashier column rather than claiming column L.
+    const adjustment = normalize(cells[5]) === "adjustment" && normalize(cells[6]) === "items" && normalize(cells[11]) === "cashier";
+    const column = adjustment ? "M" : "L";
+    const existing = cells[adjustment ? 12 : 11];
+    if (existing && existing !== "Sync Event ID") throw new SheetsError("SHEETS_EVENT_COLUMN_OCCUPIED", false);
+    properties.layout = { adjustment, column, width: adjustment ? 13 : 12, hasHeader: Boolean(existing) };
+    return properties.layout;
+  }
+  async function grow(spreadsheetId, row, signal, width = 12) {
     const properties = await grid(spreadsheetId, signal);
     const requests = [];
     if (row > properties.rows) requests.push({ appendDimension: { sheetId: properties.sheetId, dimension: "ROWS", length: Math.max(1000, row - properties.rows) } });
-    if (properties.columns < 12) requests.push({ appendDimension: { sheetId: properties.sheetId, dimension: "COLUMNS", length: 12 - properties.columns } });
+    if (properties.columns < width) requests.push({ appendDimension: { sheetId: properties.sheetId, dimension: "COLUMNS", length: width - properties.columns } });
     if (requests.length) {
       await google(spreadsheetId, ":batchUpdate", { method: "POST", body: JSON.stringify({ requests }) }, signal);
       for (const { appendDimension: dimension } of requests) {
@@ -100,25 +115,31 @@ export function createSheetsTransport({ fetchImpl = fetch, config = env, timeout
   return {
     async initialize(spreadsheetId, signal) {
       const properties = await grid(spreadsheetId, signal);
-      await grow(spreadsheetId, properties.rows, signal);
-      const header = await google(spreadsheetId, valuesPath("Orders!L1"), {}, signal);
-      const existing = header.values?.[0]?.[0];
-      if (existing && existing !== "Sync Event ID") throw new SheetsError("SHEETS_EVENT_COLUMN_OCCUPIED", false);
-      if (!existing) await google(spreadsheetId, valuesPath("Orders!L1") + "?valueInputOption=RAW", { method: "PUT", body: JSON.stringify({ values: [["Sync Event ID"]] }) }, signal);
+      const format = await layout(spreadsheetId, signal);
+      await grow(spreadsheetId, properties.rows, signal, format.width);
+      if (!format.hasHeader) {
+        await google(spreadsheetId, valuesPath(`Orders!${format.column}1`) + "?valueInputOption=RAW", { method: "PUT", body: JSON.stringify({ values: [["Sync Event ID"]] }) }, signal);
+        format.hasHeader = true;
+      }
       // Starting beyond the existing grid preserves history without downloading the whole sheet.
       return properties.rows + 1;
     },
     async deliver(event, signal) {
       const values = event.payload?.values;
       if (event.payload?.version !== 1 || !Array.isArray(values) || values.length !== 12 || values[11] !== event.eventId || !Number.isInteger(event.sheetRow) || event.sheetRow < 2 || values.some(value => !["string", "number"].includes(typeof value) || (typeof value === "number" && !Number.isFinite(value)))) throw new SheetsError("SHEETS_INVALID_SNAPSHOT", false);
-      await grow(event.spreadsheetId, event.sheetRow, signal);
-      const range = `Orders!A${event.sheetRow}:L${event.sheetRow}`;
+      const format = await layout(event.spreadsheetId, signal);
+      const kind = event.kind || event.payload.kind || "paid";
+      const output = format.adjustment
+        ? [...values.slice(0, 5), kind === "paid" ? "" : kind.toUpperCase(), ...values.slice(5)]
+        : values;
+      await grow(event.spreadsheetId, event.sheetRow, signal, format.width);
+      const range = `Orders!A${event.sheetRow}:${format.column}${event.sheetRow}`;
       const data = await google(event.spreadsheetId, valuesPath(range) + "?valueRenderOption=UNFORMATTED_VALUE", {}, signal);
       const current = data.values?.[0] || [];
-      if (current.some(value => value !== "" && value !== null) && current[11] !== event.eventId) throw new SheetsError("SHEETS_ROW_CONFLICT", false);
-      if (JSON.stringify(current) === JSON.stringify(values)) return;
+      if (current.some(value => value !== "" && value !== null) && current[format.width - 1] !== event.eventId) throw new SheetsError("SHEETS_ROW_CONFLICT", false);
+      if (JSON.stringify(current) === JSON.stringify(output)) return;
       // Repeating this PUT writes the same immutable event to its reserved row, never appends.
-      await google(event.spreadsheetId, valuesPath(range) + "?valueInputOption=RAW", { method: "PUT", body: JSON.stringify({ values: [values] }) }, signal);
+      await google(event.spreadsheetId, valuesPath(range) + "?valueInputOption=RAW", { method: "PUT", body: JSON.stringify({ values: [output] }) }, signal);
     },
   };
 }

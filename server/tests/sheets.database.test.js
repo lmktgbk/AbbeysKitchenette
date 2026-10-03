@@ -100,4 +100,18 @@ describe.skipIf(process.env.SHEETS_DB_CHECK !== "1")("PostgreSQL Sheets outbox a
       AND relname IN ('sheet_sync_log', 'sheet_sync_destinations', 'background_leases')`;
     expect(states).toHaveLength(3); expect(states.every(state => state.relrowsecurity)).toBe(true);
   });
+  it("header recovery requeues only saved events blocked by the layout check", async () => {
+    await record();
+    const event = await h.db.sheetSyncLog.findFirst();
+    await h.db.sheetSyncLog.update({ where: { id: event.id }, data: { status: "blocked", attempts: 1, lastError: "SHEETS_EVENT_COLUMN_OCCUPIED" } });
+    await record("adjusted", 1);
+    await h.db.sheetSyncLog.updateMany({ where: { kind: "adjusted" }, data: { status: "blocked", lastError: "SHEETS_ROW_CONFLICT" } });
+    await record("adjusted", 2);
+    await h.db.sheetSyncLog.updateMany({ where: { eventKey: `adjusted:${orderId}:2` }, data: { status: "blocked", lastError: "SHEETS_EVENT_COLUMN_OCCUPIED", payload: null } });
+    expect(await sheetsRepository.retryHeaderBlocked()).toBe(1);
+    const saved = await h.db.sheetSyncLog.findUnique({ where: { id: event.id } });
+    expect(saved.status).toBe("pending"); expect(saved.attempts).toBe(0);
+    expect(saved.eventId).toBe(event.eventId); expect(saved.payload).toEqual(event.payload);
+    expect(await h.db.sheetSyncLog.count({ where: { status: "blocked" } })).toBe(2);
+  });
 });

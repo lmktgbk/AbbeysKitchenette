@@ -26,7 +26,15 @@ beforeAll(async () => {
       return json({ replies: [] });
     }
     const range = path.split("/values/")[1];
-    if (req.method === "GET") return json({ values: cells.has(range) ? [cells.get(range)] : [] });
+    if (req.method === "GET") {
+      if (range === "Orders!A1:M1" && !cells.has(range)) {
+        const header = Array(13).fill("");
+        header[11] = cells.get("Orders!L1")?.[0] || "";
+        header[12] = cells.get("Orders!M1")?.[0] || "";
+        return json({ values: [header] });
+      }
+      return json({ values: cells.has(range) ? [cells.get(range)] : [] });
+    }
     if (req.method === "PUT") {
       cells.set(range, body.values[0]);
       if (mode === "lost-write" && range !== "Orders!L1") { mode = "normal"; res.destroy(); return; }
@@ -77,6 +85,33 @@ describe("bounded Google Sheets transport", () => {
     cells.set("Orders!L1", ["Private notes"]);
     await expect(transport().initialize("fixture-sheet")).rejects.toMatchObject({ code: "SHEETS_EVENT_COLUMN_OCCUPIED", retryable: false });
     expect(cells.get("Orders!L1")).toEqual(["Private notes"]);
+  });
+  it("preserves the existing Adjustment and Cashier columns and uses M for identity", async () => {
+    cells.set("Orders!A1:M1", ["Orders #", "Date", "Time", "Customer", "Table", "Adjustment", "Items", "Gross", "Discount", "Net", "Payment", "Cashier"]);
+    const provider = transport();
+    expect(await provider.initialize("fixture-sheet")).toBe(4);
+    expect(cells.get("Orders!M1")).toEqual(["Sync Event ID"]);
+    expect(cells.has("Orders!L1")).toBe(false);
+    const event = makeEvent(); event.sheetRow = 4; event.kind = "paid";
+    await provider.deliver(event);
+    const row = cells.get("Orders!A4:M4");
+    expect(row).toEqual([...event.payload.values.slice(0, 5), "", ...event.payload.values.slice(5)]);
+    expect(row[11]).toBe("Fixture"); expect(row[12]).toBe(event.eventId);
+    await provider.deliver(event);
+    expect(calls.filter(call => call.method === "PUT" && call.path.endsWith("A4:M4"))).toHaveLength(1);
+  });
+  it("maps distinct adjustments into the dedicated column without moving totals", async () => {
+    cells.set("Orders!A1:M1", ["Orders #", "Date", "Time", "Customer", "Table", "Adjustment", "Items", "Gross", "Discount", "Net", "Payment", "Cashier"]);
+    const event = makeEvent(); event.sheetRow = 4; event.kind = "adjusted";
+    await transport().deliver(event);
+    const row = cells.get("Orders!A4:M4");
+    expect(row[5]).toBe("ADJUSTED"); expect(row[9]).toBe(10); expect(row[10]).toBe("cash");
+  });
+  it("does not overwrite notes already occupying M in the twelve-column layout", async () => {
+    const header = ["Orders #", "Date", "Time", "Customer", "Table", "Adjustment", "Items", "Gross", "Discount", "Net", "Payment", "Cashier", "Notes"];
+    cells.set("Orders!A1:M1", header);
+    await expect(transport().initialize("fixture-sheet")).rejects.toMatchObject({ code: "SHEETS_EVENT_COLUMN_OCCUPIED" });
+    expect(calls.some(call => call.method === "PUT")).toBe(false);
   });
   it("persistent 401 retries authentication once and then stops", async () => {
     mode = "401";
