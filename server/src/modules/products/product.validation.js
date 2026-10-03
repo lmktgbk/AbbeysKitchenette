@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LIMITS, pageQuery, limitQuery, searchQuery, categoryQuery, integerId, queryInteger, money, stockQuantity } from "../../utils/validation.js";
 
 /**
  * Product Validation Schemas
@@ -12,20 +13,20 @@ import { z } from "zod";
 // Recipe entry: one ingredient per variant
 const recipeEntrySchema = z.object({
   ingredient_id: z.string().uuid("Invalid ingredient ID"),
-  quantity_needed: z.number().positive("Quantity must be greater than zero"),
+  quantity_needed: stockQuantity(true),
 });
 
 // Variant entry: size with price and optional recipes
 const variantEntrySchema = z.object({
-  variant_id: z.number().int().positive().optional(), // existing variant (edit mode)
+  variant_id: integerId.optional(), // existing variant (edit mode)
   size_name: z
     .string()
     .trim()
     .min(1, "Size name is required")
     .max(50, "Size name must not exceed 50 characters"),
-  price: z.number().positive("Price must be greater than zero"),
+  price: money(true),
   is_available: z.boolean().optional().default(true),
-  recipes: z.array(recipeEntrySchema).optional().default([]),
+  recipes: z.array(recipeEntrySchema).max(LIMITS.recipeLines).optional().default([]),
 });
 
 // ── Product Schemas ───────────────────────────────
@@ -39,7 +40,7 @@ export const createProductSchema = z.object({
     .trim()
     .min(1, "Product name is required")
     .max(150, "Product name must not exceed 150 characters"),
-  subcategory_id: z.number().int().positive("Subcategory is required").optional(),
+  subcategory_id: integerId.optional(),
   is_bundle: z.boolean().optional().default(false),
   description: z
     .string()
@@ -51,7 +52,7 @@ export const createProductSchema = z.object({
   is_available: z.boolean().optional().default(true),
   variants: z
     .array(variantEntrySchema)
-    .min(1, "At least one variant is required"),
+    .min(1, "At least one variant is required").max(LIMITS.variants),
 }).superRefine((data, ctx) => {
   if (!data.is_bundle && data.subcategory_id === undefined) {
     ctx.addIssue({
@@ -70,7 +71,7 @@ export const updateProductSchema = z.object({
     .min(1, "Product name is required")
     .max(150, "Product name must not exceed 150 characters")
     .optional(),
-  subcategory_id: z.number().int().positive("Subcategory is required").optional(),
+  subcategory_id: integerId.optional(),
   description: z
     .string()
     .trim()
@@ -84,7 +85,7 @@ export const updateProductSchema = z.object({
 export const updateVariantsSchema = z.object({
   variants: z
     .array(variantEntrySchema)
-    .min(1, "At least one variant is required"),
+    .min(1, "At least one variant is required").max(LIMITS.variants),
 });
 
 // ── Param Schemas ─────────────────────────────────
@@ -97,24 +98,18 @@ export const productIdParamSchema = z.object({
 // Used by POST /api/products/:id/variants/:variantId/activate|deactivate
 export const variantIdParamSchema = z.object({
   id: z.string().uuid("Invalid product ID"),
-  variantId: z.string().regex(/^\d+$/, "Invalid variant ID"),
+  variantId: queryInteger(),
 });
 
 // ── Query Schemas ─────────────────────────────────
 
 // Used by GET /api/products — query params for pagination, search, filter, sort
 export const getProductsQuerySchema = z.object({
-  page: z.string().optional().default("1"),
-  limit: z
-    .string()
-    .regex(/^\d+$/, "Limit must be a positive integer")
-    .optional()
-    .default("50"),
-  search: z.string().optional(),
+  page: pageQuery,
+  limit: limitQuery("50"),
+  search: searchQuery,
   status: z.enum(["all", "active", "unavailable"]).optional().default("all"),
-  category: z
-    .string()
-    .regex(/^(root|sub):\d+$/, "Category must be root:id or sub:id")
+  category: categoryQuery
     .optional(),
   sortBy: z
     .enum(["product_name", "category_name", "created_at"])

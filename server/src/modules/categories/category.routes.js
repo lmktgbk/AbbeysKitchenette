@@ -1,10 +1,11 @@
 import { Router } from "express";
 
 import { categoryController } from "./category.controller.js";
-import { validate } from "../../middleware/validate.middleware.js";
+import { validate, validateParams } from "../../middleware/validate.middleware.js";
 import authenticate from "../../middleware/authenticate.middleware.js";
 import authorize from "../../middleware/authorize.middleware.js";
 import {
+  categoryIdParamSchema,
   createSubcategorySchema,
   updateSubcategorySchema,
 } from "./category.validation.js";
@@ -31,6 +32,7 @@ router.post(
   "/:id/subcategories",
   authenticate,
   authorize("admin"),
+  validateParams(categoryIdParamSchema),
   validate(createSubcategorySchema),
   categoryController.createSubcategory,
 );
@@ -49,6 +51,7 @@ router.delete(
   "/subcategories/:id",
   authenticate,
   authorize("admin"),
+  validateParams(categoryIdParamSchema),
   categoryController.deleteSubcategory,
 );
 

@@ -194,3 +194,8 @@ export async function rejectWasteReductionRequest(id) {
   const res = await api.post(`/waste-reduction/${id}/reject`);
   return res.data;
 }
+
+export async function getIngredientOptionsRequest({ cursor, signal } = {}) {
+  const res = await api.get("/ingredients/options", { params: { limit: 100, cursor }, signal });
+  return res.data;
+}

@@ -5,6 +5,7 @@ import { validate, validateQuery, validateParams } from "../../middleware/valida
 import authenticate from "../../middleware/authenticate.middleware.js";
 import authorize from "../../middleware/authorize.middleware.js";
 import {
+  ingredientOptionsQuerySchema,
   createIngredientSchema,
   updateIngredientSchema,
   idParamSchema,
@@ -21,6 +22,8 @@ import {
 } from "./ingredient.validation.js";
 
 const router = Router();
+
+router.get("/options", authenticate, authorize("admin"), validateQuery(ingredientOptionsQuerySchema), ingredientController.getOptions);
 
 /**
  * Ingredient Routes

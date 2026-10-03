@@ -1,8 +1,8 @@
 import { Router } from "express";
 import authenticate from "../../middleware/authenticate.middleware.js";
 import authorize from "../../middleware/authorize.middleware.js";
-import { validateQuery, validateParams } from "../../middleware/validate.middleware.js";
-import { mbaAnalyzeQuerySchema, mbaJobsQuerySchema, mbaJobIdParamSchema } from "./marketBasket.validation.js";
+import { validate, validateQuery, validateParams } from "../../middleware/validate.middleware.js";
+import { markComboSchema, mbaAnalyzeQuerySchema, mbaJobsQuerySchema, mbaJobIdParamSchema } from "./marketBasket.validation.js";
 import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { proxyMlStatus } from "../../realtime/jobs.js";
@@ -98,6 +98,7 @@ router.post(
   "/mark-combo-created",
   authenticate,
   authorize("admin"),
+  validate(markComboSchema),
   (req, res) => {
     auditLogService.logAction({
       userId: req.user.id,

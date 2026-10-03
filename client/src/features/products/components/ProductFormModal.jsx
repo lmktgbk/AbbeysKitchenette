@@ -48,6 +48,9 @@ export default function ProductFormModal({
   isLoading,
   categories = [],
   ingredients = [],
+  ingredientsLoading = false,
+  ingredientsError = false,
+  onRetryIngredients,
   onUploadImage,
 }) {
   const isEdit = isEditMode;
@@ -61,7 +64,6 @@ export default function ProductFormModal({
     handleSubmit,
     reset,
     watch,
-    setValue,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(isEdit ? editProductSchema : createProductSchema),
@@ -99,6 +101,7 @@ export default function ProductFormModal({
   }
 
   async function handleFormSubmit(data) {
+    if (ingredientsLoading || ingredientsError) return;
     let imageUrl = data.image_url || null;
 
     // Upload image if a new file was selected
@@ -141,6 +144,15 @@ export default function ProductFormModal({
             onSubmit={handleSubmit(handleFormSubmit)}
             className="flex max-h-[70vh] flex-col gap-5 overflow-y-auto pr-1"
           >
+            {ingredientsLoading && (
+              <p role="status" className="text-sm text-muted-foreground">Loading recipe ingredients...</p>
+            )}
+            {ingredientsError && (
+              <div role="alert" className="flex items-center justify-between gap-3 text-sm text-destructive">
+                <span>Recipe ingredients could not be loaded.</span>
+                <Button type="button" variant="outline" onClick={onRetryIngredients}>Retry ingredients</Button>
+              </div>
+            )}
             {/* ── Product Information ──────────── */}
             <section>
               <h3 className="mb-3 text-sm font-semibold text-foreground">
@@ -277,7 +289,7 @@ export default function ProductFormModal({
               <Button type="button" variant="outline" onClick={handleClose}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isLoading || uploading}>
+              <Button type="submit" disabled={isLoading || uploading || ingredientsLoading || ingredientsError}>
                 {uploading
                   ? "Uploading image..."
                   : isLoading

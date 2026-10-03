@@ -16,6 +16,12 @@ function handleError(res, error, fallbackCode) {
 }
 
 export const ingredientController = {
+  async getOptions(req, res) {
+    try {
+      const { limit, cursor } = req.validatedQuery;
+      return successResponse(res, "Ingredient options retrieved", await ingredientService.getOptions(Number(limit), cursor));
+    } catch (error) { return handleError(res, error, "INGREDIENT_OPTIONS_ERROR"); }
+  },
   /**
    * GET /api/ingredients
    * Return paginated non-archived ingredients with stock info.

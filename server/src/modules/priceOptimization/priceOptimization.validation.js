@@ -1,10 +1,10 @@
 import { z } from "zod";
+import { queryInteger } from "../../utils/validation.js";
 
 export const generateSchema = z.object({
   productId: z.string().uuid("Invalid product ID"),
 });
 
 export const idParamSchema = z.object({
-  id: z.string().regex(/^\d+$/, "ID must be a number")
-    .refine(value => Number(value) > 0 && Number(value) <= 2147483647, "ID must be a positive database integer"),
+  id: queryInteger(),
 });

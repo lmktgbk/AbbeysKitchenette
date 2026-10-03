@@ -96,14 +96,14 @@ describe("AUDIT: fixed authentication regressions and open business defects", ()
     expect(db.user.updateMany).not.toHaveBeenCalled();
   });
   it("order list validates zero/huge limits, junk page, and invalid dates", () => {
-    expect(getOrdersQuerySchema.safeParse({ page: "junk", limit: "0", date_from: "bad-date" }).success).toBe(true);
-    expect(getOrdersQuerySchema.safeParse({ limit: "999999999" }).success).toBe(true);
+    expect(getOrdersQuerySchema.safeParse({ page: "junk", limit: "0", date_from: "bad-date" }).success).toBe(false);
+    expect(getOrdersQuerySchema.safeParse({ limit: "999999999" }).success).toBe(false);
   });
-  it("order validation accepts quantity exceeding PostgreSQL integer capacity", () => {
+  it("order validation rejects quantity exceeding PostgreSQL integer capacity", () => {
     expect(createOrderSchema.safeParse({
       customer_name: "Audit", table_number: "Takeout", amount_paid: 1,
       items: [{ product_id: user.id, variant_id: 1, quantity: 2147483648, unit_price: 1 }],
-    }).success).toBe(true);
+    }).success).toBe(false);
   });
   it("malformed JSON is serialized as a safe 400", () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});

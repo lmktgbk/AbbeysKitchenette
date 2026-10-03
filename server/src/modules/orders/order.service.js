@@ -14,6 +14,8 @@ import { settingsService } from "../settings/settings.service.js";
 import { anomalyService } from "../anomalyDetection/anomalyDetection.service.js";
 import { getBusinessDate } from "../../config/time.js";
 
+import { LIMITS } from "../../utils/validation.js";
+
 export const orderService = {
   /* ── Queries ─────────────────────────── */
 
@@ -1012,6 +1014,10 @@ export const orderService = {
       }
       return { ...item, unit_price: livePrice };
     });
+
+    // Use authoritative prices for the storage budget, even when client prices pass cent tolerance.
+    const gross = roundMoney(pricedItems.reduce((sum, item) => sum + item.unit_price * item.quantity, 0));
+    if (!Number.isFinite(gross) || gross > LIMITS.money) throw new AppError(400, "Order subtotal exceeds the supported amount", "AMOUNT_OUT_OF_RANGE");
 
     const perItemMode = pricedItems.some(
       (i) => (i.discount_type ?? "none") !== "none",

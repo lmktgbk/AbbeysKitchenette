@@ -456,7 +456,7 @@ Confirm UUID product keys match catalog products in variant results and product 
 
 **Priority:** Medium
 
-**Implementation:** Open at checklist creation; final acceptance NOT RUN
+**Implementation:** Implemented: bounded queries, calendar dates, numeric precision and collection sizes; complete paged ingredient picker. Automated regression passes; final acceptance NOT RUN
 
 **Steps:** Exercise list filters, dates, quantities, prices and arrays with missing/null/wrong types, negatives, zero, overflow, long Unicode and duplicate lines. Try the maximum allowed value and one beyond it. Inspect that rejected requests change no rows.
 

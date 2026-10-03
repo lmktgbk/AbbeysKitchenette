@@ -54,6 +54,12 @@ beforeEach(() => {
 const request = (path, method, body) => fetch(base + path, { method, headers: { "Content-Type": "application/json", "Idempotency-Key": KEY }, body: body === undefined ? undefined : JSON.stringify(body) });
 
 describe("Order permissions and transaction boundaries", () => {
+  it("rejects a bill exceeding storage capacity using authoritative prices", async () => {
+    vi.spyOn(orderRepository, "getVariantPrices").mockResolvedValue(new Map([[1, 99999999.99]]));
+    await expect(orderService._priceItemsAndTotals([
+      { variant_id: 1, unit_price: 99999999.99, quantity: 2 },
+    ])).rejects.toMatchObject({ statusCode: 400, code: "AMOUNT_OUT_OF_RANGE" });
+  });
   it.each(["admin", "cashier", "kitchen"])("%s can start preparation through the API", async role => {
     h.role = role;
     expect((await request(`/${A}/prepare`, "POST")).status).toBe(200);

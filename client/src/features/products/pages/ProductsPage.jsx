@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { useProductMutations, useProductDetail, useCategoryList } from "../query";
-import { useIngredientList } from "@/features/ingredients/query";
+import { useIngredientOptions } from "@/features/ingredients/query";
 import { confirm } from "@/components/alerts/ConfirmDialog";
 import { getApiErrorMessage } from "../product.utils";
 import KpiCards from "../components/KpiCards";
@@ -52,7 +52,8 @@ export default function ProductsPage() {
 
   // ── Categories & ingredients (via query hooks) ──
   const { data: categoriesData } = useCategoryList();
-  const { data: ingredientsData } = useIngredientList({ limit: 9999 });
+  const ingredientOptions = useIngredientOptions(showFormModal);
+  const ingredientsData = ingredientOptions.data;
 
   const categories = categoriesData?.data?.categories ?? [];
   const ingredients = ingredientsData?.data?.ingredients ?? [];
@@ -276,6 +277,9 @@ export default function ProductsPage() {
         isLoading={isFormLoading}
         categories={categories}
         ingredients={ingredients}
+        ingredientsLoading={ingredientOptions.isPending}
+        ingredientsError={ingredientOptions.isError}
+        onRetryIngredients={() => ingredientOptions.refetch()}
         onUploadImage={mutations.uploadImage.mutateAsync}
       />
 

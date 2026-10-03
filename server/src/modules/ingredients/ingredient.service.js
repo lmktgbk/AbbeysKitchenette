@@ -90,6 +90,17 @@ function mapToBatchResponse(batch) {
 const EXPIRY_WARNING_DAYS = 7;
 
 export const ingredientService = {
+  async getOptions(limit, cursor) {
+    // Keyset paging avoids deep offsets and stock/history enrichment for recipe selectors.
+    const rows = await prisma.ingredient.findMany({
+      where: { isArchived: false, ...(cursor ? { ingredientId: { gt: cursor } } : {}) },
+      orderBy: { ingredientId: "asc" }, take: limit + 1,
+      select: { ingredientId: true, ingredientName: true, unit: true },
+    });
+    const page = rows.slice(0, limit);
+    return { ingredients: page.map(row => ({ ingredient_id: row.ingredientId, ingredient_name: row.ingredientName, unit: row.unit })),
+      next_cursor: rows.length > limit ? page.at(-1).ingredientId : null };
+  },
   /* ── Queries ─────────────────────────── */
 
   /**

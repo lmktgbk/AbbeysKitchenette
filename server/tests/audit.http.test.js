@@ -34,6 +34,24 @@ function concrete(url) { return url.replace(/:(itemId|variantId|batchId|lossId)/
 beforeAll(async () => { server = await new Promise(resolve => { const s = app.listen(0, "127.0.0.1", () => resolve(s)); }); base = "http://127.0.0.1:" + server.address().port; });
 afterAll(async () => { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); fs.writeFileSync(new URL("../../audit/http-boundary-results.json", import.meta.url), JSON.stringify(results, null, 2)); });
 describe("AUDIT: HTTP authentication and role boundaries", () => {
+  it.each([
+    "/api/orders?limit=101",
+    "/api/products?page=1001",
+    "/api/ingredients/options?limit=101",
+    "/api/ingredients/options?cursor=invalid",
+    "/api/dashboard?dateFrom=2026-02-30",
+    "/api/audit-logs?startDate=2026-10-04&endDate=2026-10-03",
+  ])("invalid bounded input cannot reach the handler: %s", async path => {
+    h.role = "admin";
+    const r = await fetch(base + path, { headers: { Cookie: "token=" + signToken({ sub: "123e4567-e89b-42d3-a456-426614174000", role: "admin", version: 0 }) } });
+    expect(r.status).toBe(400);
+    expect((await r.json()).auditHandlerReached).toBeUndefined();
+  });
+  it.each([undefined, "cashier"])("ingredient options enforce their access boundary: %s", async role => {
+    h.role = role || "cashier";
+    const headers = role ? { Cookie: "token=" + signToken({ sub: "123e4567-e89b-42d3-a456-426614174000", role, version: 0 }) } : {};
+    expect((await fetch(base + "/api/ingredients/options", { headers })).status).toBe(role ? 403 : 401);
+  });
   for (const row of matrix.filter(r => r.auth !== "public")) {
     it("unauthenticated request blocked: " + row.method + " " + row.endpoint, async () => {
       const r = await fetch(base + concrete(row.endpoint), { method: row.method });

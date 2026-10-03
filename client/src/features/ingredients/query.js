@@ -6,6 +6,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as api from "./api";
+import { loadIngredientOptions } from "./options";
 
 /* ── Key Factory (internal) ────────────────────── */
 
@@ -314,4 +315,9 @@ export function useIngredientMutations() {
       onSuccess: () => invalidateWaste(),
     }),
   };
+}
+
+export function useIngredientOptions(enabled) {
+  return useQuery({ queryKey: ["ingredients", "options"], enabled,
+    queryFn: ({ signal }) => loadIngredientOptions(api.getIngredientOptionsRequest, signal) });
 }

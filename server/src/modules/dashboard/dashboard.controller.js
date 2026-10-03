@@ -13,7 +13,7 @@ export const dashboardController = {
    * Returns all dashboard analytics in a single response.
    */
   async getDashboard(req, res) {
-    const { dateFrom, dateTo } = req.query;
+    const { dateFrom, dateTo } = req.validatedQuery;
     const data = await dashboardService.getData(dateFrom || null, dateTo || null);
     return successResponse(res, "Dashboard data retrieved", data);
   },
@@ -23,7 +23,7 @@ export const dashboardController = {
    * Returns only the revenue trend data for granular refetching.
    */
   async getRevenueTrend(req, res) {
-    const { dateFrom, dateTo, granularity } = req.query;
+    const { dateFrom, dateTo, granularity } = req.validatedQuery;
     const data = await dashboardRepository.getRevenueTrend(
       dateFrom || null,
       dateTo || null,

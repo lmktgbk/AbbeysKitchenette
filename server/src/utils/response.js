@@ -62,6 +62,7 @@ export const errorResponse = (
  * serialize identically.
  */
 export const mapPrismaError = (error) => {
+  if (error?.code === "P2020") return { statusCode: 400, message: "Calculated value exceeds the supported storage range", code: "VALUE_OUT_OF_RANGE" };
   // Unique-constraint race (e.g. concurrent creates with the same name).
   if (error?.code === "P2002") {
     return {

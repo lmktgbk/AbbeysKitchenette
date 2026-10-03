@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { pageQuery, limitQuery, searchQuery } from "../../utils/validation.js";
 
 /**
  * Staff Validation Schemas
@@ -49,13 +50,9 @@ export const idParamSchema = z.object({
 
 // Used by GET /api/staff — query params
 export const getStaffQuerySchema = z.object({
-  page: z.string().optional().default("1"),
-  limit: z
-    .string()
-    .regex(/^\d+$/, "Limit must be a positive integer")
-    .optional()
-    .default("50"),
-  search: z.string().optional(),
+  page: pageQuery,
+  limit: limitQuery("50"),
+  search: searchQuery,
   role: z.enum(["all", "admin", "cashier", "kitchen"]).optional().default("all"),
   status: z.enum(["all", "active", "inactive"]).optional().default("all"),
   sortBy: z

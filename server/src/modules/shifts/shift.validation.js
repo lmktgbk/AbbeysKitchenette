@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { pageQuery, limitQuery, calendarDate, money, withDateRange } from "../../utils/validation.js";
 
 /**
  * Shift Validation Schemas (BR-02)
@@ -8,16 +9,12 @@ import { z } from "zod";
 
 // POST /api/shifts/open
 export const openShiftSchema = z.object({
-  opening_cash: z
-    .number({ errorMap: () => ({ message: "Opening cash is required" }) })
-    .min(0, "Opening cash must be non-negative"),
+  opening_cash: money(),
 });
 
 // POST /api/shifts/:id/close
 export const closeShiftSchema = z.object({
-  actual_cash: z
-    .number({ errorMap: () => ({ message: "Actual cash count is required" }) })
-    .min(0, "Actual cash must be non-negative"),
+  actual_cash: money(),
   close_note: z
     .string()
     .trim()
@@ -27,9 +24,7 @@ export const closeShiftSchema = z.object({
 
 // POST /api/shifts/:id/force-close (admin, note always required)
 export const forceCloseShiftSchema = z.object({
-  actual_cash: z
-    .number({ errorMap: () => ({ message: "Actual cash count is required" }) })
-    .min(0, "Actual cash must be non-negative"),
+  actual_cash: money(),
   close_note: z
     .string()
     .trim()
@@ -45,12 +40,8 @@ export const shiftIdParamSchema = z.object({
 
 // GET /api/shifts/:id/orders — windowed list with status filter
 export const getShiftOrdersQuerySchema = z.object({
-  page: z.string().optional().default("1"),
-  limit: z
-    .string()
-    .regex(/^\d+$/, "Limit must be a positive integer")
-    .optional()
-    .default("15"),
+  page: pageQuery,
+  limit: limitQuery("15"),
   status: z
     .enum(["all", "accepted", "preparing", "completed", "cancelled"])
     .optional()
@@ -60,21 +51,17 @@ export const getShiftOrdersQuerySchema = z.object({
 // ── Query Schemas ───────────────────────────────────────
 
 // GET /api/shifts/stats — optional YYYY-MM-DD range (default: today)
-export const getShiftStatsQuerySchema = z.object({
-  date_from: z.string().optional(), // YYYY-MM-DD
-  date_to: z.string().optional(), // YYYY-MM-DD
-});
+export const getShiftStatsQuerySchema = withDateRange(z.object({
+  date_from: calendarDate.optional(), // YYYY-MM-DD
+  date_to: calendarDate.optional(), // YYYY-MM-DD
+}));
 
 // GET /api/shifts — admin list with filters
-export const getShiftsQuerySchema = z.object({
-  page: z.string().optional().default("1"),
-  limit: z
-    .string()
-    .regex(/^\d+$/, "Limit must be a positive integer")
-    .optional()
-    .default("20"),
+export const getShiftsQuerySchema = withDateRange(z.object({
+  page: pageQuery,
+  limit: limitQuery("20"),
   status: z.enum(["all", "open", "closed"]).optional().default("all"),
   staff_id: z.string().uuid("Invalid staff ID").optional(),
-  date_from: z.string().optional(), // YYYY-MM-DD
-  date_to: z.string().optional(), // YYYY-MM-DD
-});
+  date_from: calendarDate.optional(), // YYYY-MM-DD
+  date_to: calendarDate.optional(), // YYYY-MM-DD
+}));

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LIMITS, searchQuery, queryInteger, integerId, money, orderQuantity } from "../../utils/validation.js";
 
 /**
  * Guest Validation Schemas
@@ -9,9 +10,9 @@ import { z } from "zod";
 // Order item for guest checkout
 const guestOrderItemSchema = z.object({
   product_id: z.string().uuid("Invalid product ID"),
-  variant_id: z.number().int().positive("Invalid variant ID"),
-  quantity: z.number().int().positive("Quantity must be at least 1"),
-  unit_price: z.number().positive("Price must be greater than zero"),
+  variant_id: integerId,
+  quantity: orderQuantity,
+  unit_price: money(true),
 });
 
 // POST /api/guest/orders — place online order
@@ -26,15 +27,13 @@ export const createGuestOrderSchema = z.object({
     .trim()
     .min(1, "Table number is required")
     .max(20, "Table number must not exceed 20 characters"),
-  items: z.array(guestOrderItemSchema).min(1, "At least one item is required"),
+  items: z.array(guestOrderItemSchema).min(1, "At least one item is required").max(LIMITS.orderLines),
 });
 
 // GET /api/guest/menu — query params
 export const getMenuQuerySchema = z.object({
-  search: z.string().optional(),
-  category: z
-    .string()
-    .regex(/^\d+$/, "Category must be a positive integer")
+  search: searchQuery,
+  category: queryInteger()
     .optional(),
 });
 

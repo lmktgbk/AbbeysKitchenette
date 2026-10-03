@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { queryInteger } from "../../utils/validation.js";
 
 /**
  * Category Validation Schemas
@@ -33,3 +34,5 @@ export const updateSubcategorySchema = z.object({
     .optional(),
   is_active: z.boolean().optional(),
 });
+
+export const categoryIdParamSchema = z.object({ id: queryInteger() });

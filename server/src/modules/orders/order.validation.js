@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LIMITS, pageQuery, limitQuery, searchQuery, calendarDate, clockTime, integerId, queryInteger, money, stockQuantity, orderQuantity, withDateRange } from "../../utils/validation.js";
 
 /**
  * Order Validation Schemas
@@ -18,14 +19,14 @@ const itemDiscountTypeEnum = z.enum(["none", "senior", "pwd", "promo"], {
 
 const orderItemSchema = z.object({
   product_id: z.string().uuid("Invalid product ID"),
-  variant_id: z.number().int().positive("Invalid variant ID"),
-  quantity: z.number().int().positive("Quantity must be at least 1"),
-  unit_price: z.number().positive("Price must be greater than zero"),
+  variant_id: integerId,
+  quantity: orderQuantity,
+  unit_price: money(true),
   discount_type: itemDiscountTypeEnum.optional().default("none"),
   promo_mode: z.enum(["percent", "amount"], {
     errorMap: () => ({ message: "promo_mode must be percent or amount" }),
   }).optional(),
-  promo_value: z.number().min(0, "Promo value must be non-negative").optional(),
+  promo_value: money().optional(),
   discount_label: z.string().trim().max(200, "Promo label must not exceed 200 characters").optional(),
 }).superRefine((item, ctx) => {
   if (item.discount_type === "promo") {
@@ -60,7 +61,7 @@ const discountInputSchema = z.object({
     errorMap: () => ({ message: "promo_mode must be percent or amount" }),
   }).optional(),
   // promo only: percent 0-100 or peso amount
-  promo_value: z.number().min(0, "Promo value must be non-negative").optional(),
+  promo_value: money().optional(),
   // senior/pwd only: ID number for audit (legacy single field)
   discount_id_no: z.string().trim().max(50, "ID number must not exceed 50 characters").optional(),
   // per-item mode: separate IDs so a mixed senior+pwd order audits both
@@ -73,10 +74,10 @@ const discountInputSchema = z.object({
 // Per-item discount patch for pending → accepted (Orders queue accept flow):
 // maps stored order lines by order_item_id to their single discount.
 const itemDiscountPatchSchema = z.object({
-  order_item_id: z.number().int().positive(),
+  order_item_id: integerId,
   discount_type: itemDiscountTypeEnum.optional().default("none"),
   promo_mode: z.enum(["percent", "amount"]).optional(),
-  promo_value: z.number().min(0).optional(),
+  promo_value: money().optional(),
   discount_label: z.string().trim().max(200).optional(),
 }).superRefine((item, ctx) => {
   if (item.discount_type === "promo") {
@@ -111,13 +112,11 @@ export const createOrderSchema = discountInputSchema.merge(paymentInputSchema).m
     .trim()
     .min(1, "Table number is required")
     .max(20, "Table number must not exceed 20 characters"),
-  items: z.array(orderItemSchema).min(1, "At least one item is required"),
-  amount_paid: z.number().positive("Amount paid must be greater than zero"),
+  items: z.array(orderItemSchema).min(1, "At least one item is required").max(LIMITS.orderLines),
+  amount_paid: money(true),
   // Accepted-but-ignored: business date is stamped server-side from the DB
   // clock (config/time.js). Kept so older POS clients don't 400.
-  order_date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD")
+  order_date: calendarDate
     .optional(),
 })).superRefine((data, ctx) => {
   if (data.discount_type === "promo") {
@@ -158,7 +157,7 @@ export const updateOrderSchema = z.object({
     .min(1, "Table number is required")
     .max(20, "Table number must not exceed 20 characters")
     .optional(),
-  items: z.array(orderItemSchema).min(1, "At least one item is required").optional(),
+  items: z.array(orderItemSchema).min(1, "At least one item is required").max(LIMITS.orderLines).optional(),
 });
 
 // POST /api/orders/:id/fulfill — fulfill pending online order (edit + accept in one shot)
@@ -175,8 +174,8 @@ export const fulfillOrderSchema = discountInputSchema.merge(paymentInputSchema).
     .min(1, "Table number is required")
     .max(20, "Table number must not exceed 20 characters")
     .optional(),
-  items: z.array(orderItemSchema).min(1, "At least one item is required"),
-  amount_paid: z.number().positive("Amount paid must be greater than zero"),
+  items: z.array(orderItemSchema).min(1, "At least one item is required").max(LIMITS.orderLines),
+  amount_paid: money(true),
 })).superRefine((data, ctx) => {
   if (data.discount_type === "promo") {
     if (!data.promo_mode) {
@@ -207,16 +206,16 @@ export const updateStatusSchema = z.object({
     errorMap: () => ({ message: "Invalid status transition" }),
   }),
   // Payment fields (only for pending → accepted)
-  amount_paid: z.number().positive().optional(),
+  amount_paid: money(true).optional(),
   discount_type: discountTypeEnum.optional(),
   promo_mode: z.enum(["percent", "amount"]).optional(),
-  promo_value: z.number().min(0).optional(),
+  promo_value: money().optional(),
   discount_id_no: z.string().trim().max(50).optional(),
   senior_id_no: z.string().trim().max(50).optional(),
   pwd_id_no: z.string().trim().max(50).optional(),
   discount_label: z.string().trim().max(200).optional(),
   // Per-item discounts for the accept-payment flow (one type per line).
-  item_discounts: z.array(itemDiscountPatchSchema).optional(),
+  item_discounts: z.array(itemDiscountPatchSchema).max(LIMITS.orderLines).optional(),
   payment_method: paymentMethodEnum.optional(),
   reference_no: z.string().trim().max(100).optional(),
 }).superRefine((data, ctx) => {
@@ -264,24 +263,20 @@ export const cancelOrderSchema = z.object({
     })
     .optional()
     .default("partial"),
-  refund_amount: z.number().min(0, "Refund amount must be non-negative").optional(),
+  refund_amount: money().optional(),
   item_losses: z
     .array(
       z.object({
-        order_item_id: z.number().int().positive(),
+        order_item_id: integerId,
         ingredient_losses: z
           .array(
             z.object({
               ingredient_id: z.string().uuid(),
-              quantity_lost: z.number().positive(),
+              quantity_lost: stockQuantity(true),
             })
-          )
-          .optional()
-          .default([]),
+          ).max(LIMITS.orderLines).optional().default([]),
       })
-    )
-    .optional()
-    .default([]),
+    ).max(LIMITS.orderLines).optional().default([]),
 });
 
 // POST /api/orders/:id/items/:itemId/remove — remove item from order
@@ -300,16 +295,14 @@ export const removeItemSchema = z.object({
     })
     .optional()
     .default("partial"),
-  refund_amount: z.number().min(0, "Refund amount must be non-negative").optional(),
+  refund_amount: money().optional(),
   ingredient_losses: z
     .array(
       z.object({
         ingredient_id: z.string().uuid(),
-        quantity_lost: z.number().positive(),
+        quantity_lost: stockQuantity(true),
       }),
-    )
-    .optional()
-    .default([]),
+    ).max(LIMITS.orderLines).optional().default([]),
 });
 
 // POST /api/orders/:id/prepare — transition to preparing
@@ -340,41 +333,34 @@ export const orderIdParamSchema = z.object({
 
 export const orderItemParamSchema = z.object({
   id: z.string().uuid("Invalid order ID"),
-  itemId: z.string().regex(/^\d+$/, "Invalid item ID"),
+  itemId: queryInteger(),
 });
 
 export const lossIdParamSchema = z.object({
-  lossId: z.string().regex(/^\d+$/, "Invalid loss ID"),
+  lossId: queryInteger(),
 });
 
 // ── Query Schemas ───────────────────────────────────────
 
 // GET /api/orders/stats — status counts with optional date filter (same YYYY-MM-DD contract as list)
-export const getStatsQuerySchema = z.object({
-  date_from: z.string().optional(), // YYYY-MM-DD
-  date_to: z.string().optional(),   // YYYY-MM-DD
+export const getStatsQuerySchema = withDateRange(z.object({
+  date_from: calendarDate.optional(), // YYYY-MM-DD
+  date_to: calendarDate.optional(),   // YYYY-MM-DD
   // "active" = live queue (pending/accepted/preparing, dates ignored);
   // "all" (default) = everything in range. Other callers unaffected.
   scope: z.enum(["active", "all"]).optional().default("all"),
-});
+}));
 
 // GET /api/orders — paginated list with filters
-export const getOrdersQuerySchema = z.object({
-  page: z.string().optional().default("1"),
-  limit: z
-    .string()
-    .regex(/^\d+$/, "Limit must be a positive integer")
-    .optional()
-    .default("50"),
-  search: z.string().optional(),
-  status: z
-    .string()
-    .optional()
-    .default("all"),
-  date_from: z.string().optional(), // YYYY-MM-DD
-  date_to: z.string().optional(),   // YYYY-MM-DD
-  time_from: z.string().optional(), // HH:mm
-  time_to: z.string().optional(),   // HH:mm
+export const getOrdersQuerySchema = withDateRange(z.object({
+  page: pageQuery,
+  limit: limitQuery("50"),
+  search: searchQuery,
+  status: z.enum(["all", "pending", "accepted", "preparing", "completed", "cancelled"]).optional().default("all"),
+  date_from: calendarDate.optional(), // YYYY-MM-DD
+  date_to: calendarDate.optional(),   // YYYY-MM-DD
+  time_from: clockTime.optional(), // HH:mm
+  time_to: clockTime.optional(),   // HH:mm
   sortBy: z
     .enum(["order_number", "customer_name", "total_amount", "created_at", "status"])
     .optional()
@@ -384,4 +370,4 @@ export const getOrdersQuerySchema = z.object({
   // "active" = live queue (pending/accepted/preparing, dates ignored);
   // "all" (default) = range lookup. Defaults keep POS/kitchen/guest unchanged.
   scope: z.enum(["active", "all"]).optional().default("all"),
-});
+}));
