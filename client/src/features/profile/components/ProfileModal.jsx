@@ -33,14 +33,14 @@ export default function ProfileModal({ open, onOpenChange }) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] max-w-md flex-col overflow-hidden">
         <DialogClose onClick={handleClose} />
-        <DialogHeader>
+        <DialogHeader className="shrink-0 pr-8">
           <DialogTitle>My Profile</DialogTitle>
         </DialogHeader>
 
         {/* Tabs */}
-        <div className="flex gap-1 border-b border-border">
+        <div className="flex shrink-0 gap-1 border-b border-border">
           {TABS.map((tab) => (
             <button
               key={tab.key}
@@ -57,8 +57,8 @@ export default function ProfileModal({ open, onOpenChange }) {
           ))}
         </div>
 
-        {/* Tab Content */}
-        <div className="pt-2">
+        {/* Keep the title and tabs visible when verification fields exceed the viewport. */}
+        <div className="min-h-0 overflow-y-auto overscroll-contain pt-2">
           {activeTab === "profile" && <ProfileForm mutation={mutation} />}
           {activeTab === "password" && <ChangePasswordForm mutation={mutation} />}
         </div>
