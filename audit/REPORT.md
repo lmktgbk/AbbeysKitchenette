@@ -1,5 +1,7 @@
 **SYSTEM AUDIT STATUS**
 
+ML concurrency/worker remediation: [ML_RELIABILITY_FIXES.md](ML_RELIABILITY_FIXES.md). Two migrations are prepared; shared-database deployment is pending.
+
 ML service security remediation: [ML_SERVICE_SECURITY_FIXES.md](ML_SERVICE_SECURITY_FIXES.md).
 
 Price approval remediation: [PRICE_APPROVAL_FIXES.md](PRICE_APPROVAL_FIXES.md).

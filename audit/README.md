@@ -33,3 +33,5 @@ The baseline auth defect tests have been converted into regressions; remaining
 business defect characterizations are still explicitly unsafe-behavior tests.
 
 ML service authentication and bounded requests are tracked in [ML_SERVICE_SECURITY_FIXES.md](ML_SERVICE_SECURITY_FIXES.md).
+
+ML concurrency, worker isolation and forecast UUID fixes are tracked in [ML_RELIABILITY_FIXES.md](ML_RELIABILITY_FIXES.md). Two deployment migrations are pending.

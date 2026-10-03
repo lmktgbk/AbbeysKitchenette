@@ -1,10 +1,8 @@
-import asyncio
 import json
 from collections import defaultdict
 
-from fastapi import APIRouter, BackgroundTasks, Query
+from fastapi import APIRouter, Query
 
-from forecasting.services.demand_forecast import run_demand_forecast
 from forecasting.services.data_loader import load_recipe_map, load_current_stock
 from forecasting.models.demand import (
     JobStatusResponse,
@@ -18,64 +16,21 @@ from forecasting.models.demand import (
     RunBusyResponse,
 )
 from database import get_pool
+from jobs import admit_job
+from workers import launch_job
 
 router = APIRouter(prefix="/forecast", tags=["forecast"])
-
-_active_jobs: dict[int, asyncio.Task] = {}
 
 DEFAULT_PERIOD = 7
 
 
-async def _run_in_background(job_id: int):
-    try:
-        await run_demand_forecast(job_id=job_id)
-    except Exception as e:
-        print(f"[Background Forecast Error] job {job_id}: {e}")
-        from forecasting.services.demand_forecast import fail_job
-        await fail_job(job_id, str(e)[:500])
-    finally:
-        _active_jobs.pop(job_id, None)
-
-
 @router.post("/demand/run", response_model=RunStartedResponse | RunBusyResponse)
-async def start_demand_forecast(background_tasks: BackgroundTasks):
-    # Single-job lock stays (holdout double-fit takes minutes on full
-    # history), but always hand the running job_id back so the client can
-    # attach progress instead of showing a dead "already running" toast.
-    for running_id, task in _active_jobs.items():
-        if not task.done():
-            return RunBusyResponse(
-                message="A forecast job is already running. Attached to it.",
-                job_id=running_id,
-            )
-
-    # In-memory lock cleared (e.g. restart) but DB row still running.
-    pool = await get_pool()
-    stale = await pool.fetchrow(
-        "SELECT id FROM forecast_jobs WHERE status = 'running' ORDER BY started_at DESC LIMIT 1"
-    )
-    if stale:
-        return RunBusyResponse(
-            message="A forecast job is already running. Attached to it.",
-            job_id=stale["id"],
-        )
-
-    job_id = await _create_pending_job()
-    task = asyncio.create_task(_run_in_background(job_id))
-    _active_jobs[job_id] = task
-
+async def start_demand_forecast():
+    job_id, owner = await admit_job("forecast")
+    if owner is None:
+        return RunBusyResponse(message="A forecast job is already running. Attached to it.", job_id=job_id)
+    launch_job("forecast", job_id, owner)
     return RunStartedResponse(job_id=job_id, message="Forecast started for 7 days")
-
-
-async def _create_pending_job() -> int:
-    from datetime import datetime, timezone
-    pool = await get_pool()
-    row = await pool.fetchrow(
-        """INSERT INTO forecast_jobs (status, period, started_at)
-           VALUES ('running', $1, $2) RETURNING id""",
-        DEFAULT_PERIOD, datetime.now(timezone.utc),
-    )
-    return row["id"]
 
 
 @router.get("/demand/status", response_model=JobStatusResponse)
@@ -138,7 +93,7 @@ async def demand_results(job_id: int = Query(...)):
         keys = set(r.keys())
         entry = {
             "variant_id": r["variant_id"],
-            "product_id": r["product_id"] if "product_id" in keys else None,
+            "product_id": str(r["product_id"]) if "product_id" in keys and r["product_id"] is not None else None,
             "product_name": r["product_name"],
             "size_name": r["size_name"],
             "price": float(r["price"]),

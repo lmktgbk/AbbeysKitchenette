@@ -1,19 +1,12 @@
-import asyncio
 import json
 from fastapi import APIRouter, Query, HTTPException
 from pydantic import BaseModel
 
 from database import get_pool
-from mba.services.fpgrowth import (
-    run_market_basket_analysis,
-    save_results_to_db,
-    mark_job_failed,
-)
+from jobs import admit_job
+from workers import launch_job
 
 router = APIRouter(prefix="/mba", tags=["mba"])
-
-_active_jobs: dict[int, asyncio.Task] = {}
-
 
 class MarkComboCreatedRequest(BaseModel):
     product_name_a: str
@@ -27,47 +20,11 @@ async def create_analysis_job(
     min_confidence: float = Query(0.08, ge=0.01, le=1.0),
     top_n: int = Query(20, ge=1, le=50),
 ):
-    """Create a new MBA analysis job (single-job lock: a second call attaches
-    to the running job instead of stacking overlapping analyses)."""
-    for running_id, task in _active_jobs.items():
-        if not task.done():
-            return {"job_id": running_id, "status": "busy",
-                    "message": "An analysis is already running. Attached to it."}
-
-    pool = await get_pool()
-    stale = await pool.fetchrow(
-        "SELECT id FROM mba_jobs WHERE status = 'running' ORDER BY id DESC LIMIT 1"
-    )
-    if stale:
-        return {"job_id": stale["id"], "status": "busy",
-                "message": "An analysis is already running. Attached to it."}
-
-    job_id = await pool.fetchval(
-        """INSERT INTO mba_jobs (status) VALUES ('running') RETURNING id"""
-    )
-
-    _active_jobs[job_id] = asyncio.create_task(_run_job(job_id, min_support, min_confidence, top_n))
-
+    job_id, owner = await admit_job("mba")
+    if owner is None:
+        return {"job_id": job_id, "status": "busy", "message": "An analysis is already running. Attached to it."}
+    launch_job("mba", job_id, owner, {"min_support": min_support, "min_confidence": min_confidence, "top_n": top_n})
     return {"job_id": job_id, "status": "running"}
-
-
-async def _run_job(job_id: int, min_support: float, min_confidence: float, top_n: int):
-    """Background task to run MBA analysis and save results."""
-    try:
-        result = await run_market_basket_analysis(
-            min_support=min_support,
-            min_confidence=min_confidence,
-            top_n=top_n,
-        )
-        await save_results_to_db(
-            job_id=job_id,
-            rules_list=result["rules"],
-            stats=result["stats"],
-        )
-    except Exception as e:
-        await mark_job_failed(job_id, str(e))
-    finally:
-        _active_jobs.pop(job_id, None)
 
 
 @router.get("/jobs")

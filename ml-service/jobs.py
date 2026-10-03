@@ -1,0 +1,88 @@
+"""Database admission and ownership fencing for process-isolated ML work."""
+from contextlib import asynccontextmanager
+from contextvars import ContextVar
+from uuid import uuid4
+from database import get_pool
+
+LEASE_SECONDS = 120
+HEARTBEAT_SECONDS = 20
+WORKER_OWNER = ContextVar("ml_worker_owner", default=None)
+# SQL identifiers come exclusively from this allowlist, never request input.
+KINDS = {"forecast": ("forecast_jobs", "forecast_results", 1), "mba": ("mba_jobs", "mba_rules", 2)}
+
+
+class LeaseLostError(RuntimeError):
+    pass
+
+
+async def _expire(conn, table, results):
+    counters = ", completed=0, failed=0" if table == "forecast_jobs" else ""
+    rows = await conn.fetch(f"""UPDATE {table}
+        SET status='failed', error_message='Worker ownership expired before completion',
+            completed_at=clock_timestamp(), lease_expires_at=NULL, lease_owner=NULL{counters}
+        WHERE status='running' AND (lease_expires_at IS NULL OR lease_expires_at <= clock_timestamp())
+        RETURNING id""")
+    if rows:
+        await conn.execute(f"DELETE FROM {results} WHERE job_id=ANY($1::int[])", [row["id"] for row in rows])
+
+
+async def recover_expired_jobs():
+    pool = await get_pool()
+    for table, results, lock in KINDS.values():
+        async with pool.acquire(timeout=10) as conn, conn.transaction():
+            await conn.execute("SELECT pg_advisory_xact_lock(73421, $1)", lock)
+            await _expire(conn, table, results)
+
+
+async def admit_job(kind):
+    table, results, lock = KINDS[kind]
+    owner = uuid4()
+    pool = await get_pool()
+    async with pool.acquire(timeout=10) as conn, conn.transaction():
+        # Transaction locks work with Supabase transaction pooling and span instances.
+        await conn.execute("SELECT pg_advisory_xact_lock(73421, $1)", lock)
+        await _expire(conn, table, results)
+        running = await conn.fetchrow(f"SELECT id FROM {table} WHERE status='running' ORDER BY id DESC LIMIT 1")
+        if running:
+            return running["id"], None
+        period_column = ", period" if kind == "forecast" else ""
+        period_value = ", 7" if kind == "forecast" else ""
+        row = await conn.fetchrow(f"""INSERT INTO {table} (status, lease_owner, lease_expires_at{period_column})
+            VALUES ('running', $1, clock_timestamp() + $2 * interval '1 second'{period_value}) RETURNING id""", owner, LEASE_SECONDS)
+        return row["id"], owner
+
+
+async def renew_lease(kind, job_id, owner):
+    table = KINDS[kind][0]
+    pool = await get_pool()
+    async with pool.acquire(timeout=10) as conn:
+        return await conn.fetchval(f"""UPDATE {table}
+            SET lease_expires_at=clock_timestamp() + $3 * interval '1 second'
+            WHERE id=$1 AND lease_owner=$2 AND status='running' AND lease_expires_at > clock_timestamp()
+            RETURNING id""", job_id, owner, LEASE_SECONDS) is not None
+
+
+@asynccontextmanager
+async def job_connection(kind, job_id):
+    table = KINDS[kind][0]
+    pool = await get_pool()
+    async with pool.acquire(timeout=10) as conn, conn.transaction():
+        row = await conn.fetchrow(f"""SELECT id FROM {table}
+            WHERE id=$1 AND lease_owner=$2 AND status='running' AND lease_expires_at > clock_timestamp()
+            FOR UPDATE""", job_id, WORKER_OWNER.get())
+        if row is None:
+            raise LeaseLostError("ML job no longer owns its execution lease")
+        yield conn
+
+
+async def fail_owned_job(kind, job_id, owner, message):
+    table, results, _ = KINDS[kind]
+    counters = ", completed=0, failed=0" if kind == "forecast" else ""
+    pool = await get_pool()
+    async with pool.acquire(timeout=10) as conn, conn.transaction():
+        row = await conn.fetchrow(f"""UPDATE {table}
+            SET status='failed', error_message=$3, completed_at=clock_timestamp(),
+                lease_owner=NULL, lease_expires_at=NULL{counters}
+            WHERE id=$1 AND lease_owner=$2 AND status='running' RETURNING id""", job_id, owner, message[:500])
+        if row:
+            await conn.execute(f"DELETE FROM {results} WHERE job_id=$1", job_id)

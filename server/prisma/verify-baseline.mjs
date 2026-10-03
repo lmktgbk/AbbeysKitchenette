@@ -27,6 +27,12 @@ try {
   const ledger = await client.query("SELECT relrowsecurity FROM pg_class WHERE relnamespace=$1::regnamespace AND relname='order_requests'", [schema]);
   if (!ledger.rows[0]?.relrowsecurity) throw new Error("Request-ledger RLS missing");
   await verifyConsumption(client);
+  const leaseColumns = await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema=$1 AND table_name IN ('forecast_jobs','mba_jobs') AND column_name IN ('lease_owner','lease_expires_at')", [schema]);
+  if (leaseColumns.rowCount !== 4) throw new Error("ML ownership columns missing");
+  const jobIndexes = await client.query("SELECT indexdef FROM pg_indexes WHERE schemaname=$1 AND indexname IN ('forecast_jobs_one_owned_running','mba_jobs_one_owned_running')", [schema]);
+  if (jobIndexes.rowCount !== 2 || jobIndexes.rows.some(row => !row.indexdef.includes("WHERE"))) throw new Error("ML admission backstop missing");
+  const productColumns = await client.query("SELECT column_name,data_type FROM information_schema.columns WHERE table_schema=$1 AND table_name='forecast_results' AND column_name IN ('product_id','legacy_product_id')", [schema]);
+  if (!productColumns.rows.some(row => row.column_name === 'product_id' && row.data_type === 'uuid') || !productColumns.rows.some(row => row.column_name === 'legacy_product_id' && row.data_type === 'integer')) throw new Error("Forecast identity migration missing");
   console.log(`${migrations.length} migrations replayed; partial index and request-ledger RLS preserved.`);
 } catch (error) {
   console.error("Migration rehearsal failed:", error.message);

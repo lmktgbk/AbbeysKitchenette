@@ -9,12 +9,15 @@ from mba.routers import association
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from forecasting.services.demand_forecast import cleanup_stale_jobs
+    from jobs import recover_expired_jobs
+    from workers import stop_workers, start_recovery
     validate_service_key()
     try:
-        await cleanup_stale_jobs()
+        await recover_expired_jobs()
+        start_recovery()
         yield
     finally:
+        await stop_workers()
         await close_pool()
 
 

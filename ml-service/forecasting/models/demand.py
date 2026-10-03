@@ -57,7 +57,7 @@ class ProductScore(BaseModel):
     week totals; weeks/n_weeks carry the per-origin pairs the menu headline
     pools over (headline + range). All defaulted so older jobs validate.
     """
-    product_id: int
+    product_id: str | int
     product_name: str
     variants: int
     rmse: float
@@ -83,7 +83,7 @@ class ProductScore(BaseModel):
 
 class VariantResult(BaseModel):
     variant_id: int
-    product_id: int | None = None
+    product_id: str | None = None
     product_name: str
     size_name: str
     price: float

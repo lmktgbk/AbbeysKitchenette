@@ -2,7 +2,7 @@ import json
 import pandas as pd
 from mlxtend.frequent_patterns import fpgrowth, association_rules
 from mba.services.data_loader import load_order_baskets, load_product_details, load_combo_discount
-from database import get_pool
+from jobs import job_connection
 
 # Acceptance baseline (paper §evaluation), calibrated empirically 2026-09:
 # a threshold sweep proved confidence >= 30% yields zero rules at 210-variant
@@ -223,37 +223,30 @@ def _compute_combo_price(merged_ingredients: list[dict], price_a: float, price_b
 
 
 async def save_results_to_db(job_id: int, rules_list: list[dict], stats: dict) -> None:
-    """Save MBA analysis results to the database.
+    """Publish all rules and completion together; a failed insert rolls back the batch."""
+    async with job_connection("mba", job_id) as pool:
 
-    Rules are inserted BEFORE the status is updated to 'completed'.
-    This prevents the client from seeing 'completed' with zero rules
-    (race condition: client polls, sees completed, fetches rules, but they
-    haven't been inserted yet).
-    """
-    pool = await get_pool()
-
-    for rule in rules_list:
-        conviction = rule.get("conviction")
-        params = [
-            job_id,
-            rule["product_a"],
-            rule["product_b"],
-            rule.get("product_a_id"),
-            rule.get("product_b_id"),
-            rule.get("variant_id_a"),
-            rule.get("variant_id_b"),
-            rule.get("size_name_a"),
-            rule.get("size_name_b"),
-            rule["support"],
-            rule["confidence"],
-            rule["lift"],
-            rule.get("is_combo", True),
-            rule.get("explanation"),
-            rule.get("suggested_name"),
-            json.dumps(rule.get("merged_ingredients")) if rule.get("merged_ingredients") else None,
-            json.dumps(rule.get("pricing")) if rule.get("pricing") else None,
-        ]
-        try:
+        for rule in rules_list:
+            conviction = rule.get("conviction")
+            params = [
+                job_id,
+                rule["product_a"],
+                rule["product_b"],
+                rule.get("product_a_id"),
+                rule.get("product_b_id"),
+                rule.get("variant_id_a"),
+                rule.get("variant_id_b"),
+                rule.get("size_name_a"),
+                rule.get("size_name_b"),
+                rule["support"],
+                rule["confidence"],
+                rule["lift"],
+                rule.get("is_combo", True),
+                rule.get("explanation"),
+                rule.get("suggested_name"),
+                json.dumps(rule.get("merged_ingredients")) if rule.get("merged_ingredients") else None,
+                json.dumps(rule.get("pricing")) if rule.get("pricing") else None,
+            ]
             await pool.execute(
                 """INSERT INTO mba_rules
                    (job_id, product_name_a, product_name_b, product_id_a, product_id_b,
@@ -270,43 +263,20 @@ async def save_results_to_db(job_id: int, rules_list: list[dict], stats: dict) -
                 rule.get("recent_confidence"),
                 rule.get("recent_lift"),
             )
-        except Exception:
-            # Columns conviction/stable/recent_* not migrated yet — base row only.
-            await pool.execute(
-                """INSERT INTO mba_rules
-                   (job_id, product_name_a, product_name_b, product_id_a, product_id_b,
-                    variant_id_a, variant_id_b, size_name_a, size_name_b,
-                    support, confidence, lift, is_combo, explanation, suggested_name,
-                    merged_ingredients, pricing)
-                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)""",
-                *params,
-            )
 
-    await pool.execute(
-        """UPDATE mba_jobs
-           SET status = 'completed',
-               total_orders = $1,
-               products_analyzed = $2,
-               combos_found = $3,
-               completed_at = NOW()
-           WHERE id = $4""",
-        stats["total_orders"],
-        stats["products_analyzed"],
-        stats["combos_found"],
-        job_id,
-    )
-
-
-async def mark_job_failed(job_id: int, error: str) -> None:
-    """Mark a job as failed with error message."""
-    pool = await get_pool()
-    await pool.execute(
-        """UPDATE mba_jobs
-           SET status = 'failed', error_message = $1, completed_at = NOW()
-           WHERE id = $2""",
-        error[:500],
-        job_id,
-    )
+        await pool.execute(
+            """UPDATE mba_jobs
+               SET status = 'completed',
+                   total_orders = $1,
+                   products_analyzed = $2,
+                   combos_found = $3,
+                   completed_at = NOW(), lease_owner = NULL, lease_expires_at = NULL
+               WHERE id = $4""",
+            stats["total_orders"],
+            stats["products_analyzed"],
+            stats["combos_found"],
+            job_id,
+        )
 
 
 async def run_market_basket_analysis(

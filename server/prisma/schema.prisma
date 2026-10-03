@@ -512,6 +512,8 @@ model Receipt {
 
 // ── Forecasting ──────────────────────────────────────────────
 model ForecastJob {
+  leaseOwner     String?   @map("lease_owner") @db.Uuid
+  leaseExpiresAt DateTime? @map("lease_expires_at") @db.Timestamptz
   id            Int       @id @default(autoincrement()) @map("id")
   status        String    @default("running") @db.VarChar(20) // running | completed | failed
   totalVariants Int       @default(0) @map("total_variants")
@@ -554,7 +556,8 @@ model ForecastResult {
   tier        String? @db.VarChar(20)
   method      String? @db.VarChar(20)
   // Parent product + share of its forecast (0-1) from the size-share split.
-  productId   Int?    @map("product_id")
+  productId   String? @map("product_id") @db.Uuid
+  legacyProductId Int? @map("legacy_product_id")
   share       Float?
 
   job ForecastJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
@@ -640,6 +643,8 @@ model PriceOptimization {
 
 // ── Market Basket Analytics ───────────────────────────────────
 model MBAJob {
+  leaseOwner     String?   @map("lease_owner") @db.Uuid
+  leaseExpiresAt DateTime? @map("lease_expires_at") @db.Timestamptz
   id               Int      @id @default(autoincrement()) @map("id")
   status           String   @default("running") @db.VarChar(20) // running | completed | failed
   totalOrders      Int      @default(0) @map("total_orders")

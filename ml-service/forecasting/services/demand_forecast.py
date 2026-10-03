@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from prophet import Prophet
 from database import get_pool
+from jobs import job_connection, fail_owned_job, WORKER_OWNER
 from config import (
     PROPHET_CONFIG,
     YEARLY_MIN_DAYS,
@@ -32,88 +33,49 @@ MAX_PAD_DAYS = 30
 
 # ── Job management ────────────────────────────────────────────
 
-async def create_job(period: int) -> int:
-    pool = await get_pool()
-    row = await pool.fetchrow(
-        """INSERT INTO forecast_jobs (status, period, started_at)
-           VALUES ('running', $1, $2)
-           RETURNING id""",
-        period,
-        datetime.now(timezone.utc),
-    )
-    return row["id"]
-
-
 async def update_job_progress(job_id: int, completed: int, failed: int):
-    pool = await get_pool()
-    await pool.execute(
-        "UPDATE forecast_jobs SET completed = $1, failed = $2 WHERE id = $3",
-        completed, failed, job_id,
-    )
-
-
-async def complete_job(job_id: int, total: int, completed: int, failed: int, failed_skips: list):
-    pool = await get_pool()
-    await pool.execute(
-        """UPDATE forecast_jobs
-           SET status = 'completed', total_variants = $1, completed = $2,
-               failed = $3, failed_skips = $4, completed_at = $5
-           WHERE id = $6""",
-        total, completed, failed, failed_skips, datetime.now(timezone.utc), job_id,
-    )
-
-
-async def save_product_scores(job_id: int, scores: list):
-    """Whole-menu paper metrics live on the job row; ignored on old DBs."""
-    pool = await get_pool()
-    try:
+    async with job_connection("forecast", job_id) as pool:
         await pool.execute(
-            "UPDATE forecast_jobs SET product_scores = $1 WHERE id = $2",
-            json.dumps(scores), job_id,
+            "UPDATE forecast_jobs SET completed = $1, failed = $2 WHERE id = $3",
+            completed, failed, job_id,
         )
-    except Exception:
-        pass  # column not migrated yet — variant rows still hold the forecast
+
+
+async def complete_job(job_id: int, total: int, completed: int, failed: int, failed_skips: list, scores=None):
+    async with job_connection("forecast", job_id) as pool:
+        await pool.execute(
+            """UPDATE forecast_jobs
+               SET status = 'completed', total_variants = $1, completed = $2,
+                   failed = $3, failed_skips = $4, completed_at = $5, product_scores = $6,
+                   lease_owner = NULL, lease_expires_at = NULL
+               WHERE id = $7""",
+            total, completed, failed, failed_skips, datetime.now(timezone.utc), json.dumps(scores or []), job_id,
+        )
 
 
 async def fail_job(job_id: int, message: str):
-    pool = await get_pool()
-    await pool.execute(
-        "UPDATE forecast_jobs SET status = 'failed', error_message = $1, completed_at = $2 WHERE id = $3",
-        message, datetime.now(timezone.utc), job_id,
-    )
+    await fail_owned_job("forecast", job_id, WORKER_OWNER.get(), message)
 
 
 async def cleanup_old_jobs():
     pool = await get_pool()
     await pool.execute("""
         DELETE FROM forecast_jobs
-        WHERE id NOT IN (
-            SELECT id FROM forecast_jobs ORDER BY started_at DESC LIMIT $1
+        WHERE status <> 'running' AND id NOT IN (
+            SELECT id FROM forecast_jobs WHERE status <> 'running' ORDER BY started_at DESC LIMIT $1
         )
     """, KEEP_JOBS)
-
-
-async def cleanup_stale_jobs():
-    pool = await get_pool()
-    await pool.execute(
-        """UPDATE forecast_jobs
-           SET status = 'failed', error_message = 'Process restarted before completion',
-               completed_at = $1
-           WHERE status = 'running'""",
-        datetime.now(timezone.utc),
-    )
 
 
 # ── Result storage ────────────────────────────────────────────
 # Variant rows carry the split forecast (units/revenue for prep + ingredients).
 # Product-level RMSE/MAE/MSE/R2 live on the job as product_scores JSON.
-# product_id/share ride along when the columns exist; old DBs fall back.
+# Each write verifies the live execution lease before touching forecast data.
 
 async def save_result(job_id, variant_id, product_id, product_name, size_name, price,
                       category_id, daily_data, total_units, total_revenue,
                       days_of_data, share):
-    pool = await get_pool()
-    try:
+    async with job_connection("forecast", job_id) as pool:
         await pool.execute("""
             INSERT INTO forecast_results
                 (job_id, variant_id, product_id, product_name, size_name, price, category_id,
@@ -124,38 +86,27 @@ async def save_result(job_id, variant_id, product_id, product_name, size_name, p
                 total_units = EXCLUDED.total_units,
                 total_revenue = EXCLUDED.total_revenue,
                 product_id = EXCLUDED.product_id,
-                share = EXCLUDED.share
+                share = EXCLUDED.share,
+                skipped = FALSE, skip_reason = NULL
         """, job_id, variant_id, product_id, product_name, size_name, price,
              category_id, json.dumps(daily_data),
              total_units, total_revenue, days_of_data, share)
-    except Exception:
-        # Columns product_id/share not migrated yet — store the forecast only.
-        await pool.execute("""
-            INSERT INTO forecast_results
-                (job_id, variant_id, product_name, size_name, price, category_id,
-                 daily_data, total_units, total_revenue, days_of_data, skipped)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, FALSE)
-            ON CONFLICT (job_id, variant_id) DO UPDATE SET
-                daily_data = EXCLUDED.daily_data,
-                total_units = EXCLUDED.total_units,
-                total_revenue = EXCLUDED.total_revenue
-        """, job_id, variant_id, product_name, size_name, price,
-             category_id, json.dumps(daily_data),
-             total_units, total_revenue, days_of_data)
 
 
 async def save_skipped(job_id, variant_id, product_name, size_name, price,
-                       category_id, days_of_data, reason):
-    pool = await get_pool()
-    await pool.execute("""
-        INSERT INTO forecast_results
-            (job_id, variant_id, product_name, size_name, price, category_id,
-             daily_data, total_units, total_revenue, trend, days_of_data, skipped, skip_reason)
-        VALUES ($1,$2,$3,$4,$5,$6,'[]'::json,0,0,'stable',$7, TRUE, $8)
-        ON CONFLICT (job_id, variant_id) DO UPDATE SET
-            skipped = TRUE, skip_reason = EXCLUDED.skip_reason
-    """, job_id, variant_id, product_name, size_name, price,
-         category_id, days_of_data, reason)
+                       category_id, days_of_data, reason, product_id=None):
+    async with job_connection("forecast", job_id) as pool:
+        await pool.execute("""
+            INSERT INTO forecast_results
+                (job_id, variant_id, product_name, size_name, price, category_id,
+                 daily_data, total_units, total_revenue, trend, days_of_data, skipped, skip_reason, product_id)
+            VALUES ($1,$2,$3,$4,$5,$6,'[]'::json,0,0,'stable',$7, TRUE, $8, $9)
+            ON CONFLICT (job_id, variant_id) DO UPDATE SET
+                skipped = TRUE, skip_reason = EXCLUDED.skip_reason,
+                daily_data = '[]'::json, total_units = 0, total_revenue = 0,
+                product_id = COALESCE(EXCLUDED.product_id, forecast_results.product_id)
+        """, job_id, variant_id, product_name, size_name, price,
+             category_id, days_of_data, reason, product_id)
 
 
 # ── Prophet factory ───────────────────────────────────────────
@@ -223,10 +174,8 @@ def size_shares(vdf: pd.DataFrame, product_total: float) -> dict:
 # Predict at PRODUCT level (dense series), split to sizes by share.
 # Revenue uses real variant prices; ingredients use real variant recipes.
 
-async def run_demand_forecast(job_id: int | None = None) -> dict:
+async def run_demand_forecast(job_id: int) -> dict:
     period = FORECAST_PERIOD
-    if job_id is None:
-        job_id = await create_job(period)
 
     try:
         df = await load_variant_daily_sales()
@@ -273,7 +222,7 @@ async def run_demand_forecast(job_id: int | None = None) -> dict:
                     for v in variants:
                         await save_skipped(job_id, int(v["variant_id"]), product_name,
                                            v["size_name"], float(v["price"]),
-                                           int(v["category_id"]), days_of_data, reason)
+                                           int(v["category_id"]), days_of_data, reason, str(product_id))
                     failed_count += 1
                     failed_skips.append(f"{product_name}: {reason}")
                     await update_job_progress(job_id, completed_count, failed_count)
@@ -390,7 +339,7 @@ async def run_demand_forecast(job_id: int | None = None) -> dict:
                     total_units = sum(d["units"] for d in days)
                     total_revenue = round(sum(d["revenue"] for d in days), 2)
                     await save_result(
-                        job_id, vid, int(product_id), product_name, v["size_name"],
+                        job_id, vid, str(product_id), product_name, v["size_name"],
                         float(v["price"]), int(v["category_id"]), days,
                         total_units, total_revenue, days_of_data,
                         round(share_list[vids.index(vid)], 4),
@@ -405,7 +354,7 @@ async def run_demand_forecast(job_id: int | None = None) -> dict:
                         return round(sum(vals) / len(vals), 4) if vals else 0.0
 
                     product_scores.append({
-                        "product_id": int(product_id),
+                        "product_id": str(product_id),
                         "product_name": product_name,
                         "variants": len(variants),
                         **metrics,
@@ -434,15 +383,14 @@ async def run_demand_forecast(job_id: int | None = None) -> dict:
                 for v in pdf.drop_duplicates("variant_id").to_dict("records"):
                     await save_skipped(job_id, int(v["variant_id"]), product_name,
                                        v["size_name"], float(v["price"]),
-                                       int(v["category_id"]), len(pdf.groupby("ds")), reason)
+                                       int(v["category_id"]), len(pdf.groupby("ds")), reason, str(product_id))
                 failed_count += 1
                 failed_skips.append(f"{first['product_name']}: {reason}")
                 print(f"[Forecast Error] product {product_id}: {tb}")
 
             await update_job_progress(job_id, completed_count, failed_count)
 
-        await complete_job(job_id, total, completed_count, failed_count, failed_skips)
-        await save_product_scores(job_id, product_scores)
+        await complete_job(job_id, total, completed_count, failed_count, failed_skips, product_scores)
         await cleanup_old_jobs()
 
         return {
@@ -458,8 +406,8 @@ async def run_demand_forecast(job_id: int | None = None) -> dict:
 
 
 async def pool_update_total(job_id: int, total: int):
-    pool = await get_pool()
-    await pool.execute(
-        "UPDATE forecast_jobs SET total_variants = $1 WHERE id = $2",
-        total, job_id,
-    )
+    async with job_connection("forecast", job_id) as pool:
+        await pool.execute(
+            "UPDATE forecast_jobs SET total_variants = $1 WHERE id = $2",
+            total, job_id,
+        )

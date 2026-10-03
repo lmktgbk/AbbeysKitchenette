@@ -352,9 +352,11 @@ Call every deployed ML route directly without credentials, with invalid credenti
 
 **Priority:** High
 
-**Implementation:** Open at checklist creation; final acceptance NOT RUN
+**Implementation:** Implemented; see [ML_RELIABILITY_FIXES.md](ML_RELIABILITY_FIXES.md). Isolated PostgreSQL/worker regressions pass; deployed/manual acceptance NOT RUN
 
 **Steps:** Using a concurrency harness, send simultaneous first requests and forecast/basket job submissions to two ML workers. Kill one worker mid-job. Measure connection counts, active job uniqueness and recovery.
+
+Apply the two pending ML migrations before restarting the updated service. Check that another instance starting does not reset a healthy job. Expire an owner and ensure it cannot publish; recover failed jobs without partial rows. Submit a new job after failure. Test worker deadlines and database outages.
 
 **Acceptance criteria:** Start many simultaneous first requests and job requests across two workers. Require one pool per worker, one active job per job type, lease recovery after a killed worker, and bounded connections.
 
@@ -366,9 +368,11 @@ Call every deployed ML route directly without credentials, with invalid credenti
 
 **Priority:** High
 
-**Implementation:** Open at checklist creation; final acceptance NOT RUN
+**Implementation:** Implemented; see [ML_RELIABILITY_FIXES.md](ML_RELIABILITY_FIXES.md). Isolated PostgreSQL/worker regressions pass; deployed/manual acceptance NOT RUN
 
 **Steps:** Run forecast and basket analysis on a representative large fixture dataset while continuously requesting core health/order reads. Record p95/p99 response times, CPU, memory, job duration and timeout behavior.
+
+Confirm UUID product keys match catalog products in variant results and product scores. Verify variant quantities/revenue and ingredient needs against the same forecast. Check MBA recipe merging and pricing. Reject an invalid result mid-publication and confirm no partial completed job appears.
 
 **Acceptance criteria:** Run forecasts and basket analysis on representative large data while probing health/list endpoints. Establish latency/memory budgets and ensure concurrent HTTP stays responsive.
 

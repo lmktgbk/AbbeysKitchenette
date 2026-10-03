@@ -1,4 +1,4 @@
-"""Audit characterizations. No real DB/ML runs; all DB operations are fake."""
+"""Isolated ML security, pool and busy-admission regressions; no real database."""
 import asyncio
 import importlib
 import sys
@@ -16,25 +16,8 @@ config.FORECASTER_URL = "http://127.0.0.1:5000"
 config.FORECAST_PORT = 8000
 config.FORECAST_HOST = "127.0.0.1"
 config.ML_SERVICE_KEY = "a" * 64
+config.ML_JOB_TIMEOUT_SECONDS = 1800
 sys.modules["config"] = config
-
-async def noop(*args, **kwargs):
-    pass
-
-fake_forecast = types.ModuleType("forecasting.services.demand_forecast")
-fake_forecast.run_demand_forecast = noop
-fake_forecast.cleanup_stale_jobs = noop
-fake_forecast.fail_job = noop
-sys.modules[fake_forecast.__name__] = fake_forecast
-fake_data = types.ModuleType("forecasting.services.data_loader")
-fake_data.load_recipe_map = noop
-fake_data.load_current_stock = noop
-sys.modules[fake_data.__name__] = fake_data
-fake_mba = types.ModuleType("mba.services.fpgrowth")
-fake_mba.run_market_basket_analysis = noop
-fake_mba.save_results_to_db = noop
-fake_mba.mark_job_failed = noop
-sys.modules[fake_mba.__name__] = fake_mba
 
 database = importlib.import_module("database")
 demand = importlib.import_module("forecasting.routers.demand")
@@ -42,54 +25,26 @@ mba = importlib.import_module("mba.routers.association")
 app = importlib.import_module("main").app
 
 class Audit(unittest.IsolatedAsyncioTestCase):
-    async def test_concurrent_pool_initialization_creates_two_pools(self):
-        original = database.asyncpg.create_pool
-        calls = []
-        barrier = asyncio.Event()
+    async def test_concurrent_pool_initialization_creates_one_pool(self):
+        pool = object()
         async def create(*args, **kwargs):
-            calls.append(object())
-            if len(calls) == 2:
-                barrier.set()
-            await barrier.wait()
-            return calls[-1] if len(calls) == 1 else object()
-        database._pool = None
-        database.asyncpg.create_pool = create
-        try:
-            results = await asyncio.gather(database.get_pool(), database.get_pool())
-            self.assertEqual(len(calls), 2)
-            self.assertIsNot(results[0], results[1])
-        finally:
-            database._pool = None
-            database.asyncpg.create_pool = original
-
-    async def test_concurrent_forecast_run_creates_two_jobs(self):
-        class Pool:
-            def __init__(self):
-                self.checks = 0
-                self.next_id = 0
-                self.barrier = asyncio.Event()
-            async def fetchrow(self, sql, *args):
-                if sql.startswith("SELECT"):
-                    self.checks += 1
-                    if self.checks == 2:
-                        self.barrier.set()
-                    await self.barrier.wait()
-                    return None
-                self.next_id += 1
-                return {"id": self.next_id}
-        pool = Pool()
-        original = demand.get_pool
-        async def fake_pool():
-            return pool
-        demand.get_pool = fake_pool
-        demand._active_jobs.clear()
-        try:
-            results = await asyncio.gather(demand.start_demand_forecast(None), demand.start_demand_forecast(None))
-            self.assertEqual(len(set(x.job_id for x in results)), 2)
             await asyncio.sleep(0)
-        finally:
-            demand.get_pool = original
-            demand._active_jobs.clear()
+            return pool
+        database._pool = None
+        database._pool_lock = asyncio.Lock()
+        with patch.object(database.asyncpg, "create_pool", AsyncMock(side_effect=create)) as factory:
+            try:
+                results = await asyncio.gather(*[database.get_pool() for _ in range(10)])
+                self.assertTrue(all(result is pool for result in results))
+                self.assertEqual(factory.await_count, 1)
+            finally:
+                database._pool = None
+
+    async def test_busy_forecast_attaches_without_launching_another_worker(self):
+        with patch.object(demand, "admit_job", AsyncMock(return_value=(12, None))), patch.object(demand, "launch_job") as launch:
+            results = await asyncio.gather(*[demand.start_demand_forecast() for _ in range(10)])
+            self.assertEqual({result.job_id for result in results}, {12})
+            launch.assert_not_called()
 
     async def test_all_routes_reject_unauthenticated_requests_before_database_access(self):
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
@@ -131,7 +86,7 @@ class Audit(unittest.IsolatedAsyncioTestCase):
     async def test_missing_configuration_fails_closed_before_startup_cleanup(self):
         main = importlib.import_module("main")
         cleanup = AsyncMock()
-        with patch("security.ML_SERVICE_KEY", ""), patch.object(fake_forecast, "cleanup_stale_jobs", cleanup):
+        with patch("security.ML_SERVICE_KEY", ""), patch("jobs.recover_expired_jobs", cleanup):
             with self.assertRaisesRegex(RuntimeError, "ML_SERVICE_KEY"):
                 async with main.lifespan(app):
                     self.fail("Startup must reject missing credentials")

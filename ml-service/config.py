@@ -6,6 +6,9 @@ load_dotenv(Path(__file__).with_name(".env"))
 
 ML_SERVICE_KEY = os.getenv("ML_SERVICE_KEY", "")
 FORECAST_HOST = os.getenv("FORECAST_HOST", "127.0.0.1")
+ML_JOB_TIMEOUT_SECONDS = int(os.getenv("ML_JOB_TIMEOUT_SECONDS", "1800"))
+if not 60 <= ML_JOB_TIMEOUT_SECONDS <= 7200:
+    raise ValueError("ML_JOB_TIMEOUT_SECONDS must be between 60 and 7200")
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 CLIENT_URL = os.getenv("CLIENT_URL", "http://localhost:5173")
