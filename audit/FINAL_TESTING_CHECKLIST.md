@@ -821,3 +821,5 @@ Lifecycle implementation and rollout evidence: [DEPLOYMENT_LIFECYCLE_FIXES.md](.
 Live Sheets paid-order check verified on 2026-10-03: #261003003 delivered to row 1001 with correct items, total, payment, cashier and identity in M. Adjustment/outage/hosting acceptance remains NOT RUN; see SHEETS_SYNC_FIXES.md. Eight isolated Sheets PostgreSQL checks now pass.
 
 Empty-sheet reset regression: verify headers at row 1, next new event at row 2, populated-sheet reset refusal, no replay of synced events, and preservation of concurrent-sender exclusion. Ten isolated Sheets PostgreSQL cases now pass. Actual cleared-sheet reset remains pending user clarification.
+
+Cleared-sheet reset verified after explicit user approval: headers retained, zero data rows remain, saved nextRow is 2. Create the next real/test order to verify delivery at row 2, followed by row 3. Synced history was not requeued.
