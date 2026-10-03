@@ -1,8 +1,10 @@
 import { detachSocket } from "./hub.js";
+import { closeOverloaded } from "./limits.js";
 
 const sessions = new Map();
 
 export function registerSessionSocket(socket, userId) {
+  if (socket.readyState !== 1 || socket.__closing) return;
   unregisterSessionSocket(socket);
   const sockets = sessions.get(userId) ?? new Set();
   sockets.add(socket);
@@ -23,7 +25,7 @@ export function closeSessionSocket(socket) {
   unregisterSessionSocket(socket);
   socket.__user = null;
   socket.__token = null;
-  socket.close(4401, "session invalidated");
+  closeOverloaded(socket, 4401, "session invalidated");
 }
 
 // Database versions cover all instances; this closes local sockets immediately.

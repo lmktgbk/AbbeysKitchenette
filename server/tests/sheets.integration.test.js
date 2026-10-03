@@ -52,7 +52,8 @@ beforeEach(() => {
   cells.set("Orders!A1:M1", header);
   cells.set("Orders!A:M", [header, ["#old1"], ["#old2"]]);
 });
-const transport = (timeoutMs = 200) => createSheetsTransport({ config, timeoutMs, fetchImpl: (url, options) => {
+// Happy-path HTTP checks tolerate parallel suite startup; failure cases use explicit short deadlines.
+const transport = (timeoutMs = 2000) => createSheetsTransport({ config, timeoutMs, fetchImpl: (url, options) => {
   const provider = new URL(url); return fetch(base + provider.pathname + provider.search, options);
 } });
 const makeEvent = () => {

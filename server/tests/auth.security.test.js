@@ -3,6 +3,7 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
+import { EventEmitter } from "node:events";
 import WebSocket from "ws";
 import { createAuthDatabase } from "./helpers/authDatabase.js";
 
@@ -192,7 +193,8 @@ describe("authentication data flow with actual routes/controllers/services", () 
   });
   it("logout invalidates existing tokens, challenges and local socket subscriptions", async () => {
     const flow = await loggedIn();
-    const socket = { readyState: 1, __topics: new Set(), __user: user, close: vi.fn() };
+    const socket = Object.assign(new EventEmitter(), { readyState: 1, __topics: new Set(), __user: user,
+      close: vi.fn(() => socket.emit("close")), terminate: vi.fn() });
     registerSessionSocket(socket, ID); subscribe(socket, "orders");
     expect((await request("/logout", {}, flow.session)).status).toBe(200);
     expect(h.db.state.user[0].sessionVersion).toBe(1);

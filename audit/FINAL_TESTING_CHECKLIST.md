@@ -828,16 +828,31 @@ Automation follow-up: 637 ordinary tests passed; eleven isolated automation Post
 
 ## Deployment configuration acceptance — NOT RUN
 
-Implementation and provider setup: [DEPLOYMENT_CONFIGURATION_FIXES.md](./DEPLOYMENT_CONFIGURATION_FIXES.md). M10 proxy/shared rate protection is implemented. H15 deployment/recovery is partially addressed; actual hosting and restored backups remain Not verified. M12 WebSocket origin checks are implemented, but socket resource budgets remain open.
+Implementation and provider setup: [DEPLOYMENT_CONFIGURATION_FIXES.md](./DEPLOYMENT_CONFIGURATION_FIXES.md). M10 proxy/shared rate protection is implemented. H15 deployment/recovery is partially addressed; actual hosting and restored backups remain Not verified. M12 origin/resource/lifecycle controls are implemented in the subsequent WebSocket batch; live/load acceptance remains outstanding.
 
 - [ ] Apply reviewed pending migrations with `db:migrate:deploy`, generate the client during build, confirm migration status and successful production environment validation.
 - [ ] Vercel deep links and refresh work; frontend API URL targets the intended HTTPS backend. No secrets appear in client assets.
 - [ ] Hosted login, OTP, logout, password reset and email change work with the chosen domains in intended browsers; cookie set/clear paths, Secure/HttpOnly/SameSite and session revocation verified.
 - [ ] Wrong/missing Origin and missing request marker reject mutations. Valid frontend requests and preflights succeed. Unauthorized users still cannot perform protected actions.
 - [ ] Proxy IP matches the actual client; forged forwarding headers cannot bypass staff IP restrictions or rate limits. Two backend replicas enforce a shared limit and database failure returns a safe failure.
-- [ ] WSS connection/reconnection works; attacker/missing production origins are rejected. Remaining socket budgets are separately resolved before public exposure.
+- [ ] WSS connection/reconnection works; attacker/missing production origins are rejected. Socket budgets and resync pass the acceptance cases below before public exposure.
 - [ ] Backend readiness and ML `/livez` work through hosting; ML business routes and `/health` reject missing/wrong service keys. Verify actual TLS certificates and database pool budgets.
 - [ ] SIGTERM, restart and failed deployment preserve pending job/order data; hosted schedules, Sheets and private ML delivery verified without duplicate execution.
 - [ ] Measure request latency and capacity with shared counters, concurrent terminals and ML work; tune general request budget from recorded results.
 - [ ] Verify Supabase backup retention and recover into a separate database. Reconcile financial/inventory data, migration history, outbox and automation state; record measured RPO/RTO and independent storage recovery.
 - [ ] Continuous health/error/latency alerts verified; secrets remain in provider settings, not logs, client bundles or repository.
+
+## WebSocket reliability acceptance — NOT RUN
+
+Implementation: [WEBSOCKET_RELIABILITY_FIXES.md](./WEBSOCKET_RELIABILITY_FIXES.md). Use one backend replica until shared event fanout is verified. No migration is required for this batch. Use isolated/staging accounts and data for the following cases.
+
+- [ ] Frontend connects to the backend WSS origin derived from VITE_API_URL; explicit override works. Wrong/missing production Origin and paths such as `/ws-other` are rejected before auth reads.
+- [ ] Open the intended number of cafe terminals/tabs sharing an IP; they stay within configured budgets. Excess active/pending connections and upgrade floods are rejected; closing a socket reclaims its slot.
+- [ ] Drop a connection during auth; timed-out/disconnected/late results cannot add memberships or leak slots. A healthy reconnect burst queues within the auth budget; real DB failure stays bounded and exposes no credentials.
+- [ ] Malformed/null/array/binary/oversized frames, JSON/control-frame floods, too many subscriptions and excessive pending work are rejected safely. Valid subscriptions, unsubscriptions and heartbeat still work afterwards on another connection.
+- [ ] Disconnect a screen, change an isolated order/stock record through a second client, then reconnect. Subscription acknowledgement refetches authoritative REST data without replaying a sale or payment.
+- [ ] Log out, expire a session, disable a staff account or change its role; protected topics stop delivering. Denied staff subscriptions invoke existing REST authorization handling rather than leaving a stale screen marked live.
+- [ ] Immediately log out/log in or switch accounts while the old socket is closing; old callbacks cannot close the new connection or schedule extra reconnects.
+- [ ] Simulate a slow consumer and missing heartbeat; verify bounded buffers, termination and reclaimed slots. Record memory, CPU, query concurrency and revalidation time at the intended traffic level.
+- [ ] Restart/SIGTERM with active sockets and pending auth; no new upgrades are accepted during drain. Reconnect completes on the new server and refreshes missed data.
+- [ ] Verify one backend replica is configured. Shared event fanout must be implemented and tested before increasing replicas.

@@ -1,5 +1,9 @@
 **SYSTEM AUDIT STATUS**
 
+WebSocket remediation: [WEBSOCKET_RELIABILITY_FIXES.md](WEBSOCKET_RELIABILITY_FIXES.md). Admission, resource budgets, disconnect/shutdown fencing and frontend reconnect resync are implemented; live/load acceptance remains outstanding. Deploy one backend replica until shared event fanout is verified.
+
+Hosted configuration remediation: [DEPLOYMENT_CONFIGURATION_FIXES.md](DEPLOYMENT_CONFIGURATION_FIXES.md). Live hosting and backup restoration remain Not verified.
+
 Sheets remediation: [SHEETS_SYNC_FIXES.md](SHEETS_SYNC_FIXES.md). Prepared migration pending deployment; live acceptance remains outstanding.
 
 Upload remediation: [UPLOAD_SECURITY_FIXES.md](UPLOAD_SECURITY_FIXES.md). Crash-safe orphan reconciliation remains outstanding.

@@ -1,12 +1,8 @@
 /**
- * WebSocket Upgrade Auth + Topic ACL.
- *
- * WHY it exists: browsers can't set headers on a WS handshake, so the
- * Bearer path is unavailable — same-origin clients authenticate via the
- * httpOnly session cookie (sent automatically), cross-origin clients via a
- * first-message `{ type: "auth", token }`. Mirrors authenticate.middleware.js
- * through the shared session resolver: purpose, audience, expiry, role and
- * database session version are checked at both transport boundaries.
+ * WebSocket authentication shares REST token purpose, expiry and revocation checks.
+ * Browsers send the host-only session cookie when the configured cookie policy
+ * permits it. Explicit non-browser clients may authenticate by message;
+ * frontend code never needs a JavaScript-readable session token.
  */
 
 import { publicUser, resolveSession } from "../modules/auth/session.js";

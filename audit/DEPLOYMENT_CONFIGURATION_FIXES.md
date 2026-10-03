@@ -7,7 +7,7 @@ Target: Vercel frontend, Railway or Render backend and ML service, Supabase Post
 - Production boot rejects incomplete HTTPS origins, unspecified proxy trust, local rate counters, example JWT secrets, PostgreSQL URLs without `sslmode=verify-full`, missing mail transport, invalid sender addresses and partially configured integrations. Optional integrations may remain disabled.
 - Authentication and OTP cookies share configurable SameSite options for both creation and deletion. They are host-only, HttpOnly and Secure in production.
 - Browser mutations require the exact configured frontend Origin and `X-SmartCafe-Request: 1` before body parsing or database access. The central Axios client supplies the marker; it is not a credential. CORS permits only that origin. Production command-line mutating clients must also supply both headers and valid authentication.
-- WebSocket upgrades reject unexpected or missing production Origin before authentication lookup. This does not implement socket connection/subscription budgets; those remain open.
+- WebSocket upgrades reject unexpected or missing production Origin before authentication lookup. The subsequent [WebSocket reliability batch](./WEBSOCKET_RELIABILITY_FIXES.md) implements connection/subscription and transport budgets; hosted/load acceptance remains outstanding.
 - All HTTP rate limiters use shared atomic PostgreSQL counters in production. Keys contain SHA-256 hashes of limiter identity and client key, not raw IP addresses. Expired records are pruned in bounded batches. Counters add a database round trip per limiter; database failure rejects protected requests with a safe 503 rather than bypassing protection. Health endpoints remain outside the general limiter.
 - Vercel's SPA rewrite supports refreshes and deep links. ML binds the platform PORT and exposes `/livez` for unauthenticated hosting probes. ML business routes and `/health` still require the service key.
 
@@ -71,6 +71,8 @@ Hosting probe: `/livez` returns only `{ "status": "ok" }`. It indicates process 
 ## Workers, sockets and rollout
 
 Run the backend and ML service on plans that stay available while scheduled jobs are expected to execute. A suspended service cannot run a cron timer. Database leases and durable automation runs coordinate replicas; startup catch-up is bounded and cannot replace continuous availability.
+
+Deploy one backend replica initially: the realtime event hub is process-local. Shared database leases and rate counters do not replicate event fanout. Do not scale API replicas until shared realtime event delivery is implemented and tested.
 
 Verify WSS upgrades on `/ws`, credential cookies, heartbeat/reconnection and rejected attacker origins through the actual proxy. Keep the platform termination grace period longer than the backend's 20-second shutdown deadline. Test SIGTERM during an active request, Sheets delivery and ML job; inspect durable statuses after restart. Avoid overlapping an older worker version that lacks the current database lease rules with the new version during rollout.
 

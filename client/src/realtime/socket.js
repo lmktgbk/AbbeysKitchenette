@@ -27,8 +27,11 @@ const PONG_TIMEOUT_MS = 5000;
 
 function wsUrl() {
   if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL;
-  const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${proto}//${window.location.host}/ws`;
+  // A separately hosted SPA must connect to its API, not the Vercel frontend host.
+  const url = new URL(import.meta.env.VITE_API_URL || window.location.origin, window.location.origin);
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  url.pathname = "/ws"; url.search = ""; url.hash = "";
+  return url.toString();
 }
 
 // ── Connection status (external store so any component can read it) ──
@@ -105,44 +108,55 @@ function scheduleReconnect() {
   clearTimeout(reconnectTimer);
   setStatus("reconnecting");
   reconnectTimer = setTimeout(() => {
+    if (!started) return;
     backoffMs = Math.min(backoffMs * 2, MAX_BACKOFF_MS);
     connect();
-  }, backoffMs);
+  }, Math.min(MAX_BACKOFF_MS, backoffMs * (0.8 + Math.random() * 0.4)));
 }
 
 function connect() {
   if (!ENABLED || typeof WebSocket === "undefined") return;
+  let current;
   try {
-    socket = new WebSocket(wsUrl());
+    current = new WebSocket(wsUrl());
+    socket = current;
   } catch {
     scheduleReconnect();
     return;
   }
 
-  socket.onopen = () => {
+  current.onopen = () => {
+    if (socket !== current || !started) return;
     backoffMs = 1000;
     setStatus("live");
     armHeartbeat();
     flushSubscriptions();
   };
 
-  socket.onmessage = (event) => {
+  current.onmessage = (event) => {
+    if (socket !== current || !started) return;
     let msg;
     try {
       msg = JSON.parse(event.data);
     } catch {
       return;
     }
+    if (!msg || typeof msg !== "object" || Array.isArray(msg)) return;
     if (msg.type === "pong") {
       clearTimeout(pongTimer);
       return;
     }
-    if (msg.type !== "event") return;
+    const denied = msg.type === "error" && ["UNAUTHORIZED", "FORBIDDEN"].includes(msg.code);
+    if (msg.type !== "event" && msg.type !== "subscribed" && !denied) return;
     const handlers = subscriptions.get(msg.topic);
     if (!handlers) return;
     for (const fn of [...handlers]) {
       try {
-        fn(msg);
+        // Subscription acknowledgement arrives after joining the server topic.
+        // Refetch then so mutations missed while offline cannot leave stale screens.
+        // A denied staff subscription also refreshes through REST, where session
+        // expiry and role changes invoke the existing access/error handling.
+        fn(msg.type === "event" ? msg : { type: "resync", topic: msg.topic });
       } catch (err) {
         console.warn("[realtime] subscriber dropped:", err?.message);
       }
@@ -150,14 +164,17 @@ function connect() {
   };
 
   const down = () => {
+    if (socket !== current) return;
+    socket = null;
     clearInterval(pingTimer);
     clearTimeout(pongTimer);
     if (started) scheduleReconnect();
   };
-  socket.onclose = down;
-  socket.onerror = () => {
+  current.onclose = down;
+  current.onerror = () => {
+    if (socket !== current) return;
     try {
-      socket?.close();
+      current.close();
     } catch {
       // handled by onclose
     }
@@ -176,12 +193,13 @@ export function stopRealtime() {
   clearTimeout(reconnectTimer);
   clearInterval(pingTimer);
   clearTimeout(pongTimer);
+  const previous = socket;
+  socket = null;
   try {
-    socket?.close();
+    previous?.close();
   } catch {
     // already gone
   }
-  socket = null;
 }
 
 /**
@@ -190,9 +208,10 @@ export function stopRealtime() {
  */
 export function subscribeRealtime(topic, handler) {
   startRealtime();
-  if (!subscriptions.has(topic)) subscriptions.set(topic, new Set());
+  const first = !subscriptions.has(topic);
+  if (first) subscriptions.set(topic, new Set());
   subscriptions.get(topic).add(handler);
-  send({ type: "subscribe", topic });
+  if (first) send({ type: "subscribe", topic });
   return () => {
     const set = subscriptions.get(topic);
     if (!set) return;

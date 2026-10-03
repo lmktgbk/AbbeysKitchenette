@@ -61,6 +61,13 @@ export const envSchema = z.object({
 
   // Realtime (WebSocket heartbeat: server pings, drops silent sockets)
   WS_HEARTBEAT_MS: z.coerce.number().int().positive().default(25000),
+  WS_MAX_CONNECTIONS: z.coerce.number().int().min(1).max(10000).default(256),
+  WS_MAX_CONNECTIONS_PER_IP: z.coerce.number().int().min(1).max(1000).default(40),
+  WS_MAX_SUBSCRIPTIONS: z.coerce.number().int().min(1).max(100).default(16),
+  WS_MAX_PAYLOAD_BYTES: z.coerce.number().int().min(256).max(65536).default(8192),
+  WS_MAX_BUFFERED_BYTES: z.coerce.number().int().min(1024).max(1048576).default(65536),
+  WS_MAX_MESSAGES_PER_10S: z.coerce.number().int().min(5).max(1000).default(40),
+  WS_AUTH_TIMEOUT_MS: z.coerce.number().int().min(100).max(30000).default(5000),
 
   // Google Sheets live order sync (optional — disabled unless ALL three set).
   // Private key uses literal \n newlines in .env (converted at use time).

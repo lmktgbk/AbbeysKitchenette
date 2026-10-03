@@ -1,19 +1,11 @@
 /**
- * Realtime Hub — in-process topic pub/sub for WebSocket events.
- *
- * WHY it exists: single fan-out point so service-layer mutations notify
- * connected devices without polling. Single-server assumption (same as the
- * automation scheduler): topics live in this process. If the app ever goes
- * multi-instance, replace `local` with a Redis pub/sub adapter behind this
- * same interface — callers (broadcast/subscribe) must not change.
- *
- * Contract (shared with client/src/realtime/socket.js):
- * - Sockets carry INVALIDATIONS, never data: { topic, entity, id, at }.
- *   Clients refetch through existing REST + TanStack Query endpoints, so
- *   dropped/duplicated/reordered messages cannot corrupt any screen.
- * - Slow clients are skipped, never buffered: on reconnect the client
- *   refetches (invalidation on resync), so no backlog can grow here.
+ * Process-local invalidation fanout. Business data is refetched through REST.
+ * Deploy one backend replica until shared event delivery is implemented.
+ * Slow consumers are disconnected at their buffer limit; subscription
+ * acknowledgements refresh data missed during a connection outage.
  */
+
+import { sendBounded } from "./limits.js";
 
 const topics = new Map(); // topic -> Set<ws>
 
@@ -65,8 +57,8 @@ export function broadcast(topic, event = {}) {
       continue;
     }
     try {
-      socket.send(payload);
-      reached += 1;
+      if (sendBounded(socket, payload)) reached += 1;
+      else detachSocket(socket);
     } catch {
       detachSocket(socket);
     }
