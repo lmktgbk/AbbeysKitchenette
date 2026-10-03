@@ -16,7 +16,7 @@
 
 import { broadcast } from "./hub.js";
 
-const PYTHON_URL = process.env.FORECAST_URL || "http://localhost:8000";
+import { fetchMl, proxyMl } from "../services/mlClient.js";
 const POLL_MS = 2000;
 const MAX_WATCH_MS = 30 * 60 * 1000;
 
@@ -34,7 +34,7 @@ async function fetchMlStatus(kind, jobId) {
   const path = kind === "forecast"
     ? `/forecast/demand/status?job_id=${jobId}`
     : `/mba/jobs/${jobId}`;
-  const response = await fetch(`${PYTHON_URL}${path}`);
+  const response = await fetchMl(path);
   if (!response.ok) return null;
   const data = await response.json().catch(() => null);
   return data?.status ?? null;
@@ -59,17 +59,27 @@ export function ensureJobWatcher(kind, jobId) {
   const key = `${kind}:${jobId}`;
   if (watchers.has(key)) return;
   const startedAt = Date.now();
+  const entry = { startedAt, timer: null };
+  let polling = false;
   const tick = async () => {
+    if (watchers.get(key) !== entry) return;
+    if (Date.now() - startedAt > MAX_WATCH_MS) return finish(key, jobId);
+    // A delayed response must not overlap polling or finish a replacement watcher.
+    if (polling) return;
+    polling = true;
     try {
       const status = await fetchMlStatus(kind, jobId);
+      if (watchers.get(key) !== entry) return;
       if (isTerminal(kind, status) || Date.now() - startedAt > MAX_WATCH_MS) {
         finish(key, jobId);
       }
     } catch (err) { console.warn("[realtime] job watch tick dropped:", key, err?.message); }
+    finally { polling = false; }
   };
   const timer = setInterval(tick, POLL_MS);
   timer.unref?.();
-  watchers.set(key, { timer, startedAt });
+  entry.timer = timer;
+  watchers.set(key, entry);
   tick();
 }
 
@@ -78,28 +88,12 @@ export function ensureJobWatcher(kind, jobId) {
  * proxyGet helpers) and arm a watcher when the job is still running.
  */
 export async function proxyMlStatus(res, { kind, jobId, mlPath, okMessage, serviceLabel, fallbackCode }) {
-  try {
-    const response = await fetch(`${PYTHON_URL}${mlPath}`);
-    if (!response.ok) {
-      return res.status(response.status).json({
-        success: false,
-        message: `${serviceLabel} service error: ${response.status}`,
-        error: fallbackCode,
-        data: null,
-      });
-    }
-    const data = await response.json();
-    if (!isTerminal(kind, data?.status)) ensureJobWatcher(kind, jobId);
-    return res.status(200).json({ success: true, message: okMessage, data });
-  } catch (error) {
-    console.error(`[${fallbackCode}] ${serviceLabel} service unavailable:`, error.message);
-    return res.status(503).json({
-      success: false,
-      message: `${serviceLabel} service is temporarily unavailable. Please try again later.`,
-      error: `${serviceLabel.toUpperCase()}_SERVICE_UNAVAILABLE`,
-      data: null,
-    });
-  }
+  return proxyMl(res, mlPath, {
+    serviceLabel, fallbackCode, okMessage,
+    onData(data) {
+      if (!isTerminal(kind, data?.status)) ensureJobWatcher(kind, jobId);
+    },
+  });
 }
 
 /** Test-only: watcher census + reset. */

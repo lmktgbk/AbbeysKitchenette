@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+vi.mock("../src/config/env.js", () => ({ env: { ML_SERVICE_KEY: "a".repeat(64), JWT_SECRET: "test-only-realtime-secret-at-least-32-characters", JWT_EXPIRES_IN: "8h" } }));
 import {
   subscribe,
   unsubscribe,
@@ -202,5 +203,27 @@ describe("job watchers", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(sock.sent).toHaveLength(1);
     expect(watcherStats()).toEqual([]);
+  });
+
+  it("does not overlap slow status requests", async () => {
+    fetch.mockReturnValue(new Promise(() => {}));
+    ensureJobWatcher("mba", 9);
+    await vi.advanceTimersByTimeAsync(10000);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("expires stalled watchers and ignores late responses after replacement", async () => {
+    let resolveOld;
+    fetch.mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve; }));
+    fetch.mockReturnValue(new Promise(() => {}));
+    ensureJobWatcher("mba", 9);
+    await vi.advanceTimersByTimeAsync(30 * 60 * 1000 + 2000);
+    expect(watcherStats()).toEqual([]);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    ensureJobWatcher("mba", 9);
+    resolveOld({ ok: true, json: async () => ({ status: "completed" }) });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(watcherStats()).toEqual(["mba:9"]);
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });

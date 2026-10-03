@@ -7,9 +7,9 @@ import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { proxyMlStatus } from "../../realtime/jobs.js";
 
-const router = Router();
+import { proxyMl } from "../../services/mlClient.js";
 
-const PYTHON_URL = process.env.FORECAST_URL || "http://localhost:8000";
+const router = Router();
 
 /**
  * Market Basket Proxy Routes
@@ -19,56 +19,12 @@ const PYTHON_URL = process.env.FORECAST_URL || "http://localhost:8000";
  * the server auto-assigns the system-owned Bundles/Bundle subcategory.
  */
 
-async function proxyGet(res, path, fallbackCode) {
-  try {
-    const response = await fetch(`${PYTHON_URL}${path}`);
-    if (!response.ok) {
-      return res.status(response.status).json({
-        success: false,
-        message: `MBA service error: ${response.status}`,
-        error: fallbackCode,
-        data: null,
-      });
-    }
-    const data = await response.json();
-    return res.status(200).json({ success: true, message: "Success", data });
-  } catch (error) {
-    console.error(`[${fallbackCode}] MBA service unavailable:`, error.message);
-    return res.status(503).json({
-      success: false,
-      message: "Market basket service is temporarily unavailable. Please try again later.",
-      error: "MBA_SERVICE_UNAVAILABLE",
-      data: null,
-    });
-  }
+function proxyGet(res, path, fallbackCode) {
+  return proxyMl(res, path, { serviceLabel: "MBA", fallbackCode, okMessage: "Success" });
 }
 
-async function proxyPost(res, path, body, fallbackCode) {
-  try {
-    const response = await fetch(`${PYTHON_URL}${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!response.ok) {
-      return res.status(response.status).json({
-        success: false,
-        message: `MBA service error: ${response.status}`,
-        error: fallbackCode,
-        data: null,
-      });
-    }
-    const data = await response.json();
-    return res.status(200).json({ success: true, message: "Job created", data });
-  } catch (error) {
-    console.error(`[${fallbackCode}] MBA service unavailable:`, error.message);
-    return res.status(503).json({
-      success: false,
-      message: "Market basket service is temporarily unavailable. Please try again later.",
-      error: "MBA_SERVICE_UNAVAILABLE",
-      data: null,
-    });
-  }
+function proxyPost(res, path, body, fallbackCode) {
+  return proxyMl(res, path, { serviceLabel: "MBA", fallbackCode, okMessage: "Job created", method: "POST", body });
 }
 
 // POST /api/market-basket/analyze — create a new analysis job

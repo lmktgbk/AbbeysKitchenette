@@ -1,5 +1,7 @@
 **SYSTEM AUDIT STATUS**
 
+ML service security remediation: [ML_SERVICE_SECURITY_FIXES.md](ML_SERVICE_SECURITY_FIXES.md).
+
 Price approval remediation: [PRICE_APPROVAL_FIXES.md](PRICE_APPROVAL_FIXES.md).
 
 Inventory transaction remediation: [INVENTORY_TRANSACTION_FIXES.md](INVENTORY_TRANSACTION_FIXES.md).

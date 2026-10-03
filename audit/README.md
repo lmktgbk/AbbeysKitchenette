@@ -31,3 +31,5 @@ Original consumption, stock settlement and refund changes are tracked in [INVENT
 Transactional price approval changes are tracked in [PRICE_APPROVAL_FIXES.md](PRICE_APPROVAL_FIXES.md).
 The baseline auth defect tests have been converted into regressions; remaining
 business defect characterizations are still explicitly unsafe-behavior tests.
+
+ML service authentication and bounded requests are tracked in [ML_SERVICE_SECURITY_FIXES.md](ML_SERVICE_SECURITY_FIXES.md).

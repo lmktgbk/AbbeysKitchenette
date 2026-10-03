@@ -8,7 +8,7 @@ import { dailyReportService } from "../reports/dailyReport.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { BUSINESS_TZ } from "../../config/time.js";
 
-const PYTHON_URL = process.env.FORECAST_URL || "http://localhost:8000";
+import { fetchMl } from "../../services/mlClient.js";
 
 // NOTE: single-server assumption — two backends running = double runs.
 
@@ -39,7 +39,7 @@ function toCronExpr(job) {
 }
 
 async function postToML(path) {
-  const response = await fetch(`${PYTHON_URL}${path}`, { method: "POST" });
+  const response = await fetchMl(path, { method: "POST" });
   if (!response.ok) {
     throw new Error(`ML service responded ${response.status} for ${path}`);
   }

@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from config import CLIENT_URL, FORECAST_PORT, FORECASTER_URL
+from fastapi import FastAPI, Depends
+from config import FORECAST_PORT, FORECAST_HOST
+from security import require_service_key, validate_service_key
 from database import close_pool
 from forecasting.routers import demand
 from mba.routers import association
@@ -10,26 +10,25 @@ from mba.routers import association
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from forecasting.services.demand_forecast import cleanup_stale_jobs
-    await cleanup_stale_jobs()
-    yield
-    await close_pool()
+    validate_service_key()
+    try:
+        await cleanup_stale_jobs()
+        yield
+    finally:
+        await close_pool()
 
 
 app = FastAPI(
     title="Abbey's Kitchenette ML Service",
     version="1.0.0",
     lifespan=lifespan,
+    dependencies=[Depends(require_service_key)],
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[CLIENT_URL, FORECASTER_URL, "*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# ── Forecasting routers ────────────────────────
+# Authentication applies to every business route and the private health probe.
 app.include_router(demand.router)
 
 # ── MBA routers ────────────────────────────────
@@ -43,4 +42,4 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=FORECAST_PORT, reload=True)
+    uvicorn.run("main:app", host=FORECAST_HOST, port=FORECAST_PORT, reload=False)

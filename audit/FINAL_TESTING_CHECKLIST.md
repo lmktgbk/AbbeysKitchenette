@@ -81,7 +81,7 @@ vulnerabilities. npm audit failures require fixes or a reviewed explicit excepti
 Migration status/validation/generation do not prove data integrity. No migration,
 reset or seed command is intentionally included in this verification block.
 
-Current reference, not a final PASS: the price approval batch has 437 automated tests
+Current reference, not a final PASS: the price approval batch has 457 automated tests
 passing, including 28 new approval security/rollback/concurrency cases. The frontend
 build passed with an existing large-bundle warning. Submission code and POS pages
 passed lint; the guest page retains its baseline four errors and one warning.
@@ -336,9 +336,11 @@ all cases on the final commit. No case below has been executed by this document.
 
 **Priority:** High
 
-**Implementation:** Open at checklist creation; final acceptance NOT RUN
+**Implementation:** Implemented; see [ML_SERVICE_SECURITY_FIXES.md](ML_SERVICE_SECURITY_FIXES.md). Automated regressions pass; final deployed acceptance NOT RUN
 
-**Steps:** Call every deployed ML route directly without credentials, with invalid credentials, and with a low-privilege session. Repeat from outside the allowed network. Observe job tables to confirm denied requests create no work.
+**Steps:** Restart both services with matching backend-only keys. Verify an admin can start and read forecasting/MBA jobs through Express. Verify non-admin sessions are denied by Express. Break the service key and require a generic 503 without user logout. Delay headers/body past the configured deadline and require bounded failure with no overlapping watcher requests. Confirm docs endpoints are disabled and service keys are absent from frontend bundles and logs.
+
+Call every deployed ML route directly without credentials, with invalid credentials, and with a low-privilege session. Repeat from outside the allowed network. Observe job tables to confirm denied requests create no work.
 
 **Acceptance criteria:** From allowed and disallowed networks, request every ML endpoint without/with invalid credentials and as a low-privilege role. Require denial before job/database activity.
 

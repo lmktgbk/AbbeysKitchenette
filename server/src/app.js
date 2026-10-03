@@ -6,6 +6,7 @@ import cookieParser from "cookie-parser";
 
 // Imports
 import { env } from "./config/env.js";
+import { fetchMl } from "./services/mlClient.js";
 import prisma from "./config/prisma.js";
 import errorHandler from "./middleware/errorHandler.middleware.js";
 import { generalLimiter } from "./middleware/rateLimitin.middleware.js";
@@ -114,8 +115,7 @@ app.get("/api/ready", async (req, res) => {
     // reported below
   }
   try {
-    const mlUrl = process.env.FORECAST_URL || "http://localhost:8000";
-    const response = await fetch(`${mlUrl}/health`, { signal: AbortSignal.timeout(3000) });
+    const response = await fetchMl("/health", { timeoutMs: 3000 });
     checks.mlService = response.ok;
   } catch {
     // reported below

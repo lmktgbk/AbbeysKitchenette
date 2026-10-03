@@ -7,9 +7,9 @@ import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { proxyMlStatus } from "../../realtime/jobs.js";
 
-const router = Router();
+import { proxyMl } from "../../services/mlClient.js";
 
-const PYTHON_URL = process.env.FORECAST_URL || "http://localhost:8000";
+const router = Router();
 
 /**
  * Forecasting Proxy Routes
@@ -18,52 +18,12 @@ const PYTHON_URL = process.env.FORECAST_URL || "http://localhost:8000";
  * The Python service handles its own DB queries via asyncpg.
  */
 
-async function proxyGet(res, path, fallbackCode) {
-  try {
-    const response = await fetch(`${PYTHON_URL}${path}`);
-    if (!response.ok) {
-      return res.status(response.status).json({
-        success: false,
-        message: `Forecast service error: ${response.status}`,
-        error: fallbackCode,
-        data: null,
-      });
-    }
-    const data = await response.json();
-    return res.status(200).json({ success: true, message: "Forecast retrieved", data });
-  } catch (error) {
-    console.error(`[${fallbackCode}] Forecast service unavailable:`, error.message);
-    return res.status(503).json({
-      success: false,
-      message: "Forecasting service is temporarily unavailable. Please try again later.",
-      error: "FORECAST_SERVICE_UNAVAILABLE",
-      data: null,
-    });
-  }
+function proxyGet(res, path, fallbackCode) {
+  return proxyMl(res, path, { serviceLabel: "Forecast", fallbackCode, okMessage: "Forecast retrieved" });
 }
 
-async function proxyPost(res, path, fallbackCode) {
-  try {
-    const response = await fetch(`${PYTHON_URL}${path}`, { method: "POST" });
-    if (!response.ok) {
-      return res.status(response.status).json({
-        success: false,
-        message: `Forecast service error: ${response.status}`,
-        error: fallbackCode,
-        data: null,
-      });
-    }
-    const data = await response.json();
-    return res.status(200).json({ success: true, message: "Forecast started", data });
-  } catch (error) {
-    console.error(`[${fallbackCode}] Forecast service unavailable:`, error.message);
-    return res.status(503).json({
-      success: false,
-      message: "Forecasting service is temporarily unavailable. Please try again later.",
-      error: "FORECAST_SERVICE_UNAVAILABLE",
-      data: null,
-    });
-  }
+function proxyPost(res, path, fallbackCode) {
+  return proxyMl(res, path, { serviceLabel: "Forecast", fallbackCode, okMessage: "Forecast started", method: "POST" });
 }
 
 // ── Demand Forecasting ────────────────────────────────────────

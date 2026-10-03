@@ -16,6 +16,12 @@ const envSchema = z.object({
     "DATABASE_URL must be a postgres connection string",
   ),
   DIRECT_URL: z.string().min(1),
+  FORECAST_URL: z.url().default("http://127.0.0.1:8000").refine((value) => {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol) && !url.username && !url.password && !url.search && !url.hash && url.pathname === "/";
+  }, "FORECAST_URL must be an HTTP(S) origin without credentials"),
+  ML_SERVICE_KEY: z.preprocess((value) => value === "" ? undefined : value, z.string().regex(/^[a-f0-9]{64}$/i).optional()),
+  ML_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(100).max(120000).default(10000),
 
   // Email — SMTP config (optional — falls back to console log in dev)
   SMTP_HOST: z.string().optional(),

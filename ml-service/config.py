@@ -1,7 +1,11 @@
 import os
 from dotenv import load_dotenv
+from pathlib import Path
 
-load_dotenv()
+load_dotenv(Path(__file__).with_name(".env"))
+
+ML_SERVICE_KEY = os.getenv("ML_SERVICE_KEY", "")
+FORECAST_HOST = os.getenv("FORECAST_HOST", "127.0.0.1")
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 CLIENT_URL = os.getenv("CLIENT_URL", "http://localhost:5173")
