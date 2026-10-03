@@ -1,68 +1,32 @@
 import cloudinary from "../config/cloudinary.js";
+import prisma from "../config/prisma.js";
+import { env } from "../config/env.js";
 
-/**
- * Extract Cloudinary public ID from a full image URL.
- *
- * URL format: https://res.cloudinary.com/{cloud_name}/{resource_type}/upload/{public_id}.{format}
- * Example:    https://res.cloudinary.com/dlg9vkkkq/image/upload/abbseys-kitchenette/products/abc123.jpg
- * Public ID:  abbseys-kitchenette/products/abc123
- */
-function extractPublicId(imageUrl) {
-  if (!imageUrl || typeof imageUrl !== "string") return null;
-
+/** Only storage URLs belonging to this application's account and folders are deletable. */
+export function extractPublicId(imageUrl) {
   try {
     const url = new URL(imageUrl);
-    const pathParts = url.pathname.split("/");
-
-    // Find the index after "upload" — everything after that is the public ID
-    const uploadIndex = pathParts.indexOf("upload");
-    if (uploadIndex === -1) return null;
-
-    // Slice from after "upload" to end
-    const publicIdParts = pathParts.slice(uploadIndex + 1);
-
-    // Strip version prefix (e.g., v1234567890)
-    if (publicIdParts.length > 0 && /^v\d+$/.test(publicIdParts[0])) {
-      publicIdParts.shift();
-    }
-
-    // Remove file extension from last segment
-    const lastPart = publicIdParts[publicIdParts.length - 1];
-    const extension = lastPart.split(".").pop();
-
-    // Only strip extension if it looks like a real file extension (short, no spaces)
-    if (extension.length <= 5 && !extension.includes(" ")) {
-      publicIdParts[publicIdParts.length - 1] = lastPart.replace(
-        /\.[^.]+$/,
-        "",
-      );
-    }
-
-    return publicIdParts.join("/");
-  } catch (err) {
-    console.warn("[cloudinary] Could not parse public ID from URL:", err?.message);
-    return null;
-  }
+    if (url.protocol !== "https:" || url.hostname !== "res.cloudinary.com" || url.username || url.password || url.search || url.hash) return null;
+    const prefix = `/${env.CLOUDINARY_CLOUD_NAME}/image/upload/`;
+    if (!env.CLOUDINARY_CLOUD_NAME || !url.pathname.startsWith(prefix)) return null;
+    const path = url.pathname.slice(prefix.length).replace(/^v\d+\//, "");
+    if (!/^abbseys-kitchenette\/(products|avatars)\/[A-Za-z0-9_-]+\.(jpg|jpeg|png|gif|webp)$/.test(path)) return null;
+    return path.replace(/\.[^.]+$/, "");
+  } catch { return null; }
 }
 
-/**
- * Delete an image from Cloudinary by its URL.
- * Silently ignores invalid URLs or deletion failures (non-blocking).
- */
+/** Fail closed when reference checks are unavailable; never remove a possibly committed image. */
 export async function deleteImage(imageUrl) {
   const publicId = extractPublicId(imageUrl);
   if (!publicId) return;
-
   try {
-    const result = await cloudinary.uploader.destroy(publicId);
-    if (result.result === "ok") {
-      console.log("[cloudinary] Deleted image:", publicId);
-    }
-  } catch (err) {
-    console.error(
-      "[cloudinary] Failed to delete image:",
-      publicId,
-      err.message,
-    );
+    const [products, users] = await Promise.all([
+      prisma.product.count({ where: { imageUrl } }), prisma.user.count({ where: { imageUrl } }),
+    ]);
+    if (products || users) return;
+    await cloudinary.uploader.destroy(publicId, { resource_type: "image", timeout: 30000 });
+  } catch {
+    // A retained orphan is recoverable; deleting a referenced asset is not. Retry through reconciliation.
+    console.warn("[storage] Image cleanup deferred; reference check or deletion failed");
   }
 }

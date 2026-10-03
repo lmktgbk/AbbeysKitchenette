@@ -221,9 +221,15 @@ export const authService = {
     if (!user) {
       throw new AppError(401, "User not found", "USER_NOT_FOUND");
     }
-    if (user.imageUrl && user.imageUrl !== imageUrl) {
-      await deleteImage(user.imageUrl);
+    let updated;
+    try { updated = await authRepository.updateImageUrl(userId, imageUrl, user.imageUrl ?? null); }
+    catch (error) {
+      if (error?.code === 'P2025') throw new AppError(409, 'Profile image changed. Refresh and retry.', 'IMAGE_CHANGED');
+      throw error;
     }
-    return authRepository.updateImageUrl(userId, imageUrl);
+    if (user.imageUrl && user.imageUrl !== imageUrl) {
+      void deleteImage(user.imageUrl);
+    }
+    return updated;
   },
 };

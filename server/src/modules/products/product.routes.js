@@ -1,11 +1,11 @@
 import { Router } from "express";
 
 import { productController } from "./product.controller.js";
-import { successResponse, errorResponse } from "../../utils/response.js";
+import { errorResponse } from "../../utils/response.js";
 import { validate, validateQuery, validateParams } from "../../middleware/validate.middleware.js";
 import authenticate from "../../middleware/authenticate.middleware.js";
 import authorize from "../../middleware/authorize.middleware.js";
-import { uploadProductImage } from "../../middleware/upload.middleware.js";
+import { uploadProductImage, productUploadBody } from "../../middleware/upload.middleware.js";
 import {
   createProductSchema,
   updateProductSchema,
@@ -24,7 +24,7 @@ router.use(authenticate, authorize("admin"));
  * Product Routes
  *
  * GET    /api/products/summary        — Status counts for KPI cards
- * POST   /api/products/upload-image   — Upload product image
+ * POST   /api/products/upload-image   - Retired (410); use multipart product saves
  * GET    /api/products                — List all products
  * POST   /api/products                — Create product with variants + recipes
  * GET    /api/products/:id            — Get product detail
@@ -40,29 +40,20 @@ router.use(authenticate, authorize("admin"));
 // GET /api/products/summary — status counts (must be before /:id)
 router.get("/summary", productController.getSummary);
 
-// POST /api/products/upload-image — file upload (must be before /:id)
-router.post(
-  "/upload-image",
-  uploadProductImage,
-  (req, res) => {
-    if (!req.file) {
-      return errorResponse(res, "No image file provided", null, 400, "NO_FILE");
-    }
-    return successResponse(res, "Image uploaded", { url: req.file.path });
-  },
-);
+// Retired staging endpoint; product saves now carry their image in the same request.
+router.post("/upload-image", (_req, res) => errorResponse(res, "Upload images with the product save", null, 410, "UPLOAD_WITH_PRODUCT"));
 
 // GET /api/products — list all non-archived
 router.get("/", validateQuery(getProductsQuerySchema), productController.getProducts);
 
 // POST /api/products — create product with variants + recipes
-router.post("/", validate(createProductSchema), productController.createProduct);
+router.post("/", uploadProductImage, productUploadBody, validate(createProductSchema), productController.createProduct);
 
 // GET /api/products/:id — product detail
 router.get("/:id", validateParams(productIdParamSchema), productController.getProduct);
 
 // PATCH /api/products/:id — update product info
-router.patch("/:id", validateParams(productIdParamSchema), validate(updateProductSchema), productController.updateProduct);
+router.patch("/:id", validateParams(productIdParamSchema), uploadProductImage, productUploadBody, validate(updateProductSchema), productController.updateProduct);
 
 // POST /api/products/:id/variants/:variantId/activate — activate single variant
 router.post("/:id/variants/:variantId/activate", validateParams(variantIdParamSchema), productController.activateVariant);

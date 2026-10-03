@@ -1,9 +1,10 @@
 /**
  * Products API — owns product / category / price-optimization transport.
- * WHY: single contract owner for menu data including variants and images. Contract: GET /products, GET /products/summary, GET /products/:id, POST /products, PATCH /products/:id, PUT /products/:id/variants, POST .../deactivate|activate (product + variant), DELETE /products/:id, POST /products/upload-image (multipart), category CRUD under /categories, price-optimization under /price-optimization; returns res.data envelope.
+ * WHY: single contract owner for menu data including variants and images. Contract: GET /products, GET /products/summary, GET /products/:id, POST /products, PATCH /products/:id, PUT /products/:id/variants, POST .../deactivate|activate (product + variant), DELETE /products/:id, POST/PATCH /products (optional multipart image), category CRUD under /categories, price-optimization under /price-optimization; returns res.data envelope.
  * State: axios wrappers, no state.
  */
 import api from "@/config/axios";
+import { productPayload } from "./imagePayload";
 
 /**
  * Products API
@@ -36,13 +37,15 @@ export async function getProductDetailRequest(id) {
 
 // POST /api/products — create product with variants + recipes
 export async function createProductRequest(data) {
-  const res = await api.post("/products", data);
+  const { body, config } = productPayload(data);
+  const res = await api.post("/products", body, config);
   return res.data;
 }
 
 // PATCH /api/products/:id — update product info
 export async function updateProductRequest(id, data) {
-  const res = await api.patch(`/products/${id}`, data);
+  const { body, config } = productPayload(data);
+  const res = await api.patch(`/products/${id}`, body, config);
   return res.data;
 }
 
@@ -87,18 +90,6 @@ export async function deleteProductRequest(id) {
 }
 
 // ── Image Upload ────────────────────
-
-// POST /api/products/upload-image — upload product image
-export async function uploadImageRequest(file) {
-  const formData = new FormData();
-  formData.append("image", file);
-  const res = await api.post("/products/upload-image", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
-  return res.data;
-}
-
-// ── Categories ─────────────────────
 
 // GET /api/categories — all root categories with nested subcategories
 export async function getCategoriesRequest() {

@@ -4,7 +4,7 @@ import fs from "node:fs";
 const h = vi.hoisted(() => ({ role: "cashier", proxy: () => new Proxy({}, { get: () => (req, res) => res.json({ success: true, auditHandlerReached: true }) }) }));
 vi.mock("../src/config/env.js", () => ({ env: { NODE_ENV: "test", CLIENT_URL: "http://127.0.0.1:5189", JWT_SECRET: "audit-only-secret-never-used-for-real-authentication", JWT_EXPIRES_IN: "8h" } }));
 vi.mock("../src/config/prisma.js", () => ({ default: { user: { findUnique: async () => ({ id: "123e4567-e89b-42d3-a456-426614174000", role: h.role, isActive: true, sessionVersion: 0 }) } } }));
-vi.mock("../src/middleware/upload.middleware.js", () => ({ uploadProductImage: (req,res,next) => next(), uploadAvatar: (req,res,next) => next() }));
+vi.mock("../src/middleware/upload.middleware.js", () => ({ uploadProductImage: (req,res,next) => next(), uploadAvatar: (req,res,next) => next(), productUploadBody: (req,res,next) => next() }));
 vi.mock("../src/modules/auditLogs/auditLog.service.js", () => ({ auditLogService: { logAction: vi.fn().mockResolvedValue({}) } }));
 vi.mock("../src/realtime/jobs.js", () => ({ proxyMlStatus: vi.fn() }));
 vi.mock("../src/modules/auth/auth.controller.js", () => ({ authController: h.proxy() }));

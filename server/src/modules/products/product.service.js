@@ -247,7 +247,8 @@ export const productService = {
    * @returns {object} - created product with variants
    * @throws {AppError} 409 if product name already exists
    */
-  async create(data, userId) {
+  async create(data, userId, imageUploaded = false) {
+    if (data.image_url && !imageUploaded) throw new AppError(400, 'Upload the image with the product', 'INVALID_IMAGE_SOURCE');
     // Step 1: Check for duplicate name
     const existing = await productRepository.findByName(data.product_name.trim());
     if (existing) {
@@ -314,7 +315,7 @@ export const productService = {
    * @returns {object} - updated product
    * @throws {AppError} 404 if not found, 409 if duplicate name
    */
-  async update(id, data, userId) {
+  async update(id, data, userId, imageUploaded = false) {
     // Step 1: Validate product exists
     const existing = await requireProduct(id);
 
@@ -335,11 +336,10 @@ export const productService = {
     // Step 3: Map other fields
     if (data.subcategory_id !== undefined) updateData.subcategoryId = data.subcategory_id;
     if (data.description !== undefined) updateData.description = data.description || null;
+    if (data.image_url && data.image_url !== existing.imageUrl && !imageUploaded) {
+      throw new AppError(400, 'Upload the image with the product', 'INVALID_IMAGE_SOURCE');
+    }
     if (data.image_url !== undefined) {
-      // Delete old Cloudinary image if replacing or removing
-      if (existing.imageUrl && data.image_url !== existing.imageUrl) {
-        await deleteImage(existing.imageUrl);
-      }
       updateData.imageUrl = data.image_url || null;
     }
     if (data.is_available !== undefined) updateData.isAvailable = data.is_available;
@@ -349,7 +349,16 @@ export const productService = {
       throw new AppError(400, "No valid fields to update", "NO_CHANGES");
     }
 
-    await productRepository.update(id, updateData);
+    try {
+      // Compare the prior image atomically so concurrent replacements cannot orphan the winning asset.
+      await productRepository.update(id, updateData, undefined, updateData.imageUrl !== undefined ? existing.imageUrl : undefined);
+    } catch (error) {
+      if (error?.code === 'P2025' && updateData.imageUrl !== undefined) throw new AppError(409, 'Product image changed. Refresh and retry.', 'IMAGE_CHANGED');
+      throw error;
+    }
+    if (existing.imageUrl && updateData.imageUrl !== undefined && updateData.imageUrl !== existing.imageUrl) {
+      void deleteImage(existing.imageUrl);
+    }
 
     auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_UPDATED, targetType: "product", targetId: id, details: { name: data.product_name ?? existing.productName } });
 
@@ -614,11 +623,8 @@ export const productService = {
     }
 
     // Hard delete (cascades to variants and recipes)
-    // Delete Cloudinary image first
-    if (existing.imageUrl) {
-      await deleteImage(existing.imageUrl);
-    }
-    await productRepository.delete(id);
+    const deleted = await productRepository.delete(id);
+    if (deleted.imageUrl) void deleteImage(deleted.imageUrl);
 
     auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_DELETED, targetType: "product", targetId: id, details: { name: existing.productName } });
 

@@ -1,5 +1,7 @@
 **SYSTEM AUDIT STATUS**
 
+Upload remediation: [UPLOAD_SECURITY_FIXES.md](UPLOAD_SECURITY_FIXES.md). Crash-safe orphan reconciliation remains outstanding.
+
 Request parsing remediation: [REQUEST_VALIDATION_FIXES.md](REQUEST_VALIDATION_FIXES.md).
 
 Recovery-email remediation: [RECOVERY_EMAIL_FIXES.md](RECOVERY_EMAIL_FIXES.md). Its new migration is prepared and rehearsed; deployment and browser acceptance remain pending.

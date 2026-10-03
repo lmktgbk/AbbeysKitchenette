@@ -131,9 +131,9 @@ export const authRepository = {
     });
   },
 
-  async updateImageUrl(userId, imageUrl) {
+  async updateImageUrl(userId, imageUrl, expectedImage) {
     return prisma.user.update({
-      where: { id: userId },
+      where: { id: userId, imageUrl: expectedImage },
       data: { imageUrl },
       select: {
         id: true, name: true, email: true, role: true, imageUrl: true,

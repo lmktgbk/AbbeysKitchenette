@@ -81,7 +81,7 @@ vulnerabilities. npm audit failures require fixes or a reviewed explicit excepti
 Migration status/validation/generation do not prove data integrity. No migration,
 reset or seed command is intentionally included in this verification block.
 
-Current reference, not a final PASS: the recovery-email batch has 491 automated tests
+Current reference, not a final PASS: the request/input/upload batches have 584 automated tests
 passing, including 23 recovery-email security/rollback cases. Six additional isolated PostgreSQL tests pass; they are opt-in and skipped in the ordinary suite. The frontend
 build passed with an existing large-bundle warning. Submission code and POS pages
 passed lint; the guest page retains its baseline four errors and one warning.
@@ -470,11 +470,11 @@ Confirm UUID product keys match catalog products in variant results and product 
 
 **Priority:** Medium
 
-**Implementation:** Open at checklist creation; final acceptance NOT RUN
+**Implementation:** Implemented: exact type/content validation, bounded decoding, combined product image saves, conditional replacements and reference-safe compensation. Crash-safe orphan reconciliation remains open; final acceptance NOT RUN
 
-**Steps:** Upload spoofed MIME, double-extension, corrupt and oversized images to an isolated storage account. Try excessive dimensions, abort mid-upload and inject a database failure after upload. Check storage for abandoned assets.
+**Steps:** Upload spoofed MIME, double-extension, corrupt and oversized images to an isolated storage account. Try excessive dimensions, abort mid-upload and inject a database failure after upload. Check storage for abandoned assets. Verify new product images use multipart POST/PATCH; the obsolete standalone upload returns 410. Confirm a failed replacement preserves the previous image, a stale replacement returns 409 and cancelling an unsaved modal starts no upload.
 
-**Acceptance criteria:** In an isolated storage account, test spoofed MIME, double extensions, corrupt images, huge dimensions, aborted uploads, oversize bodies and DB failure after upload. Verify rejection and cleanup.
+**Acceptance criteria:** In an isolated storage account, test spoofed MIME, double extensions, corrupt images, huge dimensions, aborted uploads, oversize bodies and DB failure after upload. Verify definitive rejection cleanup. For unknown commit/network failures, require retained assets and a recorded reconciliation follow-up; referenced assets must never be removed.
 
 **Result:** NOT RUN
 

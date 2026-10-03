@@ -41,3 +41,4 @@ Dependency updates and the residual Prisma CLI advisory are tracked in [DEPENDEN
 Recovery-email verification is tracked in [RECOVERY_EMAIL_FIXES.md](RECOVERY_EMAIL_FIXES.md). Its additive migration is prepared and rehearsed, pending deployment.
 
 Request parsing remediation: [REQUEST_VALIDATION_FIXES.md](REQUEST_VALIDATION_FIXES.md).
+Upload validation and persistence remediation: [UPLOAD_SECURITY_FIXES.md](UPLOAD_SECURITY_FIXES.md).

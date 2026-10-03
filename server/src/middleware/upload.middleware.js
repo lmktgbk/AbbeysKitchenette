@@ -1,50 +1,41 @@
 import multer from "multer";
 import { cloudinaryStorage } from "../services/cloudinaryStorage.js";
+import { IMAGE_POLICIES, checkImageType } from "../services/imageValidation.js";
+import { deleteImage } from "../utils/cloudinary.js";
+import { AppError } from "../middleware/errorHandler.middleware.js";
 
-/**
- * Upload Middleware
- *
- * Handles file uploads using multer + Cloudinary.
- * Images are uploaded to Cloudinary CDN — URLs work from any origin.
- */
+function imageUpload(kind) {
+  const { maxBytes, allowed } = IMAGE_POLICIES[kind];
+  const parse = multer({
+    storage: cloudinaryStorage({ folder: `abbseys-kitchenette/${kind}`, allowed_formats: allowed, resource_type: "image" }),
+    limits: { fileSize: maxBytes, files: 1, fields: kind === "products" ? 1 : 0, parts: kind === "products" ? 2 : 1, fieldSize: 100 * 1024, fieldNameSize: 100 },
+    fileFilter: (_req, file, done) => {
+      try { checkImageType(file, allowed); done(null, true); } catch (error) { done(error); }
+    },
+  }).single("image");
+  return (req, res, next) => parse(req, res, error => {
+    if (error) return next(error);
+    if (req.file) {
+      // Compensate definitive rejection; a server/connection failure can hide a late commit.
+      // Retain uncertain outcomes for reconciliation rather than deleting a possibly live asset.
+      res.once("finish", () => { if (res.statusCode >= 400 && res.statusCode < 500) void deleteImage(req.file.path); });
+    }
+    next();
+  });
+}
+export const uploadProductImage = imageUpload("products");
+export const uploadAvatar = imageUpload("avatars");
 
-// File filter: only allow image types
-const imageFilter = (req, file, cb) => {
-  const allowed = /jpeg|jpg|png|gif|webp/;
-  const extOk = allowed.test(file.originalname.split(".").pop().toLowerCase());
-  const mimeOk = allowed.test(file.mimetype);
-
-  if (extOk && mimeOk) {
-    cb(null, true);
-  } else {
-    cb(new Error("Only image files are allowed (jpeg, jpg, png, gif, webp)"));
+/** Multipart metadata and its image travel with the save, eliminating the standalone staging step. */
+export function productUploadBody(req, _res, next) {
+  if (!req.is("multipart/form-data")) return next();
+  try {
+    if (typeof req.body?.data !== "string") throw new Error("Missing metadata");
+    const data = JSON.parse(req.body.data);
+    if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("Invalid metadata");
+    req.body = { ...data, ...(req.file ? { image_url: req.file.path } : {}) };
+    next();
+  } catch {
+    next(new AppError(400, "Invalid product metadata", "VALIDATION_ERROR"));
   }
-};
-
-// Cloudinary storage for product images
-const productStorage = cloudinaryStorage({
-  folder: "abbseys-kitchenette/products",
-  allowed_formats: ["jpg", "jpeg", "png", "gif", "webp"],
-  resource_type: "image",
-});
-
-// Multer instance for product images
-export const uploadProductImage = multer({
-  storage: productStorage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
-  fileFilter: imageFilter,
-}).single("image");
-
-// Cloudinary storage for user avatars
-const avatarStorage = cloudinaryStorage({
-  folder: "abbseys-kitchenette/avatars",
-  allowed_formats: ["jpg", "jpeg", "png", "webp"],
-  resource_type: "image",
-});
-
-// Multer instance for user avatars
-export const uploadAvatar = multer({
-  storage: avatarStorage,
-  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB max
-  fileFilter: imageFilter,
-}).single("image");
+}

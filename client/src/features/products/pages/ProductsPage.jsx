@@ -280,7 +280,6 @@ export default function ProductsPage() {
         ingredientsLoading={ingredientOptions.isPending}
         ingredientsError={ingredientOptions.isError}
         onRetryIngredients={() => ingredientOptions.refetch()}
-        onUploadImage={mutations.uploadImage.mutateAsync}
       />
 
       {/* Price Optimization Modal */}

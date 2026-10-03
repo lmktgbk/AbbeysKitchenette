@@ -60,10 +60,10 @@ describe("controllerError envelope", () => {
     expect(mapPrismaError(null)).toBeNull();
   });
 
-  it("maps oversized uploads to 400 FILE_TOO_LARGE", () => {
+  it("maps oversized uploads to 413 FILE_TOO_LARGE", () => {
     const res = stubRes();
     controllerError(res, Object.assign(new Error("File too large"), { name: "MulterError", code: "LIMIT_FILE_SIZE" }), "UPLOAD_IMAGE_ERROR");
-    expect(res.statusCode).toBe(400);
+    expect(res.statusCode).toBe(413);
     expect(res.body.error).toBe("FILE_TOO_LARGE");
   });
 

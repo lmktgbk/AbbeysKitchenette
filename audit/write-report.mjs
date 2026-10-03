@@ -344,6 +344,11 @@ if (fs.existsSync(path.join(root, 'audit', 'DEPENDENCY_SECURITY_FIXES.md'))) {
 if (fs.existsSync(path.join(root, 'audit', 'RECOVERY_EMAIL_FIXES.md'))) {
   report = report.replace('**SYSTEM AUDIT STATUS**\n', '**SYSTEM AUDIT STATUS**\n\nRecovery-email remediation: ' + link('audit/RECOVERY_EMAIL_FIXES.md') + '.\n');
 }
+for (const remediation of ['REQUEST_VALIDATION_FIXES.md', 'UPLOAD_SECURITY_FIXES.md']) {
+  if (fs.existsSync(path.join(root, 'audit', remediation))) {
+    report = report.replace('**SYSTEM AUDIT STATUS**\n', '**SYSTEM AUDIT STATUS**\n\nAdditional remediation: ' + link('audit/' + remediation) + '.\n');
+  }
+}
 fs.writeFileSync(path.join(root, 'audit', 'REPORT.md'), report);
 fs.writeFileSync(path.join(root, 'audit', 'findings.json'), JSON.stringify(findings, null, 2));
 console.log(JSON.stringify({findings: findings.length, priorities: bySeverity, report: `${root}/audit/REPORT.md`, words: report.split(/\s+/).length}));

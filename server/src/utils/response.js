@@ -113,9 +113,12 @@ export const mapRequestError = (error) => {
  * Returns { statusCode, message, code } or null when unrecognized.
  */
 export const mapUploadError = (error) => {
+  if (error?.name === 'MulterError' && error.code !== 'LIMIT_FILE_SIZE') {
+    return { statusCode: 400, message: 'Invalid multipart upload or too many fields/files', code: 'INVALID_MULTIPART' };
+  }
   if (error?.name === "MulterError" && error?.code === "LIMIT_FILE_SIZE") {
     return {
-      statusCode: 400,
+      statusCode: 413,
       message: "Image is too large — 5MB max for products, 2MB for avatars",
       code: "FILE_TOO_LARGE",
     };

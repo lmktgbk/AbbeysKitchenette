@@ -224,10 +224,10 @@ export const productRepository = {
    * @param {object} [tx] - optional Prisma transaction client
    * @returns {object} - updated product
    */
-  async update(id, data, tx) {
+  async update(id, data, tx, expectedImage) {
     const client = getClient(tx);
     return client.product.update({
-      where: { productId: id },
+      where: { productId: id, ...(expectedImage !== undefined ? { imageUrl: expectedImage } : {}) },
       data,
     });
   },

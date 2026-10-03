@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -36,7 +35,6 @@ import ImageUpload from "./ImageUpload";
  * - isLoading: boolean — true while create/update mutation is running
  * - categories: array of { category_id, category_name, subcategories: [{ subcategory_id, subcategory_name }] }
  * - ingredients: array of { ingredient_id, ingredient_name, unit }
- * - onUploadImage: (file) => Promise<{ data: { url: string } }>
  */
 export default function ProductFormModal({
   open,
@@ -51,12 +49,10 @@ export default function ProductFormModal({
   ingredientsLoading = false,
   ingredientsError = false,
   onRetryIngredients,
-  onUploadImage,
 }) {
   const isEdit = isEditMode;
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-  const [uploading, setUploading] = useState(false);
 
   const {
     register,
@@ -104,24 +100,12 @@ export default function ProductFormModal({
     if (ingredientsLoading || ingredientsError) return;
     let imageUrl = data.image_url || null;
 
-    // Upload image if a new file was selected
-    if (imageFile && onUploadImage) {
-      setUploading(true);
-      try {
-        const res = await onUploadImage(imageFile);
-        imageUrl = res.data.url;
-      } catch {
-        toast.warning("Image upload failed — product will be saved without image.");
-      }
-      setUploading(false);
-    }
-
     // If image was removed
     if (!imageFile && !imagePreview && data.image_url) {
       imageUrl = null;
     }
 
-    onSubmit({ ...data, image_url: imageUrl });
+    onSubmit({ ...data, image_url: imageUrl, image_file: imageFile });
   }
 
   return (
@@ -289,10 +273,8 @@ export default function ProductFormModal({
               <Button type="button" variant="outline" onClick={handleClose}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isLoading || uploading || ingredientsLoading || ingredientsError}>
-                {uploading
-                  ? "Uploading image..."
-                  : isLoading
+              <Button type="submit" disabled={isLoading || ingredientsLoading || ingredientsError}>
+                {isLoading
                     ? isEdit
                       ? "Saving..."
                       : "Creating..."

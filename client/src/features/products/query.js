@@ -78,7 +78,7 @@ export function useCategoryList() {
  * Each mutation's onSuccess invalidates all product queries.
  * Components pass their own onSuccess/onError via .mutate().
  *
- * @returns {object} - { create, update, updateVariants, deactivate, activate, remove, uploadImage }
+ * @returns {object} - { create, update, updateVariants, deactivate, activate, remove }
  */
 export function useProductMutations() {
   const queryClient = useQueryClient();
@@ -145,10 +145,6 @@ export function useProductMutations() {
       onSuccess: () => invalidateAll(),
     }),
 
-    /** Upload product image — no invalidation needed (returns URL) */
-    uploadImage: useMutation({
-      mutationFn: api.uploadImageRequest,
-    }),
   };
 }
 

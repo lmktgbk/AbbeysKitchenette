@@ -70,7 +70,7 @@ export const productController = {
    */
   async createProduct(req, res) {
     try {
-      const product = await productService.create(req.body, req.user.id);
+      const product = await productService.create(req.body, req.user.id, Boolean(req.file));
       return successResponse(res, "Product created", { product }, 201);
     } catch (error) {
       return handleError(res, error, "CREATE_PRODUCT_ERROR");
@@ -83,7 +83,7 @@ export const productController = {
    */
   async updateProduct(req, res) {
     try {
-      const product = await productService.update(req.params.id, req.body, req.user.id);
+      const product = await productService.update(req.params.id, req.body, req.user.id, Boolean(req.file));
       return successResponse(res, "Product updated", { product });
     } catch (error) {
       return handleError(res, error, "UPDATE_PRODUCT_ERROR");
