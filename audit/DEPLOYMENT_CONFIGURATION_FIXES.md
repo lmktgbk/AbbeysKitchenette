@@ -34,7 +34,7 @@ Use a maintained Node 22 release at least 22.18, or a compatible newer LTS. The 
 
 Railway pre-deploy commands run in a separate container; generation belongs in the build stage so its files exist in the runtime image. On Render, verify the chosen plan supports pre-deploy commands. If it does not, apply reviewed migrations through one controlled release job before starting the new version. Never run `migrate dev`, `migrate reset`, `db push`, seed or cleanup commands against production.
 
-The latest migration is `20261003080000_shared_rate_limits`. Earlier pending migrations, including `20261003070000_automation_runs`, must also be applied by `migrate deploy`. Confirm status afterwards. This batch replayed all ten migrations in an isolated schema, which does not verify the current production migration history.
+The latest migration is now `20261003090000_storage_assets`. Earlier pending migrations, including `20261003070000_automation_runs` and `20261003080000_shared_rate_limits`, must also be applied by `migrate deploy`. Confirm status afterwards. The subsequent storage batch replayed all eleven migrations in an isolated schema, which does not verify the current production migration history. Follow [STORAGE_RECOVERY_FIXES.md](STORAGE_RECOVERY_FIXES.md) for coordinated worker rollout and cleanup recovery limits.
 
 Production example values, to set in the provider secret/environment settings:
 

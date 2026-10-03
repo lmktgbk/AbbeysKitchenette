@@ -6,6 +6,10 @@ const h = vi.hoisted(() => ({ references: 0, fail: false, ambiguous: false, url:
 vi.mock("../src/config/env.js", () => ({ env: { CLOUDINARY_CLOUD_NAME: "fixture" } }));
 vi.mock("../src/config/prisma.js", () => ({ default: { product: { count: async () => h.references }, user: { count: async () => 0 } } }));
 vi.mock("../src/config/cloudinary.js", () => ({ default: { uploader: { upload_stream: h.upload, destroy: h.destroy } } }));
+vi.mock("../src/services/storageAssets.repository.js", () => ({ storageRepository: {
+  reserve: vi.fn(async () => "fixture"), ready: vi.fn(async () => {}), schedule: vi.fn(async () => {}),
+} }));
+import { storageRepository } from "../src/services/storageAssets.repository.js";
 vi.mock("../src/middleware/authenticate.middleware.js", () => ({ default: (req, res, next) => {
   if (req.headers.authorization !== "fixture") return res.sendStatus(401);
   req.user = { id: "fixture-admin", role: "admin" }; next();
@@ -29,6 +33,7 @@ beforeAll(async () => {
 afterAll(async () => { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); });
 beforeEach(() => {
   h.references = 0; h.fail = false; h.ambiguous = false; h.calls = []; h.destroy.mockReset().mockImplementation((_id, _options, done) => { done?.(null, { result: "ok" }); return Promise.resolve({ result: "ok" }); });
+  vi.mocked(storageRepository.schedule).mockClear();
   h.upload.mockReset().mockImplementation((options, done) => new Writable({ write(_chunk, _encoding, callback) { callback(); }, final(callback) {
     h.url = `https://res.cloudinary.com/fixture/image/upload/${options.folder}/${options.public_id}.png`;
     callback(); queueMicrotask(() => done(null, { secure_url: h.url, public_id: `${options.folder}/${options.public_id}`, bytes: 100 }));
@@ -52,7 +57,8 @@ describe("image and product save HTTP flow", () => {
   });
   it("cleans up a new asset when metadata validation rejects the save", async () => {
     expect((await save({ ...product, product_name: "" })).status).toBe(400);
-    expect(h.calls).toHaveLength(0); await vi.waitFor(() => expect(h.destroy).toHaveBeenCalledTimes(1));
+    expect(h.calls).toHaveLength(0); await vi.waitFor(() => expect(storageRepository.schedule).toHaveBeenCalledTimes(1));
+    expect(h.destroy).not.toHaveBeenCalled();
   });
   it("retains an asset after an uncertain database failure", async () => {
     h.fail = true; const log = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -61,7 +67,8 @@ describe("image and product save HTTP flow", () => {
   it("cleans up after a definitive database constraint rejection", async () => {
     h.fail = "constraint";
     expect((await save()).status).toBe(409);
-    await vi.waitFor(() => expect(h.destroy).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(storageRepository.schedule).toHaveBeenCalledTimes(1));
+    expect(h.destroy).not.toHaveBeenCalled();
   });
   it("retains a committed asset when the final response read fails", async () => {
     h.ambiguous = true; const log = vi.spyOn(console, "error").mockImplementation(() => {});

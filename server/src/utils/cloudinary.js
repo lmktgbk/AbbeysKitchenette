@@ -1,6 +1,6 @@
-import cloudinary from "../config/cloudinary.js";
-import prisma from "../config/prisma.js";
 import { env } from "../config/env.js";
+import { storageRepository } from "../services/storageAssets.repository.js";
+import { storageWorker } from "../services/storageAssets.worker.js";
 
 /** Only storage URLs belonging to this application's account and folders are deletable. */
 export function extractPublicId(imageUrl) {
@@ -15,18 +15,15 @@ export function extractPublicId(imageUrl) {
   } catch { return null; }
 }
 
-/** Fail closed when reference checks are unavailable; never remove a possibly committed image. */
+/** Schedule reconciliation; the worker locks the ledger and verifies references before deletion. */
 export async function deleteImage(imageUrl) {
   const publicId = extractPublicId(imageUrl);
   if (!publicId) return;
   try {
-    const [products, users] = await Promise.all([
-      prisma.product.count({ where: { imageUrl } }), prisma.user.count({ where: { imageUrl } }),
-    ]);
-    if (products || users) return;
-    await cloudinary.uploader.destroy(publicId, { resource_type: "image", timeout: 30000 });
+    await storageRepository.schedule(publicId);
+    storageWorker.wake();
   } catch {
     // A retained orphan is recoverable; deleting a referenced asset is not. Retry through reconciliation.
-    console.warn("[storage] Image cleanup deferred; reference check or deletion failed");
+    console.warn("[storage] Image cleanup scheduling deferred");
   }
 }

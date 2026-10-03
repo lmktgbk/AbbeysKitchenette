@@ -9,12 +9,20 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { cloudinaryStorage } from "../src/services/cloudinaryStorage.js";
 import { uploadAvatar, uploadProductImage } from "../src/middleware/upload.middleware.js";
 import { mapUploadError } from "../src/utils/response.js";
+import { storageRepository } from "../src/services/storageAssets.repository.js";
 
 const sdk = vi.hoisted(() => ({ uploader: { upload_stream: vi.fn(), destroy: vi.fn() } }));
 vi.mock("../src/config/cloudinary.js", () => ({ default: sdk }));
+vi.mock("../src/config/env.js", () => ({ env: { CLOUDINARY_CLOUD_NAME: "fixture" } }));
+vi.mock("../src/services/storageAssets.repository.js", () => ({ storageRepository: {
+  reserve: vi.fn(async () => "fixture"), ready: vi.fn(async () => {}), schedule: vi.fn(async () => {}),
+} }));
 let server, base, mode;
 beforeEach(() => {
   mode = "success";
+  vi.mocked(storageRepository.reserve).mockReset().mockResolvedValue("fixture");
+  vi.mocked(storageRepository.ready).mockReset().mockResolvedValue(undefined);
+  vi.mocked(storageRepository.schedule).mockReset().mockResolvedValue(undefined);
   sdk.uploader.upload_stream.mockReset().mockImplementation((options, callback) => {
     let bytes = 0;
     return new Writable({
@@ -22,7 +30,7 @@ beforeEach(() => {
       final(done) {
         done();
         queueMicrotask(() => callback(mode === "provider-error" ? new Error("Fixture provider error") : null,
-          mode === "invalid-response" ? {} : { secure_url: "https://res.cloudinary.com/fixture/image/upload/test.png", public_id: "fixture/test", bytes }));
+          mode === "invalid-response" ? {} : { secure_url: `https://res.cloudinary.com/fixture/image/upload/${options.folder}/${options.public_id}.png`, public_id: `${options.folder}/${options.public_id}`, bytes }));
       },
     });
   });
@@ -49,10 +57,44 @@ async function send(path, { size, name = "image.png", type = "image/png" } = {})
 }
 
 describe("patched image upload integration", () => {
+  it("records ownership before upload and known success before returning the file", async () => {
+    const response = await send("/product"); expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(storageRepository.reserve).toHaveBeenCalledWith(body.filename, undefined);
+    expect(storageRepository.ready).toHaveBeenCalledWith(body.filename, body.path);
+    expect(storageRepository.reserve.mock.invocationCallOrder[0]).toBeLessThan(sdk.uploader.upload_stream.mock.invocationCallOrder[0]);
+    expect(sdk.uploader.upload_stream.mock.calls[0][0].overwrite).toBe(false);
+  });
+  it("fails closed before provider work when durable tracking is unavailable", async () => {
+    vi.mocked(storageRepository.reserve).mockRejectedValue(Error("Private database failure"));
+    const response = await send("/product"); expect(response.status).toBe(503);
+    expect(sdk.uploader.upload_stream).not.toHaveBeenCalled();
+    expect(await response.json()).toEqual({ error: "STORAGE_UNAVAILABLE" });
+  });
+  it("retains a known provider asset if its success cannot be recorded", async () => {
+    vi.mocked(storageRepository.ready).mockRejectedValue(Error("Private database failure"));
+    const response = await send("/product"); expect(response.status).toBe(503);
+    expect(sdk.uploader.destroy).not.toHaveBeenCalled();
+  });
+  it("tracks late provider success after client cancellation without completing the request twice", async () => {
+    let providerCallback, options;
+    sdk.uploader.upload_stream.mockImplementation((config, callback) => {
+      options = config; providerCallback = callback;
+      return new Writable({ write(_chunk, _encoding, done) { done(); } });
+    });
+    const callback = vi.fn(), req = new EventEmitter();
+    const png = await sharp({ create: { width: 2, height: 2, channels: 3, background: "red" } }).png().toBuffer();
+    await cloudinaryStorage({})._handleFile(req, { originalname: "image.png", mimetype: "image/png", stream: Readable.from([png]) }, callback);
+    req.emit("aborted"); const id = `${options.folder}/${options.public_id}`;
+    providerCallback(null, { secure_url: `https://res.cloudinary.com/fixture/image/upload/${id}.png`, public_id: id, bytes: png.length });
+    await vi.waitFor(() => expect(storageRepository.ready).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(storageRepository.schedule).toHaveBeenCalledWith(id));
+    expect(callback).toHaveBeenCalledTimes(1); expect(callback.mock.calls[0][0].code).toBe("UPLOAD_ABORTED");
+  });
   it.each(["product", "avatar"])("preserves the %s upload contract", async (kind) => {
     const response = await send(`/${kind}`);
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ filename: "fixture/test", path: expect.stringContaining("https://"), size: expect.any(Number) });
+    expect(await response.json()).toMatchObject({ filename: expect.stringContaining("abbseys-kitchenette/"), path: expect.stringContaining("https://"), size: expect.any(Number) });
     expect(sdk.uploader.upload_stream.mock.calls[0][0]).toMatchObject({ folder: `abbseys-kitchenette/${kind === "product" ? "products" : "avatars"}`, resource_type: "image", timeout: 30000 });
   });
   it("rejects disallowed types before sending bytes to the provider", async () => {
@@ -86,16 +128,19 @@ describe("patched image upload integration", () => {
     expect(callback).toHaveBeenCalledTimes(1);
   });
   it("a duplicate successful callback never removes a completed upload", async () => {
-    let providerCallback;
-    sdk.uploader.upload_stream.mockImplementation((_options, callback) => {
+    let providerCallback, providerOptions;
+    sdk.uploader.upload_stream.mockImplementation((options, callback) => {
+      providerOptions = options;
       providerCallback = callback;
       return new Writable({ write(_chunk, _encoding, done) { done(); } });
     });
     const callback = vi.fn();
     const png = await sharp({ create: { width: 2, height: 2, channels: 3, background: "red" } }).png().toBuffer();
     await cloudinaryStorage({ resource_type: "image" })._handleFile({}, { originalname: "image.png", mimetype: "image/png", stream: Readable.from([png]) }, callback);
-    const result = { secure_url: "https://fixture.invalid/image.png", public_id: "fixture/test", bytes: png.length };
+    const id = `${providerOptions.folder}/${providerOptions.public_id}`;
+    const result = { secure_url: `https://res.cloudinary.com/fixture/image/upload/${id}.png`, public_id: id, bytes: png.length };
     providerCallback(null, result); providerCallback(null, result);
+    await vi.waitFor(() => expect(callback).toHaveBeenCalledTimes(1));
     expect(callback).toHaveBeenCalledTimes(1); expect(sdk.uploader.destroy).not.toHaveBeenCalled();
   });
   it("aborted input releases upload capacity and never starts provider work", async () => {

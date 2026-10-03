@@ -62,6 +62,10 @@ export const errorResponse = (
  * serialize identically.
  */
 export const mapPrismaError = (error) => {
+  if ((["P2004", "P2010", "P2039"].includes(error?.code) || error?.name === "PrismaClientUnknownRequestError") &&
+      `${error.message ?? ""} ${error.meta?.message ?? ""}`.includes("IMAGE_NOT_AVAILABLE")) {
+    return { statusCode: 409, message: "Image is no longer available. Upload it again.", code: "IMAGE_NOT_AVAILABLE" };
+  }
   if (error?.code === "P2020") return { statusCode: 400, message: "Calculated value exceeds the supported storage range", code: "VALUE_OUT_OF_RANGE" };
   // Unique-constraint race (e.g. concurrent creates with the same name).
   if (error?.code === "P2002") {

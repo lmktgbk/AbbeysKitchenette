@@ -856,3 +856,18 @@ Implementation: [WEBSOCKET_RELIABILITY_FIXES.md](./WEBSOCKET_RELIABILITY_FIXES.m
 - [ ] Simulate a slow consumer and missing heartbeat; verify bounded buffers, termination and reclaimed slots. Record memory, CPU, query concurrency and revalidation time at the intended traffic level.
 - [ ] Restart/SIGTERM with active sockets and pending auth; no new upgrades are accepted during drain. Reconnect completes on the new server and refreshes missed data.
 - [ ] Verify one backend replica is configured. Shared event fanout must be implemented and tested before increasing replicas.
+
+## Durable image cleanup acceptance — NOT RUN
+
+Implementation and rollout: [STORAGE_RECOVERY_FIXES.md](STORAGE_RECOVERY_FIXES.md). Use isolated/staging records and a test Cloudinary account for failure/crash cases. Eleven isolated PostgreSQL cases passed; live provider behavior remains Not verified.
+
+- [ ] Stop older backend/cleanup workers, apply reviewed migrations including `20261003090000_storage_assets`, generate the client and restart. Confirm migration status and worker credentials.
+- [ ] Replace a product image and avatar. After a successful save, the new image works and the previous unshared asset reaches deleted state in the ledger/provider console. Allow for CDN invalidation propagation when checking the old URL.
+- [ ] Reject invalid metadata or force a save failure: the previous image and database reference remain intact; a known unattached new image is cleaned after quarantine. Cancel an upload and verify late known success is tracked without a second response.
+- [ ] Share an old image across isolated product/profile references, including version-equivalent URLs. Replacing one reference retains it; removing the final reference queues deletion.
+- [ ] Race replacement/attachment against cleanup. A save that loses to the deletion claim receives 409; no saved record points to a deleted asset. Retry with a fresh upload.
+- [ ] Simulate provider timeout/outage: saves remain responsive, deletion is fenced and retried, and no credentials or provider payloads leak into errors/logs.
+- [ ] Terminate the test backend after claiming deletion and restart. Lease expiry recovers work, already-missing assets complete safely, and stale completions cannot overwrite a newer owner.
+- [ ] Terminate after provider upload but before recording success. Unknown outcome becomes blocked for review; confirm identity and references before controlled resolution. Verify an operational review/alert process exists.
+- [ ] External/transformed URLs and other-account assets are retained. Deleted identities cannot be reattached; no anonymous client can access the ledger.
+- [ ] Measure cleanup backlog and database latency under intended concurrent upload/save load. Verify independent Cloudinary backup/recovery, since a database restore does not restore deleted files.

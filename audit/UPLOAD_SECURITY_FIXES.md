@@ -10,7 +10,7 @@ The product editor sends its image and JSON metadata in one multipart POST/PATCH
 
 Avatar/product replacement saves the new URL before cleaning up the previous asset. Conditional database updates compare the prior image to reject concurrent stale replacements with 409. Hard deletion cleans the image returned by the actual delete, accounting for an intervening replacement. No storage/network work runs in a database transaction; old-image cleanup does not block the success response.
 
-Cleanup accepts only HTTPS Cloudinary URLs in this account's application folders and checks both product/user references. Definitive 4xx save/validation rejection schedules removal of an unreferenced new asset. Unexpected 5xx/connection failures are retained because a commit may still finish later. Database reference-check or provider-deletion failure logs a fixed warning and retains the asset. Failed provider uploads use server-generated public IDs for compensation, including late successful callbacks.
+Historical behavior before durable cleanup: cleanup accepts only HTTPS Cloudinary URLs in this account's application folders and checks both product/user references. Definitive 4xx save/validation rejection schedules removal of an unreferenced new asset. Unexpected 5xx/connection failures are retained because a commit may still finish later. Database reference-check or provider-deletion failure logs a fixed warning and retains the asset. Failed provider uploads use server-generated public IDs for compensation, including late successful callbacks.
 
 ## Verification and remaining limits
 
@@ -18,6 +18,6 @@ Automated tests cover real image bytes, exact type tricks, corrupt/disguised con
 
 Final backend result: 584 passing tests; six PostgreSQL recovery-email checks remain opt-in. Frontend build passes and changed-file lint has no errors, retaining the existing React Hook Form compiler warning. npm audit still reports three high entries corresponding to the previously documented single Prisma CLI/deepmerge-ts advisory; the image dependency adds no reported advisory.
 
-Real Cloudinary storage/deletion, PostgreSQL image contention, complete browser acceptance and load testing: **Not verified**. Public image URLs are intentionally public; do not store confidential images there. Crash-safe cleanup is **not implemented**: provider outage, process termination, client disconnect after upload and uncertain commits can leave retained orphan assets. A durable asset ledger/reconciliation worker is the remaining reliability improvement; do not delete these assets without checking their current database references. Older manually assigned/transformed URLs outside the strict deletion pattern are retained.
+Subsequent remediation: [STORAGE_RECOVERY_FIXES.md](STORAGE_RECOVERY_FIXES.md) implements durable upload tracking, transactional cleanup and deletion fencing; eleven isolated PostgreSQL checks passed. Live Cloudinary storage/deletion, complete browser acceptance and load testing remain **Not verified**. Unknown upload outcomes require operator review. Public images remain public; older manually assigned/transformed URLs outside the strict identity pattern are retained.
 
 Manual acceptance is consolidated in [FINAL_TESTING_CHECKLIST.md](FINAL_TESTING_CHECKLIST.md).

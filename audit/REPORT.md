@@ -6,7 +6,7 @@ Hosted configuration remediation: [DEPLOYMENT_CONFIGURATION_FIXES.md](DEPLOYMENT
 
 Sheets remediation: [SHEETS_SYNC_FIXES.md](SHEETS_SYNC_FIXES.md). Prepared migration pending deployment; live acceptance remains outstanding.
 
-Upload remediation: [UPLOAD_SECURITY_FIXES.md](UPLOAD_SECURITY_FIXES.md). Crash-safe orphan reconciliation remains outstanding.
+Upload remediation: [UPLOAD_SECURITY_FIXES.md](UPLOAD_SECURITY_FIXES.md). Durable ownership and cleanup are implemented in [STORAGE_RECOVERY_FIXES.md](STORAGE_RECOVERY_FIXES.md); isolated PostgreSQL checks passed. Migration deployment and live Cloudinary acceptance remain outstanding; unknown upload outcomes require review.
 
 Request parsing remediation: [REQUEST_VALIDATION_FIXES.md](REQUEST_VALIDATION_FIXES.md).
 

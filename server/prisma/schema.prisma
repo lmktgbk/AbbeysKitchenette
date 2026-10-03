@@ -866,6 +866,25 @@ model RateLimitBucket {
   @@map("rate_limit_buckets")
 }
 
+model StorageAsset {
+  assetId String @id @default(dbgenerated("gen_random_uuid()")) @map("asset_id") @db.Uuid
+  cloudName String @map("cloud_name") @db.VarChar(100)
+  publicId String @map("public_id") @db.VarChar(160)
+  imageUrl String? @map("image_url")
+  uploaderId String? @map("uploader_id") @db.Uuid
+  state String @default("uploading") @db.VarChar(20)
+  owner String? @db.Uuid
+  leaseExpiresAt DateTime? @map("lease_expires_at") @db.Timestamptz
+  attempts Int @default(0)
+  nextAttemptAt DateTime? @map("next_attempt_at") @db.Timestamptz
+  lastError String? @map("last_error") @db.VarChar(80)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz
+  @@unique([cloudName, publicId])
+  @@index([cloudName, state, nextAttemptAt], map: "storage_assets_due_idx")
+  @@map("storage_assets")
+}
+
 model AnomalyResult {
   id            String   @id @default(uuid()) @db.Uuid
   ruleId        String   @map("rule_id") @db.VarChar(50)

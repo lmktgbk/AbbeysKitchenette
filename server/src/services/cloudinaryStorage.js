@@ -2,32 +2,29 @@ import { randomUUID } from "node:crypto";
 import cloudinary from "../config/cloudinary.js";
 import { IMAGE_POLICIES, sanitizeImage } from "./imageValidation.js";
 import { AppError } from "../middleware/errorHandler.middleware.js";
+import { storageRepository } from "./storageAssets.repository.js";
+import { extractPublicId } from "../utils/cloudinary.js";
 
 let activeUploads = 0;
 
 /** Bounded buffering lets us reject corrupt or truncated images before provider work. */
 export function cloudinaryStorage(params) {
+  params = { ...params, folder: params.folder ?? "abbseys-kitchenette/products" };
   const { maxBytes, allowed } = IMAGE_POLICIES[params.folder?.endsWith("avatars") ? "avatars" : "products"];
   return {
     async _handleFile(req, file, callback) {
       if (activeUploads >= 4) return callback(new AppError(429, "Image uploads are busy. Retry shortly.", "UPLOAD_BUSY"));
       activeUploads++;
-      let upload, timer, finished = false, failed = false;
+      let upload, timer, finished = false, failed = false, persisting = false;
       const publicId = randomUUID();
-      const remoteId = params.folder ? `${params.folder}/${publicId}` : publicId;
+      const remoteId = `${params.folder}/${publicId}`;
+      const validResult = result => result?.secure_url && result.public_id === remoteId &&
+        extractPublicId(result.secure_url) === remoteId && Number.isFinite(result.bytes) && result.bytes > 0;
       const remove = () => {
-        try {
-          cloudinary.uploader.destroy(remoteId, { resource_type: "image", timeout: 30000 }, error => {
-            if (error) console.warn("[storage] Failed upload cleanup deferred");
-          });
-        } catch { console.warn("[storage] Failed upload cleanup deferred"); }
+        void storageRepository.schedule(remoteId).catch(() => console.warn("[storage] Failed upload cleanup deferred"));
       };
       const finish = (error, result) => {
-        if (finished) {
-          // An upload may complete remotely after the stream has failed locally.
-          if (failed && result?.public_id && !error) remove();
-          return;
-        }
+        if (finished) return;
         finished = true;
         clearTimeout(timer);
         req.off?.("aborted", onAbort);
@@ -38,7 +35,7 @@ export function cloudinaryStorage(params) {
           if (upload) remove();
           return callback(error);
         }
-        if (!result?.secure_url || !result?.public_id || !Number.isFinite(result.bytes)) {
+        if (!validResult(result)) {
           failed = true;
           upload?.destroy(); remove();
           return callback(new Error("Invalid image storage response"));
@@ -71,13 +68,31 @@ export function cloudinaryStorage(params) {
         const clean = await sanitizeImage(Buffer.concat(chunks), file, { allowed, maxBytes });
         if (finished) return;
         if (req.aborted) return finish(new AppError(400, "Upload interrupted", "UPLOAD_ABORTED"));
-        upload = cloudinary.uploader.upload_stream({ ...params, public_id: publicId, timeout: 30000 }, finish);
+        // Reserve ownership before any provider call. A crash can never create an untracked new ID.
+        try { await storageRepository.reserve(remoteId, req.user?.id); }
+        catch { throw new AppError(503, "Image tracking is unavailable. Please retry.", "STORAGE_UNAVAILABLE"); }
+        if (finished || req.aborted) return;
+        const providerFinished = async (error, result) => {
+          if (error || !validResult(result)) {
+            return finish(error ?? new Error("Invalid image storage response"));
+          }
+          if (persisting || (finished && !failed)) return;
+          persisting = true;
+          try {
+            await storageRepository.ready(remoteId, result.secure_url);
+            // A late provider success is recorded even when the request has already failed.
+            if (finished) return remove();
+            finish(null, result);
+          } catch { finish(new AppError(503, "Image tracking is unavailable. Please retry.", "STORAGE_UNAVAILABLE")); }
+        };
+        upload = cloudinary.uploader.upload_stream({ ...params, public_id: publicId, overwrite: false, timeout: 30000 },
+          (error, result) => { void providerFinished(error, result); });
         upload.on("error", error => finish(error));
         upload.end(clean);
       } catch (error) { finish(error); }
     },
     _removeFile(req, file, callback) {
-      cloudinary.uploader.destroy(file.filename, { resource_type: "image", timeout: 30000 }, callback);
+      storageRepository.schedule(file.filename).then(() => callback(null), callback);
     },
   };
 }
