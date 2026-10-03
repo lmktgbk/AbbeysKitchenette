@@ -8,6 +8,7 @@ import { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { shiftKeys } from "@/features/shifts/query";
 import * as api from "./api";
+import { guestKeys } from "./guestKeys";
 
 /* ── Key Factories (internal) ──────────────────── */
 
@@ -26,11 +27,6 @@ function refreshStaleOrder(queryClient, error) {
     queryClient.invalidateQueries({ queryKey: shiftKeys.all });
   }
 }
-
-const guestKeys = {
-  menu: (params) => ["guest", "menu", params],
-  order: (token) => ["guest", "order", token],
-};
 
 /* ── Query Hooks ───────────────────────────────── */
 
@@ -76,10 +72,13 @@ export function useOrderDetail(id, options = {}) {
  * useGuestMenu — available products for POS menu.
  * @param {object} [params] - { search, category }
  */
-export function useGuestMenu(params = {}) {
+export function useGuestMenu(params = {}, options = {}) {
   return useQuery({
     queryKey: guestKeys.menu(params),
     queryFn: () => api.getGuestMenuRequest(params),
+    staleTime: 30000,
+    refetchOnWindowFocus: true,
+    ...options,
   });
 }
 

@@ -1,0 +1,35 @@
+# Frontend loading and guest-order reliability
+
+## Changes
+
+All feature pages and the admin layout load on demand behind Suspense and a page error boundary. Protected routes retain their existing guards before rendering staff content. A failed chunk presents a reload/home action without showing internal errors. The boundary resets on route changes. React caches a rejected lazy import, so retry uses a fresh document; see [React lazy documentation](https://react.dev/reference/react/lazy).
+
+The production main JavaScript chunk is now **407.45 kB / 129.60 kB gzip**, compared with the audit baseline **1,636.52 kB / 445.00 kB gzip**. That is roughly 75% less main-chunk JavaScript, not a measured 75% latency improvement or reduction in every asset. Staff/chart chunks are separate. The large favicon, font assets and representative Web Vitals remain optimization/measurement work.
+
+Product realtime events now invalidate the actual guest-menu prefix, including all POS search/category caches. Menus use a 30-second stale window and focus refresh; public ordering additionally polls every 60 seconds while visible because there is no public product socket topic. Guest search filters the already-loaded catalog instead of making a request per keystroke. Menu requests have a ten-second deadline, and failed or malformed top-level responses show an error/retry rather than an empty menu. POS also distinguishes failure from an empty result.
+
+Cart recovery stores only bounded product/variant IDs and quantities in tab-local sessionStorage with a 24-hour draft expiry. Customer names, table selection, consent, tokens and trusted prices are not stored in this draft. Corrupt/oversized/expired/incompatible drafts are ignored; storage restrictions leave the cart editable in memory. The existing submission contract still requires accessible storage to persist its replay identity; if that fails, checkout refuses to send an untracked order. Other tabs do not share edits. Prices, names and availability are reconstructed from the current menu. Missing/unavailable items stay visible for explicit removal and prevent new checkout. Quantity/line caps match backend limits.
+
+Before a new submission, checkout refetches the menu and rejects unavailable items or changed prices for explicit review. This is a UX check; backend validation and pricing remain authoritative, including changes occurring after preflight. Concurrent confirmation clicks share one in-component admission guard. The replay key is retained until the response contains a usable order ID and tracking token; an HTTP success alone does not clear it.
+
+An uncertain submission keeps its original payload and displayed quote in memory for exact retry even if the menu subsequently changes. This uses the existing durable server idempotency contract. Inputs are locked until a definitive response resolves it. Closing or refreshing the checkout does not persist customer details or its original quote: the existing digest/key guard prevents a changed unresolved submission, and recovery may require re-entering the original details or verifying with staff. The code does not silently discard the replay key to permit another potentially duplicate order. Confirmed success clears the draft synchronously before the ordering screen unmounts.
+
+Guest product/cart/checkout and landing poster dialogs use a shared native modal, accessible name, inert background, explicit Tab containment, Escape, focus restoration and scroll lock. Close is disabled during menu preflight/submission. Product variants have keyboard-operable buttons; checkout uses labeled native fields/select and associated announced validation errors. Existing modal bodies remain scrollable with viewport bounds. Native modal background behavior is documented in [MDN showModal](https://developer.mozilla.org/en-US/docs/Web/API/HTMLDialogElement/showModal). Complete assistive-technology/contrast coverage remains **Not verified**.
+
+## Verification
+
+- Full suite: **746 passed, 43 optional PostgreSQL cases skipped**. No new database migration or public data writes.
+- 28 new client regressions cover recovery privacy/expiry/corrupt drafts/storage denial/bounds, server quote reconstruction, invalid/foreign/unavailable variants, quote changes, real QueryClient invalidation across filters, malformed menu envelopes and incomplete-confirmation replay keys. Existing seven submission tests also pass.
+- Changed frontend files pass lint without warnings. Full repository lint still has **35 errors and 12 warnings** outside this batch; L01 remains open.
+- Production and isolated-fixture builds pass. No large-chunk warning in the current production build.
+- Browser checks use audit/guest-preview.mjs, loopback-only synthetic data and no real backend/provider. Checked loading, menu error/retry, local search, draft refresh recovery, dialog focus entry/Tab boundary/Escape/return, labeled validation, price-change rejection before any POST, lost-confirmation replay, cart clearing, and 390 × 640 modal bounds/scrolling with no horizontal overflow. Two independent lost-confirmation cases produced four POST attempts, exactly two fixture creations and two replays. The final case retained its ₱100 displayed quote after visible polling changed the menu to unavailable/₱175, then recovered the original ₱100 confirmation. An intentionally blocked privacy-page chunk displayed the error boundary, and reload recovered after clearing the fixture failure. No staff/chart chunks were observed during those guest requests. Further fixture results are recorded in the combined checklist.
+
+Additional fixture checks passed for genuine empty menus, unauthenticated dashboard deep-link redirection and landing poster keyboard entry/Escape/focus return. Live staff/POS realtime, real checkout/price races, full browser/device matrix, screen readers, hosted chunk caching and representative performance: **Not verified**. Source fixes and fixture tests do not establish production readiness.
+
+## Reproduction and deployment
+
+From server: `npm.cmd test`. From client: `npm.cmd run build`; use changed-file lint until L01 is resolved, and retain full lint failures as an explicit release concern.
+
+For the isolated browser fixture, build from client with VITE_API_URL=/api and VITE_REALTIME=off, using `npm.cmd run build -- --outDir ../audit/ui-dist`. Then run `node audit/guest-preview.mjs` from the repository root and visit http://127.0.0.1:5188/order. The fixture never connects to the actual backend. Its loopback control endpoint switches synthetic empty/error/price/availability/uncertain-confirmation scenarios; its observation endpoint counts requests and fixture creations. Stop it after testing. Generated assets remain ignored.
+
+This batch requires rebuilding/deploying the frontend; it adds no server schema migration. Previously pending migrations remain governed by their own rollout notes. Follow [FINAL_TESTING_CHECKLIST.md](FINAL_TESTING_CHECKLIST.md) before release and [CURRENT_STATUS.md](CURRENT_STATUS.md) for the reconciled remaining count.

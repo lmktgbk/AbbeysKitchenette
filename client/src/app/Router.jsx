@@ -20,34 +20,36 @@
  *   /audit-logs      → Audit Logs (protected, admin layout)
  *   /settings        → Settings (protected, admin layout)
  */
+import { lazy } from "react";
+import RouteContent from "./RouteContent";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { PublicRoute } from "./PublicRoute";
 import AuthLayout from "@/layouts/AuthLayout";
-import AdminLayout from "@/layouts/AdminLayout";
+const AdminLayout = lazy(() => import("@/layouts/AdminLayout"));
 import BlankLayout from "@/layouts/BlankLayout";
-import LandingPage from "@/features/landing/pages/LandingPage";
-import OrderingPage from "@/features/landing/pages/OrderingPage";
-import TrackingPage from "@/features/landing/pages/TrackingPage";
-import PrivacyPolicy from "@/features/landing/pages/PrivacyPolicy";
-import TermsOfService from "@/features/landing/pages/TermsOfService";
-import LoginPage from "@/features/auth/pages/LoginPage";
-import AdminLoginPage from "@/features/auth/pages/AdminLoginPage";
-import ForgotPasswordPage from "@/features/auth/pages/ForgotPasswordPage";
-import ResetPasswordPage from "@/features/auth/pages/ResetPasswordPage";
-import IngredientsPage from "@/features/ingredients/pages/InventoryPage";
-import ProductsPage from "@/features/products/pages/ProductsPage";
-import OrdersPage from "@/features/orders/pages/OrdersPage";
-import PosTerminal from "@/features/orders/pages/PosTerminal";
-import PosInterface from "@/features/orders/pages/PosInterface";
-import StaffPage from "@/features/staff/pages/StaffPage";
-import ForecastingPage from "@/features/forecasting/pages/ForecastingPage";
-import MarketBasketPage from "@/features/marketBasket/pages/MarketBasketPage";
-import AnomalyPage from "@/features/anomalyDetection/pages/AnomalyPage";
-import SettingsPage from "@/features/settings/pages/SettingsPage";
-import AuditLogsPage from "@/features/auditLogs/pages/AuditLogsPage";
-import DashboardPage from "@/features/dashboard/pages/DashboardPage";
-import KitchenDisplay from "@/features/orders/pages/KitchenDisplay";
+const LandingPage = lazy(() => import("@/features/landing/pages/LandingPage"));
+const OrderingPage = lazy(() => import("@/features/landing/pages/OrderingPage"));
+const TrackingPage = lazy(() => import("@/features/landing/pages/TrackingPage"));
+const PrivacyPolicy = lazy(() => import("@/features/landing/pages/PrivacyPolicy"));
+const TermsOfService = lazy(() => import("@/features/landing/pages/TermsOfService"));
+const LoginPage = lazy(() => import("@/features/auth/pages/LoginPage"));
+const AdminLoginPage = lazy(() => import("@/features/auth/pages/AdminLoginPage"));
+const ForgotPasswordPage = lazy(() => import("@/features/auth/pages/ForgotPasswordPage"));
+const ResetPasswordPage = lazy(() => import("@/features/auth/pages/ResetPasswordPage"));
+const IngredientsPage = lazy(() => import("@/features/ingredients/pages/InventoryPage"));
+const ProductsPage = lazy(() => import("@/features/products/pages/ProductsPage"));
+const OrdersPage = lazy(() => import("@/features/orders/pages/OrdersPage"));
+const PosTerminal = lazy(() => import("@/features/orders/pages/PosTerminal"));
+const PosInterface = lazy(() => import("@/features/orders/pages/PosInterface"));
+const StaffPage = lazy(() => import("@/features/staff/pages/StaffPage"));
+const ForecastingPage = lazy(() => import("@/features/forecasting/pages/ForecastingPage"));
+const MarketBasketPage = lazy(() => import("@/features/marketBasket/pages/MarketBasketPage"));
+const AnomalyPage = lazy(() => import("@/features/anomalyDetection/pages/AnomalyPage"));
+const SettingsPage = lazy(() => import("@/features/settings/pages/SettingsPage"));
+const AuditLogsPage = lazy(() => import("@/features/auditLogs/pages/AuditLogsPage"));
+const DashboardPage = lazy(() => import("@/features/dashboard/pages/DashboardPage"));
+const KitchenDisplay = lazy(() => import("@/features/orders/pages/KitchenDisplay"));
 
 /* ── Router ──────────────────────────── */
 
@@ -55,29 +57,29 @@ const router = createBrowserRouter([
     // Landing Page (public, root route)
     {
         path: "/",
-        element: <LandingPage />,
+        element: <RouteContent><LandingPage /></RouteContent>,
     },
 
     // Online Ordering Page (public, no auth required)
     {
         path: "/order",
-        element: <OrderingPage />,
+        element: <RouteContent><OrderingPage /></RouteContent>,
     },
 
     // Guest order tracking (public, full token only)
     {
         path: "/track/:token",
-        element: <TrackingPage />,
+        element: <RouteContent><TrackingPage /></RouteContent>,
     },
 
     // Privacy Policy & Terms of Service (public)
     {
         path: "/privacy-policy",
-        element: <PrivacyPolicy />,
+        element: <RouteContent><PrivacyPolicy /></RouteContent>,
     },
     {
         path: "/terms-of-service",
-        element: <TermsOfService />,
+        element: <RouteContent><TermsOfService /></RouteContent>,
     },
 
     // Public — AuthLayout (centered card)
@@ -88,7 +90,7 @@ const router = createBrowserRouter([
                 path: "/login",
                 element: (
                     <PublicRoute>
-                        <LoginPage />
+                        <RouteContent><LoginPage /></RouteContent>
                     </PublicRoute>
                 ),
             },
@@ -97,12 +99,12 @@ const router = createBrowserRouter([
                 path: "/admin-login",
                 element: (
                     <PublicRoute>
-                        <AdminLoginPage />
+                        <RouteContent><AdminLoginPage /></RouteContent>
                     </PublicRoute>
                 ),
             },
-            { path: "/forgot-password", element: <ForgotPasswordPage /> },
-            { path: "/reset-password", element: <ResetPasswordPage /> },
+            { path: "/forgot-password", element: <RouteContent><ForgotPasswordPage /></RouteContent> },
+            { path: "/reset-password", element: <RouteContent><ResetPasswordPage /></RouteContent> },
         ],
     },
 
@@ -110,21 +112,21 @@ const router = createBrowserRouter([
     {
         element: (
             <ProtectedRoute>
-                <AdminLayout />
+                <RouteContent><AdminLayout /></RouteContent>
             </ProtectedRoute>
         ),
         children: [
-            { path: "/dashboard", element: <DashboardPage /> },
-            { path: "/products", element: <ProductsPage /> },
-            { path: "/inventory", element: <IngredientsPage /> },
-            { path: "/orders", element: <OrdersPage /> },
-            { path: "/staff", element: <StaffPage /> },
-            { path: "/forecasting", element: <ForecastingPage /> },
-            { path: "/promotions", element: <MarketBasketPage /> },
-            { path: "/market-basket", element: <MarketBasketPage /> },
-            { path: "/anomalies", element: <AnomalyPage /> },
-            { path: "/audit-logs", element: <AuditLogsPage /> },
-            { path: "/settings", element: <SettingsPage /> },
+            { path: "/dashboard", element: <RouteContent><DashboardPage /></RouteContent> },
+            { path: "/products", element: <RouteContent><ProductsPage /></RouteContent> },
+            { path: "/inventory", element: <RouteContent><IngredientsPage /></RouteContent> },
+            { path: "/orders", element: <RouteContent><OrdersPage /></RouteContent> },
+            { path: "/staff", element: <RouteContent><StaffPage /></RouteContent> },
+            { path: "/forecasting", element: <RouteContent><ForecastingPage /></RouteContent> },
+            { path: "/promotions", element: <RouteContent><MarketBasketPage /></RouteContent> },
+            { path: "/market-basket", element: <RouteContent><MarketBasketPage /></RouteContent> },
+            { path: "/anomalies", element: <RouteContent><AnomalyPage /></RouteContent> },
+            { path: "/audit-logs", element: <RouteContent><AuditLogsPage /></RouteContent> },
+            { path: "/settings", element: <RouteContent><SettingsPage /></RouteContent> },
         ],
     },
 
@@ -138,14 +140,14 @@ const router = createBrowserRouter([
         children: [
             {
                 path: "/pos",
-                element: <PosTerminal />,
+                element: <RouteContent><PosTerminal /></RouteContent>,
                 children: [
-                    { index: true, element: <PosInterface /> },
-                    { path: "orders", element: <OrdersPage embedded /> },
-                    { path: "kitchen", element: <KitchenDisplay embedded /> },
+                    { index: true, element: <RouteContent><PosInterface /></RouteContent> },
+                    { path: "orders", element: <RouteContent><OrdersPage embedded /></RouteContent> },
+                    { path: "kitchen", element: <RouteContent><KitchenDisplay embedded /></RouteContent> },
                 ],
             },
-            { path: "/kitchen", element: <KitchenDisplay /> },
+            { path: "/kitchen", element: <RouteContent><KitchenDisplay /></RouteContent> },
         ],
     },
 

@@ -1,0 +1,21 @@
+/* The full-screen native dialog preserves existing layouts while moving them into the modal top layer. */
+dialog.guest-dialog {
+  margin: 0;
+  border: 0;
+  width: 100%;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  color: inherit;
+}
+dialog.guest-dialog:not([open]) { display: none; }
+dialog.guest-dialog::backdrop { background: transparent; }
+dialog.guest-dialog > div { max-height: calc(100dvh - 2rem); }
+dialog.ord-cart-drawer-overlay > div { height: 100dvh; max-height: 100dvh; }
+.guest-dialog :focus-visible,
+.ord-product-card:focus-visible,
+.menu-card:focus-visible {
+  outline: 3px solid #b45309;
+  outline-offset: 3px;
+}
+.ord-detail-variant-row { width: 100%; text-align: left; }

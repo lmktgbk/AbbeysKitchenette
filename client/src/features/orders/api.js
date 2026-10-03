@@ -100,13 +100,23 @@ export async function removeOrderItemRequest(orderId, itemId, data = {}) {
 
 // GET /api/guest/menu — available products
 export async function getGuestMenuRequest(params = {}) {
-  const res = await api.get("/guest/menu", { params });
+  const res = await api.get("/guest/menu", { params, timeout: 10000 });
+  if (!res.data?.success || !Array.isArray(res.data?.data?.menu)) {
+    throw new Error("The menu could not be loaded. Please try again.");
+  }
   return res.data;
 }
 
 // POST /api/guest/orders — place online order
 export async function placeGuestOrderRequest(data) {
-  const res = await submitOrder("guest-order", data, key => api.post("/guest/orders", data, submissionOptions(key)));
+  const res = await submitOrder("guest-order", data, async key => {
+    const response = await api.post("/guest/orders", data, submissionOptions(key));
+    // Keep the replay key until a usable confirmation arrives; HTTP 200 alone is insufficient.
+    if (!response.data?.success || !response.data.data?.order?.order_id || !response.data.data.order.guest_token) {
+      throw new Error("Order confirmation was incomplete. Retry the same order to recover its confirmation.");
+    }
+    return response;
+  });
   return res.data;
 }
 

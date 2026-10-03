@@ -22,7 +22,7 @@ import {
 export default function PosMenuGrid({ onAddItem, sidebarOpen, onToggleSidebar }) {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
-  const { data: menuData, isPending, isFetching } = useGuestMenu({
+  const { data: menuData, isPending, isFetching, isError, refetch } = useGuestMenu({
     search: search || undefined,
     category: activeCategory === "all" ? undefined : activeCategory,
   });
@@ -103,7 +103,7 @@ export default function PosMenuGrid({ onAddItem, sidebarOpen, onToggleSidebar })
           ? Array.from({ length: 8 }).map((_, i) => (
               <Skeleton key={i} className="h-20 rounded-xl" />
             ))
-          : products.map((product) => (
+          : !isError && products.map((product) => (
               <ProductCard
                 key={product.product_id}
                 product={product}
@@ -112,7 +112,11 @@ export default function PosMenuGrid({ onAddItem, sidebarOpen, onToggleSidebar })
             ))}
       </div>
 
-      {!isPending && products.length === 0 && (
+      {isError && <div role="alert" className="flex flex-col items-center gap-3 py-8">
+        <p>The menu could not be refreshed. Retry before adding items.</p>
+        <button className="rounded-lg border px-4 py-2" disabled={isFetching} onClick={() => refetch()}>Retry menu</button>
+      </div>}
+      {!isPending && !isError && products.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16">
           <p className="text-sm text-muted-foreground">No products available</p>
         </div>

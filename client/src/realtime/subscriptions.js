@@ -33,13 +33,14 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { subscribeRealtime } from "./socket";
+import { invalidateTopicQueries, productRefreshKeys } from "./queryInvalidation";
 
 function useTopics(topics, keys) {
   const queryClient = useQueryClient();
   useEffect(() => {
     const unsubs = topics.map((topic) =>
       subscribeRealtime(topic, () => {
-        for (const key of keys) queryClient.invalidateQueries({ queryKey: key });
+        invalidateTopicQueries(queryClient, keys);
       }),
     );
     return () => unsubs.forEach((unsub) => unsub());
@@ -70,7 +71,7 @@ export function useInventoryRealtime() {
 
 /** POS/admin menus, product grid, categories. */
 export function useProductsRealtime() {
-  useTopics(["products"], [["products"], ["categories"]]);
+  useTopics(["products"], productRefreshKeys);
 }
 
 /** Drawer banners, summaries, history. */

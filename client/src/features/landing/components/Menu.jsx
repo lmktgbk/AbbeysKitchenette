@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import Icon from "@/components/ui/icon";
+import GuestDialog from "./GuestDialog";
 
 /**
  * Menu
@@ -120,7 +121,6 @@ const categories = [
 export default function Menu() {
     const [active, setActive] = useState("all");
     const [selectedItem, setSelectedItem] = useState(null);
-    const [showFullMenu, setShowFullMenu] = useState(false);
     // Epoch key — bump on filter change to re-mount cards and replay animations
     const [filterEpoch, setFilterEpoch] = useState(0);
     const prevActive = useRef(active);
@@ -170,6 +170,12 @@ export default function Menu() {
                         key={`${filterEpoch}-${item.name}`}
                         className={`menu-card lp-reveal lp-reveal-delay-${Math.min(i % 4 + 1, 4)} lp-visible`}
                         onClick={() => setSelectedItem(item)}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`View ${item.name}`}
+                        onKeyDown={event => {
+                            if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedItem(item); }
+                        }}
                         style={{ cursor: "pointer" }}
                     >
                         <div className="menu-card-img-wrap">
@@ -197,7 +203,7 @@ export default function Menu() {
 
             {/* Product Item Full Modal */}
             {selectedItem && (
-                <div className="menu-modal-overlay" onClick={() => setSelectedItem(null)}>
+                <GuestDialog className="menu-modal-overlay" label={selectedItem.name} onClose={() => setSelectedItem(null)}>
                     <div className="menu-modal-content" onClick={(e) => e.stopPropagation()}>
                         <button
                             className="menu-modal-close"
@@ -238,7 +244,7 @@ export default function Menu() {
                             </div>
                         </div>
                     </div>
-                </div>
+                </GuestDialog>
             )}
 
             {/* ── Overall Full Menu Display ── */}

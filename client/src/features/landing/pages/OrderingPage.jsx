@@ -1,21 +1,19 @@
 /**
- * OrderingPage — public online ordering (menu grid + cart + checkout + success/tracking).
- * WHY it exists: guest storefront checkout gated by client store-hours check.
- * Query keys consumed: ["guest","menu",params] via useGuestMenu, ["landing","storeSettings"]
- * via useStoreSettings (guest mutations via useGuestOrderMutations). Guards: public route;
- * store-hours gate (isStoreOpenClient); no BR-02 shift gate, no role guards.
- * State: Query [menuData, settingsData] | local [orderSuccess, search, activeCategory, cart, selectedProduct, showCartDrawer, showCheckout, selectedVariantId, quantity, customerName, tableNumber, privacyConsent, errors, linkCopied] | Zustand [].
+ * Guest ordering keeps recoverable cart intent separate from current menu quotes.
+ * Store hours and menu preflight guide the UI; the server authorizes and prices each submission.
  */
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import "../ordering.css";
 import { useGuestMenu, useGuestOrderMutations } from "@/features/orders/query";
 import OrderStatusStepper from "../components/OrderStatusStepper";
 import { orderNumberLabel } from "@/lib/orderNumber";
-import { useStoreSettings } from "@/features/landing/query";
+import { useStoreSettings, useDiningTableOptions } from "@/features/landing/query";
 import Icon from "@/components/ui/icon";
-import TableSelect from "@/components/filters/TableSelect";
+import GuestDialog from "../components/GuestDialog";
+import useGuestCart from "../useGuestCart";
+import { MAX_LINES, MAX_QUANTITY, reconcileCart, sameCartQuote, writeCart } from "../cart";
 import { manilaParts } from "@/lib/date";
 
 // Client mirror of server isStoreOpen — MUST follow the Manila business
@@ -75,10 +73,10 @@ function OrderingUI({ onOrderSuccess }) {
     const [search, setSearch] = useState("");
     const [activeCategory, setActiveCategory] = useState("all");
 
-    const { data: menuData, isPending } = useGuestMenu({
-        search: search || undefined,
-    });
-    const allProducts = menuData?.data?.menu ?? [];
+    // One complete catalog supports both local search and authoritative cart reconciliation.
+    const menuQuery = useGuestMenu({}, { refetchInterval: 60000 });
+    const { data: menuData, isPending, isError, isFetching, refetch } = menuQuery;
+    const allProducts = useMemo(() => menuData?.data?.menu ?? [], [menuData]);
 
     const categories = useMemo(() => {
         const seen = new Map();
@@ -91,43 +89,50 @@ function OrderingUI({ onOrderSuccess }) {
         ];
     }, [allProducts]);
 
-    const filtered =
-        activeCategory === "all"
-            ? allProducts
-            : allProducts.filter((p) => p.category_name === activeCategory);
+    const filtered = allProducts.filter(product =>
+        (activeCategory === "all" || product.category_name === activeCategory) &&
+        product.product_name.toLowerCase().includes(search.trim().toLowerCase()));
 
     // ── Cart state ───────────────────────────────
-    const [cart, setCart] = useState([]); // [{ product_id, variant_id, product_name, size_name, quantity, unit_price }]
+    const [intent, setIntent] = useGuestCart();
+    const cart = useMemo(() => reconcileCart(intent, allProducts), [intent, allProducts]);
+    const checkoutAvailable = !isPending && !isError && cart.length > 0 && cart.every(item => item.available);
 
     const addToCart = useCallback((item) => {
-        const qtyToAdd = item.quantity ?? 1;
-        setCart((prev) => {
+        if (isError) { toast.error("Retry the menu before adding items."); return; }
+        const existing = intent.find(line => line.variant_id === item.variant_id);
+        const qtyToAdd = Math.min(item.quantity ?? 1, MAX_QUANTITY - (existing?.quantity ?? 0));
+        if (qtyToAdd <= 0 || (!existing && intent.length >= MAX_LINES)) {
+            toast.error("This cart has reached the order limit."); return;
+        }
+        setIntent((prev) => {
             const idx = prev.findIndex((i) => i.variant_id === item.variant_id);
             if (idx >= 0) {
                 const updated = [...prev];
-                updated[idx] = { ...updated[idx], quantity: updated[idx].quantity + qtyToAdd };
+                updated[idx] = { ...updated[idx], quantity: Math.min(MAX_QUANTITY, updated[idx].quantity + qtyToAdd) };
                 return updated;
             }
-            return [...prev, { ...item, quantity: qtyToAdd }];
+            if (prev.length >= MAX_LINES) return prev;
+            return [...prev, { product_id: item.product_id, variant_id: item.variant_id, quantity: Math.min(MAX_QUANTITY, qtyToAdd) }];
         });
         toast.success(`${qtyToAdd > 1 ? `${qtyToAdd}x ` : ""}${item.product_name} added to cart`, { duration: 1800 });
-    }, []);
+    }, [intent, isError, setIntent]);
 
     const updateQty = useCallback((variantId, delta) => {
-        setCart((prev) => {
+        setIntent((prev) => {
             const idx = prev.findIndex((i) => i.variant_id === variantId);
             if (idx < 0) return prev;
             const newQty = prev[idx].quantity + delta;
             if (newQty <= 0) return prev.filter((_, i) => i !== idx);
             const updated = [...prev];
-            updated[idx] = { ...updated[idx], quantity: newQty };
+            updated[idx] = { ...updated[idx], quantity: Math.min(MAX_QUANTITY, newQty) };
             return updated;
         });
-    }, []);
+    }, [setIntent]);
 
     const removeItem = useCallback((variantId) => {
-        setCart((prev) => prev.filter((i) => i.variant_id !== variantId));
-    }, []);
+        setIntent((prev) => prev.filter((i) => i.variant_id !== variantId));
+    }, [setIntent]);
 
     const subtotal = cart.reduce((s, i) => s + i.unit_price * i.quantity, 0);
 
@@ -254,6 +259,13 @@ function OrderingUI({ onOrderSuccess }) {
                             <Icon name="loader" size={28} className="animate-spin" />
                             <span>Loading menu...</span>
                         </div>
+                    ) : isError ? (
+                        <div className="ord-empty" role="alert">
+                            <p>We couldn’t refresh the menu. Please try again before ordering.</p>
+                            <button className="ord-cancel-btn" disabled={isFetching} onClick={() => refetch()}>
+                                {isFetching ? "Retrying…" : "Retry menu"}
+                            </button>
+                        </div>
                     ) : filtered.length === 0 ? (
                         <div className="ord-empty">
                             <Icon name="search" size={32} style={{ opacity: 0.4 }} />
@@ -275,7 +287,7 @@ function OrderingUI({ onOrderSuccess }) {
 
             {/* Cart Drawer Modal */}
             {showCartDrawer && (
-                <div className="ord-cart-drawer-overlay" onClick={() => setShowCartDrawer(false)}>
+                <GuestDialog className="ord-cart-drawer-overlay" label="Your shopping cart" onClose={() => setShowCartDrawer(false)}>
                     <div className="ord-cart-drawer-box" onClick={(e) => e.stopPropagation()}>
                         <div className="ord-modal-header" style={{ padding: "1.25rem 1.5rem" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
@@ -301,16 +313,17 @@ function OrderingUI({ onOrderSuccess }) {
                                     setShowCheckout(true);
                                 }}
                                 storeIsOpen={storeIsOpen}
+                                checkoutAvailable={checkoutAvailable}
                             />
                         </div>
                     </div>
-                </div>
+                </GuestDialog>
             )}
 
             {/* Product Detail Modal */}
             {selectedProduct && (
                 <CustomerProductDetailModal
-                    product={selectedProduct}
+                    product={allProducts.find(product => product.product_id === selectedProduct.product_id) ?? { ...selectedProduct, is_available: false }}
                     onAddToCart={addToCart}
                     onClose={() => setSelectedProduct(null)}
                 />
@@ -321,7 +334,13 @@ function OrderingUI({ onOrderSuccess }) {
                 <CheckoutModal
                     cart={cart}
                     subtotal={subtotal}
-                    onSuccess={onOrderSuccess}
+                    menuQuery={menuQuery}
+                    onSuccess={result => {
+                        // Clear synchronously before unmounting; an effect cannot run on the removed ordering screen.
+                        try { writeCart(window.sessionStorage, []); } catch { /* Storage may be disabled. */ }
+                        setIntent([]);
+                        onOrderSuccess(result);
+                    }}
                     onClose={() => setShowCheckout(false)}
                 />
             )}
@@ -336,12 +355,20 @@ function ProductCard({ product, onOpenProductModal }) {
     const variants = product.variants ?? [];
     const availableVariants = variants.filter((v) => v.is_available !== false);
     const singleVariant = variants.length === 1 ? variants[0] : null;
-    const isFullyUnavailable = variants.length > 0 && availableVariants.length === 0;
+    const isFullyUnavailable = product.is_available === false || variants.length === 0 || availableVariants.length === 0;
 
     return (
         <div
             className={`ord-product-card${isFullyUnavailable ? " unavailable" : ""}`}
             onClick={() => onOpenProductModal(product)}
+            role="button"
+            tabIndex={0}
+            aria-label={`View ${product.product_name}`}
+            onKeyDown={event => {
+                if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
+                    event.preventDefault(); onOpenProductModal(product);
+                }
+            }}
             style={{ cursor: "pointer" }}
         >
             {/* Category badge */}
@@ -407,7 +434,7 @@ function ProductCard({ product, onOpenProductModal }) {
 /* ─────────────────────────────────────────────────────────────
    CART PANEL (shared by sidebar + drawer)
 ───────────────────────────────────────────────────────────── */
-function CartPanel({ cart, subtotal, onUpdateQty, onRemove, onCheckout, storeIsOpen = true }) {
+function CartPanel({ cart, subtotal, onUpdateQty, onRemove, onCheckout, storeIsOpen = true, checkoutAvailable }) {
     return (
         <>
             <div className="ord-sidebar-body">
@@ -453,12 +480,13 @@ function CartPanel({ cart, subtotal, onUpdateQty, onRemove, onCheckout, storeIsO
                 <button
                     className="ord-checkout-btn"
                     onClick={onCheckout}
-                    disabled={cart.length === 0 || !storeIsOpen}
+                    disabled={!checkoutAvailable || !storeIsOpen}
                     title={!storeIsOpen ? "Store is currently closed" : ""}
                 >
                     <Icon name="receipt" size={18} />
                     {!storeIsOpen ? "Store Closed" : "Place Order"}
                 </button>
+                {cart.length > 0 && !checkoutAvailable && <p role="status">Review unavailable items or retry the menu before checkout.</p>}
             </div>
         </>
     );
@@ -478,6 +506,7 @@ function CartItemRow({ item, onUpdateQty, onRemove }) {
                 <div className="ord-cart-item-price">
                     ₱{(item.unit_price * item.quantity).toLocaleString()}
                 </div>
+                {!item.available && <p role="status">Unavailable — remove this item to continue.</p>}
             </div>
             <div className="ord-qty-ctrl">
                 <button
@@ -494,8 +523,12 @@ function CartItemRow({ item, onUpdateQty, onRemove }) {
                     className="ord-qty-btn"
                     onClick={() => onUpdateQty(item.variant_id, 1)}
                     aria-label="Increase quantity"
+                    disabled={!item.available || item.quantity >= MAX_QUANTITY}
                 >
                     +
+                </button>
+                <button className="ord-qty-btn remove" onClick={() => onRemove(item.variant_id)} aria-label={`Remove ${item.product_name}`}>
+                    <Icon name="trash2" size={13} />
                 </button>
             </div>
         </div>
@@ -518,8 +551,8 @@ function CustomerProductDetailModal({ product, onAddToCart, onClose }) {
     const [quantity, setQuantity] = useState(1);
 
     const selectedVariant = variants.find((v) => v.variant_id === selectedVariantId) || variants[0];
-    const isAvailable = selectedVariant?.is_available !== false;
-    const isFullyUnavailable = variants.length > 0 && availableVariants.length === 0;
+    const isAvailable = product.is_available !== false && selectedVariant && selectedVariant.is_available !== false && !selectedVariant.is_manually_deactivated;
+    const isFullyUnavailable = variants.length === 0 || availableVariants.length === 0;
 
     const prices = variants.map((v) => Number(v.price)).filter((p) => !isNaN(p));
     const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
@@ -546,7 +579,7 @@ function CustomerProductDetailModal({ product, onAddToCart, onClose }) {
     };
 
     return (
-        <div className="ord-detail-modal-overlay" onClick={onClose}>
+        <GuestDialog className="ord-detail-modal-overlay" label={product.product_name} onClose={onClose}>
             <div className="ord-detail-modal" onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
                 <div className="ord-detail-header">
@@ -616,13 +649,16 @@ function CustomerProductDetailModal({ product, onAddToCart, onClose }) {
 
                             <div className="ord-detail-variant-list">
                                 {variants.map((v) => {
-                                    const vAvailable = v.is_available !== false;
+                                    const vAvailable = v.is_available !== false && !v.is_manually_deactivated;
                                     const isSelected = v.variant_id === selectedVariantId;
                                     return (
-                                        <div
+                                        <button
+                                            type="button"
                                             key={v.variant_id}
                                             className={`ord-detail-variant-row ${isSelected ? "selected" : ""} ${!vAvailable ? "disabled" : ""}`}
                                             onClick={() => vAvailable && setSelectedVariantId(v.variant_id)}
+                                            aria-pressed={isSelected}
+                                            disabled={!vAvailable}
                                         >
                                             <div className="ord-detail-v-left">
                                                 <div className="ord-detail-v-radio">
@@ -643,7 +679,7 @@ function CustomerProductDetailModal({ product, onAddToCart, onClose }) {
                                             <div className="ord-detail-v-price">
                                                 ₱{Number(v.price).toLocaleString()}
                                             </div>
-                                        </div>
+                                        </button>
                                     );
                                 })}
                             </div>
@@ -664,8 +700,8 @@ function CustomerProductDetailModal({ product, onAddToCart, onClose }) {
                         <span className="ord-detail-qty-val">{quantity}</span>
                         <button
                             className="ord-detail-qty-btn"
-                            onClick={() => setQuantity((q) => q + 1)}
-                            disabled={isFullyUnavailable || !isAvailable}
+                            onClick={() => setQuantity((q) => Math.min(MAX_QUANTITY, q + 1))}
+                            disabled={quantity >= MAX_QUANTITY || isFullyUnavailable || !isAvailable}
                         >
                             +
                         </button>
@@ -683,19 +719,28 @@ function CustomerProductDetailModal({ product, onAddToCart, onClose }) {
                     </button>
                 </div>
             </div>
-        </div>
+        </GuestDialog>
     );
 }
 
 /* ─────────────────────────────────────────────────────────────
    CHECKOUT MODAL
 ───────────────────────────────────────────────────────────── */
-function CheckoutModal({ cart, subtotal, onClose, onSuccess }) {
+function CheckoutModal({ cart, subtotal, onClose, onSuccess, menuQuery }) {
     const [customerName, setCustomerName] = useState("");
     const [tableNumber, setTableNumber] = useState("");
     const [privacyConsent, setPrivacyConsent] = useState(false);
     const [errors, setErrors] = useState({});
     const { placeOrder } = useGuestOrderMutations();
+    const tableOptions = useDiningTableOptions();
+    const [checking, setChecking] = useState(false);
+    const [submissionError, setSubmissionError] = useState("");
+    const [uncertain, setUncertain] = useState(false);
+    const admission = useRef(false);
+    const [retrySnapshot, setRetrySnapshot] = useState(null);
+    const displayedCart = retrySnapshot?.items ?? cart;
+    const displayedTotal = retrySnapshot ? displayedCart.reduce((sum, item) => sum + item.unit_price * item.quantity, 0) : subtotal;
+    const busy = checking || placeOrder.isPending;
 
     const validate = () => {
         const errs = {};
@@ -708,27 +753,50 @@ function CheckoutModal({ cart, subtotal, onClose, onSuccess }) {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!validate()) return;
+        if (admission.current || !validate()) return;
+        admission.current = true;
+        setChecking(true);
+        setSubmissionError("");
         try {
-            const res = await placeOrder.mutateAsync({
+            let quoted = cart;
+            if (!retrySnapshot) {
+                const fresh = await menuQuery.refetch();
+                if (fresh.isError || !Array.isArray(fresh.data?.data?.menu)) throw Error("We couldn’t verify the menu. Please retry.");
+                quoted = reconcileCart(cart, fresh.data.data.menu);
+                if (!quoted.length || quoted.some(item => !item.available)) throw Error("Some items are unavailable. Return to your cart and remove them.");
+                if (!sameCartQuote(cart, quoted)) throw Error("Menu prices have changed. Review the updated total, then confirm again.");
+            }
+            const payload = retrySnapshot?.payload ?? {
                 customer_name: customerName.trim(),
                 table_number: tableNumber.trim(),
-                items: cart.map((i) => ({
+                items: quoted.map((i) => ({
                     product_id: i.product_id,
                     variant_id: i.variant_id,
                     quantity: i.quantity,
                     unit_price: i.unit_price,
                 })),
-            });
+            };
+            // An uncertain response must replay the original payload, even if the live menu changes.
+            const snapshot = retrySnapshot ?? { payload, items: quoted };
+            let res;
+            try {
+                res = await placeOrder.mutateAsync(payload);
+            } catch (error) {
+                const status = error.response?.status;
+                const uncertainResult = !status || status >= 500 || status === 408 || ["SUBMISSION_PENDING", "IDEMPOTENCY_CONFLICT"].includes(error.response?.data?.error);
+                setRetrySnapshot(uncertainResult ? snapshot : null);
+                setUncertain(uncertainResult);
+                throw error;
+            }
             const createdOrder = res?.data?.order ?? {};
             onSuccess({
                 orderId: createdOrder.order_id || null,
                 orderNumber: createdOrder.order_number || null,
                 guestToken: createdOrder.guest_token || null,
-                customerName: customerName.trim(),
-                tableNumber: tableNumber.trim(),
+                customerName: payload.customer_name,
+                tableNumber: payload.table_number,
                 totalAmount: createdOrder.total_amount ? Number(createdOrder.total_amount) : subtotal,
-                items: cart.map((i) => ({
+                items: snapshot.items.map((i) => ({
                     product_name: i.product_name,
                     size_name: i.size_name,
                     quantity: i.quantity,
@@ -737,16 +805,19 @@ function CheckoutModal({ cart, subtotal, onClose, onSuccess }) {
                 createdAt: createdOrder.created_at || new Date().toISOString(),
             });
         } catch (err) {
-            toast.error(err.response?.data?.message || err.message || "Failed to place order. Please try again.");
+            setSubmissionError(err.response?.data?.message || err.message || "Failed to place order. Please try again.");
+        } finally {
+            admission.current = false;
+            setChecking(false);
         }
     };
 
     return (
-        <div className="ord-modal-overlay" onClick={onClose}>
+        <GuestDialog className="ord-modal-overlay" label="Complete your order" onClose={onClose} busy={busy}>
             <div className="ord-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="ord-modal-header">
                     <span className="ord-modal-title">Complete Your Order</span>
-                    <button className="ord-modal-close" onClick={onClose} aria-label="Close">
+                    <button className="ord-modal-close" onClick={onClose} aria-label="Close" disabled={busy}>
                         <Icon name="x" size={18} />
                     </button>
                 </div>
@@ -755,9 +826,14 @@ function CheckoutModal({ cart, subtotal, onClose, onSuccess }) {
                     <div className="ord-modal-body">
                         {/* Customer name */}
                         <div className="ord-field">
-                            <label className="ord-field-label">Your Name *</label>
+                            <label className="ord-field-label" htmlFor="guest-name">Your Name *</label>
                             <input
                                 type="text"
+                                id="guest-name"
+                                maxLength={100}
+                                readOnly={busy || uncertain}
+                                aria-invalid={Boolean(errors.name)}
+                                aria-describedby={errors.name ? "guest-name-error" : undefined}
                                 className={`ord-field-input${errors.name ? " err" : ""}`}
                                 placeholder="e.g. Juan dela Cruz"
                                 value={customerName}
@@ -766,21 +842,26 @@ function CheckoutModal({ cart, subtotal, onClose, onSuccess }) {
                                     if (errors.name) setErrors((p) => ({ ...p, name: "" }));
                                 }}
                             />
-                            {errors.name && <span className="ord-field-error">{errors.name}</span>}
+                            {errors.name && <span id="guest-name-error" className="ord-field-error" role="alert">{errors.name}</span>}
                         </div>
 
                         {/* Table / reference */}
                         <div className="ord-field">
-                            <label className="ord-field-label">Table / Reference *</label>
-                            <TableSelect
+                            <label className="ord-field-label" htmlFor="guest-table">Table / Reference *</label>
+                            <select id="guest-table" className="ord-field-input"
                                 value={tableNumber}
-                                onChange={(val) => {
-                                    setTableNumber(val);
+                                disabled={busy || uncertain}
+                                aria-invalid={Boolean(errors.table)}
+                                aria-describedby={errors.table ? "guest-table-error" : undefined}
+                                onChange={event => {
+                                    setTableNumber(event.target.value);
                                     if (errors.table) setErrors((p) => ({ ...p, table: "" }));
                                 }}
-                                placeholder="Select table or Takeout"
-                            />
-                            {errors.table && <span className="ord-field-error">{errors.table}</span>}
+                            >
+                                <option value="">Select table or Takeout</option>
+                                {tableOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                            </select>
+                            {errors.table && <span id="guest-table-error" className="ord-field-error" role="alert">{errors.table}</span>}
                         </div>
 
                         {/* Privacy consent */}
@@ -790,6 +871,9 @@ function CheckoutModal({ cart, subtotal, onClose, onSuccess }) {
                                     type="checkbox"
                                     className="ord-checkbox"
                                     checked={privacyConsent}
+                                    disabled={busy || uncertain}
+                                    aria-invalid={Boolean(errors.consent)}
+                                    aria-describedby={errors.consent ? "guest-consent-error" : undefined}
                                     onChange={(e) => {
                                         setPrivacyConsent(e.target.checked);
                                         if (errors.consent) setErrors((p) => ({ ...p, consent: "" }));
@@ -803,7 +887,7 @@ function CheckoutModal({ cart, subtotal, onClose, onSuccess }) {
                                     and consent to the collection and processing of my personal data for order fulfillment.
                                 </span>
                             </label>
-                            {errors.consent && <span className="ord-field-error">{errors.consent}</span>}
+                            {errors.consent && <span id="guest-consent-error" className="ord-field-error" role="alert">{errors.consent}</span>}
                         </div>
 
                         {/* Order summary */}
@@ -812,7 +896,7 @@ function CheckoutModal({ cart, subtotal, onClose, onSuccess }) {
                                 Order Summary
                             </p>
                             <div className="ord-modal-order-summary">
-                                {cart.map((item) => (
+                                {displayedCart.map((item) => (
                                     <div key={item.variant_id} className="ord-modal-item-row">
                                         <span className="ord-modal-item-name">
                                             {item.product_name}
@@ -826,18 +910,20 @@ function CheckoutModal({ cart, subtotal, onClose, onSuccess }) {
                             </div>
                             <div className="ord-modal-total">
                                 <span>Total</span>
-                                <span>₱{subtotal.toLocaleString()}</span>
+                                <span>₱{displayedTotal.toLocaleString()}</span>
                             </div>
                         </div>
                     </div>
 
                     <div className="ord-modal-footer">
+                        {submissionError && <p role="alert">{submissionError}</p>}
+                        {uncertain && <p role="status">Your order may already be saved. Retry this same order to recover its confirmation. Verify it with staff before starting another.</p>}
                         <button
                             type="submit"
                             className="ord-submit-btn"
-                            disabled={placeOrder.isPending}
+                            disabled={busy}
                         >
-                            {placeOrder.isPending ? (
+                            {busy ? (
                                 <>
                                     <Icon name="loader" size={18} className="animate-spin" />
                                     Placing Order…
@@ -845,17 +931,17 @@ function CheckoutModal({ cart, subtotal, onClose, onSuccess }) {
                             ) : (
                                 <>
                                     <Icon name="checkCircle" size={18} />
-                                    Confirm Order
+                                    {uncertain ? "Retry same order" : "Confirm Order"}
                                 </>
                             )}
                         </button>
-                        <button type="button" className="ord-cancel-btn" onClick={onClose}>
+                        <button type="button" className="ord-cancel-btn" onClick={onClose} disabled={busy}>
                             Cancel
                         </button>
                     </div>
                 </form>
             </div>
-        </div>
+        </GuestDialog>
     );
 }
 
@@ -878,7 +964,7 @@ function SuccessScreen({ orderSuccess, onReset }) {
         } catch {
             return "Just now";
         }
-    }, [orderSuccess?.createdAt]);
+    }, [orderSuccess]);
 
     const orderRef = useMemo(() => {
         if (orderSuccess?.orderNumber) {
@@ -888,13 +974,13 @@ function SuccessScreen({ orderSuccess, onReset }) {
             return `#${orderSuccess.orderId.slice(-8).toUpperCase()}`;
         }
         return "#PENDING";
-    }, [orderSuccess?.orderNumber, orderSuccess?.orderId]);
+    }, [orderSuccess]);
 
     // Short tracking ref from the guest token (first 8 chars).
     const trackRef = useMemo(() => {
         if (!orderSuccess?.guestToken) return null;
         return orderSuccess.guestToken.slice(0, 8).toUpperCase();
-    }, [orderSuccess?.guestToken]);
+    }, [orderSuccess]);
 
     // Full tracking link (works on any device) + copy helper.
     const trackUrl = useMemo(() => {
@@ -904,7 +990,7 @@ function SuccessScreen({ orderSuccess, onReset }) {
         } catch {
             return `/track/${orderSuccess.guestToken}`;
         }
-    }, [orderSuccess?.guestToken]);
+    }, [orderSuccess]);
 
     async function handleCopyLink() {
         if (!trackUrl) return;

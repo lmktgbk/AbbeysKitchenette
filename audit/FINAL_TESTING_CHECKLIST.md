@@ -824,7 +824,7 @@ Empty-sheet reset regression: verify headers at row 1, next new event at row 2, 
 
 Cleared-sheet reset verified after explicit user approval: headers retained, zero data rows remain, saved nextRow is 2. Create the next real/test order to verify delivery at row 2, followed by row 3. Synced history was not requeued.
 
-Automation follow-up: 637 ordinary tests passed; eleven isolated automation PostgreSQL checks replay all nine migrations. Remaining implementation findings: sixteen open plus two partially complete (upload cleanup and migration verification), excluding final acceptance work. See AUTOMATION_RELIABILITY_FIXES.md.
+Automation follow-up: 637 ordinary tests passed; eleven isolated automation PostgreSQL checks replay all nine migrations. The implementation count from that historical batch is superseded by CURRENT_STATUS.md. See AUTOMATION_RELIABILITY_FIXES.md.
 
 ## Deployment configuration acceptance — NOT RUN
 
@@ -871,3 +871,19 @@ Implementation and rollout: [STORAGE_RECOVERY_FIXES.md](STORAGE_RECOVERY_FIXES.m
 - [ ] Terminate after provider upload but before recording success. Unknown outcome becomes blocked for review; confirm identity and references before controlled resolution. Verify an operational review/alert process exists.
 - [ ] External/transformed URLs and other-account assets are retained. Deleted identities cannot be reattached; no anonymous client can access the ledger.
 - [ ] Measure cleanup backlog and database latency under intended concurrent upload/save load. Verify independent Cloudinary backup/recovery, since a database restore does not restore deleted files.
+
+## Frontend loading and guest-order acceptance — LIVE NOT RUN
+
+Implementation: [FRONTEND_RELIABILITY_FIXES.md](FRONTEND_RELIABILITY_FIXES.md). Current count: [CURRENT_STATUS.md](CURRENT_STATUS.md). Selected synthetic browser checks passed; the following real-system cases still need acceptance with isolated/staging data.
+
+- [ ] Cold-load landing, ordering and auth pages: staff/chart chunks are not downloaded. Navigate every authorized staff page, deep-link/refresh, and use back/forward. Verify loading and failed/stale deployment chunk recovery without losing the guest draft.
+- [ ] Menu loading, genuine empty, unmatched search and API failure have distinct states. Retry recovers. Search/category changes behave correctly and guest search does not issue a request per keystroke.
+- [ ] In another staff session, change price/product/variant availability and categories. POS refreshes all relevant menu caches after the event and reconnect. Guest menu refreshes on focus/visible polling; new checkout always rechecks current data.
+- [ ] Add items, refresh or leave/return in the same tab: intent recovers and uses current server prices. Another tab has independent edits. Expired/malformed/oversized drafts are ignored; blocked storage leaves the cart editable but refuses checkout before sending if its replay identity cannot be persisted.
+- [ ] Remove/deactivate a saved product/variant or change price. Missing/unavailable items remain removable and block new checkout; changed preflight prices require review. Server still rejects/reprices stale data after preflight.
+- [ ] Double-click confirmation under slow network: one order is created. Lose the confirmation, change the menu, then retry the exact original order: same order/token/total returns and its displayed quote remains the original. No changed uncertain submission can start a duplicate.
+- [ ] Incomplete successful HTTP responses retain the replay key and draft. Only confirmed success clears the draft. Refresh/close during uncertain outcomes requires original details or staff verification; no customer details are persisted to bypass that policy.
+- [ ] Product/cart/checkout and landing poster dialogs work by keyboard: focus entry, forward/reverse Tab containment, Escape, backdrop, return and background isolation. Variant choices and native table picker work without a mouse. Close cannot interrupt admitted submission/preflight.
+- [ ] Name/table/consent validation is announced and associated with inputs. Verify screen readers, contrast and focus indicators across supported browsers.
+- [ ] At phone/tablet/desktop sizes, long names/descriptions and large carts stay scrollable with reachable actions and no horizontal overflow. Verify the virtual keyboard does not obscure checkout controls.
+- [ ] Measure cold/warm page loads, Web Vitals, total assets and menu payload/capacity on slow connections and representative data. The smaller main chunk alone is not a production benchmark.

@@ -1,5 +1,9 @@
 **SYSTEM AUDIT STATUS**
 
+Current implementation count: [CURRENT_STATUS.md](CURRENT_STATUS.md). The 42 historical findings now comprise 32 implemented, five open and five partially addressed; deployment/live acceptance is tracked separately. This report preserves original evidence rather than claiming those baseline failures still all reproduce.
+
+Frontend remediation: [FRONTEND_RELIABILITY_FIXES.md](FRONTEND_RELIABILITY_FIXES.md). Route splitting, menu freshness/error handling, cart intent recovery and guest dialog behavior implemented; comprehensive live acceptance remains outstanding.
+
 WebSocket remediation: [WEBSOCKET_RELIABILITY_FIXES.md](WEBSOCKET_RELIABILITY_FIXES.md). Admission, resource budgets, disconnect/shutdown fencing and frontend reconnect resync are implemented; live/load acceptance remains outstanding. Deploy one backend replica until shared event fanout is verified.
 
 Hosted configuration remediation: [DEPLOYMENT_CONFIGURATION_FIXES.md](DEPLOYMENT_CONFIGURATION_FIXES.md). Live hosting and backup restoration remain Not verified.
