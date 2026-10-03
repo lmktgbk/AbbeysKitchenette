@@ -154,7 +154,7 @@ export const reorderSuggestionsRepository = {
    * Clear old pending suggestions and save new ones.
    * Uses a transaction to delete old + insert new atomically.
    */
-  async saveSuggestions(suggestions) {
+  async saveSuggestions(suggestions, automation) {
     await prisma.$transaction(async (tx) => {
       // Delete old pending suggestions
       await tx.reorderSuggestion.deleteMany({
@@ -179,7 +179,9 @@ export const reorderSuggestionsRepository = {
           })),
         });
       }
-    });
+      // Publish advisory data and the scheduled run outcome in the same commit.
+      if (automation) await automation.complete(tx);
+    }, { timeout: 5000 });
   },
 
   /**

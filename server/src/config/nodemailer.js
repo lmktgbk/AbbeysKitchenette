@@ -32,6 +32,7 @@ function createTransport() {
   if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASS) {
     return nodemailer.createTransport({
       service: "gmail",
+      ...SMTP_TIMEOUTS,
       auth: {
         user: process.env.GMAIL_USER,
         pass: process.env.GMAIL_APP_PASS,

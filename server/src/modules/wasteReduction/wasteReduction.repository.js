@@ -122,7 +122,7 @@ export const wasteReductionRepository = {
   /**
    * Clear old pending insights and save new ones.
    */
-  async saveInsights(insights) {
+  async saveInsights(insights, automation) {
     await prisma.$transaction(async (tx) => {
       // Delete old pending insights
       await tx.wasteReduction.deleteMany({
@@ -147,7 +147,9 @@ export const wasteReductionRepository = {
           })),
         });
       }
-    });
+      // Publish advisory data and the scheduled run outcome in the same commit.
+      if (automation) await automation.complete(tx);
+    }, { timeout: 5000 });
   },
 
   /**

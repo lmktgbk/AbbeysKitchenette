@@ -1,7 +1,7 @@
 import { env } from "../config/env.js";
 
 /** Consume the body within the deadline; never forward the service key across redirects. */
-export async function fetchMl(path, { method = "GET", body, timeoutMs = env.ML_REQUEST_TIMEOUT_MS ?? 10000 } = {}) {
+export async function fetchMl(path, { method = "GET", body, signal, timeoutMs = env.ML_REQUEST_TIMEOUT_MS ?? 10000 } = {}) {
   if (!/^[a-f0-9]{64}$/i.test(env.ML_SERVICE_KEY ?? "")) {
     throw new Error("ML service credential is not configured");
   }
@@ -13,7 +13,7 @@ export async function fetchMl(path, { method = "GET", body, timeoutMs = env.ML_R
   const response = await fetch(url, {
     method,
     redirect: "error",
-    signal: AbortSignal.timeout(timeoutMs),
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs),
     headers: { "X-ML-Service-Key": env.ML_SERVICE_KEY, ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });

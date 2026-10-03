@@ -839,6 +839,24 @@ model BackgroundLease {
   @@map("background_leases")
 }
 
+model AutomationRun {
+  runKey        String    @id @map("run_key") @db.VarChar(80)
+  kind          String    @db.VarChar(20)
+  scheduledAt   DateTime  @map("scheduled_at") @db.Timestamptz
+  status        String    @default("pending") @db.VarChar(20)
+  attempts      Int       @default(0)
+  owner         String?   @db.Uuid
+  leaseExpiresAt DateTime? @map("lease_expires_at") @db.Timestamptz
+  nextAttemptAt DateTime  @default(now()) @map("next_attempt_at") @db.Timestamptz
+  lastError     String?   @map("last_error") @db.VarChar(80)
+  result        Json?
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+
+  @@index([status, nextAttemptAt, scheduledAt], map: "automation_runs_due_idx")
+  @@map("automation_runs")
+}
+
 model AnomalyResult {
   id            String   @id @default(uuid()) @db.Uuid
   ruleId        String   @map("rule_id") @db.VarChar(50)

@@ -18,7 +18,7 @@ export const wasteReductionService = {
   /**
    * Generate waste reduction insights by gathering context and calling Gemini.
    */
-  async generate() {
+  async generate({ automation, signal } = {}) {
     // Step 1: Gather context
     const [lossRecords, stockVsForecast, restockHistory, ingredientCosts] =
       await Promise.all([
@@ -54,6 +54,8 @@ export const wasteReductionService = {
           systemInstruction: system,
           responseMimeType: "application/json",
           temperature: 0.3,
+          abortSignal: signal,
+          httpOptions: { timeout: 120000 },
         },
       });
     } catch (error) {
@@ -107,7 +109,7 @@ export const wasteReductionService = {
     }).filter((i) => i.overstock_amount > 0 || Number(stockMap.get(i.ingredient_id)?.stock_expiring_7d ?? 0) > 0);
 
     // Step 6: Store in DB
-    await repo.saveInsights(insights);
+    await repo.saveInsights(insights, automation);
 
     // Step 7: Return stored results
     return repo.getPendingInsights();

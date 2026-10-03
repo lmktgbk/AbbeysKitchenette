@@ -1,16 +1,8 @@
 /**
- * Daily Report Service — yesterday-in-review email for admins.
- *
- * WHY it exists: one curated "how did yesterday go" digest so owners don't
- * open the dashboard to know. Covers the just-finished Manila business day
- * (00:30 send for a ~midnight close). Same data as the analytics dashboard
- * and PDF export, trimmed for email: KPIs + deltas, Top 5 variants, waste,
- * drawer totals, open-orders carryover.
- *
- * Reliability: best-effort like the other automation jobs — success AND
- * failure land in the audit trail (DAILY_REPORT_SENT), no retries, no
- * catch-up for missed runs. A mailer-less dev setup logs instead of sending
- * (see config/nodemailer.js fallback).
+ * Build the previous Manila business day's report using shared analytics queries.
+ * Scheduled callers supply the original report day and check worker ownership
+ * before each recipient. Partial or uncertain SMTP delivery requires review;
+ * automatically repeating a whole report can duplicate already accepted mail.
  */
 
 import prisma from "../../config/prisma.js";
@@ -71,7 +63,7 @@ export const dailyReportService = {
    * Throws on total failure (scheduler audits it); partial per-recipient
    * failures are collected into the audit details instead.
    */
-  async sendDailyReport(dayStr) {
+  async sendDailyReport(dayStr, { assertOwned } = {}) {
     const report = await this.buildReport(dayStr);
     const recipients = await this.adminEmails();
     if (recipients.length === 0) {
@@ -108,6 +100,9 @@ export const dailyReportService = {
     }
     const failures = [];
     for (const to of recipients) {
+      // Scheduled mail cannot continue after shutdown or ownership expiry.
+      // SMTP acknowledgements are not transactional; uncertain sends need review.
+      if (assertOwned) await assertOwned();
       try {
         await sendEmail({ to, subject, html, attachments });
       } catch (err) {
@@ -130,6 +125,7 @@ export const dailyReportService = {
     if (failures.length === recipients.length) {
       throw new Error(`Daily report failed for all recipients: ${failures.join("; ")}`);
     }
+    if (assertOwned && failures.length) throw new Error("SCHEDULED_REPORT_PARTIAL_DELIVERY");
     return { sent: recipients.length - failures.length, day: report.day };
   },
 };

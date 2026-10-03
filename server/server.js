@@ -50,7 +50,7 @@ async function boot() {
     // Recover pending Sheets deliveries (no-op unless configured)
     sheetsService.startReconciler();
 
-    // Load automation schedules (ML jobs) from settings
+    // Discover due schedules and recover durable background runs
     automationScheduler.reschedule().catch((err) => console.error("[automation] Boot load failed:", err.message));
   });
 }

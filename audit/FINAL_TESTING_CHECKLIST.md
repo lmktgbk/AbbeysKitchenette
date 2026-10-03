@@ -81,7 +81,7 @@ vulnerabilities. npm audit failures require fixes or a reviewed explicit excepti
 Migration status/validation/generation do not prove data integrity. No migration,
 reset or seed command is intentionally included in this verification block.
 
-Current reference, not a final PASS: the completed backend batches have 626 automated tests
+Current reference, not a final PASS: the completed backend batches have 637 automated tests
 passing, including 23 recovery-email security/rollback cases. Six additional isolated PostgreSQL tests pass; they are opt-in and skipped in the ordinary suite. The frontend
 build passed with an existing large-bundle warning. Submission code and POS pages
 passed lint; the guest page retains its baseline four errors and one warning.
@@ -512,11 +512,11 @@ Confirm UUID product keys match catalog products in variant results and product 
 
 **Priority:** Medium
 
-**Implementation:** Open at checklist creation; final acceptance NOT RUN
+**Implementation:** Implemented: durable scheduled runs, unique per-job/business-date admission, shared worker leases, fenced advisory publication, bounded retries and conservative external-outcome review. See AUTOMATION_RELIABILITY_FIXES.md; public migration and hosted acceptance NOT RUN
 
 **Steps:** Run two staging replicas across a cron boundary. Kill the job owner and restart it. Inspect scheduled-run uniqueness, leases/recovery and eventual terminal status.
 
-**Acceptance criteria:** Run two replicas, kill a worker mid-job and restart across a schedule boundary. Require one scheduled run, recoverable ownership and accurate terminal job state.
+**Acceptance criteria:** Run two replicas, kill a worker mid-job and restart across a schedule boundary. Require one scheduled run and accurate terminal state. Expired advisory work may retry with fenced publication; uncertain email/ML submission must block for review rather than repeat automatically. Verify original report dates, same-day schedule changes, disabled schedules, bounded catch-up and migration-history blocks.
 
 **Result:** NOT RUN
 
@@ -823,3 +823,5 @@ Live Sheets paid-order check verified on 2026-10-03: #261003003 delivered to row
 Empty-sheet reset regression: verify headers at row 1, next new event at row 2, populated-sheet reset refusal, no replay of synced events, and preservation of concurrent-sender exclusion. Ten isolated Sheets PostgreSQL cases now pass. Actual cleared-sheet reset remains pending user clarification.
 
 Cleared-sheet reset verified after explicit user approval: headers retained, zero data rows remain, saved nextRow is 2. Create the next real/test order to verify delivery at row 2, followed by row 3. Synced history was not requeued.
+
+Automation follow-up: 637 ordinary tests passed; eleven isolated automation PostgreSQL checks replay all nine migrations. Remaining implementation findings: sixteen open plus two partially complete (upload cleanup and migration verification), excluding final acceptance work. See AUTOMATION_RELIABILITY_FIXES.md.

@@ -37,7 +37,7 @@ export const reorderSuggestionsService = {
    * 5. Store suggestions in DB
    * 6. Return results
    */
-  async generate() {
+  async generate({ automation, signal } = {}) {
     // Step 1: Gather context
     const [ingredients, demandForecast, usagePatterns, supplierInfo] =
       await Promise.all([
@@ -69,6 +69,8 @@ export const reorderSuggestionsService = {
           systemInstruction: system,
           responseMimeType: "application/json",
           temperature: 0.3,
+          abortSignal: signal,
+          httpOptions: { timeout: 120000 },
         },
       });
     } catch (error) {
@@ -167,7 +169,7 @@ export const reorderSuggestionsService = {
     }
 
     // Step 6: Store in DB
-    await repo.saveSuggestions(suggestions);
+    await repo.saveSuggestions(suggestions, automation);
 
     // Step 7: Return stored results
     return repo.getPendingSuggestions();
