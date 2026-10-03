@@ -897,3 +897,18 @@ Implementation: [FRONTEND_RELIABILITY_FIXES.md](FRONTEND_RELIABILITY_FIXES.md). 
 - [ ] Delay the mocked AI response, change the product's sale price/archive state, then release it. Verify 409 and no replacement of prior pending suggestions.
 - [ ] Generate concurrently and race generation with approval on isolated data; verify no mixed batches, stale price overwrite or partially committed approval.
 - [ ] With approved live AI usage, verify actual delivery and useful recommendations. Check provider failure/timeout handling; cancellation can still incur provider usage. Live provider behavior remains **Not verified**.
+# Durable order/inventory follow-up acceptance — M14 first rollout (2026-10-04)
+
+- [ ] Apply `20261004000000_domain_effects` through migrate deploy, generate the client and restart the backend. Confirm tables/functions/triggers exist and queue health queries work under the backend role.
+- [ ] On isolated test orders, verify creation, acceptance, preparation, completion, edits, cancellation, item removal and loss overrides each preserve the correct audit/notification work. Check accepted/completed totals against committed order totals.
+- [ ] Repeat the same paid-order request after a lost response; verify one financial mutation and one set of follow-up intents.
+- [ ] Stop the backend immediately after an isolated business commit, restart it and verify pending work is delivered without another sale, refund or stock deduction. Actual process-kill acceptance remains **Not verified** by automated repository-restart tests.
+- [ ] Inject an unavailable effect store before commit in a test schema: verify the business change, request key, stock, receipt and repair work all roll back.
+- [ ] Inject a delivery failure after an audit insert and before notification/marker commit. Verify no partial delivery, later recovery and no duplicate records with concurrent workers.
+- [ ] Confirm six failed deliveries block that event, preserve its intent, emit a redacted review signal and allow other eligible events to continue. Requeue only its reviewed intent after fixing the cause.
+- [ ] Verify restock, loss, stock count, ingredient CRUD and expiry edits preserve audit work. Restock/loss responses must not depend on a later availability recompute or stock read.
+- [ ] Race restocks, deductions and restorations on isolated stock. Verify before/after ledgers and threshold notifications reflect the serialized committed snapshots.
+- [ ] Change stock/recipes/ingredient archival state, restart before repair and verify the menu converges. Preserve manual deactivation and recipe-free product policy.
+- [ ] Pause a repair after its queue read, commit a newer stock change, then release it. Verify the newer revision remains recoverable and eventual availability matches current stock.
+- [ ] Verify graceful worker shutdown, hosted queue recovery, production permissions/backfill and realistic backlog/load behavior. These remain **Not verified** until live acceptance.
+- [ ] Record remaining modules separately: this batch does not make every audit/notification producer durable, and socket invalidations still require reconnect/refetch recovery.

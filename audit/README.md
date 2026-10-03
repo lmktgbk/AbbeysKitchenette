@@ -3,6 +3,7 @@
 Current remediation counts and remaining work: [CURRENT_STATUS.md](CURRENT_STATUS.md).
 Frontend loading/menu/cart/dialog changes: [FRONTEND_RELIABILITY_FIXES.md](FRONTEND_RELIABILITY_FIXES.md).
 Durable image ownership/cleanup: [STORAGE_RECOVERY_FIXES.md](STORAGE_RECOVERY_FIXES.md).
+Order/inventory follow-up recovery: [DOMAIN_EFFECT_RECOVERY_FIXES.md](DOMAIN_EFFECT_RECOVERY_FIXES.md).
 The original report and raw finding list below are historical evidence, not the current unresolved count.
 
 Use [FINAL_TESTING_CHECKLIST.md](FINAL_TESTING_CHECKLIST.md) for the consolidated

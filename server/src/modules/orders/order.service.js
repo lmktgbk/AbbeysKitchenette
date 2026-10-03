@@ -5,11 +5,10 @@ import { allocateConsumption, planSettlement, stockUnits } from "./order.consump
 import { orderRequest, orderIdempotency } from "./order.idempotency.js";
 import { shiftService } from "../shifts/shift.service.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
-import { productService } from "../products/product.service.js";
 import prisma from "../../config/prisma.js";
-import { auditLogService } from "../auditLogs/auditLog.service.js";
+import { recordEffects } from "../../services/domainEffects.js";
+import { lockStock } from "../../services/stockLocks.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
-import { notificationService } from "../notifications/notification.service.js";
 import { settingsService } from "../settings/settings.service.js";
 import { anomalyService } from "../anomalyDetection/anomalyDetection.service.js";
 import { getBusinessDate } from "../../config/time.js";
@@ -139,15 +138,15 @@ export const orderService = {
         : null,
       refund: order.refund
         ? {
-            amount: Number(order.refund.amount),
-            reason: order.refund.reason ?? null,
-            refunded_at: order.refund.refundedAt ?? null,
-            refunded_by: order.refund.refundedByUser
-              ? { name: order.refund.refundedByUser.name, role: order.refund.refundedByUser.role }
-              : null,
-            item_name: order.refund.reason?.match(/^(.+?) removed/)?.[1] || null,
-            cancel_reason: order.refund.reason?.match(/— (.+?) \(/)?.[1] || null,
-          }
+          amount: Number(order.refund.amount),
+          reason: order.refund.reason ?? null,
+          refunded_at: order.refund.refundedAt ?? null,
+          refunded_by: order.refund.refundedByUser
+            ? { name: order.refund.refundedByUser.name, role: order.refund.refundedByUser.role }
+            : null,
+          item_name: order.refund.reason?.match(/^(.+?) removed/)?.[1] || null,
+          cancel_reason: order.refund.reason?.match(/— (.+?) \(/)?.[1] || null,
+        }
         : null,
       consumption_history_available: !!order.consumptionRecordedAt,
       items: order.items.map((item) => ({
@@ -261,30 +260,24 @@ export const orderService = {
         totalAmount: total,
       }, tx);
       await recordSheetEvent(tx, newOrder.orderId, "paid");
+      await recordEffects(tx, { audit: {
+        userId: createdBy,
+        action: ACTIONS.ORDER_CREATED,
+        targetType: "order",
+        targetId: newOrder.orderId,
+        details: { order_number: newOrder.orderNumber, subtotal, discount: discountResult.discountAmount, total, source: "walk_in", paymentMethod },
+      }, notifications: [{
+        type: "order_new",
+        title: "New Walk-In Order",
+        message: `Order ${formatOrderNumber(newOrder.orderNumber)} from ${customerName} — ₱${total.toFixed(2)}`,
+        referenceType: "order",
+        referenceId: newOrder.orderId,
+      }] });
       await orderIdempotency.complete(request, { order_id: newOrder.orderId, order_number: newOrder.orderNumber }, tx);
       return { order: newOrder, deductions, needs };
     }, { timeout: 15000 });
 
     if (order.replay) return order.replay;
-    const affectedIngredientIds = [...aggregatedIngredients.keys()];
-    productService.recomputeVariantAvailability(affectedIngredientIds).catch((err) => console.warn("[menu] availability recompute dropped:", err?.message));
-    this._checkStockLevels(order.needs).catch((err) => console.warn("[stock] level check dropped:", err?.message));
-
-    auditLogService.logAction({
-      userId: createdBy,
-      action: ACTIONS.ORDER_CREATED,
-      targetType: "order",
-      targetId: order.order.orderId,
-      details: { order_number: order.order.orderNumber, subtotal, discount: discountResult.discountAmount, total, source: "walk_in", paymentMethod },
-    }).catch(() => {});
-
-    notificationService.create({
-      type: "order_new",
-      title: "New Walk-In Order",
-      message: `Order ${formatOrderNumber(order.order.orderNumber)} from ${customerName} — ₱${total.toFixed(2)}`,
-      referenceType: "order",
-      referenceId: order.order.orderId,
-    }).catch(() => {});
 
     // Light response: POS only needs the id for receipt printing (the full
     // detail reloads via GET /:id and list invalidation). Skips the 4-query
@@ -328,6 +321,18 @@ export const orderService = {
         unitPrice: item.unit_price,
       })), tx);
       const response = { order_id: row.orderId, order_number: orderNumber, guest_token: guestToken, total_amount: total, created_at: row.createdAt.toISOString() };
+      await recordEffects(tx, { audit: {
+        action: ACTIONS.ORDER_CREATED,
+        targetType: "order",
+        targetId: row.orderId,
+        details: { order_number: orderNumber, total, source: "online" },
+      }, notifications: [{
+        type: "order_new",
+        title: "New Online Order",
+        message: `Order ${formatOrderNumber(orderNumber)} from ${customerName} — ₱${total.toFixed(2)}`,
+        referenceType: "order",
+        referenceId: row.orderId,
+      }] });
       await orderIdempotency.complete(request, response, tx);
       return { row, response };
     }, { timeout: 15000 });
@@ -337,21 +342,6 @@ export const orderService = {
     // getById tail on the hot path.
     if (result.replay) return result.replay;
     const created = result.response;
-
-    notificationService.create({
-      type: "order_new",
-      title: "New Online Order",
-      message: `Order ${formatOrderNumber(created.order_number)} from ${customerName} — ₱${total.toFixed(2)}`,
-      referenceType: "order",
-      referenceId: result.row.orderId,
-    }).catch(() => {});
-
-    auditLogService.logAction({
-      action: ACTIONS.ORDER_CREATED,
-      targetType: "order",
-      targetId: result.row.orderId,
-      details: { order_number: created.order_number, total, source: "online" },
-    }).catch(() => {});
 
     return created;
   },
@@ -374,19 +364,19 @@ export const orderService = {
     return {
       receipt: receipt
         ? {
-            receipt_id: receipt.receiptId,
-            issued_at: receipt.issuedAt,
-            issued_by: receipt.issuedBy,
-          }
+          receipt_id: receipt.receiptId,
+          issued_at: receipt.issuedAt,
+          issued_by: receipt.issuedBy,
+        }
         : null,
       order,
       store: store
         ? {
-            name: store.storeName,
-            address: store.storeAddress,
-            phone: store.storePhone,
-            email: store.storeEmail,
-          }
+          name: store.storeName,
+          address: store.storeAddress,
+          phone: store.storePhone,
+          email: store.storeEmail,
+        }
         : null,
     };
   },
@@ -429,16 +419,17 @@ export const orderService = {
         })), tx);
         await orderRepository.recalculateTotal(id, tx);
       }
+      await recordEffects(tx, { audit: {
+        userId,
+        action: ACTIONS.ORDER_UPDATED,
+        targetType: "order",
+        targetId: id,
+        details: { order_number: existing.orderNumber, fields: editedFields },
+      } });
     }, { timeout: 15000 });
     // Read AFTER commit via the global client so the response reflects the edit.
     const result = await this.getById(id);
-    auditLogService.logAction({
-      userId,
-      action: ACTIONS.ORDER_UPDATED,
-      targetType: "order",
-      targetId: id,
-      details: { order_number: existing.orderNumber, fields: editedFields },
-    }).catch(() => {});
+
     return result;
   },
 
@@ -528,21 +519,17 @@ export const orderService = {
         change,
       }, tx);
       await recordSheetEvent(tx, id, "paid");
+      await recordEffects(tx, { audit: {
+        userId,
+        action: ACTIONS.ORDER_ACCEPTED,
+        targetType: "order",
+        targetId: id,
+        details: { order_number: existing.orderNumber, subtotal, discount: discountResult.discountAmount, total, source: "online", paymentMethod },
+      } });
       return orderIdempotency.complete(request, { order_id: id, order_number: existing.orderNumber }, tx);
     }, { timeout: 15000 });
 
     if (!transactionNeeds) return outcome;
-    const affectedIngredientIds = [...aggregatedIngredients.keys()];
-    productService.recomputeVariantAvailability(affectedIngredientIds).catch((err) => console.warn("[menu] availability recompute dropped:", err?.message));
-    this._checkStockLevels(transactionNeeds).catch((err) => console.warn("[stock] level check dropped:", err?.message));
-
-    auditLogService.logAction({
-      userId,
-      action: ACTIONS.ORDER_ACCEPTED,
-      targetType: "order",
-      targetId: id,
-      details: { order_number: existing.orderNumber, subtotal, discount: discountResult.discountAmount, total, source: "online", paymentMethod },
-    }).catch(() => {});
 
     // Light response (same rationale as createWalkIn above).
     return outcome;
@@ -554,7 +541,7 @@ export const orderService = {
     assertStatusPermission(meta.userRole, targetStatus);
     let request;
     if (targetStatus === "accepted") {
-      const { idempotencyKey, userId, userRole, ...payload } = meta;
+      const { idempotencyKey, userId, userRole: _userRole, ...payload } = meta;
       request = orderRequest(`accept:${id}:${userId}`, idempotencyKey, payload);
       const cached = await orderIdempotency.lookup(request);
       if (cached) return cached;
@@ -592,23 +579,21 @@ export const orderService = {
           throw new AppError(409, "Order is no longer completable — it was settled concurrently", "ORDER_ALREADY_SETTLED");
         }
         await orderRepository.updateStatus(id, "completed", { userId: meta.userId, fulfillmentMinutes }, tx);
+        await recordEffects(tx, { audit: {
+          userId: meta.userId,
+          action: ACTIONS.ORDER_COMPLETED,
+          targetType: "order",
+          targetId: id,
+          details: { order_number: current.order_number, total: Number(current.total_amount), fulfillmentMinutes },
+        }, notifications: [{
+          type: "order_completed",
+          title: "Order Completed",
+          message: `Order ${formatOrderNumber(current.order_number)} completed in ${fulfillmentMinutes} min — ₱${Number(current.total_amount).toFixed(2)}`,
+          referenceType: "order",
+          referenceId: id,
+        }] });
+
       }, { timeout: 15000 });
-
-      auditLogService.logAction({
-        userId: meta.userId,
-        action: ACTIONS.ORDER_COMPLETED,
-        targetType: "order",
-        targetId: id,
-        details: { order_number: order.orderNumber, total: Number(order.totalAmount), fulfillmentMinutes },
-      }).catch(() => {});
-
-      notificationService.create({
-        type: "order_completed",
-        title: "Order Completed",
-        message: `Order ${formatOrderNumber(order.orderNumber)} completed in ${fulfillmentMinutes} min — ₱${Number(order.totalAmount).toFixed(2)}`,
-        referenceType: "order",
-        referenceId: id,
-      }).catch(() => {});
 
       // Real-time anomaly hooks: revenue + fulfillment evaluate the just-
       // completed order; discount keeps its existing hook (fire-and-forget).
@@ -620,21 +605,6 @@ export const orderService = {
     if (targetStatus === "accepted") {
       const { response: result, replayed } = await this._handleAcceptance(id, order, meta, request);
       if (replayed) return result;
-      auditLogService.logAction({
-        userId: meta.userId,
-        action: ACTIONS.ORDER_ACCEPTED,
-        targetType: "order",
-        targetId: id,
-        details: { order_number: order.orderNumber, total: Number(order.totalAmount), source: order.orderSource },
-      }).catch(() => {});
-
-      notificationService.create({
-        type: "order_accepted",
-        title: "Order Accepted",
-        message: `Order ${formatOrderNumber(order.orderNumber)} has been accepted`,
-        referenceType: "order",
-        referenceId: id,
-      }).catch(() => {});
 
       return result;
     }
@@ -651,15 +621,14 @@ export const orderService = {
       if (claimed === 0) {
         throw new AppError(409, "Order is no longer accepted. Refresh the order before preparing", "ORDER_STATE_CONFLICT");
       }
+      await recordEffects(tx, { audit: {
+        userId,
+        action: ACTIONS.ORDER_PREPARING,
+        targetType: "order",
+        targetId: id,
+        details: { order_number: order.orderNumber },
+      } });
     });
-
-    auditLogService.logAction({
-      userId,
-      action: ACTIONS.ORDER_PREPARING,
-      targetType: "order",
-      targetId: id,
-      details: { order_number: order.orderNumber },
-    }).catch(() => {});
 
     return this.getById(id);
   },
@@ -684,7 +653,6 @@ export const orderService = {
 
   async cancelOrDelete(id, userId, reason, options = {}) {
     let order;
-    let affectedIngredientIds = [];
     let lossOption = options.loss_option || "no_loss";
     await prisma.$transaction(async (tx) => {
       const locked = await orderRepository.lockOrder(id, tx);
@@ -700,7 +668,6 @@ export const orderService = {
       const deductions = (order.status === "accepted" || order.status === "preparing")
         ? await orderRepository.getActiveDeductions(id, tx)
         : [];
-      affectedIngredientIds = [...new Set(deductions.map((d) => d.ingredientId))];
 
       // Determine loss handling based on options
       const refundOption = options.refund_option || "partial"; // "full" | "partial" | "none"
@@ -784,28 +751,21 @@ export const orderService = {
           refundedById: userId,
         }, tx);
       }
+      await recordEffects(tx, { audit: {
+        userId,
+        action: ACTIONS.ORDER_CANCELLED,
+        targetType: "order",
+        targetId: id,
+        details: { order_number: order.orderNumber, reason: reason || null, loss_option: lossOption },
+      }, notifications: [{
+        type: "order_cancelled",
+        title: "Order Cancelled",
+        message: `Order ${formatOrderNumber(order.orderNumber)} has been cancelled${reason ? ` (${reason})` : ""}`,
+        referenceType: "order",
+        referenceId: id,
+      }] });
       if (currentStatus !== "pending") await recordSheetEvent(tx, id, "cancelled");
     }, { timeout: 15000 });
-
-    if (affectedIngredientIds.length > 0) {
-      productService.recomputeVariantAvailability(affectedIngredientIds).catch((err) => console.warn("[menu] availability recompute dropped:", err?.message));
-    }
-
-    auditLogService.logAction({
-      userId,
-      action: ACTIONS.ORDER_CANCELLED,
-      targetType: "order",
-      targetId: id,
-      details: { order_number: order.orderNumber, reason: reason || null, loss_option: lossOption },
-    }).catch(() => {});
-
-    notificationService.create({
-      type: "order_cancelled",
-      title: "Order Cancelled",
-      message: `Order ${formatOrderNumber(order.orderNumber)} has been cancelled${reason ? ` (${reason})` : ""}`,
-      referenceType: "order",
-      referenceId: id,
-    }).catch(() => {});
 
     // Real-time anomaly hooks (fire-and-forget, never block response)
     anomalyService.runScan(["refund_spike", "cancellation_spike"]).catch((err) => console.warn("[anomaly] hook scan dropped:", err?.message));
@@ -836,8 +796,6 @@ export const orderService = {
     const refundOption = options.refund_option || "partial";
     const ingredientLosses = options.ingredient_losses || [];
 
-    let affectedIngredientIds = [];
-
     // Refund resolved inside the tx after totals are recomputed:
     // refund = net drop caused by the removal, capped at what was actually paid.
     let refundAmount = 0;
@@ -856,7 +814,6 @@ export const orderService = {
       if (!order.consumptionRecordedAt) throw new AppError(409, "Historical order requires inventory reconciliation before item removal", "CONSUMPTION_HISTORY_REQUIRED");
       if (order.status === "accepted" || ingredientLosses.length === 0) lossOption = "no_loss";
       const deductions = await orderRepository.getActiveDeductions(orderId, tx, orderItemId);
-      affectedIngredientIds = [...new Set(deductions.map(row => row.ingredientId))];
       const losses = lossOption === "with_loss" ? [{ order_item_id: orderItemId, ingredient_losses: ingredientLosses }] : [];
       await this._settleItemConsumption(orderId, [orderItem], deductions, userId, tx, losses);
 
@@ -926,28 +883,22 @@ export const orderService = {
           refundedById: userId,
         }, tx);
       }
+      await recordEffects(tx, { audit: {
+        userId,
+        action: ACTIONS.ORDER_ITEM_REMOVED,
+        targetType: "order_item",
+        targetId: String(orderItemId),
+        details: {
+          order_id: orderId,
+          order_number: order.orderNumber,
+          product_name: orderItem.product?.productName,
+          reason,
+          loss_option: lossOption,
+          refund_amount: refundAmount,
+        },
+      } });
       await recordSheetEvent(tx, orderId, remainingCount === 0 ? "cancelled" : "adjusted", orderItemId);
     }, { timeout: 15000 });
-
-    if (affectedIngredientIds.length > 0) {
-      productService.recomputeVariantAvailability(affectedIngredientIds).catch((err) => console.warn("[menu] availability recompute dropped:", err?.message));
-    }
-
-    auditLogService.logAction({
-      userId,
-      action: ACTIONS.ORDER_ITEM_REMOVED,
-      targetType: "order_item",
-      targetId: String(orderItemId),
-      details: {
-        order_id: orderId,
-        order_number: order.orderNumber,
-        product_name: orderItem.product?.productName,
-        reason,
-        loss_option: lossOption,
-        refund_amount: refundAmount,
-      },
-    }).catch(() => {});
-
 
     // Real-time anomaly hooks (fire-and-forget, never block response)
     if (refundAmount > 0) {
@@ -970,21 +921,22 @@ export const orderService = {
       overriddenById: userId,
     };
 
-    const overridden = await orderRepository.overrideLoss(lossId, overrideData);
-
-    auditLogService.logAction({
-      userId,
-      action: ACTIONS.LOSS_OVERRIDDEN,
-      targetType: "loss_record",
-      targetId: String(lossId),
-      details: {
-        reason: overrideReason,
-        note: overrideNote,
-        ingredient_id: overridden?.ingredientId ?? null,
-        related_order_id: overridden?.relatedOrderId ?? null,
-        quantity_lost: overridden?.quantityLost != null ? Number(overridden.quantityLost) : null,
-      },
-    }).catch(() => {});
+    await prisma.$transaction(async tx => {
+      const overridden = await orderRepository.overrideLoss(lossId, overrideData, tx);
+      await recordEffects(tx, { audit: {
+        userId,
+        action: ACTIONS.LOSS_OVERRIDDEN,
+        targetType: "loss_record",
+        targetId: String(lossId),
+        details: {
+          reason: overrideReason,
+          note: overrideNote,
+          ingredient_id: overridden?.ingredientId ?? null,
+          related_order_id: overridden?.relatedOrderId ?? null,
+          quantity_lost: overridden?.quantityLost != null ? Number(overridden.quantityLost) : null,
+        },
+      } });
+    }, { timeout: 5000 });
 
     return { lossId, overrideReason };
   },
@@ -1155,6 +1107,7 @@ export const orderService = {
 
     // Phase 2: Single query to fetch all available batches for all ingredients
     const ingredientIds = [...needs.keys()];
+    await lockStock(tx, ingredientIds);
     const allBatches = await orderRepository.getAllAvailableBatches(ingredientIds, tx);
 
     // Phase 2: Allocate deductions per ingredient (FIFO logic, in-memory)
@@ -1220,58 +1173,34 @@ export const orderService = {
     }
     if (adjustments.length > 0) {
       await tx.stockAdjustment.createMany({ data: adjustments });
+      await this._checkStockLevels(needs, tx, adjustments);
     }
 
     await tx.order.update({ where: { orderId }, data: { consumptionRecordedAt: new Date() } });
     return { deductions, needs };
   },
 
-  /**
-   * Check stock levels and fire notifications AFTER transaction commits.
-   * Runs outside the transaction to avoid timeout — uses regular prisma client.
-   * @param {Map<string, number>} needs - ingredientId -> quantity deducted
-   */
-  async _checkStockLevels(needs) {
-    const ingredientIds = [...needs.keys()];
-    const [stockMap, infoMap] = await Promise.all([
-      orderRepository.getIngredientsTotalStocks(ingredientIds),
-      orderRepository.getIngredientsBasic(ingredientIds),
-    ]);
-
-    for (const ingredientId of ingredientIds) {
-      const stockAfter = stockMap.get(ingredientId) ?? 0;
-      const ing = infoMap.get(ingredientId);
+  async _checkStockLevels(needs, tx, changes) {
+    const info = await orderRepository.getIngredientsBasic([...needs.keys()], tx);
+    const notifications = [];
+    for (const change of changes) {
+      const ing = info.get(change.ingredientId);
       if (!ing) continue;
-
-      // Crossing-only: skip ingredients that were already out/low before this
-      // deduction, so repeated orders don't spam duplicate alerts.
-      const stockBefore = stockAfter + (needs.get(ingredientId) ?? 0);
+      const before = change.quantityBefore, after = change.quantityAfter;
       const threshold = Number(ing.minimumThreshold);
-
-      if (stockAfter <= 0) {
-        if (stockBefore <= 0) continue;
-        notificationService.create({
-          type: "stock_out",
-          title: "Out of Stock",
-          message: `${ing.ingredientName} is now out of stock`,
-          referenceType: "ingredient",
-          referenceId: ingredientId,
-        }).catch(() => {});
-      } else if (stockAfter <= threshold) {
-        if (stockBefore <= threshold) continue;
-        notificationService.create({
-          type: "stock_low",
-          title: "Low Stock Alert",
-          message: `${ing.ingredientName} is running low — ${stockAfter} ${ing.unit} remaining`,
-          referenceType: "ingredient",
-          referenceId: ingredientId,
-        }).catch(() => {});
-      }
+      const out = after <= 0 && before > 0;
+      const low = after > 0 && after <= threshold && before > threshold;
+      if (!out && !low) continue;
+      notifications.push({ type: out ? "stock_out" : "stock_low", title: out ? "Out of Stock" : "Low Stock Alert",
+        message: out ? `${ing.ingredientName} is now out of stock` : `${ing.ingredientName} is running low — ${after} ${ing.unit} remaining`,
+        referenceType: "ingredient", referenceId: change.ingredientId });
     }
+    await recordEffects(tx, { notifications });
   },
 
   async _restoreIngredients(orderId, userId, tx, activeDeductions) {
     const deductions = activeDeductions ?? await orderRepository.getActiveDeductions(orderId, tx);
+    await lockStock(tx, deductions.map(row => row.ingredientId));
 
     // Group deductions by ingredient to calculate total restored per ingredient
     const restoreByIngredient = new Map();
@@ -1350,6 +1279,7 @@ export const orderService = {
   async _settleItemConsumption(orderId, items, deductions, userId, tx, itemLosses = []) {
     const { settlements, losses } = planSettlement(items, deductions, itemLosses);
     if (!settlements.length) return;
+    await lockStock(tx, settlements.map(row => row.ingredientId));
     // The caller owns the order lock. The guarded batch claim, stock credits,
     // loss records and financial changes all roll back together on failure.
     const claimed = await orderRepository.settleDeductions(orderId, settlements, userId, tx);
@@ -1488,14 +1418,23 @@ export const orderService = {
         change,
       }, tx);
       await recordSheetEvent(tx, id, "paid");
+      await recordEffects(tx, { audit: {
+        userId: meta.userId,
+        action: ACTIONS.ORDER_ACCEPTED,
+        targetType: "order",
+        targetId: id,
+        details: { order_number: order.orderNumber, total, source: order.orderSource },
+      }, notifications: [{
+        type: "order_accepted",
+        title: "Order Accepted",
+        message: `Order ${formatOrderNumber(order.orderNumber)} has been accepted`,
+        referenceType: "order",
+        referenceId: id,
+      }] });
       return orderIdempotency.complete(request, { order_id: id, order_number: order.orderNumber }, tx);
     }, { timeout: 15000 });
 
     if (!transactionNeeds) return { response: outcome, replayed: true };
-
-    const affectedIngredientIds = [...ingredientNeeds.keys()];
-    productService.recomputeVariantAvailability(affectedIngredientIds).catch((err) => console.warn("[menu] availability recompute dropped:", err?.message));
-    this._checkStockLevels(transactionNeeds).catch((err) => console.warn("[stock] level check dropped:", err?.message));
 
     return { response: outcome, replayed: false };
   },

@@ -136,6 +136,7 @@ model ProductVariant {
   recipes  Recipe[]
   orderItems OrderItem[]
   priceOptimizations PriceOptimization[]
+  availabilityRepair AvailabilityRepair?
 
   @@unique([productId, sizeName])
   @@index([productId])
@@ -932,4 +933,27 @@ model EmailChangeRequest {
   createdAt DateTime @default(now()) @map("created_at")
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@map("email_change_requests")
+}
+
+model DomainEffect {
+  id            String    @id @default(uuid()) @db.Uuid
+  payload       Json
+  state         String    @default("pending") @db.VarChar(20)
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now()) @map("next_attempt_at") @db.Timestamptz
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  deliveredAt   DateTime? @map("delivered_at") @db.Timestamptz
+
+  @@index([state, nextAttemptAt, createdAt], map: "domain_effects_due_idx")
+  @@map("domain_effects")
+}
+
+model AvailabilityRepair {
+  variantId Int            @id @map("variant_id")
+  revision  String         @default(uuid()) @db.Uuid
+  queuedAt  DateTime       @default(now()) @map("queued_at") @db.Timestamptz
+  variant   ProductVariant @relation(fields: [variantId], references: [variantId], onDelete: Cascade)
+
+  @@index([queuedAt], map: "availability_repairs_due_idx")
+  @@map("availability_repairs")
 }

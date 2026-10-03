@@ -1,11 +1,13 @@
 import { ingredientRepository } from "./ingredient.repository.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
-import { productService } from "../products/product.service.js";
+import { recordEffects, recordMutation } from "../../services/domainEffects.js";
+import { lockStock } from "../../services/stockLocks.js";
 import prisma from "../../config/prisma.js";
-import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
-import { notificationService } from "../notifications/notification.service.js";
 import { anomalyService } from "../anomalyDetection/anomalyDetection.service.js";
+
+// Frozen response/notification quantities use the ledger's three-decimal precision.
+const roundStock = quantity => Math.round(quantity * 1000) / 1000;
 
 /**
  * Map Prisma Ingredient + stock quantity to snake_case API response format.
@@ -212,11 +214,17 @@ export const ingredientService = {
 
     let ingredient;
     try {
-      ingredient = await ingredientRepository.create({
+      ingredient = await recordMutation(prisma, tx => ingredientRepository.create({
         ingredientName: name,
         unit: data.unit.trim(),
         minimumThreshold: data.minimum_threshold ?? 0,
-      });
+      }, tx), ingredient => ({ audit: {
+        userId,
+        action: ACTIONS.INGREDIENT_CREATED,
+        targetType: "ingredient",
+        targetId: ingredient.ingredientId,
+        details: { name: ingredient.ingredientName, unit: ingredient.unit },
+      } }));
     } catch (err) {
       // Lost a creation race — the LOWER() unique index caught it.
       if (err?.code === "P2002") {
@@ -230,13 +238,6 @@ export const ingredientService = {
     }
 
     const response = mapToIngredientResponse(ingredient, 0);
-    auditLogService.logAction({
-      userId,
-      action: ACTIONS.INGREDIENT_CREATED,
-      targetType: "ingredient",
-      targetId: ingredient.ingredientId,
-      details: { name: ingredient.ingredientName, unit: ingredient.unit },
-    }).catch(() => {});
 
     return response;
   },
@@ -291,7 +292,13 @@ export const ingredientService = {
 
     let updated;
     try {
-      updated = await ingredientRepository.update(id, updateData);
+      updated = await recordMutation(prisma, tx => ingredientRepository.update(id, updateData, tx), updated => ({ audit: {
+        userId,
+        action: ACTIONS.INGREDIENT_UPDATED,
+        targetType: "ingredient",
+        targetId: id,
+        details: { name: updated.ingredientName ?? existing.ingredientName, fields: Object.keys(updateData) },
+      } }));
     } catch (err) {
       // Lost a rename race — the LOWER() unique index caught it.
       if (err?.code === "P2002") {
@@ -305,13 +312,6 @@ export const ingredientService = {
     }
     const stockQuantity = await ingredientRepository.getStockFromBatches(id);
     const response = mapToIngredientResponse(updated, stockQuantity);
-    auditLogService.logAction({
-      userId,
-      action: ACTIONS.INGREDIENT_UPDATED,
-      targetType: "ingredient",
-      targetId: id,
-      details: { name: updated.ingredientName ?? existing.ingredientName, fields: Object.keys(updateData) },
-    }).catch(() => {});
 
     return response;
   },
@@ -355,6 +355,7 @@ export const ingredientService = {
     // `before` for their adjustment rows.
     let qtyBefore = 0;
     await prisma.$transaction(async (tx) => {
+      await lockStock(tx, [id]);
       qtyBefore = await ingredientRepository.getStockFromBatches(id, tx);
 
       // Step 1: Create a new batch record (FIFO — first in, first out)
@@ -382,49 +383,35 @@ export const ingredientService = {
           adjustmentType: "restock",
           quantityBefore: qtyBefore,
           quantityChanged: qty,
-          quantityAfter: qtyBefore + qty,
+          quantityAfter: roundStock(qtyBefore + qty),
           notes: notes || null,
         },
         tx,
       );
 
-      // Step 4: Done
-    });
-
-    // Step 5: Ensure FIFO leader is starred (auto-star first/oldest batch)
-    const priorityBatch = await ingredientRepository.findPriorityBatch(id);
-    if (!priorityBatch) {
-      const fifoLeaderId = await ingredientRepository.findFifoLeaderId(id);
-      if (fifoLeaderId) {
-        await ingredientRepository.setBatchPriority(fifoLeaderId, true);
+      const priorityBatch = await ingredientRepository.findPriorityBatch(id, tx);
+      if (!priorityBatch) {
+        const leader = await ingredientRepository.findFifoLeaderId(id, tx);
+        if (leader) await ingredientRepository.setBatchPriority(leader, true, tx);
       }
-    }
-
-    // Return the updated ingredient
-    const stockQuantity = await ingredientRepository.getStockFromBatches(id);
-    const response = mapToIngredientResponse(existing, stockQuantity);
-
-    // Recompute variant availability for this ingredient
-    await productService.recomputeVariantAvailability([id]);
-
-    // Notify if stock was previously low and is now healthy
-    if (qtyBefore <= Number(existing.minimumThreshold) && stockQuantity > Number(existing.minimumThreshold)) {
-      notificationService.create({
+      const stockAfter = roundStock(qtyBefore + qty);
+      await recordEffects(tx, { audit: {
+        userId,
+        action: ACTIONS.STOCK_RESTOCKED,
+        targetType: "ingredient",
+        targetId: id,
+        details: { name: existing.ingredientName, unit: existing.unit, quantity: qty, cost_per_unit: cost, supplier: supplier_name },
+      }, notifications: qtyBefore <= Number(existing.minimumThreshold) && stockAfter > Number(existing.minimumThreshold) ? [{
         type: "stock_restocked",
         title: "Stock Restored",
-        message: `${existing.ingredientName} stock restored to ${stockQuantity} ${existing.unit}`,
+        message: `${existing.ingredientName} stock restored to ${stockAfter} ${existing.unit}`,
         referenceType: "ingredient",
         referenceId: id,
-      }).catch(() => {});
-    }
+      }] : [] });
 
-    auditLogService.logAction({
-      userId,
-      action: ACTIONS.STOCK_RESTOCKED,
-      targetType: "ingredient",
-      targetId: id,
-      details: { name: existing.ingredientName, unit: existing.unit, quantity: qty, cost_per_unit: cost, supplier: supplier_name },
-    }).catch(() => {});
+    });
+
+    const response = mapToIngredientResponse(existing, roundStock(qtyBefore + qty));
 
     return response;
   },
@@ -452,7 +439,7 @@ export const ingredientService = {
     const qty = Number(quantity_lost);
 
     // Step 2: Compute stock from batches
-    const qtyBefore = await ingredientRepository.getStockFromBatches(id);
+    let qtyBefore = await ingredientRepository.getStockFromBatches(id);
 
     // Step 3: Validate sufficient stock
     if (qtyBefore < qty) {
@@ -481,6 +468,8 @@ export const ingredientService = {
 
     // Step 5: Run all writes in a single transaction
     await prisma.$transaction(async (tx) => {
+      await lockStock(tx, [id]);
+      qtyBefore = await ingredientRepository.getStockFromBatches(id, tx);
       let totalCostLost;
 
       if (batch_id) {
@@ -531,28 +520,27 @@ export const ingredientService = {
           adjustmentType: "loss",
           quantityBefore: qtyBefore,
           quantityChanged: -qty,
-          quantityAfter: qtyBefore - qty,
+          quantityAfter: roundStock(qtyBefore - qty),
           relatedLossId: lossLog.lossId,
           notes: notes || null,
         },
         tx,
       );
+      await recordEffects(tx, { audit: {
+        userId,
+        action: ACTIONS.STOCK_LOSS_DECLARED,
+        targetType: "ingredient",
+        targetId: id,
+        details: { name: existing.ingredientName, unit: existing.unit, loss_type, quantity_lost: qty, batch_id },
+      } });
     });
 
-    // Step 6: Return updated ingredient
-    const stockQuantity = await ingredientRepository.getStockFromBatches(id);
+    // Return the committed snapshot; a later database outage must not turn
+    // an already-recorded loss into a failed response inviting another loss.
+    const stockQuantity = roundStock(qtyBefore - qty);
     const response = mapToIngredientResponse(existing, stockQuantity);
 
     // Recompute variant availability for this ingredient
-    await productService.recomputeVariantAvailability([id]);
-
-    auditLogService.logAction({
-      userId,
-      action: ACTIONS.STOCK_LOSS_DECLARED,
-      targetType: "ingredient",
-      targetId: id,
-      details: { name: existing.ingredientName, unit: existing.unit, loss_type, quantity_lost: qty, batch_id },
-    }).catch(() => {});
 
     // Real-time anomaly hook: loss spike (fire-and-forget). Covers
     // writeOffExpired too — it delegates to declareLoss.
@@ -604,19 +592,18 @@ export const ingredientService = {
       throw new AppError(404, "Batch not found for this ingredient", "BATCH_NOT_FOUND");
     }
 
-    const updated = await ingredientRepository.updateBatchExpiry(
+    const batchIngredient = await ingredientRepository.findById(id);
+    const updated = await recordMutation(prisma, tx => ingredientRepository.updateBatchExpiry(
       batchId,
       expiryDate ? new Date(`${expiryDate}T00:00:00Z`) : null,
-    );
-
-    const batchIngredient = await ingredientRepository.findById(id);
-    auditLogService.logAction({
+      tx,
+    ), () => ({ audit: {
       userId,
       action: ACTIONS.INGREDIENT_UPDATED,
       targetType: "restock_batch",
       targetId: String(batchId),
       details: { name: batchIngredient?.ingredientName ?? "", fields: ["expiry_date"], expiry_date: expiryDate ?? null },
-    }).catch(() => {});
+    } }));
 
     return mapToBatchResponse(updated);
   },
@@ -648,6 +635,7 @@ export const ingredientService = {
     let result;
 
     await prisma.$transaction(async (tx) => {
+      await lockStock(tx, [id]);
       // Re-read system stock INSIDE the tx: a concurrent deduct between the
       // page load and now would otherwise book a wrong before/after pair.
       const systemStock = await ingredientRepository.getStockFromBatches(id, tx);
@@ -728,46 +716,36 @@ export const ingredientService = {
         tx,
       );
 
-      // Hand the in-tx snapshot to the post-commit tail (notify/audit/return).
-      result = { systemStock, variance, isShort, lossId: lossRecord ? lossRecord.lossId : null };
-    }, { timeout: 15000 });
-
-    if (result?.outcome === "balanced") return result;
-    const { systemStock, variance, isShort } = result;
-
-    const stockQuantity = await ingredientRepository.getStockFromBatches(id);
-    await productService.recomputeVariantAvailability([id]);
-
-    // Threshold notifications on the corrected stock (same language as deductions).
-    // Crossing-only: skip when the count merely confirms an already out/low state.
-    const threshold = Number(existing.minimumThreshold);
-    if (stockQuantity <= 0) {
-      if (systemStock > 0) {
-        notificationService.create({
-          type: "stock_out",
-          title: "Out of Stock",
-          message: `${existing.ingredientName} counted out — 0 ${existing.unit} remaining`,
-          referenceType: "ingredient",
-          referenceId: id,
-        }).catch(() => {});
-      }
-    } else if (stockQuantity <= threshold && systemStock > threshold) {
-      notificationService.create({
+      // Freeze notification and audit data from this locked stock snapshot.
+      const stockQuantity = physical;
+      const threshold = Number(existing.minimumThreshold);
+      const notifications = [];
+      if (stockQuantity <= 0 && systemStock > 0) notifications.push({
+        type: "stock_out",
+        title: "Out of Stock",
+        message: `${existing.ingredientName} counted out — 0 ${existing.unit} remaining`,
+        referenceType: "ingredient",
+        referenceId: id,
+      });
+      else if (stockQuantity > 0 && stockQuantity <= threshold && systemStock > threshold) notifications.push({
         type: "stock_low",
         title: "Low Stock Alert",
         message: `${existing.ingredientName} counted low — ${stockQuantity} ${existing.unit} remaining`,
         referenceType: "ingredient",
         referenceId: id,
-      }).catch(() => {});
-    }
+      });
+      await recordEffects(tx, { audit: {
+        userId,
+        action: ACTIONS.STOCK_COUNT_RECORDED,
+        targetType: "ingredient",
+        targetId: id,
+        details: { name: existing.ingredientName, unit: existing.unit, system: systemStock, physical, variance, reason },
+      }, notifications });
+      result = { systemStock, variance, isShort, lossId: lossRecord ? lossRecord.lossId : null };
+    }, { timeout: 15000 });
 
-    auditLogService.logAction({
-      userId,
-      action: ACTIONS.STOCK_COUNT_RECORDED,
-      targetType: "ingredient",
-      targetId: id,
-      details: { name: existing.ingredientName, unit: existing.unit, system: systemStock, physical, variance, reason },
-    }).catch(() => {});
+    if (result?.outcome === "balanced") return result;
+    const { systemStock, variance, isShort } = result;
 
     return {
       ingredient_id: id,
@@ -1066,14 +1044,13 @@ export const ingredientService = {
       );
     }
 
-    const archived = await ingredientRepository.archive(id);
-    auditLogService.logAction({
+    const archived = await recordMutation(prisma, tx => ingredientRepository.archive(id, tx), () => ({ audit: {
       userId,
       action: ACTIONS.INGREDIENT_ARCHIVED,
       targetType: "ingredient",
       targetId: id,
       details: { name: ingredient.ingredientName },
-    }).catch(() => {});
+    } }));
 
     return {
       ingredient_id: archived.ingredientId,
@@ -1094,14 +1071,13 @@ export const ingredientService = {
       throw new AppError(404, "Ingredient not found", "INGREDIENT_NOT_FOUND");
     }
 
-    const restored = await ingredientRepository.restore(id);
-    auditLogService.logAction({
+    const restored = await recordMutation(prisma, tx => ingredientRepository.restore(id, tx), () => ({ audit: {
       userId,
       action: ACTIONS.INGREDIENT_RESTORED,
       targetType: "ingredient",
       targetId: id,
       details: { name: ingredient.ingredientName },
-    }).catch(() => {});
+    } }));
 
     return {
       ingredient_id: restored.ingredientId,
@@ -1142,14 +1118,13 @@ export const ingredientService = {
       );
     }
 
-    await ingredientRepository.delete(id);
-    auditLogService.logAction({
+    await recordMutation(prisma, tx => ingredientRepository.delete(id, tx), () => ({ audit: {
       userId,
       action: ACTIONS.INGREDIENT_DELETED,
       targetType: "ingredient",
       targetId: id,
       details: { name: ingredient.ingredientName },
-    }).catch(() => {});
+    } }));
 
     return { ingredient_id: id };
   },

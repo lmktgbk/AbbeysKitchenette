@@ -509,7 +509,7 @@ export const orderRepository = {
     // Every preparation/completion/removal/cancellation locks the parent first,
     // so item checks and inventory decisions cannot interleave on one order.
     const rows = await tx.$queryRaw`
-      SELECT order_id, status FROM orders WHERE order_id = ${id}::uuid FOR UPDATE
+      SELECT order_id, status, order_number, total_amount, created_at FROM orders WHERE order_id = ${id}::uuid FOR UPDATE
     `;
     return rows[0] ?? null;
   },
@@ -991,9 +991,9 @@ export const orderRepository = {
    * @param {string[]} ingredientIds - ingredient UUIDs
    * @returns {Map<string, object>} - ingredientId → { ingredientName, unit, minimumThreshold }
    */
-  async getIngredientsBasic(ingredientIds) {
+  async getIngredientsBasic(ingredientIds, tx) {
     if (ingredientIds.length === 0) return new Map();
-    const rows = await prisma.ingredient.findMany({
+    const rows = await (tx || prisma).ingredient.findMany({
       where: { ingredientId: { in: ingredientIds } },
       select: {
         ingredientId: true,

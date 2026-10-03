@@ -2,7 +2,7 @@
 
 This is the current implementation ledger. REPORT.md and findings.json preserve the original audit evidence; their historical unresolved labels are not the current count. **Implemented** means the identified code behavior was changed and selected regression checks passed, not that deployment or every live acceptance case is verified.
 
-The original audit contains **42 findings: 33 implemented, four open, five partially addressed**. Therefore **9 original findings remain outstanding** after the AI pricing batch. Additional rollout constraints and final acceptance are listed separately rather than counted as new original findings.
+The original audit contains **42 findings: 33 implemented, three open, six partially addressed**. Therefore **9 original findings remain outstanding** after the order/inventory recovery batch. Additional rollout constraints and final acceptance are listed separately rather than counted as new original findings.
 
 ## Implemented — 33
 
@@ -26,29 +26,29 @@ The original audit contains **42 findings: 33 implemented, four open, five parti
 | M12, M19 | [Socket budgets and reconnect reconciliation](WEBSOCKET_RELIABILITY_FIXES.md) |
 | M17, M18, M20, M21, M22 | [Frontend loading, menu, dialogs and cart](FRONTEND_RELIABILITY_FIXES.md) |
 
-## Open — four
+## Open — three
 
 | ID | Remaining implementation | Next verification |
 | --- | --- | --- |
-| M14 | General post-commit audit/notification/availability effects lack complete durable event delivery and repair. The Sheets/storage fixes cover their own domains only. | Fail effects and terminate after primary commit; recover without repeating money/stock writes. |
 | M16 | shift.repository.js getStats reads historical sessions and performs per-session sales/refund work. Replace with set-based aggregation while preserving existing cash/payment/variance semantics. | Compare results on isolated mixed history; measure query count and realistic dataset latency. |
 | M23 | Production log collection, metrics, tracing, alerts and their delivery are not established by current fixed console warnings. Include blocked automation/upload outcomes and retry backlogs. | Trigger isolated failures and verify collected redacted signals and alert delivery. |
 | L01 | Remaining lint and large domain-module maintenance debt. Current full frontend lint: 35 errors, 12 warnings; changed frontend files in this batch pass. | Resolve actionable failures in focused batches; preserve business regressions. |
 
-## Partially addressed — five
+## Partially addressed — six
 
 | ID | Completed | Remaining |
 | --- | --- | --- |
+| M14 | [Order/inventory durable intents, exact-once database delivery and revisioned availability repair](DOMAIN_EFFECT_RECOVERY_FIXES.md); 17 distinct isolated PostgreSQL scenarios verified. | Roll out transactional capture to remaining price/shift/product/category/staff/settings/auth/report/ML producers; anomaly hooks and live process-kill/hosting/load acceptance remain. |
 | H14 | Dependency upgrades, compatible integration checks and Python lock documented. | Residual Prisma CLI/deepmerge advisory review and clean deployment/install security checks; see DEPENDENCY_SECURITY_FIXES.md. |
 | H15 | Provider configuration, migration commands, health/shutdown and backup/restore runbook. | Actual Vercel/backend/ML deployment, release automation/rollback rehearsal, backups and reconciled restore. |
-| M15 | Ordered migration history and isolated PostgreSQL rehearsals, including all 11 migrations in the storage checks. | Confirm deployed constraints/history and realistic existing-data upgrade/compatibility/recovery; an isolated replay does not establish the main database state. |
+| M15 | Ordered migration history and isolated PostgreSQL rehearsals, including all 12 migrations in the effects checks. | Confirm deployed constraints/history and realistic existing-data upgrade/compatibility/recovery; an isolated replay does not establish the main database state. |
 | M24 | Substantial deterministic backend/client/worker and optional isolated PostgreSQL regressions. | Comprehensive browser E2E, live sandbox integrations, representative load and CI release gates. |
 | L02 | Essential audit/remediation/deployment runbooks are versioned under audit. | Consolidated onboarding/incident documentation and clean-environment provisioning exercise; historical docs/ remains ignored. |
 
 ## Deployment and acceptance still pending
 
 - Use one backend replica until shared socket event fanout is implemented and verified. Shared HTTP rate limits and database job leases do not share realtime events.
-- Apply reviewed migrations through deploy; never infer main-database migration state from disposable-schema tests. This AI pricing batch adds no migration.
+- Apply reviewed migrations through deploy; never infer main-database migration state from disposable-schema tests. This batch adds 20261004000000_domain_effects; apply it before starting the new backend.
 - Live Cloudinary, hosted cookie/proxy/WSS behavior, external delivery, backups/restoration and load capacity remain **Not verified** unless separate acceptance evidence is recorded.
 - Track the pg transaction-query deprecation as a compatibility follow-up before a pg 9 upgrade. It is not proof of an observed data corruption event.
 - Unknown provider upload/job outcomes intentionally require restricted operator review. Do not blindly replay or delete them.

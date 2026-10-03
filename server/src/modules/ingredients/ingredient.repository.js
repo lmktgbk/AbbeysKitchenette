@@ -179,8 +179,8 @@ export const ingredientRepository = {
    * @param {object} data - { ingredientName, unit, minimumThreshold }
    * @returns {object} - created ingredient
    */
-  async create(data) {
-    return prisma.ingredient.create({
+  async create(data, tx) {
+    return (tx || prisma).ingredient.create({
       data,
     });
   },
@@ -192,8 +192,8 @@ export const ingredientRepository = {
    * @param {object} data - { ingredientName?, minimumThreshold? }
    * @returns {object} - updated ingredient
    */
-  async update(id, data) {
-    return prisma.ingredient.update({
+  async update(id, data, tx) {
+    return (tx || prisma).ingredient.update({
       where: { ingredientId: id },
       data,
     });
@@ -543,8 +543,8 @@ export const ingredientRepository = {
    * @param {Date|null} expiryDate - new date or null to clear tracking
    * @returns {object} - updated RestockBatch
    */
-  async updateBatchExpiry(batchId, expiryDate) {
-    return prisma.restockBatch.update({
+  async updateBatchExpiry(batchId, expiryDate, tx) {
+    return (tx || prisma).restockBatch.update({
       where: { restockId: batchId },
       data: { expiryDate },
     });
@@ -695,8 +695,8 @@ export const ingredientRepository = {
    * @param {string} ingredientId - ingredient UUID
    * @returns {number|null} - restockId of FIFO leader, or null if no active batches
    */
-  async findFifoLeaderId(ingredientId) {
-    const batch = await prisma.restockBatch.findFirst({
+  async findFifoLeaderId(ingredientId, tx) {
+    const batch = await (tx || prisma).restockBatch.findFirst({
       where: { ingredientId, quantityLeft: { gt: 0 } },
       orderBy: { restockedAt: "asc" },
       select: { restockId: true },
@@ -786,8 +786,8 @@ export const ingredientRepository = {
    * @param {string} id - ingredient UUID
    * @returns {object}
    */
-  async archive(id) {
-    return prisma.ingredient.update({
+  async archive(id, tx) {
+    return (tx || prisma).ingredient.update({
       where: { ingredientId: id },
       data: { isArchived: true },
     });
@@ -798,8 +798,8 @@ export const ingredientRepository = {
    * @param {string} id - ingredient UUID
    * @returns {object}
    */
-  async restore(id) {
-    return prisma.ingredient.update({
+  async restore(id, tx) {
+    return (tx || prisma).ingredient.update({
       where: { ingredientId: id },
       data: { isArchived: false },
     });
@@ -810,8 +810,8 @@ export const ingredientRepository = {
    * @param {string} id - ingredient UUID
    * @returns {object}
    */
-  async delete(id) {
-    return prisma.ingredient.delete({
+  async delete(id, tx) {
+    return (tx || prisma).ingredient.delete({
       where: { ingredientId: id },
     });
   },

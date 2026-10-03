@@ -15,7 +15,7 @@ export function createOrderDatabase() {
     async findFirst({ where }) { return this.findUnique({ where }); },
     async create({ data }) {
       const { items, ...fields } = data;
-      const row = { orderId: `test-order-${++db.state.sequence}`, createdAt: new Date(), ...fields };
+      const row = { orderId: `123e4567-e89b-42d3-a456-${String(++db.state.sequence).padStart(12, "0")}`, createdAt: new Date(), ...fields };
       db.state.orders.push(row);
       await db.orderItem.createMany({ data: items.create.map(item => ({ orderId: row.orderId, ...item })) });
       return copy(row);
@@ -64,6 +64,12 @@ export function createOrderDatabase() {
     if (db.failAdjustment) throw new Error("Injected adjustment failure");
     db.state.adjustments.push(...copy(data));
   } };
+  db.domainEffect = { async create({ data }) {
+    if (db.failEffect) throw new Error("Injected effect intent failure");
+    const row = { id: ++db.state.sequence, ...copy(data) };
+    db.state.effects.push(row); return row;
+  } };
+  db.ingredient = { async findMany() { return copy(db.state.ingredients || []); } };
   db.lossRecord = { async createMany({ data }) {
     if (db.failLoss) throw new Error("Injected loss failure");
     db.state.losses.push(...copy(data));
@@ -126,7 +132,7 @@ export function createOrderDatabase() {
       return [{ created_at: row.createdAt }];
     }
     const row = db.state.orders.find(row => row.orderId === id);
-    return row ? [{ order_id: id, status: row.status }] : [];
+    return row ? [{ order_id: id, status: row.status, order_number: row.orderNumber, total_amount: row.totalAmount, created_at: row.createdAt }] : [];
   };
   db.$executeRaw = async (_sql, data, orderId, settlementOrderId) => {
     if (_sql.join("?").includes("UPDATE order_ingredient_deductions")) {
@@ -164,7 +170,8 @@ export function createOrderDatabase() {
     finally { release(); }
   };
   db.reset = (orders, items) => {
-    db.state = { orders: copy(orders), items: copy(items), cancellations: [], refunds: [], restores: 0, requests: [], receipts: [], shifts: [], sequence: 10, counter: 0, deductions: [], batches: [], adjustments: [], losses: [], sheetEvents: [] };
+    db.state = { orders: copy(orders), items: copy(items), cancellations: [], refunds: [], restores: 0, requests: [], receipts: [], shifts: [], sequence: 10, counter: 0, deductions: [], batches: [], adjustments: [], losses: [], sheetEvents: [], effects: [] };
+    db.failEffect = false;
     db.failSheetEvent = false;
     db.failCancellation = false;
     db.failReceipt = false;

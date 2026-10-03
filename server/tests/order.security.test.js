@@ -58,6 +58,17 @@ beforeEach(() => {
 const request = (path, method, body) => fetch(base + path, { method, headers: { "Content-Type": "application/json", "Idempotency-Key": KEY }, body: body === undefined ? undefined : JSON.stringify(body) });
 
 describe("Order permissions and transaction boundaries", () => {
+  it("completion captures financial metadata from the locked order", async () => {
+    h.db.state.orders[0].status = "preparing"; h.db.state.items[0].isPrepared = true;
+    const lock = orderRepository.lockOrder.bind(orderRepository);
+    vi.spyOn(orderRepository, "lockOrder").mockImplementation(async (id, tx) => {
+      h.db.state.orders[0].totalAmount = 80;
+      return lock(id, tx);
+    });
+    await orderService.advanceStatus(A, "completed", { userId: USER, userRole: "kitchen" });
+    expect(h.db.state.effects[0].payload.audit.details.total).toBe(80);
+    expect(h.db.state.effects[0].payload.notifications[0].message).toContain("80.00");
+  });
   it("rejects a bill exceeding storage capacity using authoritative prices", async () => {
     vi.spyOn(orderRepository, "getVariantPrices").mockResolvedValue(new Map([[1, 99999999.99]]));
     await expect(orderService._priceItemsAndTotals([
@@ -286,6 +297,19 @@ describe("Financial transactions, request replay and shift closure", () => {
     expect(h.db.state.deductions).toHaveLength(1);
     expect(h.db.state.requests).toHaveLength(1);
     expect(h.db.state.orders).toHaveLength(3);
+    expect(h.db.state.effects).toHaveLength(1);
+    expect(h.db.state.effects[0].payload).toMatchObject({ audit: { action: "ORDER_CREATED" }, notifications: [{ type: "order_new" }] });
+  });
+  it("an unavailable effect store rolls back the sale and allows a clean retry", async () => {
+    h.db.failEffect = true;
+    await expect(walkIn()).rejects.toThrow("Injected effect intent failure");
+    expect(h.db.state.effects).toHaveLength(0);
+    expect(h.db.state.receipts).toHaveLength(0);
+    expect(h.db.state.deductions).toHaveLength(0);
+    expect(h.db.state.requests).toHaveLength(0);
+    h.db.failEffect = false;
+    await walkIn();
+    expect(h.db.state.effects).toHaveLength(1);
   });
   it("persists one frozen Sheets event with the sale and does not recreate it on replay", async () => {
     h.sheets = true;
