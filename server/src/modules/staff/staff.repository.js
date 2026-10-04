@@ -80,7 +80,8 @@ export const staffRepository = {
   },
 
   /**
-   * Update staff fields.
+   * Update staff fields and rotate the session version in the same write.
+   * Profile/role changes must not leave previously issued tokens authoritative.
    */
   async update(id, data, tx = prisma) {
     const user = await tx.user.update({
@@ -92,7 +93,8 @@ export const staffRepository = {
   },
 
   /**
-   * Toggle active status.
+   * Persist the service's locked active-state decision and revoke prior sessions.
+   * This sets an explicit value; the service, not this method, computes the toggle.
    */
   async setActive(id, isActive, tx = prisma) {
     const user = await tx.user.update({

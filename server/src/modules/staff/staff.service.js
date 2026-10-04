@@ -20,6 +20,7 @@ import { env } from "../../config/env.js";
  */
 const SALT_ROUNDS = 10;
 
+/** Allowlist administrative profile fields; password hashes and session versions stay internal. */
 function mapToStaffResponse(user) {
   return {
     staff_id: user.id,
@@ -56,6 +57,7 @@ export const staffService = {
     return mapToStaffResponse(user);
   },
 
+  /** Commit the account and audit first; invitation failure returns emailed=false without duplicating the account. */
   async createStaff({ name, email, role }, userId) {
     const existing = await staffRepository.findByEmail(email);
     if (existing) throw new AppError(409, "Email already in use", "EMAIL_IN_USE");
@@ -99,6 +101,7 @@ export const staffService = {
     return { staff: mapToStaffResponse(user), emailed: true };
   },
 
+  /** Persist permitted profile fields with audit intent; self-service email changes require the verified auth flow. */
   async updateStaff(id, { name, email, role }, userId) {
     const user = await staffRepository.findById(id);
     if (!user) throw new AppError(404, "Staff not found", "STAFF_NOT_FOUND");
@@ -126,6 +129,7 @@ export const staffService = {
     return mapToStaffResponse(updated);
   },
 
+  /** Compute the toggle under the account lock; audit and version rotation commit before local session closure. */
   async toggleActive(id, userId) {
     const updated = await prisma.$transaction(async tx => {
       // A toggle derives its new value from the locked row, never a stale read.
@@ -145,6 +149,7 @@ export const staffService = {
     return { staff_id: updated.id, is_active: updated.isActive };
   },
 
+  /** Lock the account before checking history; deletion and audit commit together before local session revocation. */
   async deleteStaff(id, userId) {
     const deleted = await prisma.$transaction(async tx => {
       // FOR UPDATE also serializes new FK references with the history check.

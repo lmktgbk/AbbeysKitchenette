@@ -132,3 +132,22 @@ passed separately. Shift period-statistics and pricing/shift audit-recovery suit
 passed nine PostgreSQL cases in disposable schemas. No reconciliation formulas,
 query order, transaction boundaries, force-close policies, or HTTP contracts changed.
 Live shift/browser workflows and production load remain **Not verified**.
+
+## Batch 7 — product and staff lifecycle review
+
+- Indexed the locked product variant snapshot for replacement lookups and used
+  a set for activation's skipped-size membership. Queries, selection order,
+  transaction boundaries, and eligibility rules are unchanged.
+- Added professional function/inline comments around parent/variant locks,
+  availability repair, post-commit image cleanup, invitation failure, account
+  edits, toggles, deletion history, and session-version rotation.
+- Added feature guides for products and staff. Existing distinct bulk/single
+  activation and account lifecycle policies remain explicit; no generic CRUD or
+  user-management abstraction was added.
+
+Verification: 838 ordinary tests passed, with 119 opt-in cases skipped. All 17
+administrative PostgreSQL cases passed in a disposable schema, including product
+history guards, image rollback, failed staff invitation, staff edit/session
+rollback, toggles, and deletion history. Provider mail/image calls in this suite
+are mocked; live delivery, replacement cleanup, browser behavior, and production
+performance remain **Not verified**. No schema or HTTP contract changed.

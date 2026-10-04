@@ -56,11 +56,13 @@ function requireVariant(product, variantId) {
   return variant;
 }
 
+/** Build frozen product audit intent; callers persist it with the mutation, not after commit. */
 function productAudit(userId, action, product) {
   return { audit: { userId, action, targetType: "product", targetId: product.productId,
     details: { name: product.productName } } };
 }
 
+/** Run a product mutation after locking parent then variants; write must use the supplied transaction. */
 async function mutateProduct(id, write) {
   return prisma.$transaction(async tx => {
     // Lock the parent before variants; replacement and history checks share this order.
@@ -70,16 +72,19 @@ async function mutateProduct(id, write) {
   }, { timeout: 5000 });
 }
 
+/** Read ingredient totals once for the selected variants rather than querying each recipe independently. */
 async function variantStock(variants, tx) {
   const ids = [...new Set(variants.flatMap(v => v.recipes.map(r => r.ingredientId)))];
   return productRepository.getStockByIngredientIds(ids, tx);
 }
 
+/** Check recipe stock eligibility without overriding the separate manual-deactivation policy. */
 function stockSufficient(variant, stock) {
   return variant.recipes.every(r => !r.ingredient?.isArchived &&
     (stock[r.ingredientId] ?? 0) >= Number(r.quantityNeeded));
 }
 
+/** Queue durable availability repair with the mutation; revision refresh prevents losing newer stock changes. */
 async function queueVariantRepair(tx, variantIds) {
   if (!variantIds.length) return;
   // Refresh revisions in one round trip; a concurrent stock change stays recoverable.
@@ -338,6 +343,8 @@ export const productService = {
       throw error;
     }
     if (existing.imageUrl && updateData.imageUrl !== undefined && updateData.imageUrl !== existing.imageUrl) {
+      // The replacement has committed. Schedule old-asset cleanup; persisted ownership
+      // reconciliation protects live references and recovers interrupted cleanup.
       void deleteImage(existing.imageUrl);
     }
 
@@ -363,6 +370,8 @@ export const productService = {
     await mutateProduct(id, async (tx, existing) => {
       // Read the replacement diff only after acquiring the product locks.
       const currentVariants = existing.variants;
+      // Index the locked snapshot once; replacement must not read a fresh, unlocked variant list.
+      const currentById = new Map(currentVariants.map(variant => [variant.variantId, variant]));
 
       // Step 3: Build sets for diffing
       const incomingIds = new Set(
@@ -406,9 +415,7 @@ export const productService = {
       for (const v of variantsData) {
         if (v.variant_id && currentIds.has(v.variant_id)) {
           // Existing variant — check if size_name rename is allowed
-          const currentVariant = currentVariants.find(
-            (cv) => cv.variantId === v.variant_id,
-          );
+          const currentVariant = currentById.get(v.variant_id);
           const isRenaming =
             v.size_name !== undefined && v.size_name !== currentVariant.sizeName;
 
@@ -448,18 +455,20 @@ export const productService = {
     return this.getById(id);
   },
 
+  /** Activate recipe-eligible variants and queue repair in one transaction; report skipped sizes to the caller. */
   async activate(id, userId) {
     const summary = await mutateProduct(id, async (tx, product) => {
       const stock = await variantStock(product.variants, tx);
       const eligible = product.variants.filter(v => v.recipes.length && stockSufficient(v, stock));
       const ids = eligible.map(v => v.variantId);
+      const eligibleIds = new Set(ids);
       await tx.productVariant.updateMany({ where: { productId: id, variantId: { in: ids } },
         data: { isAvailable: true, isManuallyDeactivated: false } });
       await productRepository.update(id, { isAvailable: true }, tx);
       await queueVariantRepair(tx, ids);
       await recordEffects(tx, productAudit(userId, ACTIONS.PRODUCT_ACTIVATED, product));
       return { activated: eligible.map(v => v.sizeName),
-        skipped: product.variants.filter(v => !ids.includes(v.variantId)).map(v => v.sizeName) };
+        skipped: product.variants.filter(v => !eligibleIds.has(v.variantId)).map(v => v.sizeName) };
     });
     return { product: await this.getById(id), summary };
   },
@@ -494,6 +503,7 @@ export const productService = {
     return this.getById(productId);
   },
 
+  /** Delete only a history-free product under its locks; provider cleanup follows the database commit. */
   async remove(id, userId) {
     const deleted = await mutateProduct(id, async (tx, product) => {
       if (await productRepository.countTransactions(id, tx)) {
