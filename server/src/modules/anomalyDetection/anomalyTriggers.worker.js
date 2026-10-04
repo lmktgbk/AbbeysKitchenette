@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import prisma from "../../config/prisma.js";
 import { anomalyService } from "./anomalyDetection.service.js";
 
+/** Recover durable scan triggers with expiring ownership; publish only while the claimed owner remains valid. */
 export function createAnomalyWorker({ db = prisma, scan = (...args) => anomalyService.runScan(...args), intervalMs = 5000 } = {}) {
   let running = false, timer, flight;
   async function sweep() {

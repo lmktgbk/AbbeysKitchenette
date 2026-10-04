@@ -37,6 +37,7 @@ export function createEffectsRepository(db = prisma) {
         return { deferred: true };
       }
     },
+    /** Recompute queued menu availability without erasing repairs queued by a newer stock revision. */
     async repairAvailability() {
       const jobs = await db.availabilityRepair.findMany({ take: 50, orderBy: { queuedAt: "asc" } });
       if (!jobs.length) return 0;
@@ -61,6 +62,7 @@ export function createEffectsRepository(db = prisma) {
       }, { timeout: 5000 });
       return jobs.length;
     },
+    /** Bound retention cleanup; pending and blocked intents remain available for recovery. */
     async prune() {
       await db.$executeRaw`DELETE FROM domain_effects WHERE id IN (SELECT id FROM domain_effects
         WHERE state = 'delivered' AND delivered_at < clock_timestamp() - INTERVAL '7 days' LIMIT 1000)`;

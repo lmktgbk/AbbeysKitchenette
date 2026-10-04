@@ -23,6 +23,7 @@ export function cloudinaryStorage(params) {
       const remove = () => {
         void storageRepository.schedule(remoteId).catch(() => console.warn("[storage] Failed upload cleanup deferred"));
       };
+      // Stream errors, aborts, and late provider callbacks may race; release the slot and callback once.
       const finish = (error, result) => {
         if (finished) return;
         finished = true;

@@ -2,6 +2,7 @@ import prisma from "../config/prisma.js";
 import { AppError } from "../middleware/errorHandler.middleware.js";
 import { recordEffects } from "../infrastructure/effects/domainEffects.js";
 
+/** Resolve a pending suggestion once and save its audit atomically; model is supplied by trusted feature code. */
 export function resolveAdvisory(model, id, status, userId, action) {
   return prisma.$transaction(async tx => {
     const claimed = await tx[model].updateMany({ where: { id, status: "pending" }, data: { status } });

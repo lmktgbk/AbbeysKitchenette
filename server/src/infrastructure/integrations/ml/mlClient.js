@@ -10,6 +10,7 @@ export async function fetchMl(path, { method = "GET", body, signal, timeoutMs = 
   if (!path.startsWith("/") || path.startsWith("//") || url.origin !== base.origin) {
     throw new Error("Invalid ML service path");
   }
+  // Caller cancellation and the service deadline both abort the request, including body consumption.
   const response = await fetch(url, {
     method,
     redirect: "error",
@@ -30,6 +31,7 @@ export async function fetchMl(path, { method = "GET", body, signal, timeoutMs = 
   return { ok: true, status: response.status, json: async () => data };
 }
 
+/** Translate an ML response into the API envelope without exposing provider credentials or exception details. */
 export async function proxyMl(res, path, { serviceLabel, fallbackCode, okMessage, method, body, onData }) {
   try {
     const response = await fetchMl(path, { method, body });

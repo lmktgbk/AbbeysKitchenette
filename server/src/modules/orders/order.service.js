@@ -189,6 +189,7 @@ export const orderService = {
 
   /* ── Walk-In Order Creation ──────────── */
 
+  /** Create a paid order once; shift, stock, receipt, and follow-up intent commit with its replay result. */
   async createWalkIn({ customerName, tableNumber, items, amountPaid, createdBy, discount = {}, payment = {}, idempotencyKey }) {
     const request = orderRequest(`walk-in:${createdBy}`, idempotencyKey, { customerName, tableNumber, items, amountPaid, discount, payment });
     const cached = await orderIdempotency.lookup(request);
@@ -286,6 +287,7 @@ export const orderService = {
 
   /* ── Online Order Creation (Guest) ──── */
 
+  /** Save an unpaid guest order; payment and stock reservation occur later during acceptance. */
   async createOnline({ customerName, tableNumber, items, guestToken, idempotencyKey, beforeCreate }) {
     const request = orderRequest("guest-order", idempotencyKey, { customerName, tableNumber, items });
     const cached = await orderIdempotency.lookup(request);
@@ -608,6 +610,7 @@ export const orderService = {
 
   /* ── Prepare Order ───────────────────── */
 
+  /** Claim accepted-to-preparing atomically so a stale preparation action cannot revive cancellation. */
   async prepareOrder(id, userId) {
     const order = await orderRepository.findByIdGuard(id);
     if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
@@ -631,6 +634,7 @@ export const orderService = {
 
   /* ── Check Order Item ────────────────── */
 
+  /** Serialize item preparation changes with completion/removal using the owning order's row lock. */
   async checkOrderItem(orderId, orderItemId, isPrepared, userId) {
     await prisma.$transaction(async (tx) => {
       const order = await orderRepository.lockOrder(orderId, tx);

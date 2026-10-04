@@ -3,6 +3,7 @@
 // Stored as Int (always < 2^31), displayed with a dash: 260918-001.
 // Legacy short counters (pre-migration) fall back to #0001 style.
 
+/** Compose the persisted daily number from the server's business-date value and database-assigned counter. */
 export function composeOrderNumber(orderDate, counter) {
   const d = new Date(orderDate);
   const yy = String(d.getUTCFullYear() % 100).padStart(2, "0");
@@ -11,6 +12,7 @@ export function composeOrderNumber(orderDate, counter) {
   return Number(`${yy}${mm}${dd}${String(counter).padStart(3, "0")}`);
 }
 
+/** Display current date-prefixed numbers while retaining the legacy short-counter format. */
 export function formatOrderNumber(num) {
   const s = String(num ?? "");
   if (/^\d{9}$/.test(s)) return `#${s.slice(0, 6)}-${s.slice(6)}`;
@@ -19,6 +21,7 @@ export function formatOrderNumber(num) {
 
 // ── Response Formatters ─────────────────────────────────
 
+/** Normalize raw SQL or Prisma rows and Decimal values; extra fields intentionally override defaults. */
 export function formatOrderResponse(row, extra = {}) {
   return {
     order_id: row.order_id ?? row.orderId,
@@ -57,6 +60,7 @@ export function formatOrderResponse(row, extra = {}) {
   };
 }
 
+/** Preserve nullable historic fields and preparation metadata in the public order-line response. */
 export function formatOrderItemResponse(row) {
   return {
     order_item_id: row.order_item_id ?? row.orderItemId,

@@ -81,6 +81,7 @@ export function computeLineDiscount(lineSubtotal, input = {}) {
   return { discountType: "none", discountPercent: 0, discountAmount: 0, total: base };
 }
 
+/** Freeze a whole-bill discount onto paid lines so later removals retain the original cent allocation. */
 export function allocateBillDiscount(items, discount) {
   const cents = items.map(item => Math.round(roundMoney(item.unit_price * item.quantity) * 100));
   const subtotal = cents.reduce((sum, value) => sum + value, 0);

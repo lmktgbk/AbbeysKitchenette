@@ -2,6 +2,7 @@ import { AppError } from "../../middleware/errorHandler.middleware.js";
 
 // Stock is stored to three decimal places. Integer units keep allocation and
 // settlement exact, including recipe fractions spread across several batches.
+/** Convert persisted stock precision into exact integer thousandths; reject values that would silently round. */
 export function stockUnits(value) {
   const number = Number(value), units = Math.round(number * 1000);
   if (!Number.isFinite(number) || number < 0 || !Number.isSafeInteger(units) || Math.abs(number * 1000 - units) > 0.000001) {

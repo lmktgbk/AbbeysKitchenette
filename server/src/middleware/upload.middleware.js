@@ -4,6 +4,7 @@ import { IMAGE_POLICIES, checkImageType } from "../infrastructure/storage/imageV
 import { deleteImage } from "../utils/cloudinary.js";
 import { AppError } from "../middleware/errorHandler.middleware.js";
 
+/** Enforce per-feature multipart limits and defer rejected-image deletion to durable cleanup. */
 function imageUpload(kind) {
   const { maxBytes, allowed } = IMAGE_POLICIES[kind];
   const parse = multer({

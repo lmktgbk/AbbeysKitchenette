@@ -12,6 +12,7 @@ const formats = { jpeg: { extensions: [".jpg", ".jpeg"], mime: "image/jpeg" },
   webp: { extensions: [".webp"], mime: "image/webp" } };
 let processing = 0;
 
+/** Check extension/MIME agreement first; sanitizeImage separately verifies the decoded bytes. */
 export function checkImageType(file, allowed) {
   const format = Object.keys(formats).find(key => formats[key].extensions.includes(extname(file.originalname || "").toLowerCase()));
   if (!format || !allowed.includes(format) || file.mimetype !== formats[format].mime) {
@@ -29,6 +30,7 @@ export async function sanitizeImage(buffer, file, { allowed = IMAGE_POLICIES.pro
   try {
     const image = sharp(buffer, { animated: true, limitInputPixels: 16777216, failOn: "warning" }).timeout({ seconds: 3 });
     const meta = await image.metadata();
+    // Include all animation frames in the pixel budget to bound decompression memory.
     const height = meta.pageHeight || meta.height;
     if (meta.format !== format || !meta.width || !height || meta.width > 4096 || height > 4096 || (meta.pages || 1) > 50 || meta.width * height * (meta.pages || 1) > 16777216) {
       throw new AppError(400, "Invalid image content or dimensions", "INVALID_IMAGE");

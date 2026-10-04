@@ -5,10 +5,12 @@ import { recordEffects } from "../../infrastructure/effects/domainEffects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { sendEmail } from "../../utils/email.js";
 
+/** Record credential audit intent using the caller's transaction; subject and actor may differ. */
 export function authAudit(tx, userId, action, details = {}, subjectId = userId) {
   return recordEffects(tx, { audit: { userId, action, targetType: "staff", targetId: subjectId, details } });
 }
 
+/** Capture denied attempts independently; audit failure must never turn a denied login into success. */
 export async function recordLoginFailure(email, reason) {
   // Correlate failed attempts without retaining attacker-supplied addresses in audit payloads.
   const account = crypto.createHmac("sha256", env.JWT_SECRET).update(String(email ?? "").trim().toLowerCase()).digest("hex");
@@ -20,6 +22,7 @@ export async function recordLoginFailure(email, reason) {
   }
 }
 
+/** Send outside the credential transaction, invalidate failed challenges, and record the provider outcome. */
 export async function sendAuthEmail(message, { userId, context, requestId, subjectId }, invalidate = async () => {}) {
   let failure;
   try { await sendEmail(message); }

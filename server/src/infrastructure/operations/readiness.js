@@ -50,6 +50,7 @@ export const readiness = createReadiness({
   checkMl: async () => (await fetchMl("/health", { timeoutMs: 3000 })).ok,
 });
 
+/** Expose process liveness separately from dependency readiness; draining instances must stop receiving work. */
 export function healthRoutes(probe = readiness) {
   const router = Router();
   router.get("/api/health", (req, res) => res.set("Cache-Control", "no-store").json({

@@ -5,6 +5,7 @@ import { databasePool } from "../../config/prisma.js";
 import authenticate from "../../middleware/authenticate.middleware.js";
 import authorize from "../../middleware/authorize.middleware.js";
 
+/** Measure completed requests using bounded route-template labels, excluding raw URLs and request contents. */
 export function createRequestTelemetry({ write = line => console.log(line), now = () => performance.now() } = {}) {
   const routes = new Map();
   return {
@@ -13,6 +14,7 @@ export function createRequestTelemetry({ write = line => console.log(line), now 
       res.once("finish", () => {
         // Route templates exclude customer IDs, query strings and submitted secrets.
         const route = typeof req.route?.path === "string" ? `${req.baseUrl ?? ""}${req.route.path}` : "unmatched";
+        // Cap distinct labels so unmatched/dynamic routes cannot grow process memory without bound.
         const label = `${req.method} ${route}`, key = routes.has(label) || routes.size < 256 ? label : "other";
         const durationMs = Math.max(0, now() - start), previous = routes.get(key) ?? { requests: 0, errors: 0, authFailures: 0, totalMs: 0, maxMs: 0 };
         previous.requests++; previous.errors += Number(res.statusCode >= 500);
@@ -27,6 +29,7 @@ export function createRequestTelemetry({ write = line => console.log(line), now 
   };
 }
 
+/** Share and briefly cache queue probes so metrics polling cannot multiply database work. */
 export function createQueueSnapshot({ query = options => databasePool.query(options), cacheMs = 10000 } = {}) {
   let cached, expires = 0, flight;
   return async () => {
@@ -43,6 +46,7 @@ export function createQueueSnapshot({ query = options => databasePool.query(opti
 export const requestTelemetry = createRequestTelemetry({ write: line => {
   if (process.env.NODE_ENV === "production") console.log(line);
 } });
+/** Expose operational counts to authenticated admins only; responses must not be cached by browsers. */
 export function operationsRoutes({ telemetry = requestTelemetry, queues = createQueueSnapshot() } = {}) {
   const router = Router();
   router.get("/metrics", authenticate, authorize("admin"), async (req, res) => {
