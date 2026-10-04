@@ -2,9 +2,11 @@ import cron from "node-cron";
 import { anomalyRepository } from "./anomalyDetection.repository.js";
 import { engine } from "./rules/engine.js";
 import { RULE_REGISTRY } from "./rules/index.js";
-import { auditLogService } from "../auditLogs/auditLog.service.js";
+import prisma from "../../config/prisma.js";
+import crypto from "node:crypto";
+import { recordEffects } from "../../services/domainEffects.js";
+import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
-import { notificationService } from "../notifications/notification.service.js";
 import { env } from "../../config/env.js";
 import { BUSINESS_TZ } from "../../config/time.js";
 import { emitAnomalyCompleted } from "../../realtime/events.js";
@@ -42,7 +44,7 @@ export const anomalyService = {
 
   _lastFired: new Map(),
 
-  async runScan(ruleIds = null, context = null) {
+  async runScan(ruleIds = null, context = null, userId) {
     const startTime = Date.now();
     const allResults = [];
     const now = Date.now();
@@ -63,7 +65,6 @@ export const anomalyService = {
           const flagged = await this._runShiftVariancePoliceman(rule, context);
           for (const r of flagged) {
             allResults.push(r);
-            if (ruleIds) this._lastFired.set(rule.id, now);
           }
         } catch (err) {
           console.error(`[anomaly] Rule "${rule.id}" failed:`, err.message);
@@ -82,43 +83,29 @@ export const anomalyService = {
             if (reviewed) continue;
           }
           allResults.push(result);
-          if (ruleIds) this._lastFired.set(rule.id, now);
         }
       } catch (err) {
         console.error(`[anomaly] Rule "${rule.id}" failed:`, err.message);
       }
     }
 
-    if (allResults.length > 0) {
-      await anomalyRepository.createMany(allResults);
-
-      for (const result of allResults) {
-        if (result.severity === "critical" || result.severity === "high") {
-          notificationService.create({
-            type: "system",
-            title: `Anomaly: ${result.title}`,
-            message: result.description,
-            referenceType: "anomaly",
-            referenceId: result.id,
-          }).catch(() => {});
-        }
-      }
-    }
-
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`[anomaly] Scan complete: ${allResults.length} anomalies found in ${elapsed}s`);
+    const saved = allResults.map(result => ({ ...result, id: crypto.randomUUID() }));
+    await prisma.$transaction(async tx => {
+      if (saved.length) await anomalyRepository.createMany(saved, tx);
+      await recordEffects(tx, {
+        audit: { userId, action: ACTIONS.ANOMALY_SCAN, targetType: "anomaly",
+          details: { anomaliesFound: saved.length, elapsedSeconds: Number(elapsed), rules: ruleIds ?? "all" } },
+        notifications: saved.filter(r => ["critical", "high"].includes(r.severity)).map(result => ({
+          type: "system", title: `Anomaly: ${result.title}`.slice(0, 200), message: result.description,
+          referenceType: "anomaly", referenceId: result.id,
+        })),
+      });
+    }, { timeout: 5000 });
+    if (ruleIds) for (const result of saved) this._lastFired.set(result.ruleId, now);
+    console.log(`[anomaly] Scan complete: ${saved.length} anomalies found in ${elapsed}s`);
 
-    // Every run leaves a trail (manual, cron, ALL hooks even on 0) so
-    // getStats.lastScan reflects the true last run time. lastAnomaly stays
-    // separate for the last created card.
-    auditLogService.logAction({
-      action: ACTIONS.ANOMALY_SCAN,
-      targetType: "anomaly",
-      details: { anomaliesFound: allResults.length, elapsedSeconds: Number(elapsed), rules: ruleIds ?? "all" },
-    }).catch(() => {});
-
-    // Anomaly screens refresh (list, stats, badge). The audit emit above
-    // covers the audit page; this covers anomaly state itself.
+    // Refresh anomaly screens immediately; durable audit delivery runs independently.
     emitAnomalyCompleted(allResults.length);
 
     // Retention: findings older than 90 days are pruned on every scan.
@@ -178,8 +165,15 @@ export const anomalyService = {
     return anomalyRepository.getStats();
   },
 
-  async acknowledge(id) {
-    const result = await anomalyRepository.acknowledge(id);
+  async acknowledge(id, userId) {
+    const result = await prisma.$transaction(async tx => {
+      const claimed = await anomalyRepository.acknowledge(id, tx);
+      const row = await tx.anomalyResult.findUnique({ where: { id } });
+      if (!row) throw new AppError(404, "Anomaly not found", "ANOMALY_NOT_FOUND");
+      if (claimed.count) await recordEffects(tx, { audit: { userId, action: ACTIONS.ANOMALY_ACKNOWLEDGED,
+        targetType: "anomaly", targetId: id } });
+      return row;
+    }, { timeout: 5000 });
     emitAnomalyCompleted(null);
     return result;
   },

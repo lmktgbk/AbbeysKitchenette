@@ -2,7 +2,7 @@ import { ai, GEMINI_MODEL } from "../../config/gemini.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { wasteReductionRepository as repo } from "./wasteReduction.repository.js";
 import { buildWastePrompt } from "./wasteReduction.prompts.js";
-import { auditLogService } from "../auditLogs/auditLog.service.js";
+import { resolveAdvisory } from "../../services/advisoryEffects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
 /**
@@ -18,7 +18,7 @@ export const wasteReductionService = {
   /**
    * Generate waste reduction insights by gathering context and calling Gemini.
    */
-  async generate({ automation, signal } = {}) {
+  async generate({ automation, signal, userId } = {}) {
     // Step 1: Gather context
     const [lossRecords, stockVsForecast, restockHistory, ingredientCosts] =
       await Promise.all([
@@ -71,8 +71,8 @@ export const wasteReductionService = {
     let parsed;
     try {
       parsed = JSON.parse(response.text);
-    } catch (error) {
-      console.error("[WASTE_GENERATE] JSON parse error:", response.text);
+    } catch {
+      console.warn("[WASTE_GENERATE] Invalid provider JSON");
       throw new AppError(
         500,
         "Failed to parse AI response",
@@ -109,7 +109,7 @@ export const wasteReductionService = {
     }).filter((i) => i.overstock_amount > 0 || Number(stockMap.get(i.ingredient_id)?.stock_expiring_7d ?? 0) > 0);
 
     // Step 6: Store in DB
-    await repo.saveInsights(insights, automation);
+    await repo.saveInsights(insights, automation, userId);
 
     // Step 7: Return stored results
     return repo.getPendingInsights();
@@ -126,33 +126,10 @@ export const wasteReductionService = {
    * Accept a waste reduction insight.
    */
   async accept(id, userId) {
-    const pending = await repo.getPendingInsights();
-    const found = pending.find((i) => String(i.id) === String(id));
-    const insight = await repo.updateStatus(id, "accepted");
-    auditLogService.logAction({
-      userId,
-      action: ACTIONS.WASTE_ACCEPTED,
-      targetType: "ingredient",
-      targetId: found?.ingredient_id ?? null,
-      details: { name: found?.ingredient_name ?? null },
-    }).catch(() => {});
-    return insight;
+    return resolveAdvisory("wasteReduction", id, "accepted", userId, ACTIONS.WASTE_ACCEPTED);
   },
 
-  /**
-   * Reject a waste reduction insight.
-   */
   async reject(id, userId) {
-    const pending = await repo.getPendingInsights();
-    const found = pending.find((i) => String(i.id) === String(id));
-    const insight = await repo.updateStatus(id, "rejected");
-    auditLogService.logAction({
-      userId,
-      action: ACTIONS.WASTE_REJECTED,
-      targetType: "ingredient",
-      targetId: found?.ingredient_id ?? null,
-      details: { name: found?.ingredient_name ?? null },
-    }).catch(() => {});
-    return insight;
+    return resolveAdvisory("wasteReduction", id, "rejected", userId, ACTIONS.WASTE_REJECTED);
   },
 };

@@ -2,6 +2,7 @@
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from uuid import uuid4
+import json
 from database import get_pool
 
 LEASE_SECONDS = 120
@@ -15,6 +16,20 @@ class LeaseLostError(RuntimeError):
     pass
 
 
+async def record_effect(conn, action, target_type, target_id, details):
+    # Match the backend's durable payload contract; never include provider credentials.
+    payload = {"version": 1, "notifications": [], "audit": {
+        "action": action, "targetType": target_type, "targetId": str(target_id), "details": details,
+    }}
+    await conn.execute("INSERT INTO domain_effects (payload) VALUES ($1::jsonb)", json.dumps(payload))
+
+
+async def record_job_effect(conn, kind, job_id, stage):
+    await record_effect(conn, "FORECAST_RUN" if kind == "forecast" else "MBA_RUN",
+                        "forecast" if kind == "forecast" else "market_basket", job_id,
+                        {"source": "ml-worker", "stage": stage, "jobId": job_id})
+
+
 async def _expire(conn, table, results):
     counters = ", completed=0, failed=0" if table == "forecast_jobs" else ""
     rows = await conn.fetch(f"""UPDATE {table}
@@ -24,6 +39,8 @@ async def _expire(conn, table, results):
         RETURNING id""")
     if rows:
         await conn.execute(f"DELETE FROM {results} WHERE job_id=ANY($1::int[])", [row["id"] for row in rows])
+        for row in rows:
+            await record_job_effect(conn, "forecast" if table == "forecast_jobs" else "mba", row["id"], "expired")
 
 
 async def recover_expired_jobs():
@@ -49,6 +66,7 @@ async def admit_job(kind):
         period_value = ", 7" if kind == "forecast" else ""
         row = await conn.fetchrow(f"""INSERT INTO {table} (status, lease_owner, lease_expires_at{period_column})
             VALUES ('running', $1, clock_timestamp() + $2 * interval '1 second'{period_value}) RETURNING id""", owner, LEASE_SECONDS)
+        await record_job_effect(conn, kind, row["id"], "admitted")
         return row["id"], owner
 
 
@@ -73,6 +91,9 @@ async def job_connection(kind, job_id):
         if row is None:
             raise LeaseLostError("ML job no longer owns its execution lease")
         yield conn
+        status = await conn.fetchval(f"SELECT status FROM {table} WHERE id=$1", job_id)
+        if status == "completed":
+            await record_job_effect(conn, kind, job_id, "completed")
 
 
 async def fail_owned_job(kind, job_id, owner, message):
@@ -86,3 +107,4 @@ async def fail_owned_job(kind, job_id, owner, message):
             WHERE id=$1 AND lease_owner=$2 AND status='running' RETURNING id""", job_id, owner, message[:500])
         if row:
             await conn.execute(f"DELETE FROM {results} WHERE job_id=$1", job_id)
+            await record_job_effect(conn, kind, job_id, "failed")

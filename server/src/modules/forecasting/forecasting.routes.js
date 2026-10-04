@@ -3,7 +3,7 @@ import authenticate from "../../middleware/authenticate.middleware.js";
 import authorize from "../../middleware/authorize.middleware.js";
 import { validateQuery } from "../../middleware/validate.middleware.js";
 import { forecastJobQuerySchema } from "./forecasting.validation.js";
-import { auditLogService } from "../auditLogs/auditLog.service.js";
+import { proxyMlMutation } from "../../services/mlMutation.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { proxyMlStatus } from "../../realtime/jobs.js";
 
@@ -22,10 +22,6 @@ function proxyGet(res, path, fallbackCode) {
   return proxyMl(res, path, { serviceLabel: "Forecast", fallbackCode, okMessage: "Forecast retrieved" });
 }
 
-function proxyPost(res, path, fallbackCode) {
-  return proxyMl(res, path, { serviceLabel: "Forecast", fallbackCode, okMessage: "Forecast started", method: "POST" });
-}
-
 // ── Demand Forecasting ────────────────────────────────────────
 
 // POST /api/forecasting/demand/run — start forecast job
@@ -34,8 +30,8 @@ router.post(
   authenticate,
   authorize("admin"),
   (req, res) => {
-    auditLogService.logAction({ userId: req.user.id, action: ACTIONS.FORECAST_RUN, targetType: "forecast", details: { source: "manual" } });
-    proxyPost(res, "/forecast/demand/run", "DEMAND_RUN_ERROR");
+    return proxyMlMutation(req, res, "/forecast/demand/run", { serviceLabel: "Forecast",
+      fallbackCode: "DEMAND_RUN_ERROR", okMessage: "Forecast started", action: ACTIONS.FORECAST_RUN, targetType: "forecast" });
   },
 );
 

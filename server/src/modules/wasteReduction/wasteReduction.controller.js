@@ -1,7 +1,5 @@
 import { wasteReductionService } from "./wasteReduction.service.js";
 import { successResponse, controllerError } from "../../utils/response.js";
-import { auditLogService } from "../auditLogs/auditLog.service.js";
-import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
 /**
  * Waste Reduction Controller
@@ -33,13 +31,7 @@ export const wasteReductionController = {
    */
   async generateInsights(req, res) {
     try {
-      const insights = await wasteReductionService.generate();
-      auditLogService.logAction({
-        userId: req.user.id,
-        action: ACTIONS.WASTE_RUN,
-        targetType: "waste",
-        details: { source: "manual", count: insights.length },
-      }).catch(() => {});
+      const insights = await wasteReductionService.generate({ userId: req.user.id });
       return successResponse(res, "Waste reduction insights generated", {
         insights,
       });

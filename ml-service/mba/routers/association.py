@@ -1,3 +1,4 @@
+from jobs import record_effect
 import json
 from fastapi import APIRouter, Query, HTTPException
 from pydantic import BaseModel
@@ -149,14 +150,17 @@ async def get_job(job_id: int):
 async def mark_combo_created(body: MarkComboCreatedRequest):
     """Mark a product pair as having a combo created."""
     pool = await get_pool()
-    await pool.execute(
-        """INSERT INTO combo_created_pairs (product_name_a, product_name_b, product_id)
-           VALUES ($1, $2, $3)
-           ON CONFLICT (product_name_a, product_name_b) DO UPDATE SET
-             product_id = EXCLUDED.product_id,
-             created_at = NOW()""",
-        body.product_name_a,
-        body.product_name_b,
-        body.product_id,
-    )
+    async with pool.acquire(timeout=10) as conn, conn.transaction():
+        await conn.execute(
+            """INSERT INTO combo_created_pairs (product_name_a, product_name_b, product_id)
+               VALUES ($1, $2, $3)
+               ON CONFLICT (product_name_a, product_name_b) DO UPDATE SET
+                 product_id = EXCLUDED.product_id,
+                 created_at = NOW()""",
+            body.product_name_a,
+            body.product_name_b,
+            body.product_id,
+        )
+        await record_effect(conn, "MBA_COMBO_CREATED", "product", body.product_id,
+                            {"source": "ml-service", "stage": "published"})
     return {"marked": True}

@@ -1,7 +1,5 @@
 import { reorderSuggestionsService } from "./reorderSuggestions.service.js";
 import { successResponse, controllerError } from "../../utils/response.js";
-import { auditLogService } from "../auditLogs/auditLog.service.js";
-import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
 /**
  * Reorder Suggestions Controller
@@ -35,13 +33,7 @@ export const reorderSuggestionsController = {
    */
   async generateSuggestions(req, res) {
     try {
-      const suggestions = await reorderSuggestionsService.generate();
-      auditLogService.logAction({
-        userId: req.user.id,
-        action: ACTIONS.REORDER_RUN,
-        targetType: "reorder",
-        details: { source: "manual", count: suggestions.length },
-      }).catch(() => {});
+      const suggestions = await reorderSuggestionsService.generate({ userId: req.user.id });
       return successResponse(res, "Reorder suggestions generated", {
         suggestions,
       });

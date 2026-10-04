@@ -1,7 +1,5 @@
 import { anomalyService } from "./anomalyDetection.service.js";
 import { successResponse, controllerError } from "../../utils/response.js";
-import { auditLogService } from "../auditLogs/auditLog.service.js";
-import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
 /**
  * Anomaly Controller (admin-only — enforced in routes)
@@ -51,7 +49,7 @@ export const anomalyController = {
   async triggerScan(req, res) {
     try {
       const { rules } = req.body || {};
-      const result = await anomalyService.runScan(rules || null);
+      const result = await anomalyService.runScan(rules || null, null, req.user.id);
       return successResponse(res, "Anomaly scan complete", result);
     } catch (error) {
       return controllerError(res, error, "TRIGGER_SCAN_ERROR");
@@ -60,13 +58,7 @@ export const anomalyController = {
 
   async acknowledge(req, res) {
     try {
-      await anomalyService.acknowledge(req.params.id);
-      auditLogService.logAction({
-        userId: req.user.id,
-        action: ACTIONS.ANOMALY_ACKNOWLEDGED,
-        targetType: "anomaly",
-        targetId: req.params.id,
-      }).catch(() => {});
+      await anomalyService.acknowledge(req.params.id, req.user.id);
       return successResponse(res, "Anomaly acknowledged");
     } catch (error) {
       return controllerError(res, error, "ACKNOWLEDGE_ANOMALY_ERROR");

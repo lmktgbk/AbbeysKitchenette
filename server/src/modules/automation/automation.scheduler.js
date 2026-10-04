@@ -2,8 +2,6 @@ import { automationRepository } from './automation.repository.js';
 import { reorderSuggestionsService } from '../reorderSuggestions/reorderSuggestions.service.js';
 import { wasteReductionService } from '../wasteReduction/wasteReduction.service.js';
 import { dailyReportService, reportDay } from '../reports/dailyReport.service.js';
-import { auditLogService } from '../auditLogs/auditLog.service.js';
-import { ACTIONS } from '../auditLogs/auditLog.constants.js';
 import { toManilaDateString, manilaDayStart } from '../../config/time.js';
 import { fetchMl } from '../../services/mlClient.js';
 
@@ -48,9 +46,8 @@ const runners = {
   waste: context => wasteReductionService.generate({ automation: context, signal: context.signal }),
   dailyReport: context => dailyReportService.sendDailyReport(reportDay(context.run.scheduledAt), { assertOwned: context.assertOwned }),
 };
-const audits = { forecast: ACTIONS.FORECAST_RUN, marketBasket: ACTIONS.MBA_RUN, reorder: ACTIONS.REORDER_RUN, waste: ACTIONS.WASTE_RUN };
 
-export function createAutomationScheduler({ repository = automationRepository, jobs = runners, intervalMs = 15000, timeoutMs = 240000, audit = auditLogService } = {}) {
+export function createAutomationScheduler({ repository = automationRepository, jobs = runners, intervalMs = 15000, timeoutMs = 240000 } = {}) {
   let stopped = false, flight = null, timer, controller;
   const api = {
     async tick() {
@@ -97,7 +94,6 @@ export function createAutomationScheduler({ repository = automationRepository, j
               status: ['forecast', 'marketBasket'].includes(run.kind) ? 'submitted' : 'succeeded',
               result: ['forecast', 'marketBasket'].includes(run.kind) ? result : null,
             });
-            if (audits[run.kind]) await audit.logAction({ action: audits[run.kind], targetType: 'automation', details: { source: 'scheduled', runKey: run.runKey } }).catch(() => {});
           })();
           await Promise.race([operation, new Promise((resolve, reject) => {
             deadline = setTimeout(() => { runController.abort(); reject(new Error('AUTOMATION_DEADLINE')); }, timeoutMs);

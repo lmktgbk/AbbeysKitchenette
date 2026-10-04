@@ -3,7 +3,7 @@ import authenticate from "../../middleware/authenticate.middleware.js";
 import authorize from "../../middleware/authorize.middleware.js";
 import { validate, validateQuery, validateParams } from "../../middleware/validate.middleware.js";
 import { markComboSchema, mbaAnalyzeQuerySchema, mbaJobsQuerySchema, mbaJobIdParamSchema } from "./marketBasket.validation.js";
-import { auditLogService } from "../auditLogs/auditLog.service.js";
+import { proxyMlMutation } from "../../services/mlMutation.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { proxyMlStatus } from "../../realtime/jobs.js";
 
@@ -23,10 +23,6 @@ function proxyGet(res, path, fallbackCode) {
   return proxyMl(res, path, { serviceLabel: "MBA", fallbackCode, okMessage: "Success" });
 }
 
-function proxyPost(res, path, body, fallbackCode) {
-  return proxyMl(res, path, { serviceLabel: "MBA", fallbackCode, okMessage: "Job created", method: "POST", body });
-}
-
 // POST /api/market-basket/analyze — create a new analysis job
 router.post(
   "/analyze",
@@ -34,13 +30,13 @@ router.post(
   authorize("admin"),
   validateQuery(mbaAnalyzeQuerySchema),
   (req, res) => {
-    auditLogService.logAction({ userId: req.user.id, action: ACTIONS.MBA_RUN, targetType: "market_basket", details: { source: "manual" } });
     const { minSupport, minConfidence, topN } = req.validatedQuery || {};
     let path = "/mba/analyze?";
     if (minSupport !== undefined) path += `min_support=${minSupport}&`;
     if (minConfidence !== undefined) path += `min_confidence=${minConfidence}&`;
     if (topN !== undefined) path += `top_n=${topN}&`;
-    proxyPost(res, path, {}, "MBA_ANALYZE_ERROR");
+    return proxyMlMutation(req, res, path, { serviceLabel: "MBA", body: {}, fallbackCode: "MBA_ANALYZE_ERROR",
+      okMessage: "Job created", action: ACTIONS.MBA_RUN, targetType: "market_basket" });
   },
 );
 
@@ -100,16 +96,9 @@ router.post(
   authorize("admin"),
   validate(markComboSchema),
   (req, res) => {
-    auditLogService.logAction({
-      userId: req.user.id,
-      action: ACTIONS.MBA_COMBO_CREATED,
-      targetType: "product",
-      targetId: req.body?.product_id ?? null,
-      details: {
-        name: [req.body?.product_name_a, req.body?.product_name_b].filter(Boolean).join(" + ") || null,
-      },
-    }).catch(() => {});
-    proxyPost(res, "/mba/mark-combo-created", req.body, "MBA_MARK_COMBO_ERROR");
+    return proxyMlMutation(req, res, "/mba/mark-combo-created", { serviceLabel: "MBA", body: req.body,
+      fallbackCode: "MBA_MARK_COMBO_ERROR", okMessage: "Combo marked", action: ACTIONS.MBA_COMBO_CREATED,
+      targetType: "product", targetId: req.body.product_id });
   },
 );
 

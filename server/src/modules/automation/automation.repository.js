@@ -1,3 +1,5 @@
+import { recordEffects } from "../../services/domainEffects.js";
+import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { randomUUID } from "node:crypto";
 import prisma from "../../config/prisma.js";
 
@@ -71,12 +73,17 @@ export const automationRepository = {
       return renewed === 1;
     }, { timeout: 5000 });
   },
-  async complete(run, { status = "succeeded", result = null } = {}, tx = prisma) {
+  async complete(run, { status = "succeeded", result = null } = {}, tx) {
+    if (!tx) return prisma.$transaction(client => this.complete(run, { status, result }, client), { timeout: 5000 });
     const updated = await tx.$executeRaw`UPDATE automation_runs SET status = ${status}, result = ${JSON.stringify(result)}::jsonb,
       owner = NULL, lease_expires_at = NULL, last_error = NULL, updated_at = clock_timestamp()
       WHERE run_key = ${run.runKey} AND owner = ${run.owner}::uuid AND status = 'running'
         AND lease_expires_at > clock_timestamp()`;
     if (updated !== 1) throw new Error("AUTOMATION_LEASE_LOST");
+    const actions = { forecast: ACTIONS.FORECAST_RUN, marketBasket: ACTIONS.MBA_RUN,
+      reorder: ACTIONS.REORDER_RUN, waste: ACTIONS.WASTE_RUN };
+    await recordEffects(tx, { audit: { action: actions[run.kind] ?? ACTIONS.AUTOMATION_COMPLETED,
+      targetType: "automation", details: { source: "scheduled", runKey: run.runKey, status, result } } });
   },
   async fail(run) {
     const retry = SAFE.includes(run.kind) && run.attempts < 3;

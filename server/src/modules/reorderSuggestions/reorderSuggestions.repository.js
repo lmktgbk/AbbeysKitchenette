@@ -1,3 +1,5 @@
+import { recordEffects } from "../../services/domainEffects.js";
+import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import prisma from "../../config/prisma.js";
 import { MANILA_TODAY_SQL } from "../../config/time.js";
 
@@ -154,8 +156,10 @@ export const reorderSuggestionsRepository = {
    * Clear old pending suggestions and save new ones.
    * Uses a transaction to delete old + insert new atomically.
    */
-  async saveSuggestions(suggestions, automation) {
+  async saveSuggestions(suggestions, automation, userId) {
     await prisma.$transaction(async (tx) => {
+      // Serialize replacement even when the pending set is empty.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(73422, 1)`;
       // Delete old pending suggestions
       await tx.reorderSuggestion.deleteMany({
         where: { status: "pending" },
@@ -181,6 +185,8 @@ export const reorderSuggestionsRepository = {
       }
       // Publish advisory data and the scheduled run outcome in the same commit.
       if (automation) await automation.complete(tx);
+      else await recordEffects(tx, { audit: { userId, action: ACTIONS.REORDER_RUN,
+        targetType: "reorderSuggestions", details: { source: "manual", count: suggestions.length } } });
     }, { timeout: 5000 });
   },
 
@@ -220,10 +226,4 @@ export const reorderSuggestionsRepository = {
   /**
    * Update suggestion status (accept or reject).
    */
-  async updateStatus(id, status) {
-    return prisma.reorderSuggestion.update({
-      where: { id },
-      data: { status },
-    });
-  },
 };

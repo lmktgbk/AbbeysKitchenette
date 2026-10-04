@@ -2,7 +2,7 @@ import { ai, GEMINI_MODEL } from "../../config/gemini.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { reorderSuggestionsRepository as repo } from "./reorderSuggestions.repository.js";
 import { buildReorderPrompt } from "./reorderSuggestions.prompts.js";
-import { auditLogService } from "../auditLogs/auditLog.service.js";
+import { resolveAdvisory } from "../../services/advisoryEffects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
 /**
@@ -37,7 +37,7 @@ export const reorderSuggestionsService = {
    * 5. Store suggestions in DB
    * 6. Return results
    */
-  async generate({ automation, signal } = {}) {
+  async generate({ automation, signal, userId } = {}) {
     // Step 1: Gather context
     const [ingredients, demandForecast, usagePatterns, supplierInfo] =
       await Promise.all([
@@ -86,8 +86,8 @@ export const reorderSuggestionsService = {
     let parsed;
     try {
       parsed = JSON.parse(response.text);
-    } catch (error) {
-      console.error("[REORDER_GENERATE] JSON parse error:", response.text);
+    } catch {
+      console.warn("[REORDER_GENERATE] Invalid provider JSON");
       throw new AppError(
         500,
         "Failed to parse AI response",
@@ -150,7 +150,7 @@ export const reorderSuggestionsService = {
       const triggerLabel = triggers.join(" and ");
 
       // Estimated cost
-      const { cost, supplier } = costMap.get(ing.ingredient_id) || {};
+      const { cost } = costMap.get(ing.ingredient_id) || {};
       const costLine = cost != null
         ? ` Estimated cost: ₱${(suggestedQty * cost).toFixed(2)} (${cost}/${ing.unit} × ${suggestedQty}).`
         : "";
@@ -169,7 +169,7 @@ export const reorderSuggestionsService = {
     }
 
     // Step 6: Store in DB
-    await repo.saveSuggestions(suggestions, automation);
+    await repo.saveSuggestions(suggestions, automation, userId);
 
     // Step 7: Return stored results
     return repo.getPendingSuggestions();
@@ -186,37 +186,10 @@ export const reorderSuggestionsService = {
    * Accept a reorder suggestion.
    */
   async accept(id, userId) {
-    const pending = await repo.getPendingSuggestions();
-    const found = pending.find((s) => String(s.id) === String(id));
-    const suggestion = await repo.updateStatus(id, "accepted");
-    auditLogService.logAction({
-      userId,
-      action: ACTIONS.REORDER_ACCEPTED,
-      targetType: "ingredient",
-      targetId: found?.ingredient_id ?? null,
-      details: {
-        name: found?.ingredient_name ?? null,
-        suggested_quantity: found?.suggested_quantity ?? null,
-        unit: found?.unit ?? null,
-      },
-    }).catch(() => {});
-    return suggestion;
+    return resolveAdvisory("reorderSuggestion", id, "accepted", userId, ACTIONS.REORDER_ACCEPTED);
   },
 
-  /**
-   * Reject a reorder suggestion.
-   */
   async reject(id, userId) {
-    const pending = await repo.getPendingSuggestions();
-    const found = pending.find((s) => String(s.id) === String(id));
-    const suggestion = await repo.updateStatus(id, "rejected");
-    auditLogService.logAction({
-      userId,
-      action: ACTIONS.REORDER_REJECTED,
-      targetType: "ingredient",
-      targetId: found?.ingredient_id ?? null,
-      details: { name: found?.ingredient_name ?? null },
-    }).catch(() => {});
-    return suggestion;
+    return resolveAdvisory("reorderSuggestion", id, "rejected", userId, ACTIONS.REORDER_REJECTED);
   },
 };

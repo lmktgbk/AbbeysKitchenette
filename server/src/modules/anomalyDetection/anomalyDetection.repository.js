@@ -13,8 +13,8 @@ export const anomalyRepository = {
     return prisma.anomalyResult.create({ data });
   },
 
-  async createMany(data) {
-    return prisma.anomalyResult.createMany({ data });
+  async createMany(data, tx = prisma) {
+    return tx.anomalyResult.createMany({ data });
   },
 
   async findMany({ page = 1, limit = 20, severity, category, acknowledged } = {}) {
@@ -90,11 +90,8 @@ export const anomalyRepository = {
     };
   },
 
-  async acknowledge(id) {
-    return prisma.anomalyResult.update({
-      where: { id },
-      data: { isAcknowledged: true },
-    });
+  async acknowledge(id, tx = prisma) {
+    return tx.anomalyResult.updateMany({ where: { id, isAcknowledged: false }, data: { isAcknowledged: true } });
   },
 
   // Reviewed-today also blocks re-fire: marking reviewed means "I know, stop

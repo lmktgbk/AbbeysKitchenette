@@ -979,3 +979,19 @@ Perform destructive failure injection only in disposable schemas and test proces
 - [ ] Verify live inbox delivery, expired links, multiple browser tabs and hosted cookies/WebSockets using test accounts.
 
 Live inbox receipt, process-kill/provider ambiguity, hosted behavior and load remain **Not verified**. If cleanup storage is unavailable after a mail failure, the code/link remains bounded by its expiry and account version; do not assume immediate invalidation succeeded.
+
+## Report and intelligence recovery
+
+- [ ] In a disposable schema, reject audit-intent insertion: reorder/waste generation retains the previous pending batch; accept/reject retains pending status.
+- [ ] Race accept against reject on the same suggestion: one succeeds, the other returns 409; one resolution audit is delivered.
+- [ ] Run competing generations: the pending list contains one complete batch rather than mixed results.
+- [ ] Generate high-severity anomalies: notifications reference existing finding IDs; repeat acknowledgement creates no additional acknowledgement audit.
+- [ ] Interrupt a report before SMTP: no unrecorded send starts. Interrupt after SMTP: review recipient outcome manually before retrying; never infer inbox delivery from provider acceptance.
+- [ ] Fail report outcome capture: subsequent recipients are not sent; inspect redacted attempts and outcome stages.
+- [ ] Fail manual ML attempt capture: no external admission occurs. Drop its response: check job history before submitting again.
+- [ ] Stop the backend audit worker while ML completes: restart it and verify lifecycle audits recover without rerunning the ML job.
+- [ ] Reject lifecycle intent insertion in a disposable schema: job completion rolls back; retry under the valid lease produces one completed audit.
+- [ ] Verify market-basket combo publication and its audit together through the actual ML endpoint.
+- [ ] Verify scheduled completion audit recovery, live report inbox receipt, actual forecast/MBA results and hosted service connectivity.
+
+Live integrations, anomaly trigger recovery/concurrency, process-kill behavior and load remain **Not verified**. This batch needs no new migration; restart backend and ML service.

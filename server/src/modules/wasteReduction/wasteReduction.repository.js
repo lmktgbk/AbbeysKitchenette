@@ -1,3 +1,5 @@
+import { recordEffects } from "../../services/domainEffects.js";
+import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import prisma from "../../config/prisma.js";
 import { MANILA_TODAY_SQL } from "../../config/time.js";
 
@@ -122,8 +124,10 @@ export const wasteReductionRepository = {
   /**
    * Clear old pending insights and save new ones.
    */
-  async saveInsights(insights, automation) {
+  async saveInsights(insights, automation, userId) {
     await prisma.$transaction(async (tx) => {
+      // Serialize replacement even when the pending set is empty.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(73422, 2)`;
       // Delete old pending insights
       await tx.wasteReduction.deleteMany({
         where: { status: "pending" },
@@ -149,6 +153,8 @@ export const wasteReductionRepository = {
       }
       // Publish advisory data and the scheduled run outcome in the same commit.
       if (automation) await automation.complete(tx);
+      else await recordEffects(tx, { audit: { userId, action: ACTIONS.WASTE_RUN,
+        targetType: "wasteReduction", details: { source: "manual", count: insights.length } } });
     }, { timeout: 5000 });
   },
 
@@ -190,10 +196,4 @@ export const wasteReductionRepository = {
   /**
    * Update insight status (accept or reject).
    */
-  async updateStatus(id, status) {
-    return prisma.wasteReduction.update({
-      where: { id },
-      data: { status },
-    });
-  },
 };

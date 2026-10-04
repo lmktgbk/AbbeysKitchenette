@@ -11,7 +11,8 @@ import { analyticsService } from "../analytics/analytics.service.js";
 import { analyticsRepository } from "../analytics/analytics.repository.js";
 import { shiftService } from "../shifts/shift.service.js";
 import { orderRepository } from "../orders/order.repository.js";
-import { auditLogService } from "../auditLogs/auditLog.service.js";
+import crypto from "node:crypto";
+import { recordEffects } from "../../services/domainEffects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { sendEmail, generateDailyReportEmail } from "../../utils/email.js";
 
@@ -66,14 +67,14 @@ export const dailyReportService = {
   async sendDailyReport(dayStr, { assertOwned } = {}) {
     const report = await this.buildReport(dayStr);
     const recipients = await this.adminEmails();
+    const batchId = crypto.randomUUID();
+    const capture = details => prisma.$transaction(tx => recordEffects(tx, { audit: {
+      action: details.stage === "attempt" ? ACTIONS.DAILY_REPORT_ATTEMPT : ACTIONS.DAILY_REPORT_SENT,
+      targetType: "report", details: { day: report.day, batchId, ...details },
+    } }), { timeout: 5000 });
     if (recipients.length === 0) {
-      await auditLogService
-        .logAction({
-          action: ACTIONS.DAILY_REPORT_SENT,
-          targetType: "report",
-          details: { day: report.day, sent: 0, note: "no active admin emails" },
-        })
-        .catch(() => {});
+      if (assertOwned) await assertOwned();
+      await capture({ stage: "summary", sent: 0, note: "no active admin emails" });
       return { sent: 0, day: report.day };
     }
     const { subject, html } = generateDailyReportEmail(report);
@@ -95,37 +96,29 @@ export const dailyReportService = {
         content: buffer,
         contentType: "application/pdf",
       }];
-    } catch (err) {
-      console.warn("[report] PDF attachment skipped:", err?.message);
+    } catch {
+      console.warn("[report] PDF attachment unavailable");
     }
-    const failures = [];
-    for (const to of recipients) {
-      // Scheduled mail cannot continue after shutdown or ownership expiry.
-      // SMTP acknowledgements are not transactional; uncertain sends need review.
+    let sent = 0, unconfirmed = 0;
+    for (const [recipientIndex, to] of recipients.entries()) {
       if (assertOwned) await assertOwned();
+      await capture({ stage: "attempt", recipientIndex, outcome: "not-confirmed", pdf: !!attachments });
+      if (assertOwned) await assertOwned();
+      let outcome;
       try {
         await sendEmail({ to, subject, html, attachments });
-      } catch (err) {
-        failures.push(`${to}: ${err?.message}`);
+        sent++;
+        outcome = "provider-accepted";
+      } catch {
+        unconfirmed++;
+        outcome = "unconfirmed";
       }
+      // Lost outcome capture must block scheduled replay, never silently resend mail.
+      await capture({ stage: "recipient-outcome", recipientIndex, outcome });
     }
-    await auditLogService
-      .logAction({
-        action: ACTIONS.DAILY_REPORT_SENT,
-        targetType: "report",
-        details: {
-          day: report.day,
-          sent: recipients.length - failures.length,
-          recipients,
-          pdf: !!attachments,
-          ...(failures.length > 0 ? { failures } : {}),
-        },
-      })
-      .catch(() => {});
-    if (failures.length === recipients.length) {
-      throw new Error(`Daily report failed for all recipients: ${failures.join("; ")}`);
-    }
-    if (assertOwned && failures.length) throw new Error("SCHEDULED_REPORT_PARTIAL_DELIVERY");
-    return { sent: recipients.length - failures.length, day: report.day };
+    await capture({ stage: "summary", sent, unconfirmed, recipients: recipients.length, pdf: !!attachments });
+    if (!sent) throw new Error("DAILY_REPORT_DELIVERY_UNCONFIRMED");
+    if (assertOwned && unconfirmed) throw new Error("SCHEDULED_REPORT_PARTIAL_DELIVERY");
+    return { sent, day: report.day };
   },
 };
