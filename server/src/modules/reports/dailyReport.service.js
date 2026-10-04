@@ -28,7 +28,8 @@ export const dailyReportService = {
   /**
    * Build the report payload for a Manila calendar day (default: yesterday).
    * All reads reuse the analytics/shift/order queries the dashboard uses,
-   * so emailed figures always agree with the app.
+   * keeping arithmetic consistent with the app. Separate queries/requests can
+   * observe different commits; this payload is not a transaction-wide snapshot.
    */
   async buildReport(dayStr) {
     const day = dayStr || reportDay();
@@ -78,11 +79,11 @@ export const dailyReportService = {
       return { sent: 0, day: report.day };
     }
     const { subject, html } = generateDailyReportEmail(report);
-    // Day-scoped PDF, byte-identical pipeline to the dashboard PDF export.
-    // Missing pdfkit degrades to HTML-only (audited, never fatal).
+    // Reuse the analytics service payload and PDF renderer without importing HTTP controllers.
+    // Attachment failures degrade to HTML-only and are recorded in delivery audit.
     let attachments;
     try {
-      const { fetchExportData } = await import("../analytics/analytics.controller.js");
+      const { fetchExportData } = await import("../analytics/analytics.service.js");
       const { buildPdfBuffer } = await import("../analytics/exportPdf.js");
       const payload = await fetchExportData({
         date_from: report.day,

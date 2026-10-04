@@ -1,4 +1,4 @@
-import { analyticsService } from "./analytics.service.js";
+import { analyticsService, fetchExportData } from "./analytics.service.js";
 import { successResponse, errorResponse, controllerError } from "../../utils/response.js";
 
 /**
@@ -157,45 +157,7 @@ export const analyticsController = {
   },
 };
 
-/**
- * Shared export payload — one parallel fetch for both renderers so Excel
- * and PDF always report identical rows for the same filters. Exported for
- * the daily report email (day-scoped PDF attachment reuses it verbatim).
- */
-async function fetchExportData({ date_from, date_to, include, types }) {
-  const [kpis, orders, variants, ingredients, trend, waste] = await Promise.all([
-    analyticsService.getKpis(date_from, date_to),
-    include("financial") || include("kpi") || include("orders")
-      ? analyticsService.getOrdersLedger({ dateFrom: date_from, dateTo: date_to })
-      : null,
-    include("variants")
-      ? analyticsService.getVariantProfitability({ dateFrom: date_from, dateTo: date_to, limit: 50, offset: 0 })
-      : null,
-    include("ingredients")
-      ? analyticsService.getIngredientProfitability({ dateFrom: date_from, dateTo: date_to, limit: 50, offset: 0 })
-      : null,
-    include("trend") ? analyticsService.getTrend(date_from, date_to, "daily") : null,
-    include("waste")
-      ? analyticsService.getWasteDetails({ dateFrom: date_from, dateTo: date_to, limit: 200, offset: 0 })
-      : null,
-  ]);
-  return {
-    meta: {
-      dateFrom: date_from || null,
-      dateTo: date_to || null,
-      types: types.join(", "),
-      generated: new Date().toISOString(),
-    },
-    kpis,
-    orders,
-    variants,
-    ingredients,
-    trend,
-    waste,
-  };
-}
 
-export { fetchExportData };
 
 /**
  * Excel workbook writer — same sheets as the original inline implementation,

@@ -243,6 +243,8 @@ export const categoryService = {
    * @private
    */
   async _deactivateProductsBySubcategory(subcategoryId, tx) {
+    // The category service supplies its mutation transaction: product/variant
+    // availability and category audit must not commit independently.
     // Two set-based writes replace two round trips per product.
     await tx.product.updateMany({ where: { subcategoryId }, data: { isAvailable: false } });
     await tx.productVariant.updateMany({ where: { product: { subcategoryId } },

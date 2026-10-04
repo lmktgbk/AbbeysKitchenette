@@ -151,3 +151,23 @@ history guards, image rollback, failed staff invitation, staff edit/session
 rollback, toggles, and deletion history. Provider mail/image calls in this suite
 are mocked; live delivery, replacement cleanup, browser behavior, and production
 performance remain **Not verified**. No schema or HTTP contract changed.
+
+## Batch 8 — categories, settings, and reporting boundaries
+
+- Moved the existing export payload builder from the analytics controller into
+  the existing analytics service. Both HTTP exports and daily-report PDFs consume
+  the same implementation; reports no longer depend on an HTTP controller.
+- Updated daily-report mocks and documented attachment fallback, delivery
+  uncertainty, unchanged export limits, and nontransactional read snapshots.
+- Clarified category deactivation's caller-owned transaction and settings
+  singleton locking, cache invalidation, and existing fallback behavior.
+- Corrected comments claiming reports always match independently timed app reads
+  and claiming only payment changes invalidate the settings cache.
+
+Verification: 838 ordinary cases passed, including report delivery lifecycle
+checks; 17 administrative PostgreSQL cases passed in a disposable schema.
+The moved export function's executable text matches its prior implementation.
+No SQL, export limits, default payment policy, mutation rules, or API contract
+changed. SMTP/PDF live delivery, hosted cache behavior, and browser exports remain
+**Not verified**. The settings cache's all-method fallback on read failure is
+documented existing behavior, not a verified successful settings read.

@@ -10,8 +10,8 @@ export const DEFAULT_PAYMENTS = ["cash", "gcash", "maya"];
  *
  * Single-row system config (singleton id=1, auto-created on first read).
  * Writes diff before saving: unchanged PATCHes return silently instead of
- * spamming audit + notifications, and only real payment changes bust the
- * accepted-payments cache that every order creation reads.
+ * spamming audit + notifications. Successful update calls invalidate this
+ * process's accepted-payments cache, including unchanged saves.
  */
 // Short-lived cache: payment checks run on every order creation.
 let _paymentsCache = null;
@@ -19,6 +19,7 @@ let _paymentsCacheAt = 0;
 const PAYMENTS_TTL_MS = 60 * 1000;
 
 export const settingsService = {
+  /** Read the singleton, initializing defaults when absent; this path does not mutate user-submitted fields. */
   async getSettings() {
     let settings = await settingsRepository.find();
 
@@ -29,6 +30,7 @@ export const settingsService = {
     return settings;
   },
 
+  /** Lock the singleton before diffing so concurrent identical saves produce one mutation intent. */
   async updateSettings(data, userId) {
     // Normalize: trim strings, empty → null (PATCH-omitted stays untouched,
     // explicit "" clears the field instead of storing whitespace).
@@ -58,6 +60,7 @@ export const settingsService = {
       });
       return updated;
     }, { timeout: 5000 });
+    // Invalidate only after a successful commit; other processes refresh on their own TTL.
     _paymentsCache = null;
 
     return settings;
@@ -65,7 +68,8 @@ export const settingsService = {
 
   /**
    * Accepted payment methods (cached 60s — called on every order creation).
-   * Falls back to all three when unset (fresh DBs before BR08 runs).
+   * Falls back to all three when unset or the settings read fails. This preserves
+   * existing availability behavior; it is not proof of a successful settings read.
    */
   async getAcceptedPayments() {
     if (_paymentsCache && Date.now() - _paymentsCacheAt < PAYMENTS_TTL_MS) {
