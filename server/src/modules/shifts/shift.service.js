@@ -9,6 +9,7 @@ function roundMoney(n) {
   return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 }
 
+/** Normalize Prisma/raw rows while preserving null counts for drawers not yet closed. */
 function formatShift(row) {
   if (!row) return null;
   return {
@@ -26,6 +27,16 @@ function formatShift(row) {
     variance: row.variance != null ? Number(row.variance) : null,
     close_note: row.closeNote ?? row.close_note ?? null,
   };
+}
+
+/** Read-only owner/admin guard shared by detail, orders, summary, and ingredient usage. */
+async function findAccessibleShift(id, userId, role) {
+  const shift = await shiftRepository.findById(id);
+  if (!shift) throw new AppError(404, "Shift not found", "SHIFT_NOT_FOUND");
+  if (role !== "admin" && shift.openedBy !== userId) {
+    throw new AppError(403, "You can only view your own shifts", "FORBIDDEN");
+  }
+  return shift;
 }
 
 export const shiftService = {
@@ -85,11 +96,7 @@ export const shiftService = {
    * Orders attributed to one shift (owner or admin only), windowed.
    */
   async getShiftOrders(id, { userId, role, page = 1, limit = 15, status = "all" }) {
-    const shift = await shiftRepository.findById(id);
-    if (!shift) throw new AppError(404, "Shift not found", "SHIFT_NOT_FOUND");
-    if (role !== "admin" && shift.openedBy !== userId) {
-      throw new AppError(403, "You can only view your own shifts", "FORBIDDEN");
-    }
+    const shift = await findAccessibleShift(id, userId, role);
     const take = Math.min(Math.max(Number(limit) || 15, 1), 50);
     const pageNum = Math.max(Number(page) || 1, 1);
     const skip = (pageNum - 1) * take;
@@ -124,11 +131,7 @@ export const shiftService = {
   },
 
   async getById(id, { userId, role }) {
-    const shift = await shiftRepository.findById(id);
-    if (!shift) throw new AppError(404, "Shift not found", "SHIFT_NOT_FOUND");
-    if (role !== "admin" && shift.openedBy !== userId) {
-      throw new AppError(403, "You can only view your own shifts", "FORBIDDEN");
-    }
+    const shift = await findAccessibleShift(id, userId, role);
     return { ...formatShift(shift), ...(await this.buildSummary(shift)) };
   },
 
@@ -206,20 +209,12 @@ export const shiftService = {
   },
 
   async getSummary(id, { userId, role }) {
-    const shift = await shiftRepository.findById(id);
-    if (!shift) throw new AppError(404, "Shift not found", "SHIFT_NOT_FOUND");
-    if (role !== "admin" && shift.openedBy !== userId) {
-      throw new AppError(403, "You can only view your own shifts", "FORBIDDEN");
-    }
+    const shift = await findAccessibleShift(id, userId, role);
     return { shift: formatShift(shift), summary: await this.buildSummary(shift) };
   },
 
   async getIngredientUsage(id, { userId, role }) {
-    const shift = await shiftRepository.findById(id);
-    if (!shift) throw new AppError(404, "Shift not found", "SHIFT_NOT_FOUND");
-    if (role !== "admin" && shift.openedBy !== userId) {
-      throw new AppError(403, "You can only view your own shifts", "FORBIDDEN");
-    }
+    const shift = await findAccessibleShift(id, userId, role);
 
     // Single GROUP BY query (was: full order trees hydrated in memory).
     // Removed items are excluded — restored stock was never consumed.
@@ -241,6 +236,11 @@ export const shiftService = {
 
   /* ── Close ─────────────────────────────── */
 
+  /**
+   * Lock the drawer, compute its reconciliation, and save closure plus audit atomically.
+   * forced is supplied only by the admin-authorized route; it bypasses the kitchen
+   * backlog guard, not the lock, variance calculation, or mandatory note.
+   */
   async closeShift({ id, actualCash, closeNote, userId, forced = false }) {
     const shift = await shiftRepository.findById(id);
     if (!shift) throw new AppError(404, "Shift not found", "SHIFT_NOT_FOUND");
@@ -319,7 +319,8 @@ export const shiftService = {
 
   /**
    * Period stats for the Shifts KPI row (default: today, Manila business day).
-   * Same drawer math as the cards — KPIs can never disagree with them.
+   * Uses the same drawer arithmetic as cards. Separately timed reads can differ
+   * while sales change; the repository aggregates this KPI response in one snapshot.
    */
   async getStats({ dateFrom, dateTo }) {
     const today = toManilaDateString();
@@ -338,6 +339,8 @@ export const shiftService = {
    * Resolve the drawer session a payment belongs to.
    * One open shift per cashier: returns it, or throws
    * SHIFT_REQUIRED when none is open.
+   * Payment writers must supply their transaction to retain the shift lock until
+   * the sale commits. The unlocked branch is only a preliminary availability check.
    * @returns {{ shiftId }}
    */
   async resolveShiftForUser(userId, tx) {

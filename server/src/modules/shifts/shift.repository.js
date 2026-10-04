@@ -6,6 +6,7 @@ import prisma from "../../config/prisma.js";
  * All database queries for cashier drawer sessions.
  */
 export const shiftRepository = {
+  /** Lock the cashier's drawer in the payment transaction so close cannot omit a concurrent sale. */
   async lockOpenByUser(userId, tx) {
     const rows = await tx.$queryRaw`
       SELECT shift_id FROM shifts WHERE opened_by = ${userId}::uuid AND status = 'open' FOR UPDATE
@@ -13,6 +14,7 @@ export const shiftRepository = {
     return rows[0]?.shift_id ?? null;
   },
 
+  /** Serialize closure attempts using the caller's transaction; return current status after lock acquisition. */
   async lockById(id, tx) {
     const rows = await tx.$queryRaw`
       SELECT shift_id, status FROM shifts WHERE shift_id = ${id}::uuid FOR UPDATE
@@ -49,22 +51,6 @@ export const shiftRepository = {
       data: { openingCash, openedBy, status: "open" },
       include: {
         opener: { select: { id: true, name: true, role: true } },
-      },
-    });
-  },
-
-  async close(id, { expectedCash, actualCash, variance, closeNote, closedBy }, tx) {
-    const client = tx || prisma;
-    return client.shift.update({
-      where: { shiftId: id },
-      data: {
-        status: "closed",
-        closedAt: new Date(),
-        closedBy,
-        expectedCash,
-        actualCash,
-        variance,
-        closeNote: closeNote ?? null,
       },
     });
   },

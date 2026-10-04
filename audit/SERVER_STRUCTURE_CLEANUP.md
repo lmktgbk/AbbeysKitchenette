@@ -115,3 +115,20 @@ files changed only in relative paths and comments. No credentials, token expiry,
 queries, transaction boundaries, or public response contracts were altered.
 Live email/browser/hosting acceptance remains **Not verified**. Shifts cleanup is
 the next separate batch.
+
+## Batch 6 — shift access and guarded closure
+
+- Consolidated identical owner/admin read checks in a local service helper, keeping
+  one lookup and the same missing/forbidden errors in each endpoint.
+- Removed the unused unguarded repository `close` method after checking callers;
+  `closeIfOpen` remains the close workflow's conditional write.
+- Added comments and a shift workflow guide covering drawer locks, force-close
+  routing, tender/change/refunds, persisted snapshots, and Manila date windows.
+- Corrected an overly absolute KPI comment: separately timed requests can observe
+  different committed totals even when their arithmetic agrees.
+
+Verification: 828 existing ordinary cases passed; 10 new access-contract cases
+passed separately. Shift period-statistics and pricing/shift audit-recovery suites
+passed nine PostgreSQL cases in disposable schemas. No reconciliation formulas,
+query order, transaction boundaries, force-close policies, or HTTP contracts changed.
+Live shift/browser workflows and production load remain **Not verified**.
