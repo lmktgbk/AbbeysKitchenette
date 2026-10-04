@@ -307,3 +307,51 @@ describe("authentication data flow with actual routes/controllers/services", () 
     } finally { lookup.mockRestore(); }
   });
 });
+
+
+describe("Authentication durable audit capture", () => {
+  it("OTP audit failure rolls consumption and last-login back, then permits retry", async () => {
+    const challengeId = crypto.randomUUID();
+    const code = await generateOtp(ID, challengeId, new Date(Date.now() + 60000), false, user);
+    h.db.failEffect = true;
+    await expect(verifyOtp(ID, challengeId, code, user)).rejects.toThrow("Injected audit capture failure");
+    expect(h.db.state.otpCode).toHaveLength(1); expect(h.db.state.user[0].lastLoginAt).toBeUndefined();
+    h.db.failEffect = false; await verifyOtp(ID, challengeId, code, user);
+    expect(h.db.state.otpCode).toHaveLength(0);
+    expect(h.db.state.domainEffect.filter(e => e.payload.audit.action === "LOGIN_SUCCESS")).toHaveLength(1);
+    expect(h.db.state.domainEffect.filter(e => e.payload.audit.action === "OTP_VERIFIED")).toHaveLength(1);
+  });
+  it("password change audit failure preserves credentials and session version", async () => {
+    h.db.failEffect = true;
+    await expect(authService.changePassword(ID, PASSWORD, "Replacement-passphrase!")).rejects.toThrow("Injected audit capture failure");
+    expect(h.db.state.user[0].passwordHash).toBe(user.passwordHash); expect(h.db.state.user[0].sessionVersion).toBe(0);
+  });
+  it("logout audit failure preserves the existing session", async () => {
+    h.db.failEffect = true;
+    await expect(authService.logout(ID, 0)).rejects.toThrow("Injected audit capture failure");
+    expect(h.db.state.user[0].sessionVersion).toBe(0);
+    h.db.failEffect = false; await authService.logout(ID, 0); await authService.logout(ID, 0);
+    expect(h.db.state.domainEffect.filter(e => e.payload.audit.action === "LOGOUT")).toHaveLength(1);
+  });
+  it("reset issuance audit failure cannot leave a usable recovery token", async () => {
+    h.db.failEffect = true;
+    await expect(authService.forgotPassword(user.email)).rejects.toThrow("Injected audit capture failure");
+    expect(h.db.state.passwordResetToken).toHaveLength(0); expect(h.messages).toHaveLength(0);
+  });
+  it("failed recovery delivery returns the generic response and invalidates its token", async () => {
+    h.mailFailure = true;
+    const known = await request("/forgot-password", { email: user.email });
+    const unknown = await request("/forgot-password", { email: "missing@example.invalid" });
+    expect(known.status).toBe(200); expect(unknown.status).toBe(200); expect(known.body).toEqual(unknown.body);
+    expect(h.db.state.passwordResetToken).toHaveLength(0);
+    expect(h.db.state.domainEffect.some(e => e.payload.audit.details.outcome === "unconfirmed")).toBe(true);
+  });
+  it("audit payloads omit passwords, OTPs, recovery tokens and raw failed-login addresses", async () => {
+    await request("/admin-login", { email: "unknown@example.invalid", password: PASSWORD });
+    await authService.forgotPassword(user.email);
+    const payload = JSON.stringify(h.db.state.domainEffect);
+    expect(payload).not.toContain(PASSWORD); expect(payload).not.toContain("unknown@example.invalid");
+    const token = h.messages[0].html.split("token=")[1]; expect(payload).not.toContain(token);
+    expect(h.db.state.domainEffect.find(e => e.payload.audit.action === "LOGIN_FAILED").payload.audit.details.account).toMatch(/^[a-f0-9]{64}$/);
+  });
+});

@@ -148,7 +148,8 @@ describe.skipIf(process.env.ADMIN_DB_CHECK !== "1")("PostgreSQL administrative m
     expect(sendEmail).not.toHaveBeenCalled(); expect(await db.user.count()).toBe(2);
     const result = await staff.createStaff({ name: "New", email: "new@fixture.invalid", role: "kitchen" }, actor.id);
     expect(result.emailed).toBe(false); expect(await db.user.count()).toBe(3);
-    await deliverAll(); expect(await db.auditLog.count()).toBe(1); expect(await db.notification.count()).toBe(1);
+    await deliverAll(); expect(await db.auditLog.count()).toBe(3); expect(await db.notification.count()).toBe(1);
+    expect(await db.passwordResetToken.count()).toBe(0);
   }, 30000);
   it("staff update rollback preserves sessions and retry revokes after commit", async () => {
     const work = () => staff.updateStaff(target.id, { name: "Changed" }, actor.id);

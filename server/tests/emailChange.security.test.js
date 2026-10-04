@@ -163,3 +163,21 @@ describe("Recovery email changes", () => {
     await expect(emailChange.confirm(crypto.randomUUID(), 0, r.emailChange.id, code())).rejects.toBeInstanceOf(Error);
   });
 });
+
+
+describe("Recovery-email durable audit capture", () => {
+  it("request capture failure leaves the current account unchanged and sends no email", async () => {
+    h.db.failEffect = true;
+    await expect(start()).rejects.toThrow("Injected audit capture failure");
+    expect(h.db.state.emailChangeRequest).toHaveLength(0); expect(h.mail).toHaveLength(0);
+    expect(h.db.state.user[0].email).toBe(user.email);
+  });
+  it("confirmation capture failure preserves the pending code and existing sessions", async () => {
+    const pending = await start(); const supplied = code(); h.db.failEffect = true;
+    await expect(emailChange.confirm(id, 0, pending.emailChange.id, supplied)).rejects.toThrow("Injected audit capture failure");
+    expect(h.db.state.user[0].email).toBe(user.email); expect(h.db.state.user[0].sessionVersion).toBe(0);
+    expect(h.db.state.emailChangeRequest).toHaveLength(1); expect(h.revoked).toHaveLength(0);
+    h.db.failEffect = false; await emailChange.confirm(id, 0, pending.emailChange.id, supplied);
+    expect(h.db.state.user[0].email).toBe("new@example.invalid");
+  });
+});

@@ -1,3 +1,5 @@
+import { authAudit } from "./authEffects.js";
+import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import crypto from "crypto";
 import prisma from "../../config/prisma.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
@@ -64,10 +66,6 @@ export const authRepository = {
     return existing && existing.id !== userId;
   },
 
-  async updateLastLogin(userId) {
-    return prisma.user.update({ where: { id: userId }, data: { lastLoginAt: new Date() } });
-  },
-
   async incrementFailedLoginAttempts(userId, lockoutMinutes) {
     return prisma.$transaction(async (tx) => {
       await lockAccount(tx, userId);
@@ -83,7 +81,7 @@ export const authRepository = {
       return tx.user.update({ where: { id: userId }, data: {
         lockedUntil: new Date(Date.now() + lockoutMinutes * 60 * 1000),
       } });
-    });
+    }, { timeout: 5000 });
   },
 
   async resetFailedLoginAttempts(userId) {
@@ -102,8 +100,9 @@ export const authRepository = {
       if (changed.count !== 1) throw new AppError(409, "Account changed, please log in again", "ACCOUNT_CHANGED");
       await tx.otpCode.deleteMany({ where: { userId } });
       await tx.passwordResetToken.deleteMany({ where: { userId, usedAt: null } });
+      await authAudit(tx, userId, ACTIONS.PASSWORD_CHANGED);
       return tx.user.findUnique({ where: { id: userId }, select: SESSION_USER_SELECT });
-    });
+    }, { timeout: 5000 });
   },
 
   async revokeSessions(userId, expectedVersion) {
@@ -115,31 +114,40 @@ export const authRepository = {
       if (revoked.count === 1) {
         await tx.otpCode.deleteMany({ where: { userId } });
         await tx.passwordResetToken.deleteMany({ where: { userId, usedAt: null } });
+        await authAudit(tx, userId, ACTIONS.LOGOUT);
       }
       return revoked;
-    });
+    }, { timeout: 5000 });
   },
 
-  async updateProfile(userId, data) {
-    return prisma.user.update({
-      where: { id: userId },
-      data,
-      select: {
-        id: true, name: true, email: true, role: true, imageUrl: true,
-        isActive: true, lastLoginAt: true, createdAt: true,
-      },
-    });
+  async updateProfile(userId, data, expectedVersion) {
+    return prisma.$transaction(async tx => {
+      const user = await tx.user.update({
+        where: { id: userId, isActive: true, ...(expectedVersion !== undefined ? { sessionVersion: expectedVersion } : {}) },
+        data,
+        select: {
+          id: true, name: true, email: true, role: true, imageUrl: true,
+          isActive: true, lastLoginAt: true, createdAt: true,
+        },
+      });
+      await authAudit(tx, userId, ACTIONS.PROFILE_UPDATED, { fields: Object.keys(data) });
+      return user;
+    }, { timeout: 5000 });
   },
 
-  async updateImageUrl(userId, imageUrl, expectedImage) {
-    return prisma.user.update({
-      where: { id: userId, imageUrl: expectedImage },
-      data: { imageUrl },
-      select: {
-        id: true, name: true, email: true, role: true, imageUrl: true,
-        isActive: true, lastLoginAt: true, createdAt: true,
-      },
-    });
+  async updateImageUrl(userId, imageUrl, expectedImage, expectedVersion) {
+    return prisma.$transaction(async tx => {
+      const user = await tx.user.update({
+        where: { id: userId, imageUrl: expectedImage, isActive: true, ...(expectedVersion !== undefined ? { sessionVersion: expectedVersion } : {}) },
+        data: { imageUrl },
+        select: {
+          id: true, name: true, email: true, role: true, imageUrl: true,
+          isActive: true, lastLoginAt: true, createdAt: true,
+        },
+      });
+      await authAudit(tx, userId, ACTIONS.PROFILE_UPDATED, { fields: ["image"] });
+      return user;
+    }, { timeout: 5000 });
   },
 
   async getPasswordHash(userId) {
@@ -154,7 +162,7 @@ export const authRepository = {
   },
 
   // Issuance and consumption use the same account lock to serialize recovery changes.
-  async issueResetToken(userId, token, expiresAt, expectedVersion) {
+  async issueResetToken(userId, token, expiresAt, expectedVersion, actorId = userId, context = "password-reset") {
     return prisma.$transaction(async (tx) => {
       await lockAccount(tx, userId);
       const user = await tx.user.findUnique({ where: { id: userId }, select: SESSION_USER_SELECT });
@@ -162,10 +170,17 @@ export const authRepository = {
         throw new AppError(409, "Account changed, request a new reset link", "ACCOUNT_CHANGED");
       }
       await tx.passwordResetToken.deleteMany({ where: { userId, usedAt: null } });
-      return tx.passwordResetToken.create({ data: {
+      const issued = await tx.passwordResetToken.create({ data: {
         userId, tokenHash: this.hashResetToken(token), expiresAt,
       } });
-    });
+      await authAudit(tx, actorId, ACTIONS.PASSWORD_RESET_REQUESTED,
+        { context, subjectId: userId, requestId: issued.id, stage: "issued", delivery: "not-confirmed" }, userId);
+      return issued;
+    }, { timeout: 5000 });
+  },
+
+  async discardResetToken(userId, token) {
+    return prisma.passwordResetToken.deleteMany({ where: { userId, tokenHash: this.hashResetToken(token), usedAt: null } });
   },
 
   async findResetToken(token) {
@@ -190,7 +205,8 @@ export const authRepository = {
       if (changed.count !== 1) throw new AppError(401, "Invalid or expired reset token", "INVALID_TOKEN");
       await tx.otpCode.deleteMany({ where: { userId } });
       await tx.passwordResetToken.deleteMany({ where: { userId, usedAt: null } });
+      await authAudit(tx, userId, ACTIONS.PASSWORD_RESET);
       return tx.user.findUnique({ where: { id: userId }, select: SESSION_USER_SELECT });
-    });
+    }, { timeout: 5000 });
   },
 };

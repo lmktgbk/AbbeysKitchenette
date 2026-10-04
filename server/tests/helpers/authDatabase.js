@@ -1,7 +1,7 @@
 // Transactional test double. PostgreSQL lock/isolation semantics require a separate DB suite.
 export function createAuthDatabase() {
   const db = { state: {}, failPasswordWrite: false };
-  const names = ["user", "otpCode", "passwordResetToken", "emailChangeRequest"];
+  const names = ["user", "otpCode", "passwordResetToken", "emailChangeRequest", "domainEffect"];
   function matches(row, where = {}) {
     return Object.entries(where).every(([key, value]) => {
       if (value && typeof value === "object" && !(value instanceof Date)) {
@@ -32,6 +32,7 @@ export function createAuthDatabase() {
         return project(result[0]);
       },
       async create({ data, select }) {
+        if (name === "domainEffect" && db.failEffect) throw new Error("Injected audit capture failure");
         const row = { id: ++db.state.sequence, attempts: 0, usedAt: null, createdAt: new Date(), ...data };
         rows().push(row);
         return project(row, select);
@@ -72,8 +73,9 @@ export function createAuthDatabase() {
     finally { release(); }
   };
   db.reset = user => {
-    db.state = { user: [structuredClone(user)], otpCode: [], passwordResetToken: [], emailChangeRequest: [], sequence: 0 };
+    db.state = { user: [structuredClone(user)], otpCode: [], passwordResetToken: [], emailChangeRequest: [], domainEffect: [], sequence: 0 };
     db.failPasswordWrite = false;
+    db.failEffect = false;
   };
   return db;
 }

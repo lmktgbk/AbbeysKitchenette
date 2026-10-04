@@ -55,3 +55,5 @@ Readiness and shutdown follow-up: [DEPLOYMENT_LIFECYCLE_FIXES.md](./DEPLOYMENT_L
 Scheduled-job reliability follow-up: [AUTOMATION_RELIABILITY_FIXES.md](./AUTOMATION_RELIABILITY_FIXES.md). Public migration and hosted acceptance remain pending.
 
 Administrative mutation recovery: [ADMIN_MUTATION_RECOVERY_FIXES.md](ADMIN_MUTATION_RECOVERY_FIXES.md).
+
+Authentication and invitation recovery: [AUTH_EFFECT_RECOVERY_FIXES.md](AUTH_EFFECT_RECOVERY_FIXES.md).

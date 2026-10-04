@@ -1,9 +1,11 @@
+import { authAudit, sendAuthEmail } from "./authEffects.js";
+import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
 import prisma from "../../config/prisma.js";
 import { env } from "../../config/env.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
-import { sendEmail, generateOtpEmail } from "../../utils/email.js";
+import { generateOtpEmail } from "../../utils/email.js";
 import { lockAccount } from "./accountLock.js";
 import { SESSION_USER_SELECT, publicUser } from "./session.js";
 import { signSessionToken } from "../../config/jwt.js";
@@ -52,12 +54,17 @@ export const emailChange = {
         id, userId, oldEmail: user.email, newEmail: email, name,
         codeHash: digest(id, code), sessionVersion: version, expiresAt,
       } });
+      await authAudit(tx, userId, ACTIONS.PROFILE_UPDATED,
+        { fields: ["email-change-request"], requestId: id, delivery: "not-confirmed" });
     });
     // SMTP stays outside row locks. A failed send invalidates only its own request.
     try {
-      await sendEmail({ to: user.email, subject: "Recovery email change requested",
-        html: "<p>A recovery email change was requested for your account. Your current email remains active until verification. If this was not you, change your password and contact your administrator.</p>" });
-      await sendEmail({ to: email, subject: "Verify your new recovery email", html: generateOtpEmail(code, "email-change") });
+      await sendAuthEmail({ to: user.email, subject: "Recovery email change requested",
+        html: "<p>A recovery email change was requested for your account. Your current email remains active until verification. If this was not you, change your password and contact your administrator.</p>" },
+      { userId, context: "email-change-request-notice", requestId: id });
+      await sendAuthEmail({ to: email, subject: "Verify your new recovery email", html: generateOtpEmail(code, "email-change") },
+        { userId, context: "email-change-verification", requestId: id },
+        () => prisma.emailChangeRequest.deleteMany({ where: { id, userId } }));
     } catch (error) {
       await prisma.emailChangeRequest.deleteMany({ where: { id, userId } });
       throw error;
@@ -88,6 +95,8 @@ export const emailChange = {
         await tx.emailChangeRequest.delete({ where: { userId } });
         await tx.otpCode.deleteMany({ where: { userId } });
         await tx.passwordResetToken.deleteMany({ where: { userId, usedAt: null } });
+        await authAudit(tx, userId, ACTIONS.PROFILE_UPDATED,
+          { fields: ["email"], verified: true, requestId: id, completionNotice: "not-confirmed" });
         return { user: updated, oldEmail: pending.oldEmail };
       });
     } catch (error) {
@@ -97,8 +106,9 @@ export const emailChange = {
     if (outcome.error) throw outcome.error;
     revokeLocalSessions(userId);
     // A request notice preceded the verification email; completion delivery cannot roll back the change.
-    await sendEmail({ to: outcome.oldEmail, subject: "Recovery email changed",
-      html: "<p>Your recovery email has been changed and other sessions revoked. Contact your administrator if this was not you.</p>" })
+    await sendAuthEmail({ to: outcome.oldEmail, subject: "Recovery email changed",
+      html: "<p>Your recovery email has been changed and other sessions revoked. Contact your administrator if this was not you.</p>" },
+      { userId, context: "email-change-completion", requestId: id })
       .catch(() => console.warn("Recovery email completion notification failed"));
     return { user: publicUser(outcome.user), token: signSessionToken(outcome.user) };
   },

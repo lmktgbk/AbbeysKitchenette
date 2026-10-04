@@ -954,3 +954,28 @@ Use disposable records and a test backend. Never inject database failures into p
 - [ ] Measure 50-variant edits and large subcategory deactivation against representative test data; five-second transaction limits are ceilings, not measured service latency.
 
 Actual browser, process-kill, provider delivery and representative load acceptance remain **Not verified**.
+
+
+## Authentication and invitation recovery — 2026-10-04
+
+Perform destructive failure injection only in disposable schemas and test processes.
+
+- [ ] Login and resend create OTP_REQUESTED audits; a successful OTP creates one OTP_VERIFIED and one LOGIN_SUCCESS audit after consuming the code and updating last-login.
+- [ ] Submit the same valid OTP concurrently: one succeeds; no duplicate successful-login audits or sessions are created.
+- [ ] Block audit-intent insertion in a disposable schema: valid OTP consumption, password change/reset, logout, profile/avatar update and email-change request/confirmation must roll back.
+- [ ] After removing the injected failure, retry the pending code/token/action; verify one successful mutation and matching audit.
+- [ ] Wrong OTP attempts continue to count while the independent audit queue is unavailable; failed-login audit capture failure must never grant access.
+- [ ] Repeat logout with the old session version: no additional version increment or LOGOUT audit.
+- [ ] Issue and consume a reset link; verify old sessions and unused challenges become invalid and replay is rejected.
+- [ ] Delay an old recovery email failure until after a newer token is issued: cleanup must preserve the newer token.
+- [ ] Simulate reset mail failure: receive the same generic response as an unknown/inactive address; its token is invalidated if storage is available.
+- [ ] Create staff with successful and failed mail delivery; account creation remains committed, failure reports emailed=false, and invitation audit identifies admin actor and staff subject.
+- [ ] Failed delivery marks AUTH_EMAIL_DELIVERY outcome as unconfirmed; successful SMTP acceptance is provider-accepted, not proof of inbox receipt.
+- [ ] Inspect intents, audit records and warnings: no passwords, password hashes, raw tokens, OTPs, email HTML, or submitted failed-login addresses. Failed-login correlation is a keyed fingerprint.
+- [ ] Verify recovery-email request/confirmation retains all existing cooldown, attempt-limit and account-version guards.
+- [ ] Attempt profile/avatar edits after session revocation: stale session versions must not modify the account or remove its current image.
+- [ ] Kill a test process after issuance but before/after SMTP: issuance audit remains recorded; uncertain delivery must not automatically resend or create a session. Request a new code/link through the ordinary guarded flow.
+- [ ] Kill a test process after a successful account change but before audit delivery, restart and verify durable audit recovery without repeating the credential change.
+- [ ] Verify live inbox delivery, expired links, multiple browser tabs and hosted cookies/WebSockets using test accounts.
+
+Live inbox receipt, process-kill/provider ambiguity, hosted behavior and load remain **Not verified**. If cleanup storage is unavailable after a mail failure, the code/link remains bounded by its expiry and account version; do not assume immediate invalidation succeeded.

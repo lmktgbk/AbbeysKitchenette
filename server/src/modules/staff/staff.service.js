@@ -2,12 +2,12 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { staffRepository } from "./staff.repository.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
-import { auditLogService } from "../auditLogs/auditLog.service.js";
+import { sendAuthEmail } from "../auth/authEffects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import prisma from "../../config/prisma.js";
 import { recordEffects, recordMutation } from "../../services/domainEffects.js";
 import { revokeLocalSessions } from "../../realtime/sessions.js";
-import { sendEmail, generateStaffInviteEmail } from "../../utils/email.js";
+import { generateStaffInviteEmail } from "../../utils/email.js";
 import { signToken } from "../../config/jwt.js";
 import { env } from "../../config/env.js";
 
@@ -80,21 +80,20 @@ export const staffService = {
       const resetToken = signToken({ sub: user.id, purpose: "password-reset", version: 0 }, "15m");
       const resetUrl = `${env.CLIENT_URL}/reset-password?token=${resetToken}`;
       const { authRepository } = await import("../auth/auth.repository.js");
-      await authRepository.issueResetToken(
+      const issued = await authRepository.issueResetToken(
         user.id,
         resetToken,
         new Date(Date.now() + 15 * 60 * 1000),
-        0,
+        0, userId, "staff-invite",
       );
-      await sendEmail({
+      await sendAuthEmail({
         to: user.email,
         subject: "Your Staff Account — Set Your Password",
         html: generateStaffInviteEmail(resetUrl, user.name?.split(" ")[0]),
-      });
-      auditLogService.logAction({ userId, action: ACTIONS.PASSWORD_RESET_REQUESTED, targetType: "staff", targetId: user.id, details: { email: user.email, role: user.role, context: "invite" } }).catch(() => {});
+      }, { userId, subjectId: user.id, context: "staff-invite", requestId: issued.id },
+      () => authRepository.discardResetToken(user.id, resetToken));
     } catch (err) {
       console.warn("[staff] Invitation delivery unavailable", err?.code ?? "DELIVERY_FAILED");
-      auditLogService.logAction({ userId, action: ACTIONS.PASSWORD_RESET_REQUESTED, targetType: "staff", targetId: user.id, details: { email: user.email, role: user.role, context: "invite", emailed: false } }).catch(() => {});
       return { staff: mapToStaffResponse(user), emailed: false };
     }
     return { staff: mapToStaffResponse(user), emailed: true };

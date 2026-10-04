@@ -1,3 +1,5 @@
+import { authAudit } from "../modules/auth/authEffects.js";
+import { ACTIONS } from "../modules/auditLogs/auditLog.constants.js";
 import crypto from "node:crypto";
 import prisma from "../config/prisma.js";
 import { env } from "../config/env.js";
@@ -42,6 +44,7 @@ export async function generateOtp(userId, challengeId, expiresAt, resend = false
     const code = crypto.randomInt(100000, 1000000).toString();
     await tx.otpCode.deleteMany({ where: { userId } });
     await tx.otpCode.create({ data: { userId, challengeId, code: hashCode(challengeId, code), expiresAt } });
+    await authAudit(tx, userId, ACTIONS.OTP_REQUESTED, { requestId: challengeId, resend, delivery: "not-confirmed" });
     return code;
   });
 }
@@ -69,7 +72,11 @@ export async function verifyOtp(userId, challengeId, code, expected) {
     const consumed = await tx.otpCode.deleteMany({ where: {
       id: stored.id, userId, challengeId, attempts: { lt: MAX_ATTEMPTS }, expiresAt: { gt: new Date() },
     } });
-    return consumed.count === 1 ? "verified" : "invalid";
+    if (consumed.count !== 1) return "invalid";
+    await tx.user.update({ where: { id: userId }, data: { lastLoginAt: new Date() } });
+    await authAudit(tx, userId, ACTIONS.OTP_VERIFIED, { requestId: challengeId });
+    await authAudit(tx, userId, ACTIONS.LOGIN_SUCCESS, { method: "email-otp" });
+    return "verified";
   });
   if (outcome === "challenge") throw new AppError(401, "Account changed, please sign in again", "INVALID_CHALLENGE");
   if (outcome === "exhausted") {

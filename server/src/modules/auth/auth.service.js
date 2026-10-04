@@ -1,3 +1,4 @@
+import { sendAuthEmail } from "./authEffects.js";
 import { emailChange } from "./emailChange.js";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
@@ -10,7 +11,6 @@ import { revokeLocalSessions } from "../../realtime/sessions.js";
 import { isStoreIP } from "../../utils/ipCheck.js";
 import { generateOtp, discardOtp, verifyOtp as verifyOtpCode } from "../../utils/otp.js";
 import {
-  sendEmail,
   generateResetPasswordEmail,
   generateOtpEmail,
 } from "../../utils/email.js";
@@ -94,7 +94,6 @@ export const authService = {
   async verifyOtp(userId, code, challenge, clientIP) {
     const { user, claims } = await this._resolveChallenge(userId, challenge, clientIP);
     await verifyOtpCode(userId, claims.challengeId, code, user);
-    await authRepository.updateLastLogin(user.id);
     const token = signSessionToken(user);
     return { token, user: publicUser(user) };
   },
@@ -106,13 +105,9 @@ export const authService = {
   },
 
   async _sendLoginCode(user, challengeId, code) {
-    try {
-      await sendEmail({ to: user.email, subject: "Your Verification Code — Abbey's Kitchenette", html: generateOtpEmail(code) });
-    } catch (error) {
-      // An undelivered code must not consume the resend cooldown or remain usable.
-      await discardOtp(user.id, challengeId, code).catch(() => {});
-      throw error;
-    }
+    await sendAuthEmail({ to: user.email, subject: "Your Verification Code — Abbey's Kitchenette", html: generateOtpEmail(code) },
+      { userId: user.id, context: "login-otp", requestId: challengeId },
+      () => discardOtp(user.id, challengeId, code));
   },
 
   async _resolveChallenge(userId, challenge, clientIP) {
@@ -147,24 +142,26 @@ export const authService = {
     const user = await authRepository.findByEmail(email);
     // Self-service for all roles (admin + staff). Silently skip unknown or
     // inactive accounts with the same generic response to avoid enumeration.
-    // Returns the emailed user (or null) so the controller can audit sends
-    // without logging unknown addresses.
+    // The HTTP response remains generic, including mail failures.
     if (!user || !user.isActive) {
       return null;
     }
     const resetToken = signToken({ sub: user.id, purpose: "password-reset", version: user.sessionVersion }, "15m");
     const resetUrl = `${env.CLIENT_URL}/reset-password?token=${resetToken}`;
-    await authRepository.issueResetToken(
+    const issued = await authRepository.issueResetToken(
       user.id,
       resetToken,
       new Date(Date.now() + 15 * 60 * 1000),
       user.sessionVersion,
     );
-    await sendEmail({
-      to: user.email,
-      subject: "Reset Your Password — Abbey's Kitchenette",
-      html: generateResetPasswordEmail(resetUrl),
-    });
+    try {
+      await sendAuthEmail({ to: user.email, subject: "Reset Your Password — Abbey's Kitchenette",
+        html: generateResetPasswordEmail(resetUrl) },
+      { userId: user.id, context: "password-reset", requestId: issued.id },
+      () => authRepository.discardResetToken(user.id, resetToken));
+    } catch {
+      return null;
+    }
     return user;
   },
 
@@ -194,7 +191,11 @@ export const authService = {
     const user = await authRepository.findById(userId);
     if (!user?.isActive) throw new AppError(401, "Account is unavailable", "UNAUTHORIZED");
     if (email !== user.email) return emailChange.request(userId, version, name, email, currentPassword);
-    return { user: await authRepository.updateProfile(userId, { name }) };
+    try { return { user: await authRepository.updateProfile(userId, { name }, version) }; }
+    catch (error) {
+      if (error.code === "P2025") throw new AppError(409, "Account changed, please log in again", "ACCOUNT_CHANGED");
+      throw error;
+    }
   },
 
   async confirmEmailChange(userId, version, id, code) {
@@ -216,13 +217,13 @@ export const authService = {
     return { user: publicUser(user), token: signSessionToken(user) };
   },
 
-  async uploadProfileImage(userId, imageUrl) {
+  async uploadProfileImage(userId, imageUrl, version) {
     const user = await authRepository.findById(userId);
     if (!user) {
       throw new AppError(401, "User not found", "USER_NOT_FOUND");
     }
     let updated;
-    try { updated = await authRepository.updateImageUrl(userId, imageUrl, user.imageUrl ?? null); }
+    try { updated = await authRepository.updateImageUrl(userId, imageUrl, user.imageUrl ?? null, version); }
     catch (error) {
       if (error?.code === 'P2025') throw new AppError(409, 'Profile image changed. Refresh and retry.', 'IMAGE_CHANGED');
       throw error;
