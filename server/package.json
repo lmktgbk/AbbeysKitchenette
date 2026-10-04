@@ -4,6 +4,7 @@
   "description": "",
   "main": "server.js",
   "scripts": {
+    "check:source": "node scripts/check-source-layout.mjs",
     "check:deploy": "node scripts/check-deployment.mjs",
     "sheets:reset-empty": "node scripts/reset-empty-sheet.mjs",
     "db:generate": "prisma generate",

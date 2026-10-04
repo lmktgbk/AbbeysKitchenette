@@ -1017,3 +1017,14 @@ Live integrations, anomaly trigger recovery/concurrency, process-kill behavior a
 - [ ] Observe blocked effects/anomaly/storage and oldest backlogs; configure and test hosted alerts. Do not place session tokens in public dashboard or monitor URLs.
 - [ ] Run the GitHub workflow on the final commit. Its dependency gate remains blocked by the documented Prisma advisory until resolved/reviewed; do not report a green security gate from local tests.
 - [ ] Perform the onboarding/backup/restore/rollback exercise in OPERATIONS_RUNBOOK.md and record recovery time/data reconciliation.
+# Shared-source deployment acceptance
+
+- [ ] Vercel includes source outside its `client` Root Directory and builds successfully.
+- [ ] Backend artifact retains sibling `server/` and `shared/` directories.
+- [ ] `npm --prefix server run check:source` passes inside the backend artifact.
+- [ ] A shared-only change triggers both frontend and backend deployment.
+- [ ] ML deploys independently from `ml-service` and backend startup/health succeeds.
+
+Local frontend build and backend import/missing-folder checks passed. Hosted
+builder detection, deployment triggers, and artifact startup remain **Not verified**.
+See [shared-source deployment settings](SHARED_SOURCE_DEPLOYMENT.md).

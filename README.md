@@ -19,3 +19,7 @@ Run backend `npm test`, frontend `npm run lint -- --max-warnings 0` and `npm run
 Use [the consolidated acceptance checklist](audit/FINAL_TESTING_CHECKLIST.md) for browser and live tests, [current audit status](audit/CURRENT_STATUS.md) for remaining findings, and [operations/release instructions](audit/OPERATIONS_RUNBOOK.md) for deployment and incidents.
 
 Frontend deployment targets Vercel; backend and ML target Railway or Render. Use one backend replica until shared realtime fanout is implemented. Passing local tests does not establish backup recovery, provider delivery, hosted behavior or production load capacity.
+
+Both JavaScript applications import `shared/canonicalJson.js`. Vercel must include
+source outside its `client` root; backend deployment must retain `server/` and
+`shared/` together. Follow [the shared-source deployment settings](audit/SHARED_SOURCE_DEPLOYMENT.md).

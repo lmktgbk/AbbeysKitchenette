@@ -1,3 +1,4 @@
+import "./check-source-layout.mjs";
 import { env } from "../src/config/env.js";
 
 // Validate configuration without connecting to providers or printing credentials.

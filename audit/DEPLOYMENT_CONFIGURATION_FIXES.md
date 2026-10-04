@@ -23,7 +23,7 @@ The frontend's build-time `VITE_API_URL` must be `https://api.your-domain.com/ap
 
 ## Backend setup
 
-Use a maintained Node 22 release at least 22.18, or a compatible newer LTS. The generated Prisma client contains TypeScript and the runtime depends on Node's type stripping support. Service root directory: `server`.
+Use a maintained Node 22 release at least 22.18, or a compatible newer LTS. The generated Prisma client contains TypeScript and the runtime depends on Node's type stripping support. Deployment source root: repository root, retaining `server/` and `shared/`. Commands below run inside `server`. See [shared-source deployment settings](SHARED_SOURCE_DEPLOYMENT.md).
 
 1. Install: `npm ci --include=dev`. Prisma CLI is needed for generation and release migrations.
 2. Build: `npm run db:generate`.
