@@ -7,7 +7,7 @@ import { shiftService } from "../shifts/shift.service.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import prisma from "../../config/prisma.js";
 import { recordEffects } from "../../infrastructure/effects/domainEffects.js";
-import { lockStock } from "../../services/stockLocks.js";
+import { lockStock } from "../ingredients/ingredient.lock.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { settingsService } from "../settings/settings.service.js";
 import { getBusinessDate } from "../../config/time.js";
@@ -1066,6 +1066,7 @@ export const orderService = {
 
   /* ── Ingredient Deduction Engine ─────── */
 
+  /** Read recipes once and aggregate demand in thousandths before opening the stock transaction. */
   async _aggregateIngredientNeeds(items) {
     const variantIds = [...new Set(items.map((item) => item.variant_id))];
     const recipes = await orderRepository.getRecipesByVariantIds(variantIds);
@@ -1089,18 +1090,23 @@ export const orderService = {
     return { needs, recipes };
   },
 
+  /**
+   * Reserve stock and record item-level consumption in the caller's transaction.
+   * Ingredient locks protect the snapshot; batch versions detect stale writes.
+   * Insufficient stock aborts the order, deductions, and audit intent together.
+   */
   async _deductIngredients(orderId, needs, tx, userId, recipes) {
     if (needs.size === 0) {
       await tx.order.update({ where: { orderId }, data: { consumptionRecordedAt: new Date() } });
       return { deductions: [], needs };
     }
 
-    // Phase 2: Single query to fetch all available batches for all ingredients
+    // Lock before reading batches so restocks and inventory counts share this snapshot boundary.
     const ingredientIds = [...needs.keys()];
     await lockStock(tx, ingredientIds);
     const allBatches = await orderRepository.getAllAvailableBatches(ingredientIds, tx);
 
-    // Phase 2: Allocate deductions per ingredient (FIFO logic, in-memory)
+    // Allocate from repository-ordered batches without issuing a query per batch.
     const deductPayloads = [];     // for bulk SQL: { restockId, quantity, version }
     const deductions = [];         // for createMany: deduction records
     const adjustments = [];        // for stock adjustment audit trail
@@ -1149,7 +1155,7 @@ export const orderService = {
       }
     }
 
-    // Phase 2: Single bulk UPDATE instead of N*M individual updates
+    // Apply the allocation in one write and reject a partial version match.
     const rowsUpdated = await orderRepository.bulkDeductBatches(deductPayloads, tx);
     if (rowsUpdated !== deductPayloads.length) {
       throw new AppError(400, "Insufficient ingredient stock (concurrent modification)", "INSUFFICIENT_STOCK");
@@ -1188,6 +1194,11 @@ export const orderService = {
     await recordEffects(tx, { notifications });
   },
 
+  /**
+   * Restore legacy order-level deductions when item attribution is unavailable.
+   * Cancellation must hold the order lock first; ingredient locks then serialize
+   * batch credits and the before/after stock ledger in the same transaction.
+   */
   async _restoreIngredients(orderId, userId, tx, activeDeductions) {
     const deductions = activeDeductions ?? await orderRepository.getActiveDeductions(orderId, tx);
     await lockStock(tx, deductions.map(row => row.ingredientId));
@@ -1266,6 +1277,11 @@ export const orderService = {
     }
   },
 
+  /**
+   * Settle saved item consumption once, restoring only the portion not declared lost.
+   * Caller holds the order lock and commits refunds with this stock settlement.
+   * Guarded claims reject repeated settlement instead of crediting stock twice.
+   */
   async _settleItemConsumption(orderId, items, deductions, userId, tx, itemLosses = []) {
     const { settlements, losses } = planSettlement(items, deductions, itemLosses);
     if (!settlements.length) return;

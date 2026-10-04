@@ -1,7 +1,7 @@
 import { ingredientRepository } from "./ingredient.repository.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { recordEffects, recordMutation } from "../../infrastructure/effects/domainEffects.js";
-import { lockStock } from "../../services/stockLocks.js";
+import { lockStock } from "./ingredient.lock.js";
 import prisma from "../../config/prisma.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
@@ -755,6 +755,8 @@ export const ingredientService = {
   /**
    * FIFO deduction helper — deducts stock across multiple batches in priority/FIFO order.
    * Iterates active batches, taking min(remaining, batchLeft) from each until quantity is consumed.
+   * Caller must already hold the ingredient lock in this transaction. Sequential
+   * writes preserve version checks; an insufficient allocation rolls them all back.
    * @param {string} ingredientId - ingredient UUID
    * @param {number} quantity - total quantity to deduct
    * @param {object} tx - Prisma transaction client

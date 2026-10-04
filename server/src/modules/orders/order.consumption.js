@@ -10,6 +10,12 @@ export function stockUnits(value) {
   return units;
 }
 
+/**
+ * Attribute the reserved batch slices to paid items in stable item-ID order.
+ * No database writes occur here. Every reserved unit must be attributed exactly
+ * once; a mismatch rejects the caller's transaction instead of recording history
+ * that could restore the wrong stock during cancellation or item removal.
+ */
 export function allocateConsumption(items, recipes, deductions) {
   const byVariant = new Map();
   for (const recipe of recipes) {
@@ -33,7 +39,10 @@ export function allocateConsumption(items, recipes, deductions) {
       while (needed && cursor < slices.length) {
         const slice = slices[cursor];
         const used = Math.min(needed, slice.remaining);
-        if (!used) { cursor++; continue; }
+        if (!used) {
+          cursor++;
+          continue;
+        }
         const { remaining: _remaining, ...data } = slice;
         rows.push({ ...data, orderItemId: item.orderItemId, quantityDeducted: used / 1000 });
         slice.remaining -= used;
@@ -50,35 +59,55 @@ export function allocateConsumption(items, recipes, deductions) {
   return rows;
 }
 
+/**
+ * Partition original item consumption into restored stock and declared loss.
+ * Use saved batch quantities and costs, never the current recipe or supplier
+ * price. The caller persists this plan and its refund within one transaction.
+ */
 export function planSettlement(items, deductions, itemLosses = []) {
   const itemIds = new Set(items.map(item => item.orderItemId));
   const groups = new Map();
   for (const row of deductions) {
-    if (!itemIds.has(row.orderItemId)) throw new AppError(409, "Item consumption history is unavailable", "CONSUMPTION_HISTORY_REQUIRED");
+    if (!itemIds.has(row.orderItemId)) {
+      throw new AppError(409, "Item consumption history is unavailable", "CONSUMPTION_HISTORY_REQUIRED");
+    }
     const key = `${row.orderItemId}:${row.ingredientId}`;
     if (!groups.has(key)) groups.set(key, { rows: [], units: 0 });
     const group = groups.get(key);
     group.rows.push(row);
     group.units += stockUnits(row.quantityDeducted);
   }
-  const declared = new Map(), seenItems = new Set();
+  const declared = new Map();
+  const seenItems = new Set();
   for (const entry of itemLosses) {
-    if (!itemIds.has(entry.order_item_id) || seenItems.has(entry.order_item_id)) throw new AppError(400, "Losses must reference distinct active order items", "INVALID_ITEM_LOSS");
+    if (!itemIds.has(entry.order_item_id) || seenItems.has(entry.order_item_id)) {
+      throw new AppError(400, "Losses must reference distinct active order items", "INVALID_ITEM_LOSS");
+    }
     seenItems.add(entry.order_item_id);
     for (const loss of entry.ingredient_losses || []) {
       const key = `${entry.order_item_id}:${loss.ingredient_id}`;
       const units = stockUnits(loss.quantity_lost);
-      if (!groups.has(key) || declared.has(key) || units > groups.get(key).units) throw new AppError(400, "Declared loss exceeds original consumption or repeats an ingredient", "INVALID_ITEM_LOSS");
+      if (!groups.has(key) || declared.has(key) || units > groups.get(key).units) {
+        throw new AppError(400, "Declared loss exceeds original consumption or repeats an ingredient", "INVALID_ITEM_LOSS");
+      }
       declared.set(key, units);
     }
   }
-  const settlements = [], losses = [];
+  const settlements = [];
+  const losses = [];
   for (const [key, group] of groups) {
     let lost = declared.get(key) || 0;
     let cost = 0;
     for (const row of group.rows) {
-      const consumed = stockUnits(row.quantityDeducted), lostHere = Math.min(lost, consumed);
-      settlements.push({ id: row.id, quantityRestored: (consumed - lostHere) / 1000, quantityLost: lostHere / 1000, restockBatchId: row.restockBatchId, ingredientId: row.ingredientId });
+      const consumed = stockUnits(row.quantityDeducted);
+      const lostHere = Math.min(lost, consumed);
+      settlements.push({
+        id: row.id,
+        quantityRestored: (consumed - lostHere) / 1000,
+        quantityLost: lostHere / 1000,
+        restockBatchId: row.restockBatchId,
+        ingredientId: row.ingredientId,
+      });
       cost += lostHere / 1000 * Number(row.costPerUnit);
       lost -= lostHere;
     }
