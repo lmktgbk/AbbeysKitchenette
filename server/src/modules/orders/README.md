@@ -6,10 +6,11 @@ responses. `order.service.js` coordinates the business transaction;
 
 | File | Responsibility |
 | --- | --- |
-| `order.policy.js` | Action permission checks. |
+| `order.policy.js` | Action permission checks and valid status transitions. |
 | `order.idempotency.js` | Request fingerprint and duplicate-submission claims. |
 | `order.consumption.js` | Pure allocation and settlement of saved item consumption. |
-| `order.utils.js` | Existing status, monetary, numbering, and response helpers. |
+| `order.pricing.js` | Authoritative pricing, discount allocation, identity fields, and manual payment checks. |
+| `order.response.js` | Public response formatting and order-number presentation. |
 
 ## Payment and stock flow
 
@@ -18,6 +19,13 @@ transaction. Inside the transaction it claims idempotency, resolves the shift,
 creates the order, reserves stock, and records receipt and durable follow-up work.
 Acceptance of a pending order similarly reserves stock when payment is recorded.
 GCash and Maya are manual payment records; these flows do not contact a gateway.
+
+The service includes `orderPricing` methods directly, preserving existing service
+entry points without forwarding wrappers. Pricing reads settings and variant
+prices but does not write stock, create orders, or open a business transaction.
+Whole-bill and per-line discount calculations retain their distinct input handling;
+their lower-bound behavior differs, so they must not be merged without a separate
+behavior change and validation review.
 
 Stock reservation locks ingredient rows through
 `ingredients/ingredient.lock.js`, reads available batches in repository order,

@@ -27,7 +27,7 @@ import { orderRepository } from "../src/modules/orders/order.repository.js";
 import { shiftService } from "../src/modules/shifts/shift.service.js";
 import { shiftRepository } from "../src/modules/shifts/shift.repository.js";
 import { allocateConsumption, planSettlement, stockUnits } from "../src/modules/orders/order.consumption.js";
-import { allocateBillDiscount } from "../src/modules/orders/order.utils.js";
+import { allocateBillDiscount } from "../src/modules/orders/order.pricing.js";
 import { orderIdempotency, orderRequest } from "../src/modules/orders/order.idempotency.js";
 
 const A = "123e4567-e89b-42d3-a456-426614174001";

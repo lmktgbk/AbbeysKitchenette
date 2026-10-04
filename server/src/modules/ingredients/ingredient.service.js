@@ -90,6 +90,33 @@ function mapToBatchResponse(batch) {
 // Deduction stays FIFO — expiry only warns, never reorders consumption.
 const EXPIRY_WARNING_DAYS = 7;
 
+/** Enrich a page with two batch queries; archived responses intentionally omit status. */
+async function enrichIngredientPage(ingredients, includeStatus) {
+  // Batch reads avoid a history/link query for every ingredient in the page.
+  const ids = ingredients.map((i) => i.ingredient_id);
+  const [txCountMap, linkedMap] = await Promise.all([
+    ingredientRepository.countTransactionsBatch(ids),
+    ingredientRepository.isLinkedToProductsBatch(ids),
+  ]);
+
+  const enriched = ingredients.map((i) => ({
+    ingredient_id: i.ingredient_id,
+    ingredient_name: i.ingredient_name,
+    unit: i.unit,
+    stock_quantity: Number(i.stock_quantity),
+    minimum_threshold: Number(i.minimum_threshold),
+    is_archived: i.is_archived,
+    has_transactions: txCountMap[i.ingredient_id] > 0,
+    is_linked_to_products: linkedMap[i.ingredient_id] > 0,
+    ...(includeStatus ? { status: i.status } : {}),
+    version: i.version,
+    created_at: i.created_at,
+    updated_at: i.updated_at,
+  }));
+
+  return enriched;
+}
+
 export const ingredientService = {
   async getOptions(limit, cursor) {
     // Keyset paging avoids deep offsets and stock/history enrichment for recipe selectors.
@@ -120,28 +147,7 @@ export const ingredientService = {
       ingredientRepository.countFiltered({ search, status }),
     ]);
 
-    // Step 2: Batch-enrich with transaction counts and product links
-    const ids = ingredients.map((i) => i.ingredient_id);
-    const [txCountMap, linkedMap] = await Promise.all([
-      ingredientRepository.countTransactionsBatch(ids),
-      ingredientRepository.isLinkedToProductsBatch(ids),
-    ]);
-
-    // Step 3: Map to snake_case API format
-    const enriched = ingredients.map((i) => ({
-      ingredient_id: i.ingredient_id,
-      ingredient_name: i.ingredient_name,
-      unit: i.unit,
-      stock_quantity: Number(i.stock_quantity),
-      minimum_threshold: Number(i.minimum_threshold),
-      is_archived: i.is_archived,
-      has_transactions: txCountMap[i.ingredient_id] > 0,
-      is_linked_to_products: linkedMap[i.ingredient_id] > 0,
-      status: i.status,
-      version: i.version,
-      created_at: i.created_at,
-      updated_at: i.updated_at,
-    }));
+    const enriched = await enrichIngredientPage(ingredients, true);
 
     return { ingredients: enriched, totalItems };
   },
@@ -990,27 +996,7 @@ export const ingredientService = {
       ingredientRepository.countArchivedFiltered({ search }),
     ]);
 
-    // Step 2: Batch-enrich with transaction counts and product links
-    const ids = ingredients.map((i) => i.ingredient_id);
-    const [txCountMap, linkedMap] = await Promise.all([
-      ingredientRepository.countTransactionsBatch(ids),
-      ingredientRepository.isLinkedToProductsBatch(ids),
-    ]);
-
-    // Step 3: Map to snake_case API format
-    const enriched = ingredients.map((i) => ({
-      ingredient_id: i.ingredient_id,
-      ingredient_name: i.ingredient_name,
-      unit: i.unit,
-      stock_quantity: Number(i.stock_quantity),
-      minimum_threshold: Number(i.minimum_threshold),
-      is_archived: i.is_archived,
-      has_transactions: txCountMap[i.ingredient_id] > 0,
-      is_linked_to_products: linkedMap[i.ingredient_id] > 0,
-      version: i.version,
-      created_at: i.created_at,
-      updated_at: i.updated_at,
-    }));
+    const enriched = await enrichIngredientPage(ingredients, false);
 
     return { ingredients: enriched, totalItems };
   },

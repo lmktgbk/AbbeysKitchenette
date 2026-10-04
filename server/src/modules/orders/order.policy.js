@@ -1,5 +1,17 @@
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 
+export const VALID_TRANSITIONS = {
+  pending: ["accepted", "cancelled"],
+  accepted: ["preparing", "cancelled"],
+  preparing: ["completed", "cancelled"],
+  completed: [],
+  cancelled: [],
+};
+
+export function isValidTransition(from, to) {
+  return VALID_TRANSITIONS[from]?.includes(to) ?? false;
+}
+
 export function assertStatusPermission(role, status) {
   const roles = status === "accepted" ? ["admin", "cashier"] : ["admin", "cashier", "kitchen"];
   if (!roles.includes(role)) {

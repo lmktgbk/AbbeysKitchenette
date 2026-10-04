@@ -1,6 +1,7 @@
 import { orderRepository } from "./order.repository.js";
-import { isValidTransition, formatOrderResponse, formatOrderItemResponse, computeDiscountedTotal, computeLineDiscount, allocateBillDiscount, aggregateLineDiscounts, roundMoney, composeOrderNumber, formatOrderNumber } from "./order.utils.js";
-import { assertStatusPermission } from "./order.policy.js";
+import { formatOrderResponse, formatOrderItemResponse, composeOrderNumber, formatOrderNumber } from "./order.response.js";
+import { orderPricing, aggregateLineDiscounts, roundMoney } from "./order.pricing.js";
+import { assertStatusPermission, isValidTransition } from "./order.policy.js";
 import { allocateConsumption, planSettlement, stockUnits } from "./order.consumption.js";
 import { orderRequest, orderIdempotency } from "./order.idempotency.js";
 import { shiftService } from "../shifts/shift.service.js";
@@ -9,13 +10,12 @@ import prisma from "../../config/prisma.js";
 import { recordEffects } from "../../infrastructure/effects/domainEffects.js";
 import { lockStock } from "../ingredients/ingredient.lock.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
-import { settingsService } from "../settings/settings.service.js";
 import { getBusinessDate } from "../../config/time.js";
 
 import { recordSheetEvent } from "../sheets/sheets.outbox.js";
-import { LIMITS } from "../../utils/validation.js";
 
 export const orderService = {
+  ...orderPricing,
   /* ── Queries ─────────────────────────── */
 
   async getAll({ page = 1, limit = 50, search, status, dateFrom, dateTo, timeFrom, timeTo, sortBy, sortDir, staffId, scope }) {
@@ -929,139 +929,6 @@ export const orderService = {
     }, { timeout: 5000 });
 
     return { lossId, overrideReason };
-  },
-
-  /* ── BR-01: Pricing Helpers ──────────── */
-
-  /**
-   * Re-price items from live variant prices (server authoritative) and
-   * compute subtotal -> discount -> net total.
-   * Supports two modes (backward compatible):
-   * - Per-item mode: any item carries discount_type != "none" → each line is
-   *   priced with computeLineDiscount (one discount per item, never stacked)
-   *   and order totals are the Σ of lines (discountType "mixed" when lines differ).
-   * - Legacy mode: no per-item discounts → whole-bill computeDiscountedTotal.
-   * @param {Array} items - [{ product_id, variant_id, quantity, unit_price, discount_type?, promo_mode?, promo_value?, discount_label? }]
-   * @param {object} discount - { discount_type, promo_mode, promo_value }
-   * @returns {{ pricedItems, subtotal, discount, total }}
-   */
-  async _priceItemsAndTotals(items, discount = {}) {
-    const variantIds = [...new Set(items.map((i) => i.variant_id))];
-    const priceMap = await orderRepository.getVariantPrices(variantIds);
-
-    const pricedItems = items.map((item) => {
-      const livePrice = priceMap.get(item.variant_id);
-      if (livePrice == null) {
-        throw new AppError(400, `Variant ${item.variant_id} not found`, "VARIANT_NOT_FOUND");
-      }
-      // Cent-tolerance, not exact equality: float serialization across the
-      // wire can drift by fractions of a centavo without any real price change.
-      if (Math.abs(Number(item.unit_price) - livePrice) > 0.01) {
-        throw new AppError(409, "Menu price changed — please refresh and try again", "PRICE_CHANGED");
-      }
-      return { ...item, unit_price: livePrice };
-    });
-
-    // Use authoritative prices for the storage budget, even when client prices pass cent tolerance.
-    const gross = roundMoney(pricedItems.reduce((sum, item) => sum + item.unit_price * item.quantity, 0));
-    if (!Number.isFinite(gross) || gross > LIMITS.money) throw new AppError(400, "Order subtotal exceeds the supported amount", "AMOUNT_OUT_OF_RANGE");
-
-    const perItemMode = pricedItems.some(
-      (i) => (i.discount_type ?? "none") !== "none",
-    );
-
-    if (perItemMode) {
-      const lines = pricedItems.map((item) => {
-        const lineSubtotal = roundMoney(item.unit_price * item.quantity);
-        const d = computeLineDiscount(lineSubtotal, {
-          discount_type: item.discount_type ?? "none",
-          promo_mode: item.promo_mode,
-          promo_value: item.promo_value,
-        });
-        return {
-          ...item,
-          discountType: d.discountType,
-          discountPercent: d.discountPercent,
-          discountAmount: d.discountAmount,
-          discountLabel: d.discountType === "promo" ? (item.discount_label ?? null) : null,
-          _lineSubtotal: lineSubtotal,
-          _lineTotal: d.total,
-        };
-      });
-      const agg = aggregateLineDiscounts(
-        lines.map((l) => ({ lineSubtotal: l._lineSubtotal, discount: { discountType: l.discountType, discountPercent: l.discountPercent, discountAmount: l.discountAmount } })),
-      );
-      return {
-        pricedItems: lines,
-        subtotal: agg.subtotal,
-        discount: { discountType: agg.discountType, discountPercent: agg.discountPercent, discountAmount: agg.discountAmount },
-        total: agg.total,
-      };
-    }
-
-    const subtotal = roundMoney(
-      pricedItems.reduce((sum, item) => sum + item.unit_price * item.quantity, 0)
-    );
-    const result = computeDiscountedTotal(subtotal, discount);
-    return {
-      pricedItems: allocateBillDiscount(pricedItems, result),
-      subtotal,
-      discount: result,
-      total: result.total,
-    };
-  },
-
-  /**
-   * Resolve audit IDs + label for storage.
-   * senior/pwd IDs are required by validation whenever their lines exist;
-   * discount_id_no mirrors the legacy single-ID column for old receipts.
-   */
-  _resolveDiscountIdentity(discount = {}, pricedItems = [], aggregateType = "none") {
-    const seniorIdNo = (discount.senior_id_no ?? "").trim?.()
-      ? discount.senior_id_no.trim()
-      : (aggregateType === "senior" || pricedItems.some((i) => (i.discountType ?? i.discount_type) === "senior"))
-        ? (discount.discount_id_no?.trim?.() || null)
-        : null;
-    const pwdIdNo = (discount.pwd_id_no ?? "").trim?.()
-      ? discount.pwd_id_no.trim()
-      : (aggregateType === "pwd" || pricedItems.some((i) => (i.discountType ?? i.discount_type) === "pwd"))
-        ? (discount.discount_id_no?.trim?.() || null)
-        : null;
-    const discountIdNo = (discount.discount_id_no?.trim?.() || null) ?? seniorIdNo ?? pwdIdNo;
-    let discountLabel = discount.discount_label ?? null;
-    if (discountLabel == null) {
-      const promoLabels = pricedItems
-        .filter((i) => (i.discountType ?? i.discount_type) === "promo")
-        .map((i) => i.discountLabel ?? i.discount_label ?? null)
-        .filter(Boolean);
-      if (promoLabels.length === 1) discountLabel = promoLabels[0];
-      else if (promoLabels.length > 1) discountLabel = promoLabels.join("; ");
-    }
-    return { discountIdNo, seniorIdNo, pwdIdNo, discountLabel };
-  },
-
-  /**
-   * Validate payment against net total. Cash needs paid >= total.
-   * E-wallets are record-only: paid must equal total, change is 0.
-   * Also rejects methods disabled in Settings → acceptedPayments.
-   */
-  async _assertPaymentValid({ amountPaid, total, paymentMethod = "cash" }) {
-    const accepted = await settingsService.getAcceptedPayments();
-    if (!accepted.includes(paymentMethod)) {
-      throw new AppError(403, `${paymentMethod} is currently not accepted`, "PAYMENT_DISABLED");
-    }
-    if (amountPaid == null || Number(amountPaid) <= 0) {
-      throw new AppError(400, "Amount paid is required", "PAYMENT_REQUIRED");
-    }
-    if (paymentMethod === "cash") {
-      if (Number(amountPaid) < total) {
-        throw new AppError(400, "Amount paid is less than total", "INSUFFICIENT_PAYMENT");
-      }
-      return;
-    }
-    if (Math.abs(Number(amountPaid) - total) > 0.01) {
-      throw new AppError(400, "E-wallet amount must equal the order total", "INVALID_PAYMENT_AMOUNT");
-    }
   },
 
   /* ── Ingredient Deduction Engine ─────── */

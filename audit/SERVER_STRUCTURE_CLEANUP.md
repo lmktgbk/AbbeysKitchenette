@@ -44,3 +44,29 @@ live browser/provider behavior. No production business data was modified.
 
 This is a focused readability batch. Larger service decomposition, remaining
 helper ownership, and broader duplication review remain outstanding.
+
+## Batch 3 — pricing ownership and inventory list duplication
+
+- Extracted unchanged pricing/payment methods from `order.service.js` into
+  `order.pricing.js`, alongside monetary calculations. Direct object composition
+  preserves existing service methods and test interception without wrappers.
+- Replaced the mixed `order.utils.js` with explicit pricing and response owners;
+  valid transitions now live with action policy. Removed unused status labels,
+  timestamp mapping, next-status helper, and unused discount/payment constants
+  after searching callers. Runtime-used item discount constants remain.
+- Shared active/archived ingredient-page enrichment inside the existing service,
+  preserving two batch queries and intentional absence of archived `status`.
+- Kept whole-bill and per-line discount handling distinct: their input behavior
+  differs, so consolidation would require an intentional behavior change.
+
+Verification: 826 existing ordinary cases passed; two new ingredient list-contract
+cases passed separately; 17 disposable PostgreSQL effects/order/inventory cases
+passed. Extracted pricing method text matches the previous implementation exactly.
+No schema, transaction boundary, stock query, or public HTTP contract was changed.
+Live browser/provider checks and all order race scenarios against PostgreSQL remain
+**Not verified** for this batch.
+
+The services still contain substantial business workflows. This batch establishes
+pricing and formatting boundaries; it does not claim all large functions or
+cross-feature dependencies are resolved. Continue reviewing transaction workflows
+before deciding whether further extraction improves clarity.
