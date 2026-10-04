@@ -3,7 +3,12 @@ import prisma from "../../../config/prisma.js";
 import { recordEffects } from "../../effects/domainEffects.js";
 import { fetchMl } from "./mlClient.js";
 
-/** External admission is not a database commit; uncertain results are never replayed here. */
+/**
+ * Audit manual mutation attempts before contacting Python, then capture the outcome.
+ * External admission cannot share a database commit with this API request. A lost
+ * response is unconfirmed, not failed admission; callers must inspect job history
+ * rather than automatically submitting another job.
+ */
 export async function proxyMlMutation(req, res, path, { serviceLabel, fallbackCode, okMessage, body, action, targetType, targetId }) {
   const requestId = crypto.randomUUID();
   const capture = details => prisma.$transaction(tx => recordEffects(tx, { audit: {

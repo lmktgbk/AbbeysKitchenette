@@ -23,6 +23,16 @@ function proxyGet(res, path, fallbackCode) {
   return proxyMl(res, path, { serviceLabel: "MBA", fallbackCode, okMessage: "Success" });
 }
 
+/** Map validated API query names to the Python contract for both synchronous and queued analysis. */
+function analysisPath(query) {
+  const { minSupport, minConfidence, topN } = query || {};
+  let path = "/mba/analyze?";
+  if (minSupport !== undefined) path += `min_support=${minSupport}&`;
+  if (minConfidence !== undefined) path += `min_confidence=${minConfidence}&`;
+  if (topN !== undefined) path += `top_n=${topN}&`;
+  return path;
+}
+
 // POST /api/market-basket/analyze — create a new analysis job
 router.post(
   "/analyze",
@@ -30,11 +40,7 @@ router.post(
   authorize("admin"),
   validateQuery(mbaAnalyzeQuerySchema),
   (req, res) => {
-    const { minSupport, minConfidence, topN } = req.validatedQuery || {};
-    let path = "/mba/analyze?";
-    if (minSupport !== undefined) path += `min_support=${minSupport}&`;
-    if (minConfidence !== undefined) path += `min_confidence=${minConfidence}&`;
-    if (topN !== undefined) path += `top_n=${topN}&`;
+    const path = analysisPath(req.validatedQuery);
     return proxyMlMutation(req, res, path, { serviceLabel: "MBA", body: {}, fallbackCode: "MBA_ANALYZE_ERROR",
       okMessage: "Job created", action: ACTIONS.MBA_RUN, targetType: "market_basket" });
   },
@@ -80,11 +86,7 @@ router.get(
   authorize("admin"),
   validateQuery(mbaAnalyzeQuerySchema),
   (req, res) => {
-    const { minSupport, minConfidence, topN } = req.validatedQuery || {};
-    let path = "/mba/analyze?";
-    if (minSupport !== undefined) path += `min_support=${minSupport}&`;
-    if (minConfidence !== undefined) path += `min_confidence=${minConfidence}&`;
-    if (topN !== undefined) path += `top_n=${topN}&`;
+    const path = analysisPath(req.validatedQuery);
     proxyGet(res, path, "MBA_ANALYZE_ERROR");
   },
 );

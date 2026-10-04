@@ -171,3 +171,21 @@ No SQL, export limits, default payment policy, mutation rules, or API contract
 changed. SMTP/PDF live delivery, hosted cache behavior, and browser exports remain
 **Not verified**. The settings cache's all-method fallback on read failure is
 documented existing behavior, not a verified successful settings read.
+
+## Batch 9 — automation and ML admission readability
+
+- Consolidated the repeated MBA analysis-query mapping inside its existing route
+  file, preserving parameter order, omission rules, and URL format.
+- Computed the scheduled ML-kind decision once when saving admission state.
+- Documented DB-clock ownership, heartbeat renewal, atomic publication, deadline
+  uncertainty, safe-generator retries, and external-outcome review in function
+  comments and the automation workflow guide.
+- Retained feature-specific runners and separate manual/scheduled admission
+  policies; no generic job framework, migration, or provider retry was introduced.
+
+Verification: 838 ordinary cases passed, with 119 opt-in cases skipped. All seven
+report/ML PostgreSQL cases passed in a disposable schema, including fenced
+automation/audit rollback and Python-backend durable effect compatibility.
+Queries, lease durations, retry budgets, admission responses, and APIs are unchanged.
+Hosted workers, live ML admission/timeouts, provider delivery, and production
+concurrency/load remain **Not verified** for this cleanup.

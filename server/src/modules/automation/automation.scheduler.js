@@ -31,6 +31,7 @@ export function dueRuns(automation, now) {
   });
 }
 
+/** Record only a confirmed ML job ID; admission is not completion and uncertain submits must not be replayed. */
 async function submitMl(path, context) {
   await context.assertOwned();
   const response = await fetchMl(path, { method: 'POST', signal: context.signal });
@@ -47,6 +48,7 @@ const runners = {
   dailyReport: context => dailyReportService.sendDailyReport(reportDay(context.run.scheduledAt), { assertOwned: context.assertOwned }),
 };
 
+/** Poll durable schedules with one local flight; database leases coordinate ownership across processes. */
 export function createAutomationScheduler({ repository = automationRepository, jobs = runners, intervalMs = 15000, timeoutMs = 240000 } = {}) {
   let stopped = false, flight = null, timer, controller;
   const api = {
@@ -74,6 +76,7 @@ export function createAutomationScheduler({ repository = automationRepository, j
             if (runController.signal.aborted || !await repository.owns(run)) throw new Error('AUTOMATION_LEASE_LOST');
           },
           async complete(tx) {
+            // Advisory generators commit results and run completion together using their transaction.
             if (runController.signal.aborted) throw new Error('AUTOMATION_INTERRUPTED');
             await repository.complete(run, {}, tx);
             committed = true;
@@ -90,11 +93,16 @@ export function createAutomationScheduler({ repository = automationRepository, j
             await context.assertOwned();
             const result = await jobs[run.kind](context);
             if (runController.signal.aborted) throw new Error('AUTOMATION_INTERRUPTED');
-            if (!committed) await repository.complete(run, {
-              status: ['forecast', 'marketBasket'].includes(run.kind) ? 'submitted' : 'succeeded',
-              result: ['forecast', 'marketBasket'].includes(run.kind) ? result : null,
-            });
+            if (!committed) {
+              const submittedToMl = ['forecast', 'marketBasket'].includes(run.kind);
+              await repository.complete(run, {
+                status: submittedToMl ? 'submitted' : 'succeeded',
+                result: submittedToMl ? result : null,
+              });
+            }
           })();
+          // Abort on deadline, but do not assume external work was rolled back;
+          // ownership fences and repository failure policy protect late outcomes.
           await Promise.race([operation, new Promise((resolve, reject) => {
             deadline = setTimeout(() => { runController.abort(); reject(new Error('AUTOMATION_DEADLINE')); }, timeoutMs);
           })]);

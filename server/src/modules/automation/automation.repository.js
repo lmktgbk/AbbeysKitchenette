@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import prisma from "../../config/prisma.js";
 
 const KEY = "automation:worker";
+// These generators publish results and completion atomically; SMTP/ML admission cannot offer that guarantee.
 const SAFE = ["reorder", "waste"];
 export const automationRepository = {
   async settings() {
@@ -31,6 +32,7 @@ export const automationRepository = {
       await prisma.$executeRawUnsafe(sql, kind);
     }
   },
+  /** Acquire the worker gate and one pending run using DB-clock leases; exclude separately owned anomaly jobs. */
   async claim() {
     const owner = randomUUID();
     return prisma.$transaction(async tx => {
@@ -63,6 +65,7 @@ export const automationRepository = {
       AND owner = ${run.owner}::uuid AND status = 'running' AND lease_expires_at > clock_timestamp()`;
     return rows.length === 1;
   },
+  /** Extend both gate and run leases only for the current unexpired owner; false means stop side effects. */
   async renew(run) {
     return prisma.$transaction(async tx => {
       const gate = await tx.$executeRaw`UPDATE background_leases SET expires_at = clock_timestamp() + interval '5 minutes'
@@ -73,6 +76,7 @@ export const automationRepository = {
       return renewed === 1;
     }, { timeout: 5000 });
   },
+  /** Fence terminal state and audit with the caller's results transaction, or create a short transaction. */
   async complete(run, { status = "succeeded", result = null } = {}, tx) {
     if (!tx) return prisma.$transaction(client => this.complete(run, { status, result }, client), { timeout: 5000 });
     const updated = await tx.$executeRaw`UPDATE automation_runs SET status = ${status}, result = ${JSON.stringify(result)}::jsonb,
@@ -85,6 +89,7 @@ export const automationRepository = {
     await recordEffects(tx, { audit: { action: actions[run.kind] ?? ACTIONS.AUTOMATION_COMPLETED,
       targetType: "automation", details: { source: "scheduled", runKey: run.runKey, status, result } } });
   },
+  /** Retry only atomic generators within budget; uncertain external outcomes are blocked for review. */
   async fail(run) {
     const retry = SAFE.includes(run.kind) && run.attempts < 3;
     return prisma.$executeRaw`UPDATE automation_runs SET status = ${retry ? "pending" : "blocked"},
