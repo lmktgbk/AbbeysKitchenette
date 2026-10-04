@@ -50,9 +50,15 @@ const errorHandler = (err, req, res, next) => {
   }
 
   // Unexpected error — hide internals, log for debugging
-  const ref = crypto.randomBytes(4).toString("hex");
-  console.error(`[${ref}] ${err.message}`);
-  console.error(err.stack);
+  const ref = req.requestId ?? crypto.randomBytes(4).toString("hex");
+  // Database/provider messages can contain SQL values or credentials. Production
+  // correlation uses the request ID and error class without serializing errors.
+  if (process.env.NODE_ENV === "production") {
+    console.error(JSON.stringify({ event: "application_error", requestId: ref, type: err.name || "Error" }));
+  } else {
+    console.error(`[${ref}] ${err.message}`);
+    console.error(err.stack);
+  }
 
   return res.status(500).json({
     success: false,

@@ -60,7 +60,8 @@ describe.skipIf(process.env.REPORT_ML_DB_CHECK !== "1")("PostgreSQL report and M
     expect((await db.automationRun.findFirst()).status).toBe("submitted"); expect(await db.domainEffect.count()).toBe(1);
   }, 20000);
   it("Python job transitions and backend delivery share the same durable payload contract", async () => {
-    const result = await promisify(execFile)(resolve("../ml-service/venv/Scripts/python.exe"), [resolve("tests/helpers/checkMlEffects.py"), fixture.schema], { timeout: 60000, env: process.env });
+    const python = process.env.ML_TEST_PYTHON || (process.platform === "win32" ? resolve("../ml-service/venv/Scripts/python.exe") : "python3");
+    const result = await promisify(execFile)(python, [resolve("tests/helpers/checkMlEffects.py"), fixture.schema], { timeout: 60000, env: process.env });
     expect(JSON.parse(result.stdout)).toEqual({ checks: 5, events: 6 });
     const worker = createEffectsRepository(db); for (let i = 0; i < 6; i++) await worker.deliverOne();
     expect(await db.auditLog.count()).toBe(6); expect(await db.domainEffect.count({ where: { state: "delivered" } })).toBe(6);

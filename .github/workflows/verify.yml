@@ -1,0 +1,79 @@
+name: Verify SmartCafe
+on:
+  pull_request:
+  push:
+    branches: [main, code-revision]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: fixture
+          POSTGRES_PASSWORD: fixture
+          POSTGRES_DB: smartcafe_test
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U fixture -d smartcafe_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://fixture:fixture@127.0.0.1:5432/smartcafe_test
+      DIRECT_URL: postgresql://fixture:fixture@127.0.0.1:5432/smartcafe_test
+      JWT_SECRET: ci-fixture-secret-never-used-for-real-accounts
+      JWT_EXPIRES_IN: 8h
+      CLIENT_URL: http://localhost:5173
+      ML_SERVICE_KEY: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      GEMINI_API_KEY: ci-unused-fixture-key
+      ML_TEST_PYTHON: python3
+      ADMIN_DB_CHECK: '1'
+      AUTOMATION_DB_CHECK: '1'
+      AUTH_EFFECTS_DB_CHECK: '1'
+      ANOMALY_DB_CHECK: '1'
+      EMAIL_CHANGE_DB_CHECK: '1'
+      EFFECTS_DB_CHECK: '1'
+      DEPLOYMENT_DB_CHECK: '1'
+      MUTATION_DB_CHECK: '1'
+      PRICE_DB_CHECK: '1'
+      REPORT_ML_DB_CHECK: '1'
+      SHEETS_DB_CHECK: '1'
+      STORAGE_DB_CHECK: '1'
+      SHIFT_STATS_DB_CHECK: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            server/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: ml-service/requirements.lock
+      - run: npm ci --prefix client
+      - run: npm ci --prefix server
+      - run: python -m pip install -r ml-service/requirements.lock
+      - run: python -m pip check
+      - run: npm --prefix server run db:generate
+      - run: npm --prefix client run lint -- --max-warnings 0
+      - run: npm --prefix client run build
+      - run: npm --prefix server test -- --maxWorkers=2
+      - run: python audit/ml_reproduction.py
+      - run: python audit/ml_worker_reliability.py
+      # The residual Prisma advisory remains visible and blocks a clean security
+      # gate until reviewed upstream remediation is available.
+      - name: Dependency release gate
+        run: |
+          npm audit --prefix client --audit-level=high
+          npm audit --prefix server --audit-level=high

@@ -7,6 +7,7 @@ import cookieParser from "cookie-parser";
 // Imports
 import { env } from "./config/env.js";
 import { healthRoutes } from "./services/readiness.js";
+import { requestTelemetry, operationsRoutes } from "./services/observability.js";
 
 import errorHandler from "./middleware/errorHandler.middleware.js";
 import { requestBodyParsers } from "./middleware/requestBody.middleware.js";
@@ -37,6 +38,8 @@ import analyticsRoutes from "./modules/analytics/analytics.routes.js";
 const app = express();
 app.disable("etag");
 app.set("trust proxy", env.TRUST_PROXY_HOPS);
+// Production platforms collect stdout; emit bounded, redacted request events.
+app.use(requestTelemetry.middleware);
 
 /**
  * Security Headers
@@ -66,6 +69,7 @@ app.use(cookieParser());
 // checkout, and other sensitive endpoints individually.
 app.use(healthRoutes());
 app.use(generalLimiter);
+app.use("/api/operations", operationsRoutes());
 
 // Routes endpoints
 app.use("/api/auth", authRoutes);

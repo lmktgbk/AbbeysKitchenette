@@ -31,6 +31,9 @@ async def verify():
         for table in ["forecast_jobs", "forecast_results", "mba_jobs", "mba_rules", "product_variants"]:
             ddl = re.search(r'CREATE TABLE "public"\."' + table + r'" \([\s\S]*?\n\);', baseline).group(0)
             await admin.execute(ddl.replace('"public"', f'"{schema}"'))
+        effects = (ROOT / "server/prisma/migrations/20261004000000_domain_effects/migration.sql").read_text(encoding="utf-8")
+        ddl = re.search(r"CREATE TABLE domain_effects \([\s\S]*?\n\);", effects).group(0)
+        await admin.execute(ddl.replace("CREATE TABLE domain_effects", f'CREATE TABLE "{schema}".domain_effects'))
         product_id = uuid4()
         await admin.execute(f'INSERT INTO "{schema}".product_variants(variant_id,product_id,size_name,price) VALUES(1,$1,\'Small\',10)', product_id)
         await admin.execute(f'INSERT INTO "{schema}".forecast_jobs(status) VALUES(\'completed\')')
