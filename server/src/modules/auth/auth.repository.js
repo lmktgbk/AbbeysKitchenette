@@ -1,10 +1,10 @@
-import { authAudit } from "./authEffects.js";
+import { authAudit } from "./auth.effects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import crypto from "crypto";
 import prisma from "../../config/prisma.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
-import { SESSION_USER_SELECT } from "./session.js";
-import { lockAccount } from "./accountLock.js";
+import { SESSION_USER_SELECT } from "./auth.session.js";
+import { lockAccount } from "./auth.accountLock.js";
 
 /**
  * Auth Repository

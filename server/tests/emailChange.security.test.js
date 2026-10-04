@@ -19,7 +19,7 @@ vi.mock("../src/utils/cloudinary.js", () => ({ deleteImage: vi.fn() }));
 vi.mock("../src/middleware/upload.middleware.js", () => ({ uploadAvatar: (_, __, next) => next() }));
 vi.mock("../src/modules/auditLogs/auditLog.service.js", () => ({ auditLogService: { logAction: vi.fn().mockResolvedValue({}) } }));
 import authRoutes from "../src/modules/auth/auth.routes.js";
-import { emailChange } from "../src/modules/auth/emailChange.js";
+import { emailChange } from "../src/modules/auth/auth.emailChange.js";
 import { staffService } from "../src/modules/staff/staff.service.js";
 import { authLimiter, emailChangeLimiter } from "../src/middleware/rateLimitin.middleware.js";
 import { signSessionToken, verifySessionToken } from "../src/config/jwt.js";

@@ -1,24 +1,27 @@
-import { authAudit } from "../modules/auth/authEffects.js";
-import { ACTIONS } from "../modules/auditLogs/auditLog.constants.js";
+import { authAudit } from "./auth.effects.js";
+import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import crypto from "node:crypto";
-import prisma from "../config/prisma.js";
-import { env } from "../config/env.js";
-import { AppError } from "../middleware/errorHandler.middleware.js";
-import { lockAccount } from "../modules/auth/accountLock.js";
+import prisma from "../../config/prisma.js";
+import { env } from "../../config/env.js";
+import { AppError } from "../../middleware/errorHandler.middleware.js";
+import { lockAccount } from "./auth.accountLock.js";
 
 const MAX_ATTEMPTS = 5;
 const RESEND_COOLDOWN_MS = 60_000;
 
+/** Bind a code digest to its login challenge; the login prefix separates it from email-change codes. */
 function hashCode(challengeId, code) {
   // A keyed digest prevents a database-only attacker from enumerating six-digit codes.
   return crypto.createHmac("sha256", env.JWT_SECRET).update(`otp:${challengeId}:${code}`).digest("hex");
 }
 
+/** Invalidate only the exact undelivered code; a late SMTP failure must not delete a newer resend. */
 export async function discardOtp(userId, challengeId, code) {
   // Match the delivered code too, so a delayed send failure cannot erase a newer resend.
   return prisma.otpCode.deleteMany({ where: { userId, challengeId, code: hashCode(challengeId, code) } });
 }
 
+/** Recheck locked account state against the role/version captured when password verification succeeded. */
 async function validAccount(tx, userId, expected) {
   const user = await tx.user.findUnique({ where: { id: userId }, select: {
     isActive: true, sessionVersion: true, role: true, lockedUntil: true,
@@ -27,6 +30,11 @@ async function validAccount(tx, userId, expected) {
     (user.sessionVersion === expected.sessionVersion && user.role === expected.role));
 }
 
+/**
+ * Replace the account's login code and save issuance audit intent atomically.
+ * A resend keeps the challenge's original expiry and enforces the cooldown.
+ * Return the plaintext code only to the mail workflow; storage contains its keyed digest.
+ */
 export async function generateOtp(userId, challengeId, expiresAt, resend = false, expected) {
   return prisma.$transaction(async (tx) => {
     await lockAccount(tx, userId);
@@ -49,6 +57,11 @@ export async function generateOtp(userId, challengeId, expiresAt, resend = false
   });
 }
 
+/**
+ * Consume a login challenge once while holding the account lock.
+ * Return failure outcomes from the transaction, then throw after commit so wrong
+ * guesses retain their attempt increments. Successful consumption records login audit.
+ */
 export async function verifyOtp(userId, challengeId, code, expected) {
   const outcome = await prisma.$transaction(async (tx) => {
     await lockAccount(tx, userId);
@@ -62,6 +75,7 @@ export async function verifyOtp(userId, challengeId, code, expected) {
     const supplied = hashCode(challengeId, String(code));
     const storedDigest = Buffer.from(stored.code, "hex");
     const candidate = Buffer.from(supplied, "hex");
+    // timingSafeEqual requires equal-length buffers; reject malformed stored digests without throwing.
     if (storedDigest.length !== candidate.length || !crypto.timingSafeEqual(storedDigest, candidate)) {
       const updated = await tx.otpCode.update({
         where: { id: stored.id }, data: { attempts: { increment: 1 } },

@@ -11,10 +11,10 @@ vi.mock("../src/realtime/sessions.js", () => ({ revokeLocalSessions: vi.fn() }))
 import { isolatedPostgres } from "./helpers/isolatedPostgres.js";
 import { authRepository as repo } from "../src/modules/auth/auth.repository.js";
 import { authService as auth } from "../src/modules/auth/auth.service.js";
-import { emailChange } from "../src/modules/auth/emailChange.js";
-import { recordLoginFailure } from "../src/modules/auth/authEffects.js";
+import { emailChange } from "../src/modules/auth/auth.emailChange.js";
+import { recordLoginFailure } from "../src/modules/auth/auth.effects.js";
 import { staffService } from "../src/modules/staff/staff.service.js";
-import { generateOtp, verifyOtp } from "../src/utils/otp.js";
+import { generateOtp, verifyOtp } from "../src/modules/auth/auth.otp.js";
 import { revokeLocalSessions } from "../src/realtime/sessions.js";
 import { createEffectsRepository } from "../src/infrastructure/effects/domainEffects.repository.js";
 let fixture, db, user, passwordHash;

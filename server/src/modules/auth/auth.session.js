@@ -7,6 +7,7 @@ export const SESSION_USER_SELECT = {
   isActive: true, sessionVersion: true,
 };
 
+/** Allowlist public profile fields; never expose password hashes or session-revocation counters. */
 export function publicUser(user) {
   return Object.fromEntries(
     ["id", "name", "email", "role", "imageUrl", "isActive", "lastLoginAt", "createdAt", "updatedAt"]
@@ -15,6 +16,7 @@ export function publicUser(user) {
 }
 
 // REST and WebSocket authentication share the same token and revocation policy.
+/** Verify a session JWT and current account state for both HTTP and WebSocket authentication. */
 export async function resolveSession(token) {
   if (!token) throw new AppError(401, "Not Authenticated", "UNAUTHORIZED");
   let claims;
@@ -32,6 +34,7 @@ export async function resolveSession(token) {
     // Provider errors can contain connection details; expose only a retryable failure.
     throw new AppError(503, "Authentication service unavailable", "AUTH_UNAVAILABLE");
   }
+  // A valid signature is insufficient after logout, credential changes, deactivation, or role changes.
   if (!user?.isActive || user.sessionVersion !== claims.version || user.role !== claims.role) {
     throw new AppError(401, "Session is no longer valid, please log in again", "UNAUTHORIZED");
   }

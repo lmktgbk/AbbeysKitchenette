@@ -95,3 +95,23 @@ The existing pg concurrent-query deprecation warning remains. Real browser
 behavior and all concurrent cancellation/preparation races against PostgreSQL
 remain **Not verified** in this batch. Larger workflows are not mechanically split
 solely to reduce file length; further extraction requires a clear responsibility.
+
+## Batch 5 — authentication ownership and comments
+
+- Renamed session, account-lock, email-change, and effects helpers with the auth
+  feature prefix. Moved database-backed OTP out of utilities into `auth.otp.js`.
+- Updated HTTP, WebSocket, staff, repository, and test imports without duplicate
+  compatibility wrappers.
+- Documented purpose-bound challenges, one-time consumption, failed-attempt
+  commits, account-first locks, public-field projections, and post-commit mail.
+- Added `modules/auth/README.md` with the login and credential lifecycle.
+- Preserved distinct OTP/reset/email-change policies rather than introducing a
+  generic security workflow abstraction.
+
+Verification: 828 ordinary cases passed (119 optional database cases skipped).
+The auth audit-recovery and recovery-email PostgreSQL suites separately passed
+20 cases in disposable schemas. A normalized diff confirmed 15 tracked JavaScript
+files changed only in relative paths and comments. No credentials, token expiry,
+queries, transaction boundaries, or public response contracts were altered.
+Live email/browser/hosting acceptance remains **Not verified**. Shifts cleanup is
+the next separate batch.

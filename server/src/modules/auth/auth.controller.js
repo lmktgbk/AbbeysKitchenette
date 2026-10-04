@@ -11,7 +11,7 @@ import { AppError } from "../../middleware/errorHandler.middleware.js";
  * to keep brute-force responses indistinguishable across portals.
  */
 import { sessionCookieOptions } from "../../config/cookies.js";
-import { recordLoginFailure } from "./authEffects.js";
+import { recordLoginFailure } from "./auth.effects.js";
 
 const COOKIE_OPTIONS = sessionCookieOptions();
 

@@ -1,4 +1,4 @@
-import { authAudit, sendAuthEmail } from "./authEffects.js";
+import { authAudit, sendAuthEmail } from "./auth.effects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
@@ -6,8 +6,8 @@ import prisma from "../../config/prisma.js";
 import { env } from "../../config/env.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { generateOtpEmail } from "../../utils/email.js";
-import { lockAccount, lockSessionAccount } from "./accountLock.js";
-import { SESSION_USER_SELECT, publicUser } from "./session.js";
+import { lockAccount, lockSessionAccount } from "./auth.accountLock.js";
+import { SESSION_USER_SELECT, publicUser } from "./auth.session.js";
 import { signSessionToken } from "../../config/jwt.js";
 import { revokeLocalSessions } from "../../realtime/sessions.js";
 import { authRepository } from "./auth.repository.js";
@@ -18,12 +18,14 @@ const digest = (id, code) => crypto.createHmac("sha256", env.JWT_SECRET)
   .update(`email-change:${id}:${code}`).digest("hex");
 const ACCOUNT_SELECT = { ...SESSION_USER_SELECT, passwordHash: true, lockedUntil: true };
 
+/** Require the original session and address so reset/logout cannot authorize a stale email-change request. */
 function matches(user, pending, version) {
   return user?.isActive && !(user.lockedUntil > new Date()) && user.sessionVersion === version &&
     user.sessionVersion === pending.sessionVersion && user.email === pending.oldEmail;
 }
 
 export const emailChange = {
+  /** Save a password-confirmed challenge under the account lock, then send notices outside the transaction. */
   async request(userId, version, name, email, password) {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: ACCOUNT_SELECT });
     if (!user?.isActive || user.sessionVersion !== version) throw changed();
@@ -72,6 +74,7 @@ export const emailChange = {
     return { user: publicUser(user), emailChange: { id, email, expiresAt } };
   },
 
+  /** Verify once, rotate the session version, invalidate old challenges, and issue the current browser a new session. */
   async confirm(userId, version, id, code) {
     let outcome;
     try {

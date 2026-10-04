@@ -17,7 +17,7 @@ vi.mock("../src/config/env.js", () => ({ env: {
 } }));
 vi.mock("../src/utils/email.js", () => ({ generateOtpEmail: x => x, sendEmail: async message => h.mail.push(message) }));
 vi.mock("../src/realtime/sessions.js", () => ({ revokeLocalSessions: vi.fn() }));
-import { emailChange } from "../src/modules/auth/emailChange.js";
+import { emailChange } from "../src/modules/auth/auth.emailChange.js";
 import { authRepository } from "../src/modules/auth/auth.repository.js";
 
 const schema = `email_check_${crypto.randomUUID().replaceAll("-", "")}`;

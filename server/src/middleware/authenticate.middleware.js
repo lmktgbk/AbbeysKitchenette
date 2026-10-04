@@ -1,4 +1,4 @@
-import { publicUser, resolveSession } from "../modules/auth/session.js";
+import { publicUser, resolveSession } from "../modules/auth/auth.session.js";
 
 /**
  * Authentication Middleware

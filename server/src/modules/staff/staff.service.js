@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { staffRepository } from "./staff.repository.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
-import { sendAuthEmail } from "../auth/authEffects.js";
+import { sendAuthEmail } from "../auth/auth.effects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import prisma from "../../config/prisma.js";
 import { recordEffects, recordMutation } from "../../infrastructure/effects/domainEffects.js";

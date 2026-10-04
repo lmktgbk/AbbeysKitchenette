@@ -1,15 +1,15 @@
-import { sendAuthEmail } from "./authEffects.js";
-import { emailChange } from "./emailChange.js";
+import { sendAuthEmail } from "./auth.effects.js";
+import { emailChange } from "./auth.emailChange.js";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
 
 import { authRepository } from "./auth.repository.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { signToken, signSessionToken, verifyToken } from "../../config/jwt.js";
-import { publicUser } from "./session.js";
+import { publicUser } from "./auth.session.js";
 import { revokeLocalSessions } from "../../realtime/sessions.js";
 import { isStoreIP } from "../../utils/ipCheck.js";
-import { generateOtp, discardOtp, verifyOtp as verifyOtpCode } from "../../utils/otp.js";
+import { generateOtp, discardOtp, verifyOtp as verifyOtpCode } from "./auth.otp.js";
 import {
   generateResetPasswordEmail,
   generateOtpEmail,
@@ -36,6 +36,7 @@ export const authService = {
     return this._loginCore(email, password, clientIP, "admin");
   },
 
+  /** Verify portal, location, lockout, and password before issuing an OTP challenge, never a session JWT. */
   async _loginCore(email, password, clientIP, portal) {
     const user = await authRepository.findByEmailWithCredentials(email);
 
@@ -110,6 +111,7 @@ export const authService = {
       () => discardOtp(user.id, challengeId, code));
   },
 
+  /** Resolve only a login-purpose token and recheck current account/location before code operations. */
   async _resolveChallenge(userId, challenge, clientIP) {
     let claims;
     try {
@@ -133,6 +135,7 @@ export const authService = {
     return { user, claims };
   },
 
+  /** Persist version-based revocation before closing this process's authenticated WebSocket sessions. */
   async logout(userId, version) {
     await authRepository.revokeSessions(userId, version);
     revokeLocalSessions(userId);
@@ -165,6 +168,7 @@ export const authService = {
     return user;
   },
 
+  /** Hash outside row locks, then atomically consume the reset token and revoke existing credentials. */
   async resetPassword(token, newPassword) {
     let decoded;
     try {
@@ -202,6 +206,7 @@ export const authService = {
     return emailChange.confirm(userId, version, id, code);
   },
 
+  /** Verify the old hash, then guard the update against concurrent password changes and issue a fresh session. */
   async changePassword(userId, currentPassword, newPassword) {
     const passwordHash = await authRepository.getPasswordHash(userId);
     if (!passwordHash) {
