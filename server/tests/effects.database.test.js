@@ -132,6 +132,43 @@ describe.skipIf(process.env.EFFECTS_DB_CHECK !== "1")("PostgreSQL durable effect
     await repo.deliverOne(); expect(await db.auditLog.count()).toBe(1); expect(await db.notification.count()).toBe(1);
     expect((await db.notification.findFirst()).referenceId).toBe(first.order_id);
   }, 30000);
+  it("item removal followed by cancellation restores stock once and refunds net tender only", async () => {
+    await db.shift.create({ data: { openedBy: user.id, openingCash: 0 } });
+    const line = { product_id: variant.productId, variant_id: variant.variantId, quantity: 1, unit_price: 85 };
+    const order = await orderService.createWalkIn({ customerName: "Fixture", tableNumber: "1",
+      items: [line, line], amountPaid: 200, createdBy: user.id,
+      idempotencyKey: "123e4567-e89b-42d3-a456-426614174112" });
+    const item = await db.orderItem.findFirst({ where: { orderId: order.order_id }, orderBy: { orderItemId: "asc" } });
+    await orderService.removeOrderItem(order.order_id, item.orderItemId, user.id, "Fixture removal", { refund_option: "full" });
+    expect(Number((await db.paymentRefund.findUnique({ where: { orderId: order.order_id } })).amount)).toBe(85);
+    expect(Number((await db.restockBatch.findUnique({ where: { restockId: batch.restockId } })).quantityLeft)).toBe(8);
+    await orderService.cancelOrDelete(order.order_id, user.id, "Fixture cancellation", { refund_option: "full" });
+    expect(Number((await db.paymentRefund.findUnique({ where: { orderId: order.order_id } })).amount)).toBe(170);
+    expect(Number((await db.restockBatch.findUnique({ where: { restockId: batch.restockId } })).quantityLeft)).toBe(10);
+    await expect(orderService.cancelOrDelete(order.order_id, user.id, "Repeat", { refund_option: "full" }))
+      .rejects.toMatchObject({ code: "ORDER_STATE_CONFLICT" });
+    expect(Number((await db.restockBatch.findUnique({ where: { restockId: batch.restockId } })).quantityLeft)).toBe(10);
+  }, 45000);
+
+  it("failed cancellation audit rolls back refund and stock settlement before a clean retry", async () => {
+    await db.shift.create({ data: { openedBy: user.id, openingCash: 0 } });
+    const order = await orderService.createWalkIn({ customerName: "Fixture", tableNumber: "1",
+      items: [{ product_id: variant.productId, variant_id: variant.variantId, quantity: 1, unit_price: 85 }],
+      amountPaid: 100, createdBy: user.id, idempotencyKey: "123e4567-e89b-42d3-a456-426614174113" });
+    await db.$executeRawUnsafe("ALTER TABLE domain_effects ADD CONSTRAINT fixture_cancel_failure CHECK (false) NOT VALID");
+    try {
+      await expect(orderService.cancelOrDelete(order.order_id, user.id, "Fixture", { refund_option: "full" })).rejects.toThrow();
+    } finally {
+      await db.$executeRawUnsafe("ALTER TABLE domain_effects DROP CONSTRAINT fixture_cancel_failure");
+    }
+    expect((await db.order.findUnique({ where: { orderId: order.order_id } })).status).toBe("accepted");
+    expect(await db.paymentRefund.count()).toBe(0);
+    expect(Number((await db.restockBatch.findUnique({ where: { restockId: batch.restockId } })).quantityLeft)).toBe(8);
+    await orderService.cancelOrDelete(order.order_id, user.id, "Fixture", { refund_option: "full" });
+    expect(Number((await db.paymentRefund.findUnique({ where: { orderId: order.order_id } })).amount)).toBe(85);
+    expect(Number((await db.restockBatch.findUnique({ where: { restockId: batch.restockId } })).quantityLeft)).toBe(10);
+  }, 45000);
+
   it("real inventory restock, loss and count preserve their audit intents", async () => {
     await ingredientService.restock(ingredient.ingredientId, { quantity_added: 2, cost_per_unit: 2 }, user.id);
     await ingredientService.declareLoss(ingredient.ingredientId, { quantity_lost: 1, loss_type: "spillage" }, user.id);

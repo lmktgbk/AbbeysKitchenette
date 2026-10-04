@@ -1,6 +1,6 @@
 import { orderRepository } from "./order.repository.js";
 import { formatOrderResponse, formatOrderItemResponse, composeOrderNumber, formatOrderNumber } from "./order.response.js";
-import { orderPricing, aggregateLineDiscounts, roundMoney } from "./order.pricing.js";
+import { orderPricing, aggregateLineDiscounts, computeRefundAmount, roundMoney } from "./order.pricing.js";
 import { assertStatusPermission, isValidTransition } from "./order.policy.js";
 import { allocateConsumption, planSettlement, stockUnits } from "./order.consumption.js";
 import { orderRequest, orderIdempotency } from "./order.idempotency.js";
@@ -651,6 +651,7 @@ export const orderService = {
 
   /* ── Cancel / Delete ─────────────────── */
 
+  /** Cancel once under the order lock; stock settlement, refund, cancellation, and intent commit together. */
   async cancelOrDelete(id, userId, reason, options = {}) {
     let order;
     let lossOption = options.loss_option || "no_loss";
@@ -671,24 +672,18 @@ export const orderService = {
 
       // Determine loss handling based on options
       const refundOption = options.refund_option || "partial"; // "full" | "partial" | "none"
-      const itemLosses = options.item_losses || []; // [{ item_id, ingredient_losses: [{ ingredient_id, quantity_lost }] }]
+      const itemLosses = options.item_losses || []; // [{ order_item_id, ingredient_losses: [{ ingredient_id, quantity_lost }] }]
 
       // Refund capped at what the customer actually paid (minus prior refunds) —
       // cumulative refunds can never exceed tender, even across removals + cancel.
       const paidForCap = order.amountPaid != null ? Number(order.amountPaid) - Number(order.change || 0) : Number(order.totalAmount) || 0;
-      const paidCap = Math.max(0, roundMoney(paidForCap - Number(order.refund?.amount || 0)));
-      let refundAmount;
-      if (refundOption === "full") {
-        refundAmount = Math.min(Number(order.totalAmount), paidCap);
-      } else if (refundOption === "none") {
-        refundAmount = 0;
-      } else if (options.refund_amount != null) {
-        // partial: user-specified amount, capped at drop-equivalent and paid
-        refundAmount = Math.min(Number(options.refund_amount), Number(order.totalAmount), paidCap);
-      } else {
-        refundAmount = 0;
-      }
-      refundAmount = Math.max(0, roundMoney(refundAmount));
+      const refundAmount = computeRefundAmount({
+        limit: Number(order.totalAmount),
+        paid: paidForCap,
+        priorRefunded: Number(order.refund?.amount || 0),
+        option: refundOption,
+        requestedAmount: options.refund_amount,
+      });
 
       // Claim first: a concurrent settle loses here instead of double-restoring.
       const claimed = await orderRepository.claimStatus(id, ["pending", "accepted", "preparing"], "cancelled", tx);
@@ -718,9 +713,15 @@ export const orderService = {
       }
 
       // Tag each item with its loss option for frontend display (batched)
+      // Index the first declaration per item, preserving the previous find() semantics
+      // while avoiding a full loss-list scan for every line in a large order.
+      const lossesByItem = new Map();
+      for (const loss of itemLosses) {
+        if (!lossesByItem.has(loss.order_item_id)) lossesByItem.set(loss.order_item_id, loss);
+      }
       const withLossIds = orderItems
         .filter((item) => {
-          const itemLoss = itemLosses.find((il) => il.order_item_id === item.orderItemId);
+          const itemLoss = lossesByItem.get(item.orderItemId);
           return lossOption === "with_loss" && itemLoss && itemLoss.ingredient_losses?.length > 0;
         })
         .map((item) => item.orderItemId);
@@ -773,6 +774,7 @@ export const orderService = {
 
   /* ── Remove Single Item ────────────── */
 
+  /** Remove an unserved line using saved consumption and discounts; refund only its net reduction. */
   async removeOrderItem(orderId, orderItemId, userId, reason, options = {}) {
     let order = await orderRepository.findByIdGuard(orderId);
     if (!order) throw new AppError(404, "Order not found", "ORDER_NOT_FOUND");
@@ -841,19 +843,14 @@ export const orderService = {
       // Refund the net drop using locked totals. Cash change is already returned
       // to the customer and cannot increase the cumulative refundable balance.
       const paid = order.amountPaid != null ? Number(order.amountPaid) - Number(order.change || 0) : oldTotal;
-      const priorRefunded = Number(order.refund?.amount || 0);
-      const maxRefundable = Math.max(0, roundMoney(paid - priorRefunded));
       const drop = roundMoney(oldTotal - priced.total);
-      if (refundOption === "full") {
-        refundAmount = Math.min(drop, maxRefundable);
-      } else if (refundOption === "none") {
-        refundAmount = 0;
-      } else if (options.refund_amount != null) {
-        refundAmount = Math.min(Number(options.refund_amount), drop, maxRefundable);
-      } else {
-        refundAmount = 0;
-      }
-      refundAmount = Math.max(0, roundMoney(refundAmount));
+      refundAmount = computeRefundAmount({
+        limit: drop,
+        paid,
+        priorRefunded: Number(order.refund?.amount || 0),
+        option: refundOption,
+        requestedAmount: options.refund_amount,
+      });
 
       remainingCount = remainingItems.length;
 

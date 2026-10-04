@@ -70,3 +70,28 @@ The services still contain substantial business workflows. This batch establishe
 pricing and formatting boundaries; it does not claim all large functions or
 cross-feature dependencies are resolved. Continue reviewing transaction workflows
 before deciding whether further extraction improves clarity.
+
+## Batch 4 — refund and cancellation workflow review
+
+- Shared the identical refund-cap calculation in the existing pricing file.
+  Cancellation retains its order-total limit; removal retains its net-drop limit.
+  Change and prior refunds remain excluded from available tender.
+- Replaced cancellation's repeated loss-list searches with a first-entry map,
+  preserving selection semantics while reducing lookup work to linear time.
+- Documented cancellation/removal atomicity and corrected the item-loss comment's
+  field name to `order_item_id`.
+- Reviewed stock restoration and inventory adjustment paths; retained legacy
+  restoration and their distinct FIFO/rounding semantics rather than merging
+  behaviorally different workflows. No transaction or query boundary was moved.
+
+Verification: 828 ordinary cases passed. The existing 17 PostgreSQL cases passed;
+two new settlement/rollback cases initially failed due to an incorrect test-only
+Prisma delegate name. After correcting it to `paymentRefund`, both passed in a
+focused rerun. These cover removal then cancellation, tender excluding change,
+repeated cancellation rejection, and rollback/retry after audit-storage failure.
+The database suite used disposable schemas, not production business rows.
+
+The existing pg concurrent-query deprecation warning remains. Real browser
+behavior and all concurrent cancellation/preparation races against PostgreSQL
+remain **Not verified** in this batch. Larger workflows are not mechanically split
+solely to reduce file length; further extraction requires a clear responsibility.

@@ -13,6 +13,22 @@ export function roundMoney(n) {
 }
 
 /**
+ * Choose a refund without exceeding the action's net reduction or remaining tender.
+ * paid excludes cash change; priorRefunded is the cumulative saved refund.
+ * Call with values read under the order lock. This calculation performs no writes.
+ */
+export function computeRefundAmount({ limit, paid, priorRefunded, option, requestedAmount }) {
+  const available = Math.max(0, roundMoney(paid - priorRefunded));
+  let amount = 0;
+  if (option === "full") {
+    amount = Math.min(limit, available);
+  } else if (option !== "none" && requestedAmount != null) {
+    amount = Math.min(Number(requestedAmount), limit, available);
+  }
+  return Math.max(0, roundMoney(amount));
+}
+
+/**
  * Compute discount + net total from a subtotal.
  * Senior/PWD: fixed 20%. Promo: manual percent or peso amount (capped at subtotal).
  * @param {number} subtotal

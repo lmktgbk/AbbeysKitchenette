@@ -44,6 +44,12 @@ the original deduction. Saved batch costs determine losses; current recipes and
 supplier prices must not rewrite paid-order history. Legacy order-level restoration
 is a deliberate compatibility path, not a second implementation to delete blindly.
 
+`computeRefundAmount` shares the refund cap calculation. Cancellation supplies the
+remaining order total as its limit; removal supplies the drop in net total. Both
+exclude cash change and subtract cumulative prior refunds. The service still
+controls eligibility, holds the order lock, and persists the result. The helper
+does not authorize refunds or contact a payment provider.
+
 ## Inventory collaboration
 
 Inventory restock, loss, and count operations acquire the same ingredient lock
