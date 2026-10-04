@@ -5,7 +5,7 @@ const h = vi.hoisted(() => ({ db: null, role: "admin" }));
 vi.mock("../src/config/prisma.js", () => ({ default: new Proxy({}, { get: (_target, key) => h.db[key] }) }));
 vi.mock("../src/modules/priceOptimization/priceOptimization.prompts.js", () => ({ generatePriceSuggestions: vi.fn(), getCompetitorAverage: vi.fn() }));
 vi.mock("../src/middleware/authenticate.middleware.js", () => ({ default: (req, _res, next) => {
-  req.user = { id: "fixture-user", role: h.role };
+  req.user = { id: "00000000-0000-4000-8000-000000000001", role: h.role };
   next();
 } }));
 vi.mock("../src/modules/auditLogs/auditLog.service.js", () => ({ auditLogService: { logAction: vi.fn().mockResolvedValue({}) } }));
@@ -26,8 +26,12 @@ afterAll(async () => { server.closeAllConnections(); await new Promise(resolve =
 
 beforeEach(() => {
   vi.clearAllMocks(); h.role = "admin";
-  const state = { suggestions: [{ id: 1, variantId: 7, currentPrice: 85, recommendedPrice: 95, productName: "Fixture", status: "pending" }], variants: [{ variantId: 7, price: 85, archived: false }], priceWrites: 0 };
+  const state = { suggestions: [{ id: 1, variantId: 7, currentPrice: 85, recommendedPrice: 95, productName: "Fixture", status: "pending" }], variants: [{ variantId: 7, price: 85, archived: false }], priceWrites: 0, effects: [] };
   const db = h.db = { state };
+  db.domainEffect = { async create({ data }) {
+    if (db.failEffect) throw new Error("Injected effect failure");
+    db.state.effects.push(structuredClone(data)); return data;
+  } };
   db.priceOptimization = {
     async findUnique({ where }) { return structuredClone(db.state.suggestions.find(row => row.id === where.id)); },
     async updateMany({ where, data }) {
@@ -72,7 +76,8 @@ describe("Price approval authorization and transactional correctness", () => {
     expect(result).toMatchObject({ status: "accepted", variantId: 7, recommendedPrice: 95 });
     expect(result.updatedAt).toBe(h.db.state.suggestions[0].updatedAt.toISOString());
     expect(h.db.state.variants[0].price).toBe(95);
-    expect(auditLogService.logAction).toHaveBeenCalledTimes(1);
+    expect(h.db.state.effects).toHaveLength(1);
+    expect(h.db.state.effects[0].payload.audit.userId).toBe("00000000-0000-4000-8000-000000000001");
   });
   it.each(["cashier", "kitchen"])("%s cannot apply or dismiss through either route", async role => {
     h.role = role;
@@ -113,7 +118,7 @@ describe("Price approval authorization and transactional correctness", () => {
     expect(h.db.state.suggestions[0].status).toBe("pending");
     expect(h.db.state.variants[0].price).toBe(85);
   });
-  it.each(["failStatus", "failPrice"])("%s cannot leave a partially approved price", async failure => {
+  it.each(["failStatus", "failPrice", "failEffect"])("%s cannot leave a partially approved price", async failure => {
     h.db[failure] = true;
     await expect(service.applyPrice(1)).rejects.toThrow("Injected");
     expect(h.db.state.suggestions[0].status).toBe("pending");
@@ -126,6 +131,7 @@ describe("Price approval authorization and transactional correctness", () => {
     const results = await Promise.allSettled([service.applyPrice(1), service.applyPrice(1)]);
     expect(results.filter(row => row.status === "fulfilled")).toHaveLength(1);
     expect(h.db.state.priceWrites).toBe(1);
+    expect(h.db.state.effects).toHaveLength(1);
   });
   it.each([true, false])("apply versus dismiss has one resolution (apply first: %s)", async applyFirst => {
     const results = await Promise.allSettled(applyFirst ? [service.applyPrice(1), service.dismiss(1)] : [service.dismiss(1), service.applyPrice(1)]);
@@ -138,12 +144,21 @@ describe("Price approval authorization and transactional correctness", () => {
     const results = await Promise.allSettled([service.applyPrice(1), service.applyPrice(2)]);
     expect(results.filter(row => row.status === "fulfilled")).toHaveLength(1);
     expect(h.db.state.priceWrites).toBe(1);
+    expect(h.db.state.effects).toHaveLength(1);
     expect(h.db.state.suggestions[1].status).toBe("pending");
   });
   it("dismissal resolves without touching the variant price", async () => {
     const result = await service.dismiss(1);
     expect(result.status).toBe("rejected");
     expect(h.db.state.priceWrites).toBe(0);
+  });
+  it("audit capture failure rolls back recommendation replacement", async () => {
+    h.db.failEffect = true;
+    await expect(repo.saveSuggestions([{ id: 2, variantId: 7, productName: "Fixture",
+      sizeName: "Regular", currentPrice: 85, status: "pending" }], "fixture-product"))
+      .rejects.toThrow("Injected effect failure");
+    expect(h.db.state.suggestions[0].id).toBe(1);
+    expect(h.db.state.effects).toHaveLength(0);
   });
   it("failed regeneration retains prior pending recommendations", async () => {
     h.db.failInsert = true;

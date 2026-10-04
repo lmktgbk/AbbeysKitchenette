@@ -2,7 +2,7 @@
 
 This is the current implementation ledger. REPORT.md and findings.json preserve the original audit evidence; their historical unresolved labels are not the current count. **Implemented** means the identified code behavior was changed and selected regression checks passed, not that deployment or every live acceptance case is verified.
 
-The original audit contains **42 findings: 33 implemented, three open, six partially addressed**. Therefore **9 original findings remain outstanding** after the order/inventory recovery batch. Additional rollout constraints and final acceptance are listed separately rather than counted as new original findings.
+The original audit contains **42 findings: 33 implemented, three open, six partially addressed**. Therefore **9 original findings remain outstanding** after the pricing/shift recovery batch. Additional rollout constraints and final acceptance are listed separately rather than counted as new original findings.
 
 ## Implemented — 33
 
@@ -38,7 +38,7 @@ The original audit contains **42 findings: 33 implemented, three open, six parti
 
 | ID | Completed | Remaining |
 | --- | --- | --- |
-| M14 | [Order/inventory durable intents, exact-once database delivery and revisioned availability repair](DOMAIN_EFFECT_RECOVERY_FIXES.md); 17 distinct isolated PostgreSQL scenarios verified. | Roll out transactional capture to remaining price/shift/product/category/staff/settings/auth/report/ML producers; anomaly hooks and live process-kill/hosting/load acceptance remain. |
+| M14 | [Order/inventory durable intents, exact-once database delivery and revisioned availability repair](DOMAIN_EFFECT_RECOVERY_FIXES.md); 17 distinct isolated PostgreSQL scenarios verified. | Pricing generation/apply/dismiss and shift open/close now capture audit work transactionally; see [pricing/shift recovery](PRICING_SHIFT_RECOVERY_FIXES.md). Roll out capture to remaining product/category/staff/settings/auth/report/ML producers; anomaly hooks and live process-kill/hosting/load acceptance remain. |
 | H14 | Dependency upgrades, compatible integration checks and Python lock documented. | Residual Prisma CLI/deepmerge advisory review and clean deployment/install security checks; see DEPENDENCY_SECURITY_FIXES.md. |
 | H15 | Provider configuration, migration commands, health/shutdown and backup/restore runbook. | Actual Vercel/backend/ML deployment, release automation/rollback rehearsal, backups and reconciled restore. |
 | M15 | Ordered migration history and isolated PostgreSQL rehearsals, including all 12 migrations in the effects checks. | Confirm deployed constraints/history and realistic existing-data upgrade/compatibility/recovery; an isolated replay does not establish the main database state. |
@@ -48,7 +48,7 @@ The original audit contains **42 findings: 33 implemented, three open, six parti
 ## Deployment and acceptance still pending
 
 - Use one backend replica until shared socket event fanout is implemented and verified. Shared HTTP rate limits and database job leases do not share realtime events.
-- Apply reviewed migrations through deploy; never infer main-database migration state from disposable-schema tests. This batch adds 20261004000000_domain_effects; apply it before starting the new backend.
+- Apply reviewed migrations through deploy; never infer main-database migration state from disposable-schema tests. User reports 20261004000000_domain_effects migration and client generation completed. This pricing/shift batch adds no migration; main-database constraints were not independently inspected.
 - Live Cloudinary, hosted cookie/proxy/WSS behavior, external delivery, backups/restoration and load capacity remain **Not verified** unless separate acceptance evidence is recorded.
 - Track the pg transaction-query deprecation as a compatibility follow-up before a pg 9 upgrade. It is not proof of an observed data corruption event.
 - Unknown provider upload/job outcomes intentionally require restricted operator review. Do not blindly replay or delete them.

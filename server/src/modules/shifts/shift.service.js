@@ -1,6 +1,6 @@
 import { shiftRepository } from "./shift.repository.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
-import { auditLogService } from "../auditLogs/auditLog.service.js";
+import { recordEffects, recordMutation } from "../../services/domainEffects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { anomalyService } from "../anomalyDetection/anomalyDetection.service.js";
 import prisma from "../../config/prisma.js";
@@ -47,24 +47,16 @@ export const shiftService = {
 
     let shift;
     try {
-      shift = await shiftRepository.create({
-        openingCash: roundMoney(openingCash),
-        openedBy: userId,
-      });
+      shift = await recordMutation(prisma,
+        tx => shiftRepository.create({ openingCash: roundMoney(openingCash), openedBy: userId }, tx),
+        row => ({ audit: { userId, action: ACTIONS.SHIFT_OPENED, targetType: "shift",
+          targetId: row.shiftId, details: { openingCash: Number(row.openingCash) } } }));
     } catch (err) {
       if (err?.code === "P2002") {
         throw new AppError(409, "Close your current shift before opening a new one", "SHIFT_ALREADY_OPEN");
       }
       throw err;
     }
-
-    auditLogService.logAction({
-      userId,
-      action: ACTIONS.SHIFT_OPENED,
-      targetType: "shift",
-      targetId: shift.shiftId,
-      details: { openingCash: Number(openingCash) },
-    }).catch(() => {});
 
     return formatShift(shift);
   },
@@ -176,11 +168,19 @@ export const shiftService = {
     const shiftId = shift.shiftId ?? shift.shift_id;
     const closed = (shift.status ?? "open") === "closed";
 
-    const [sales, refunds, openOrders] = await Promise.all([
-      shiftRepository.getShiftSales(shiftId, openedAt, closedAt, tx),
-      shiftRepository.getShiftCashRefunds(shiftId, openedAt, closedAt, tx),
-      shiftRepository.getShiftOpenOrders(shiftId, openedAt, closedAt, tx),
-    ]);
+    const queries = [
+      () => shiftRepository.getShiftSales(shiftId, openedAt, closedAt, tx),
+      () => shiftRepository.getShiftCashRefunds(shiftId, openedAt, closedAt, tx),
+      () => shiftRepository.getShiftOpenOrders(shiftId, openedAt, closedAt, tx),
+    ];
+    // Interactive transactions share one connection; serialize their queries.
+    const values = [];
+    if (tx) {
+      for (const query of queries) values.push(await query());
+    } else {
+      values.push(...await Promise.all(queries.map(query => query())));
+    }
+    const [sales, refunds, openOrders] = values;
     const computed = roundMoney(openingCash + sales.cashSales - refunds.cashRefunds);
     const stored = (v) => (v != null ? Number(v) : null);
     return {
@@ -246,7 +246,7 @@ export const shiftService = {
     const shift = await shiftRepository.findById(id);
     if (!shift) throw new AppError(404, "Shift not found", "SHIFT_NOT_FOUND");
     if (shift.status !== "open") {
-      throw new AppError(400, "Shift is already closed", "SHIFT_ALREADY_CLOSED");
+      throw new AppError(409, "Shift is already closed", "SHIFT_ALREADY_CLOSED");
     }
     if (!forced && shift.openedBy !== userId) {
       throw new AppError(403, "Only the opener or an admin can close this shift", "FORBIDDEN");
@@ -263,7 +263,7 @@ export const shiftService = {
     // with its mandatory note.
     // Payment paths lock this same shift before writing orders. Once closure
     // owns the row, its summary cannot miss a sale assigned concurrently.
-    const { row: closed, expected, actual, variance } = await prisma.$transaction(async (tx) => {
+    const { row: closed, expected, actual, variance, summary: closingSummary } = await prisma.$transaction(async (tx) => {
       const current = await shiftRepository.lockById(id, tx);
       if (!current || current.status !== "open") {
         throw new AppError(409, "Shift is already closed", "SHIFT_ALREADY_CLOSED");
@@ -301,18 +301,16 @@ export const shiftService = {
         closedBy: userId,
       }, tx);
       if (!row) {
-        throw new AppError(400, "Shift is already closed", "SHIFT_ALREADY_CLOSED");
+        throw new AppError(409, "Shift is already closed", "SHIFT_ALREADY_CLOSED");
       }
-      return { row, expected: expectedCash, actual: actualCashCount, variance: cashVariance };
+      await recordEffects(tx, { audit: { userId,
+        action: forced ? ACTIONS.SHIFT_FORCE_CLOSED : ACTIONS.SHIFT_CLOSED,
+        targetType: "shift", targetId: id,
+        details: { expected: expectedCash, actual: actualCashCount, variance: cashVariance } } });
+      // Return the reconciliation snapshot committed with the closed drawer.
+      return { row, expected: expectedCash, actual: actualCashCount, variance: cashVariance,
+        summary: { ...summary, actual_cash: actualCashCount, variance: cashVariance } };
     }, { timeout: 15000 });
-
-    auditLogService.logAction({
-      userId,
-      action: forced ? ACTIONS.SHIFT_FORCE_CLOSED : ACTIONS.SHIFT_CLOSED,
-      targetType: "shift",
-      targetId: id,
-      details: { expected, actual, variance },
-    }).catch(() => {});
 
     // Real-time anomaly hook: every mismatch flags (policeman, per-shift).
     if (variance !== 0) {
@@ -325,7 +323,7 @@ export const shiftService = {
 
     return {
       ...formatShift(closed),
-      summary: await this.buildSummary(closed),
+      summary: closingSummary,
     };
   },
 

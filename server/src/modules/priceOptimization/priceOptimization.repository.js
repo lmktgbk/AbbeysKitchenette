@@ -1,3 +1,5 @@
+import { recordEffects } from "../../services/domainEffects.js";
+import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import prisma from "../../config/prisma.js";
 import { MANILA_TODAY_SQL } from "../../config/time.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
@@ -130,7 +132,7 @@ const priceOptimizationRepository = {
    * Deletes any existing pending suggestions for the product's variants first
    * to prevent duplicates after regeneration.
    */
-  async saveSuggestions(suggestions, productId) {
+  async saveSuggestions(suggestions, productId, userId) {
     return prisma.$transaction(async (tx) => {
       const products = await tx.$queryRaw`SELECT product_name, is_archived FROM products WHERE product_id = ${productId}::uuid FOR UPDATE`;
       if (!products.length || products[0].is_archived) throw new AppError(409, "Product changed during generation", "STALE_PRICE_SUGGESTION");
@@ -148,7 +150,12 @@ const priceOptimizationRepository = {
         const variant = allowed.get(row.variantId);
         return !variant || Number(variant.price) !== row.currentPrice || variant.size_name !== row.sizeName || products[0].product_name !== row.productName;
       })) throw new AppError(409, "Product pricing changed during generation. Generate again", "STALE_PRICE_SUGGESTION");
-      return tx.priceOptimization.createMany({ data: suggestions });
+      const result = await tx.priceOptimization.createMany({ data: suggestions });
+      // Provider calls finish before publication takes database locks.
+      await recordEffects(tx, { audit: { userId, action: ACTIONS.PRICE_RUN,
+        targetType: "product", targetId: productId,
+        details: { source: userId ? "manual" : "automation", count: result.count } } });
+      return result;
     }, { timeout: 5000 });
   },
 

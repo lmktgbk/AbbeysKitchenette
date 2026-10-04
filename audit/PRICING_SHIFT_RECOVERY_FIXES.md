@@ -1,0 +1,13 @@
+# Pricing and shift audit recovery — 2026-10-04
+
+Pricing generation, application and dismissal now capture the actor and audit payload in the same transaction as publication/resolution. Controllers pass actor identity rather than writing a second, best-effort audit after success. Gemini calls and context gathering remain outside the five-second publication transaction. Existing pending-status claims and expected-price predicates continue to reject competing or stale actions.
+
+Drawer opening now commits its audit intent with the new shift. The partial unique index still arbitrates concurrent opens. Closure captures its audit intent inside the existing shift-locked financial transaction; already-closed requests consistently return 409. The API returns the reconciliation snapshot used for closure, eliminating a post-commit summary read. Summary queries run sequentially on the transaction connection and remain parallel on independent connections outside a transaction. The existing closure timeout is unchanged at 15 seconds; it is a ceiling, not an expected duration.
+
+The existing domain-effects worker delivers audit records after commit, rolls back incomplete delivery, and retries without repeating prices or drawer operations. Failed intent capture prevents the business commit. No new migration or dependency is introduced. The user reports the prior domain-effects migration and client generation were applied.
+
+Validation: backend suite passed 792 tests with 72 optional database cases skipped before the final publication-rollback test was added. Focused pricing/order tests cover that final test separately. All six new PostgreSQL pricing/shift cases passed in disposable schemas, and all six existing PostgreSQL pricing publication cases passed. An initial failure-injection helper rejected an already-existing intent when installing its test constraint; the helper was corrected to use NOT VALID, which blocks new inserts while preserving existing fixtures. The six-case suite then passed. Focused source lint passed.
+
+These checks establish tested rollback, duplicate resolution, drawer concurrency and recovery through a fresh delivery repository. They do not establish actual process-kill behavior, hosted latency, representative load, or live browser acceptance; those remain Not verified in FINAL_TESTING_CHECKLIST.md. Application data was not used for testing.
+
+Remaining M14 work includes product/category/staff/settings/auth/report/ML producers. Shift anomaly scans and immediate realtime broadcasts remain best-effort; this batch makes their audit records durable, not those hooks. Shift historical KPI aggregation remains M16. The original outstanding count remains nine.

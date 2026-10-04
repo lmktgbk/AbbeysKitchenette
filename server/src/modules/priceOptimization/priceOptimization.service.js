@@ -1,10 +1,12 @@
+import { recordEffects } from "../../services/domainEffects.js";
+import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import repo from "./priceOptimization.repository.js";
 import { normalizeRecommendations } from "./priceOptimization.output.js";
 import { generatePriceSuggestions, getCompetitorAverage } from "./priceOptimization.prompts.js";
 import prisma from "../../config/prisma.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 
-async function resolveSuggestion(id, status) {
+async function resolveSuggestion(id, status, userId) {
   return prisma.$transaction(async tx => {
     const suggestion = await repo.findById(id, tx);
     if (!suggestion) throw new AppError(404, "Price suggestion not found", "PRICE_SUGGESTION_NOT_FOUND");
@@ -19,6 +21,11 @@ async function resolveSuggestion(id, status) {
       const changed = await repo.updateVariantPrice(suggestion.variantId, suggestion.currentPrice, suggestion.recommendedPrice, tx);
       if (changed !== 1) throw new AppError(409, "Product price or availability changed. Refresh and generate a new suggestion", "STALE_PRICE_SUGGESTION");
     }
+    await recordEffects(tx, { audit: { userId,
+      action: status === "accepted" ? ACTIONS.PRICE_APPLIED : ACTIONS.PRICE_DISMISSED,
+      targetType: "variant", targetId: String(suggestion.variantId),
+      details: { name: suggestion.productName, sizeName: suggestion.sizeName,
+        current_price: Number(suggestion.currentPrice), recommended_price: Number(suggestion.recommendedPrice) } } });
     return { ...suggestion, status, updatedAt };
   }, { timeout: 5000 });
 }
@@ -40,7 +47,7 @@ const priceOptimizationService = {
    * 4. Call Gemini
    * 5. Save suggestions to DB
    */
-  async generate(productId) {
+  async generate(productId, userId) {
     // Step 1: Gather context
     const product = await repo.getProductInfo(productId);
     if (!product) throw new AppError(404, "Product not found", "PRODUCT_NOT_FOUND");
@@ -92,7 +99,7 @@ const priceOptimizationService = {
     const rows = normalizeRecommendations(result, variants).map(row => ({
       ...row, competitorAvg: getCompetitorAverage(row.sizeName),
     }));
-    await repo.saveSuggestions(rows, productId);
+    await repo.saveSuggestions(rows, productId, userId);
     return rows.map(row => ({
       variant_id: row.variantId, product_name: row.productName, size_name: row.sizeName,
       current_price: row.currentPrice, recommended_price: row.recommendedPrice,
@@ -112,15 +119,15 @@ const priceOptimizationService = {
   /**
    * Apply recommended price: update variant + mark suggestion accepted.
    */
-  async applyPrice(id) {
-    return resolveSuggestion(id, "accepted");
+  async applyPrice(id, userId) {
+    return resolveSuggestion(id, "accepted", userId);
   },
 
   /**
    * Dismiss a suggestion.
    */
-  async dismiss(id) {
-    return resolveSuggestion(id, "rejected");
+  async dismiss(id, userId) {
+    return resolveSuggestion(id, "rejected", userId);
   },
 };
 

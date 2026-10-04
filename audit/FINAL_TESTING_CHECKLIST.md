@@ -912,3 +912,20 @@ Implementation: [FRONTEND_RELIABILITY_FIXES.md](FRONTEND_RELIABILITY_FIXES.md). 
 - [ ] Pause a repair after its queue read, commit a newer stock change, then release it. Verify the newer revision remains recoverable and eventual availability matches current stock.
 - [ ] Verify graceful worker shutdown, hosted queue recovery, production permissions/backfill and realistic backlog/load behavior. These remain **Not verified** until live acceptance.
 - [ ] Record remaining modules separately: this batch does not make every audit/notification producer durable, and socket invalidations still require reconnect/refetch recovery.
+
+
+## Pricing and shift durable audit recovery — 2026-10-04
+
+Use isolated test records; never inject failures or kill processes against production transactions.
+
+- [ ] Generate recommendations as admin, then verify one PRICE_RUN audit appears with the actor and published count.
+- [ ] Apply and dismiss separate recommendations; verify one matching audit per successful action and unchanged price on dismissal.
+- [ ] Race approval against dismissal and repeat approval: one resolution succeeds; stale actions return 409 without extra audit or price writes.
+- [ ] Open the same cashier drawer concurrently: one succeeds, the other returns SHIFT_ALREADY_OPEN (409).
+- [ ] Close the same drawer concurrently: one succeeds, the other returns SHIFT_ALREADY_CLOSED (409); committed expected/actual/variance match the response.
+- [ ] Verify normal closure refuses kitchen orders; force closure remains admin-only and requires a note. Verify variance requires a note.
+- [ ] In a disposable database, prevent audit intent insertion: generation, approval, dismissal, drawer opening and closure must roll back; retry after removing the injected fault.
+- [ ] Stop a test backend after a successful mutation but before audit delivery, restart it, and verify the audit eventually appears once without repeating price/drawer changes.
+- [ ] Verify pricing provider latency does not hold publication locks, and measure drawer closing latency on representative sales/refund history.
+
+Live browser/process-kill/hosted load cases remain **Not verified**. PostgreSQL fixture checks do not establish production capacity.

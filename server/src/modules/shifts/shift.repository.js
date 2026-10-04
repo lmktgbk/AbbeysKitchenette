@@ -44,8 +44,8 @@ export const shiftRepository = {
     });
   },
 
-  async create({ openingCash, openedBy }) {
-    return prisma.shift.create({
+  async create({ openingCash, openedBy }, tx = prisma) {
+    return tx.shift.create({
       data: { openingCash, openedBy, status: "open" },
       include: {
         opener: { select: { id: true, name: true, role: true } },

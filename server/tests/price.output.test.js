@@ -26,7 +26,7 @@ describe("AI pricing boundary", () => {
     const rows = repo.saveSuggestions.mock.calls[0][0];
     expect(rows[0]).toMatchObject({ variantId: 7, productName: "Coffee", currentPrice: 85, recommendedPrice: 95,
       priceChange: 10, changePercent: 11.76, direction: "increase", marginBefore: 64.71, marginAfter: 68.42 });
-    expect(repo.saveSuggestions).toHaveBeenCalledWith(rows, "product");
+    expect(repo.saveSuggestions).toHaveBeenCalledWith(rows, "product", undefined);
     expect(response[0]).toMatchObject({ variant_id: 7, product_name: "Coffee", current_price: 85, recommended_price: 95 });
   });
   it.each([null, {}, { recommendations: [] }, { recommendations: Array(51).fill(valid().recommendations[0]) }])("rejects malformed or excessive batches %j", async result => {
