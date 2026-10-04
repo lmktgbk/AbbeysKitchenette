@@ -1,3 +1,4 @@
+import { useResettableState } from "@/hooks/useResettableState";
 import React, { useState, useMemo } from "react";
 import { SearchBar } from "@/components/filters/SearchBar";
 import { Pagination } from "@/components/filters/Pagination";
@@ -54,7 +55,6 @@ export default function ProductDemandTab({
   selectedVariant, selectedProduct, onSelectVariant, onSelectProduct,
 }) {
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [expanded, setExpanded] = useState({});
   const [filterOpen, setFilterOpen] = useState(false);
@@ -99,6 +99,8 @@ export default function ProductDemandTab({
       .sort((a, b) => b.units - a.units);
   }, [results, scoreByProduct]);
 
+  const [page, setPage] = useResettableState(1, [search, products, activeSort, activeFilters]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const list = products.filter(
@@ -127,13 +129,11 @@ export default function ProductDemandTab({
     return sorted;
   }, [products, search, activeSort, activeFilters]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const paged = useMemo(() => {
     const start = (page - 1) * pageSize;
     return filtered.slice(start, start + pageSize);
   }, [filtered, page, pageSize]);
 
-  React.useEffect(() => { setPage(1); }, [search, products, activeSort, activeFilters]);
 
   const toggle = (key) => setExpanded((e) => ({ ...e, [key]: !e[key] }));
 

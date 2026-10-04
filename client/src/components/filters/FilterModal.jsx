@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useResettableState } from "@/hooks/useResettableState";
 import {
   Dialog,
   DialogContent,
@@ -32,16 +32,9 @@ export default function FilterModal({
   currentSort,
   currentFilters = {},
 }) {
-  const [selectedSort, setSelectedSort] = useState(currentSort || "");
-  const [selectedFilters, setSelectedFilters] = useState({ ...currentFilters });
+  const [selectedSort, setSelectedSort] = useResettableState(currentSort || "", [open, currentSort]);
+  const [selectedFilters, setSelectedFilters] = useResettableState(() => ({ ...currentFilters }), [open, JSON.stringify(currentFilters)]);
 
-  // Sync local state when modal opens
-  useEffect(() => {
-    if (open) {
-      setSelectedSort(currentSort || "");
-      setSelectedFilters({ ...currentFilters });
-    }
-  }, [open, currentSort, currentFilters]);
 
   function handleFilterChange(key, value) {
     setSelectedFilters((prev) => ({ ...prev, [key]: value }));

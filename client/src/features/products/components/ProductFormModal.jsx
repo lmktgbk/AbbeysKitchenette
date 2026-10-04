@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useResettableState } from "@/hooks/useResettableState";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -51,15 +52,14 @@ export default function ProductFormModal({
   onRetryIngredients,
 }) {
   const isEdit = isEditMode;
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
+  const [imageFile, setImageFile] = useResettableState(null, [open, isEdit, product]);
+  const [imagePreview, setImagePreview] = useResettableState(product?.image_url || null, [open, isEdit, product]);
 
   const {
     register,
     control,
     handleSubmit,
     reset,
-    watch,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(isEdit ? editProductSchema : createProductSchema),
@@ -75,19 +75,13 @@ export default function ProductFormModal({
   useEffect(() => {
     if (open) {
       reset(getDefaultValues(product, isEdit));
-      setImageFile(null);
-      setImagePreview(product?.image_url || null);
     }
   }, [open, isEdit, product, reset]);
 
-  // Generate image preview when file changes
-  useEffect(() => {
-    if (imageFile) {
-      const url = URL.createObjectURL(imageFile);
-      setImagePreview(url);
-      return () => URL.revokeObjectURL(url);
-    }
-  }, [imageFile]);
+  // A preview belongs to this draft; release its browser allocation on replacement.
+  useEffect(() => () => {
+    if (imagePreview?.startsWith("blob:")) URL.revokeObjectURL(imagePreview);
+  }, [imagePreview]);
 
   function handleClose() {
     reset();
@@ -204,10 +198,9 @@ export default function ProductFormModal({
                     Image
                   </label>
                   <ImageUpload
-                    value={watch("image_url")}
                     onChange={(file) => {
                       setImageFile(file);
-                      if (!file) setImagePreview(null);
+                      setImagePreview(file ? URL.createObjectURL(file) : null);
                     }}
                     previewUrl={imagePreview}
                     className="h-[calc(100%-1.75rem)]"

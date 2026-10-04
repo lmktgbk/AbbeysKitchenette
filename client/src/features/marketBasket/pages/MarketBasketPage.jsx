@@ -23,7 +23,7 @@ export default function MarketBasketPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  const rules = job?.rules ?? [];
+  const rules = useMemo(() => job?.rules ?? [], [job]);
   const isRunning = job?.status === "running";
   const isFailed = job?.status === "failed";
 

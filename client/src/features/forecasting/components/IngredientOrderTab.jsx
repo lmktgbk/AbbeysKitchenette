@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from "react";
+import { useResettableState } from "@/hooks/useResettableState";
+import { useState, useMemo } from "react";
 import { SearchBar } from "@/components/filters/SearchBar";
 import { Pagination } from "@/components/filters/Pagination";
 import { FilterPill } from "@/components/filters/FilterPill";
@@ -44,11 +45,12 @@ const STATUS_LABEL = { ok: "OK", warning: "Low", critical: "Order now" };
 
 export default function IngredientOrderTab({ ingredients, activeTab, onTabChange }) {
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [filterOpen, setFilterOpen] = useState(false);
   const [activeSort, setActiveSort] = useState("attention");
   const [activeFilters, setActiveFilters] = useState({ status: "all", lasts: "all" });
+
+  const [page, setPage] = useResettableState(1, [search, activeSort, activeFilters]);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return ingredients;
@@ -81,7 +83,6 @@ export default function IngredientOrderTab({ ingredients, activeTab, onTabChange
 
   const paged = useMemo(() => sorted.slice((page - 1) * pageSize, page * pageSize), [sorted, page, pageSize]);
 
-  React.useEffect(() => { setPage(1); }, [search, activeSort, activeFilters]);
 
   const filterActive =
     activeSort !== "attention" ||

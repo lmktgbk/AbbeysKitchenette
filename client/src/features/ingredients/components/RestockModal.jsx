@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Dialog,
@@ -42,7 +42,6 @@ export default function RestockModal({
     register,
     handleSubmit,
     reset,
-    watch,
     control,
     formState: { errors },
   } = useForm({
@@ -55,9 +54,9 @@ export default function RestockModal({
     },
   });
 
-  const quantityAdded = watch("quantity_added") || 0;
-  const totalCost = watch("total_cost") || 0;
-  const expiryDate = watch("expiry_date") || "";
+  const quantityAdded = useWatch({ control, name: "quantity_added" }) || 0;
+  const totalCost = useWatch({ control, name: "total_cost" }) || 0;
+  const expiryDate = useWatch({ control, name: "expiry_date" }) || "";
   const costPerUnit =
     quantityAdded > 0 ? (totalCost / quantityAdded).toFixed(4) : "0.0000";
 
@@ -94,7 +93,8 @@ export default function RestockModal({
   function handleFormSubmit(data) {
     // Compute cost_per_unit from total_cost / quantity_added
     const costPerUnit = data.total_cost / data.quantity_added;
-    const { total_cost, ...rest } = data;
+    const rest = { ...data };
+    delete rest.total_cost;
     onSubmit({ ...rest, cost_per_unit: costPerUnit });
   }
 

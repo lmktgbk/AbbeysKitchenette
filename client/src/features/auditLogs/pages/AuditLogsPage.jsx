@@ -297,7 +297,7 @@ export default function AuditLogsPage() {
   }), [page, limit, search, resolvedActions, startDate, endDate]);
 
   const { data, isLoading } = useAuditLogs(queryParams);
-  const logs = data?.logs || [];
+  const logs = useMemo(() => data?.logs || [], [data]);
   const pagination = data?.pagination || { page: 1, limit: 50, totalItems: 0, totalPages: 0 };
 
   const grouped = useMemo(() => {

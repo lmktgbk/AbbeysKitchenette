@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useResettableState } from "@/hooks/useResettableState";
+import { useState, useMemo } from "react";
 import { useProductList } from "../query";
 import { useProductsRealtime } from "@/realtime/subscriptions";
 import { Button } from "@/components/ui/button";
@@ -47,7 +48,6 @@ export default function ProductGrid({
   // Live catalog: stock/menu changes elsewhere refresh this grid.
   useProductsRealtime();
   const [search, setSearch] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [activeSort, setActiveSort] = useState("created_at_desc");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -55,10 +55,9 @@ export default function ProductGrid({
   const [activeFilters, setActiveFilters] = useState({ category: "all" });
   const [categoryOpen, setCategoryOpen] = useState(false);
 
+  const [currentPage, setCurrentPage] = useResettableState(1, [search, activeSort, statusFilter, activeFilters.category]);
+
   // Reset page when search, sort, or status changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, activeSort, statusFilter, activeFilters.category]);
 
   // Parse compound sort string: "created_at_desc" → sortBy + sortDir
   const [sortBy, sortDir] = activeSort.includes("_desc")

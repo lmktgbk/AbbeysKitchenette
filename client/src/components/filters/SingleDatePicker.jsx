@@ -1,3 +1,4 @@
+import { useResettableState } from "@/hooks/useResettableState";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import Icon from "@/components/ui/icon";
@@ -19,25 +20,18 @@ const MONTH_NAMES = [
  */
 export default function SingleDatePicker({ value, onChange, disabledDates = [], className }) {
   const [open, setOpen] = useState(false);
-  const [viewMonth, setViewMonth] = useState(() => {
+  const [viewMonth, setViewMonth] = useResettableState(() => {
     if (value) {
       const [y, m] = value.split("-").map(Number);
       return { month: m - 1, year: y };
     }
     const now = new Date();
     return { month: now.getMonth(), year: now.getFullYear() };
-  });
+  }, [value]);
   const ref = useRef(null);
 
   const disabledSet = useMemo(() => new Set(disabledDates), [disabledDates]);
 
-  // Sync view when value changes externally
-  useEffect(() => {
-    if (value) {
-      const [y, m] = value.split("-").map(Number);
-      setViewMonth({ month: m - 1, year: y });
-    }
-  }, [value]);
 
   // Close on outside click
   useEffect(() => {

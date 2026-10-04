@@ -29,7 +29,7 @@ export default function MarketBasketRunButton({ compact = false }) {
   const isNotFound = isFetchedAfterMount && !status && !optimisticPending && activeJobId;
   const isStatusLoading = activeJobId && isFetching && !isFetchedAfterMount;
 
-  const showSpinner = optimisticPending || runMutation.isPending || isRunning || isStatusLoading;
+  const showSpinner = (optimisticPending && !status) || runMutation.isPending || isRunning || isStatusLoading;
 
   // Persist job ID to localStorage
   useEffect(() => {
@@ -42,25 +42,12 @@ export default function MarketBasketRunButton({ compact = false }) {
   // Clear localStorage on terminal states
   useEffect(() => {
     if (isComplete || isFailed || isNotFound) {
-      setOptimisticPending(false);
       try { localStorage.removeItem(STORAGE_KEY); }
       catch { /* ignore */ }
     }
   }, [isComplete, isFailed, isNotFound]);
 
-  // Clear optimistic spinner when status polling confirms running
-  useEffect(() => {
-    if (isRunning) {
-      setOptimisticPending(false);
-    }
-  }, [isRunning]);
 
-  // If stored job ID returns not_found (e.g. server restarted), clear it
-  useEffect(() => {
-    if (isNotFound && activeJobId) {
-      setActiveJobId(null);
-    }
-  }, [isNotFound, activeJobId]);
 
   const handleRun = async () => {
     if (showSpinner) return;
@@ -75,7 +62,7 @@ export default function MarketBasketRunButton({ compact = false }) {
         if (payload?.status === "busy") {
           toast.info("Attached to the running analysis — showing its progress.");
         }
-        // Don't clear optimisticPending here — let isRunning take over
+        setOptimisticPending(false);
       } else {
         setOptimisticPending(false);
         toast.error("Failed to start analysis. Please try again.");

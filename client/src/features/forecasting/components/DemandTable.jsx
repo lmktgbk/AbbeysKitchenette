@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect, memo } from "react";
+import { useResettableState } from "@/hooks/useResettableState";
+import { useState, useMemo, memo } from "react";
 import { cn } from "@/lib/utils";
 import Icon from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
@@ -19,8 +20,9 @@ const TREND_CONFIG = {
 function DemandTable({ results, skipped = [], previousResults, viewPeriod = 7, selectedVariant }) {
   const [search, setSearch] = useState("");
   const [selectedDate, setSelectedDate] = useState("all");
-  const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+
+  const [currentPage, setCurrentPage] = useResettableState(1, [search, selectedDate, selectedVariant]);
 
   const prevMap = useMemo(() => {
     if (!previousResults?.length) return {};
@@ -94,7 +96,6 @@ function DemandTable({ results, skipped = [], previousResults, viewPeriod = 7, s
   const isFiltered = selectedVariant && selectedVariant !== "all";
 
   // Reset to page 1 when filters change
-  useEffect(() => { setCurrentPage(1); }, [search, selectedDate, selectedVariant]);
 
   // Pagination
   const startIdx = (currentPage - 1) * pageSize;

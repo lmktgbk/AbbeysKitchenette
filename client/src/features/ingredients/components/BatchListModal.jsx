@@ -79,7 +79,6 @@ export default function BatchListModal({ open, onOpenChange, ingredient }) {
 
   // Batches sort/filter state
   const [activeBatchSort, setActiveBatchSort] = useState("fifo");
-  const [activeBatchFilters] = useState({});
 
   // History sort/filter state
   const [activeHistorySort, setActiveHistorySort] = useState("adjustedAt_desc");
@@ -162,7 +161,6 @@ export default function BatchListModal({ open, onOpenChange, ingredient }) {
   // Server returns { batches, totalItems, hasPriority, fifoLeaderBatchId }
   const batches = batchesData?.data?.batches ?? [];
   const totalBatches = batchesData?.data?.totalItems ?? 0;
-  const hasPriority = batchesData?.data?.hasPriority ?? false;
   const fifoLeaderBatchId = batchesData?.data?.fifoLeaderBatchId ?? null;
 
   // Derive FIFO vs manual mode: FIFO mode when priority batch IS the FIFO leader
@@ -317,8 +315,7 @@ export default function BatchListModal({ open, onOpenChange, ingredient }) {
 
 /* ── Batches Tab ───────────────────── */
 
-function BatchesTab({ batches, isLoading, ingredient, fifoLeaderBatchId, onTogglePriority, isPriorityLoading }) {
-  const unit = ingredient.unit;
+function BatchesTab({ batches, isLoading, ingredient, onTogglePriority, isPriorityLoading }) {
 
   if (isLoading) {
     return (
@@ -474,7 +471,7 @@ function BatchRow({ batch, ingredient, onTogglePriority, isPriorityLoading }) {
 
 /* ── Batch Expiry Cell (BR-05) ───────── */
 
-function BatchExpiryCell({ batch, ingredientId, unit }) {
+function BatchExpiryCell({ batch, ingredientId }) {
   const mutations = useIngredientMutations();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(batch.expiry_date ?? "");

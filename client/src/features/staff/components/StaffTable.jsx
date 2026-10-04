@@ -23,16 +23,6 @@ const STATUS_FILTER_OPTIONS = [
   { value: "inactive", label: "Inactive" },
 ];
 
-const SORT_OPTIONS = [
-  { value: "name_asc", label: "Name: A → Z" },
-  { value: "name_desc", label: "Name: Z → A" },
-  { value: "email_asc", label: "Email: A → Z" },
-  { value: "role_asc", label: "Role: A → Z" },
-  { value: "isActive_desc", label: "Status: Active First" },
-  { value: "isActive_asc", label: "Status: Inactive First" },
-  { value: "lastLoginAt_desc", label: "Last Login: Recent First" },
-  { value: "createdAt_desc", label: "Newest First" },
-];
 
 /**
  * COLUMNS — single source of truth for alignment.
@@ -60,7 +50,7 @@ export default function StaffTable({
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [activeSort, setActiveSort] = useState("name_asc");
+  const [activeSort] = useState("name_asc");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 

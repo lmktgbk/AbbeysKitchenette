@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import {
@@ -33,7 +33,7 @@ export default function CreateComboModal({ open, onOpenChange, combo }) {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(createComboSchema),
@@ -44,7 +44,7 @@ export default function CreateComboModal({ open, onOpenChange, combo }) {
     },
   });
 
-  const price = watch("price");
+  const price = useWatch({ control, name: "price" });
 
   const totalCost = useMemo(
     () => ingredients.reduce((sum, ing) => sum + ing.line_cost, 0),

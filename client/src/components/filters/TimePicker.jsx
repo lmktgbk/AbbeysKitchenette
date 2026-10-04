@@ -1,3 +1,4 @@
+import { useResettableState } from "@/hooks/useResettableState";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
@@ -34,8 +35,8 @@ function parseValue(value) {
 export default function TimePicker({ value, onChange, placeholder = "Select time" }) {
   const [open, setOpen] = useState(false);
   const { hour: initH, minute: initM } = parseValue(value);
-  const [selectedHour, setSelectedHour] = useState(initH);
-  const [selectedMinute, setSelectedMinute] = useState(initM);
+  const [selectedHour, setSelectedHour] = useResettableState(initH, [value, open]);
+  const [selectedMinute, setSelectedMinute] = useResettableState(initM, [value, open]);
   const [gen, setGen] = useState(0);
 
   const ref = useRef(null);
@@ -88,14 +89,6 @@ export default function TimePicker({ value, onChange, placeholder = "Select time
     return () => cancelAnimationFrame(raf);
   }, [open]);
 
-  // Sync local state when value prop changes externally
-  useEffect(() => {
-    if (!open) {
-      const { hour, minute } = parseValue(value);
-      setSelectedHour(hour);
-      setSelectedMinute(minute);
-    }
-  }, [value, open]);
 
   useEffect(() => {
     if (!open) return;

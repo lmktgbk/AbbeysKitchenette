@@ -1,6 +1,5 @@
 import { memo } from "react";
 import { cn } from "@/lib/utils";
-import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * ForecastHistory — select between current and previous forecast runs.

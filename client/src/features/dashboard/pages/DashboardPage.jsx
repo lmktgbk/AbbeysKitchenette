@@ -17,7 +17,6 @@ import { exportAnalyticsRequest } from "@/features/analytics/api";
 import RevenueChart from "../components/RevenueChart";
 import HourlyOrdersChart from "../components/HourlyOrdersChart";
 import DayOfWeekChart from "../components/DayOfWeekChart";
-import TopProductsTable from "../components/TopProductsTable";
 import CategorySalesChart from "../components/CategorySalesChart";
 import OrdersOverview from "../components/OrdersOverview";
 import FulfillmentTimeCard from "../components/FulfillmentTimeCard";

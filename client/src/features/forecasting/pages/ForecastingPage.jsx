@@ -47,8 +47,8 @@ export default function ForecastingPage() {
     queryClient.invalidateQueries({ queryKey: forecastKeys.demandHistory });
   }, [queryClient]);
 
-  const forecasted = resultsData?.data?.forecasted || [];
-  const ingredients = ingredientsData?.data?.ingredients || [];
+  const forecasted = useMemo(() => resultsData?.data?.forecasted || [], [resultsData]);
+  const ingredients = useMemo(() => ingredientsData?.data?.ingredients || [], [ingredientsData]);
   const job = resultsData?.data?.job;
   const skipped = resultsData?.data?.skipped || [];
   const productScores = job?.product_scores || null;

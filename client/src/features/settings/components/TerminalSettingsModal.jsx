@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useResettableState } from "@/hooks/useResettableState";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -30,19 +30,11 @@ import {
  * Settings item share one component. State synced from storage on open.
  */
 export default function TerminalSettingsModal({ open, onOpenChange, onChanged }) {
-  const [autoPrint, setAutoPrintState] = useState(false);
-  const [paperSize, setPaperSizeState] = useState("58mm");
-  const [connection, setConnectionState] = useState("system");
-  const [logoOn, setLogoOnState] = useState(true);
+  const [autoPrint, setAutoPrintState] = useResettableState(shouldAutoPrint, [open]);
+  const [paperSize, setPaperSizeState] = useResettableState(getPaperSize, [open]);
+  const [connection, setConnectionState] = useResettableState(getPrinterConnection, [open]);
+  const [logoOn, setLogoOnState] = useResettableState(shouldPrintLogo, [open]);
 
-  useEffect(() => {
-    if (open) {
-      setAutoPrintState(shouldAutoPrint());
-      setPaperSizeState(getPaperSize());
-      setConnectionState(getPrinterConnection());
-      setLogoOnState(shouldPrintLogo());
-    }
-  }, [open ]);
 
   function notify() {
     onChanged?.();

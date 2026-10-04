@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Dialog,
@@ -36,13 +36,14 @@ export default function StaffFormModal({
     handleSubmit,
     reset,
     setValue,
-    watch,
+    control,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(isEditMode ? editStaffSchema : createStaffSchema),
     defaultValues: getDefaultValues(staff, isEditMode),
   });
 
+  const selectedRole = useWatch({ control, name: "role" });
   useEffect(() => {
     if (open) {
       reset(getDefaultValues(staff, isEditMode));
@@ -103,7 +104,7 @@ export default function StaffFormModal({
               Role
             </label>
             <DropDown
-              value={watch("role")}
+              value={selectedRole}
               options={isEditMode ? ROLE_OPTIONS : ROLE_OPTIONS.filter(o => o.value !== "admin")}
               placeholder="Select role..."
               onChange={(val) => setValue("role", val, { shouldValidate: true })}

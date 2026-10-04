@@ -19,7 +19,7 @@ function ForecastRunButton({ onJobComplete }) {
   const [optimisticPending, setOptimisticPending] = useState(false);
 
   const runMutation = useRunDemandForecast();
-  const { data: statusData } = useDemandStatus(activeJobId);
+  const { data: statusData, isPending: statusPending } = useDemandStatus(activeJobId);
 
   const status = statusData?.data;
   const isRunning = status?.status === "running";
@@ -30,7 +30,7 @@ function ForecastRunButton({ onJobComplete }) {
     ? Math.round(((status.completed + status.failed) / status.total_variants) * 100)
     : 0;
 
-  const showSpinner = optimisticPending || runMutation.isPending || isRunning;
+  const showSpinner = (optimisticPending && !status) || runMutation.isPending || isRunning || (activeJobId && statusPending);
 
   // Persist job ID to localStorage
   useEffect(() => {
@@ -43,7 +43,6 @@ function ForecastRunButton({ onJobComplete }) {
   // Clear localStorage and notify parent on terminal states
   useEffect(() => {
     if (isComplete || isFailed || isNotFound) {
-      setOptimisticPending(false);
       try { localStorage.removeItem(STORAGE_KEY); }
       catch { /* ignore */ }
     }
@@ -52,19 +51,7 @@ function ForecastRunButton({ onJobComplete }) {
     }
   }, [isComplete, isFailed, isNotFound, activeJobId, onJobComplete]);
 
-  // Clear optimistic spinner when status polling confirms running
-  useEffect(() => {
-    if (isRunning) {
-      setOptimisticPending(false);
-    }
-  }, [isRunning]);
 
-  // If stored job ID returns not_found (e.g. server restarted), clear it
-  useEffect(() => {
-    if (isNotFound && activeJobId) {
-      setActiveJobId(null);
-    }
-  }, [isNotFound, activeJobId]);
 
   const handleRun = async () => {
     if (showSpinner) return;
@@ -79,7 +66,7 @@ function ForecastRunButton({ onJobComplete }) {
         if (payload?.status === "busy") {
           toast.info("Attached to the running forecast — showing its progress.");
         }
-        // Don't clear optimisticPending here — let isRunning take over
+        setOptimisticPending(false);
       } else {
         setOptimisticPending(false);
         toast.error("A forecast is already running. Please wait.");

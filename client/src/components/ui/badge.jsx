@@ -60,4 +60,4 @@ function Pill({ className, variant, ...props }) {
   );
 }
 
-export { Badge, Pill, badgeVariants };
+export { Badge, Pill };

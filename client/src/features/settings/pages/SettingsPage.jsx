@@ -6,7 +6,7 @@
  * State: Query [settings] | local [] (react-hook-form only) | Zustand [].
  */
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -93,7 +93,7 @@ export default function SettingsPage() {
   const updateMutation = useUpdateSettings();
 
   const {
-    register, handleSubmit, reset, watch, setValue, getValues, trigger,
+    register, handleSubmit, reset, control, setValue, getValues, trigger,
     formState: { errors, isDirty, dirtyFields },
   } = useForm({
     resolver: zodResolver(settingsSchema),
@@ -126,11 +126,11 @@ export default function SettingsPage() {
     }
   }, [settings, reset]);
 
-  const storeHours = watch("storeHours");
-  const whitelist = watch("storeIpWhitelist");
+  const storeHours = useWatch({ control, name: "storeHours" });
+  const whitelist = useWatch({ control, name: "storeIpWhitelist" });
   const openMode = !whitelist || whitelist.trim() === "";
-  const accepted = watch("acceptedPayments") ?? [];
-  const automation = watch("automation") ?? DEFAULT_AUTOMATION;
+  const accepted = useWatch({ control, name: "acceptedPayments" }) ?? [];
+  const automation = useWatch({ control, name: "automation" }) ?? DEFAULT_AUTOMATION;
 
   function togglePayment(value) {
     const current = getValues("acceptedPayments") ?? [];
@@ -160,7 +160,7 @@ export default function SettingsPage() {
     setValue(`storeHours.${dayKey}`, { ...current, [field]: value }, { shouldValidate: true, shouldDirty: true });
   }
 
-  const diningTables = watch("diningTables") ?? DEFAULT_DINING_TABLES;
+  const diningTables = useWatch({ control, name: "diningTables" }) ?? DEFAULT_DINING_TABLES;
   const diningRows = diningTables.tables ?? [];
 
   function updateDiningTable(index, field, value) {
@@ -230,7 +230,7 @@ export default function SettingsPage() {
     }).catch(() => setSavingSection(null));
   }
 
-  function SectionSaveButton({ sectionKey }) {
+  function renderSectionSaveButton(sectionKey) {
     const dirty = isSectionDirty(sectionKey);
     const saving = savingSection === sectionKey || (updateMutation.isPending && dirty);
     return (
@@ -311,7 +311,7 @@ export default function SettingsPage() {
                 <Input placeholder="123 Main St, Manila" error={errors.storeAddress?.message} {...register("storeAddress")} />
               </div>
             </div>
-            <div className="flex justify-end pt-1"><SectionSaveButton sectionKey="info" /></div>
+            <div className="flex justify-end pt-1">{renderSectionSaveButton("info")}</div>
           </CardContent>
         </Card>
 
@@ -352,7 +352,7 @@ export default function SettingsPage() {
                 );
               })}
             </div>
-            <div className="mt-3 flex justify-end"><SectionSaveButton sectionKey="hours" /></div>
+            <div className="mt-3 flex justify-end">{renderSectionSaveButton("hours")}</div>
           </CardContent>
         </Card>
 
@@ -384,7 +384,7 @@ export default function SettingsPage() {
             {errors.acceptedPayments?.message && (
               <p className="mt-2 text-xs text-destructive">{errors.acceptedPayments.message}</p>
             )}
-            <div className="mt-3 flex justify-end"><SectionSaveButton sectionKey="payments" /></div>
+            <div className="mt-3 flex justify-end">{renderSectionSaveButton("payments")}</div>
           </CardContent>
         </Card>
 
@@ -466,7 +466,7 @@ export default function SettingsPage() {
                 );
               })}
             </div>
-            <div className="mt-3 flex justify-end"><SectionSaveButton sectionKey="automation" /></div>
+            <div className="mt-3 flex justify-end">{renderSectionSaveButton("automation")}</div>
           </CardContent>
         </Card>
 
@@ -553,7 +553,7 @@ export default function SettingsPage() {
                 {diningTables.takeoutEnabled ? "Takeout: On" : "Takeout: Off"}
               </button>
             </div>
-            <div className="mt-3 flex justify-end"><SectionSaveButton sectionKey="tables" /></div>
+            <div className="mt-3 flex justify-end">{renderSectionSaveButton("tables")}</div>
           </CardContent>
         </Card>
 
@@ -570,7 +570,7 @@ export default function SettingsPage() {
                 error={errors.storeIpWhitelist?.message} {...register("storeIpWhitelist")} />
               <p className="mt-1.5 text-xs text-muted-foreground">Comma-separated IP addresses. Leave empty to allow all IPs.</p>
             </div>
-            <div className="mt-3 flex justify-end"><SectionSaveButton sectionKey="security" /></div>
+            <div className="mt-3 flex justify-end">{renderSectionSaveButton("security")}</div>
           </CardContent>
         </Card>
       </form>

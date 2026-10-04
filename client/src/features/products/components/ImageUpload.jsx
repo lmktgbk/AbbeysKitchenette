@@ -14,7 +14,7 @@ import Icon from "@/components/ui/icon";
  * - previewUrl: string | null (derived preview URL from value or selected file)
  * - className: string (additional classes for the container)
  */
-export default function ImageUpload({ value, onChange, previewUrl, className }) {
+export default function ImageUpload({ onChange, previewUrl, className }) {
   const inputRef = useRef(null);
 
   function handleClick() {

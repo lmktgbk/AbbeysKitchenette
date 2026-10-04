@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Dialog,
@@ -50,7 +50,6 @@ export default function CountModal({
     register,
     handleSubmit,
     reset,
-    watch,
     control,
     formState: { errors },
   } = useForm({
@@ -69,7 +68,7 @@ export default function CountModal({
   }
 
   const systemStock = Number(ingredient?.stock_quantity ?? 0);
-  const rawPhysical = watch("physical_quantity");
+  const rawPhysical = useWatch({ control, name: "physical_quantity" });
   const physical = rawPhysical === "" || rawPhysical == null ? null : Number(rawPhysical);
   const variance = physical == null || Number.isNaN(physical)
     ? null

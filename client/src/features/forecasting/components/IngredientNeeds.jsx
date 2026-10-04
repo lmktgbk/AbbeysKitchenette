@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect, memo } from "react";
+import { useResettableState } from "@/hooks/useResettableState";
+import { useState, useMemo, memo } from "react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import Icon from "@/components/ui/icon";
@@ -16,11 +17,11 @@ const STATUS_CONFIG = {
  * Always shows aggregate across all forecasted variants.
  */
 function IngredientNeeds({ ingredients }) {
-  const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [search, setSearch] = useState("");
 
-  useEffect(() => { setCurrentPage(1); }, [ingredients, search]);
+
+  const [currentPage, setCurrentPage] = useResettableState(1, [ingredients, search]);
 
   const sortedIngredients = useMemo(() => {
     if (!ingredients?.length) return [];

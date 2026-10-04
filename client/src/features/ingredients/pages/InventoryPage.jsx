@@ -123,39 +123,6 @@ export default function InventoryPage() {
     isPending: mutations.count.isPending,
   };
 
-  const archiveMutation = {
-    mutate: (id) =>
-      mutations.archive.mutate(id, {
-        onSuccess: () => {
-          toast.success("Ingredient archived");
-          setSelectedIngredient(null);
-        },
-        onError: (err) => toast.error(err.response?.data?.message || "Failed to archive ingredient"),
-      }),
-  };
-
-  const restoreMutation = {
-    mutate: (id) =>
-      mutations.restore.mutate(id, {
-        onSuccess: () => {
-          toast.success("Ingredient restored");
-          setSelectedIngredient(null);
-        },
-        onError: (err) => toast.error(err.response?.data?.message || "Failed to restore ingredient"),
-      }),
-  };
-
-  const deleteMutation = {
-    mutate: (id) =>
-      mutations.remove.mutate(id, {
-        onSuccess: () => {
-          toast.success("Ingredient deleted permanently");
-          setSelectedIngredient(null);
-        },
-        onError: (err) => toast.error(err.response?.data?.message || "Failed to delete ingredient"),
-      }),
-  };
-
   // ── Handlers ────────────────────────
 
   function handleAdd() {

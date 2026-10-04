@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useResettableState } from "@/hooks/useResettableState";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -41,15 +42,14 @@ export default function LossModal({
   onSubmit,
   isLoading,
 }) {
-  const [batches, setBatches] = useState([]);
-  const [batchesLoading, setBatchesLoading] = useState(false);
+  const [batches, setBatches] = useResettableState(() => [], [open, ingredient?.ingredient_id]);
+  const [batchesLoading, setBatchesLoading] = useResettableState(true, [open, ingredient?.ingredient_id]);
 
   const {
     register,
     control,
     handleSubmit,
     reset,
-    watch,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(lossSchema),
@@ -68,19 +68,21 @@ export default function LossModal({
   // Fetch active batches when modal opens
   useEffect(() => {
     if (!open || !ingredient) return;
-    setBatchesLoading(true);
+    let active = true;
     getIngredientBatchesRequest(ingredient.ingredient_id, { page: 1, limit: 100 })
       .then((data) => {
+        if (!active) return;
         const list = (data.data?.batches ?? []).filter(
           (b) => Number(b.quantity_left ?? b.quantityLeft) > 0,
         );
         setBatches(list);
       })
-      .catch((err) =>
-        toast.error(err.response?.data?.message || "Failed to load available batches"),
-      )
-      .finally(() => setBatchesLoading(false));
-  }, [open, ingredient]);
+      .catch((err) => {
+        if (active) toast.error(err.response?.data?.message || "Failed to load available batches");
+      })
+      .finally(() => { if (active) setBatchesLoading(false); });
+    return () => { active = false; };
+  }, [open, ingredient, setBatchesLoading, setBatches]);
 
   // Build normalized batch list for display
   const batchList = batches.map((b) => ({
@@ -138,6 +140,7 @@ export default function LossModal({
   }
 
   function handleFormSubmit(data) {
+    if (batchesLoading || isLoading) return;
     // Clean optional fields
     const cleaned = { ...data };
     if (!cleaned.batch_id) delete cleaned.batch_id;
@@ -288,7 +291,7 @@ export default function LossModal({
             <Button type="button" variant="secondary" onClick={handleClose}>
               Cancel
             </Button>
-            <Button type="submit" variant="destructive" disabled={isLoading}>
+              <Button type="submit" variant="destructive" disabled={isLoading || batchesLoading}>
               {isLoading ? "Declaring..." : "Confirm Loss"}
             </Button>
           </DialogFooter>
