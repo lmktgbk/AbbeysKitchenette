@@ -6,7 +6,7 @@ import prisma from "../../config/prisma.js";
 import { env } from "../../config/env.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { generateOtpEmail } from "../../utils/email.js";
-import { lockAccount } from "./accountLock.js";
+import { lockAccount, lockSessionAccount } from "./accountLock.js";
 import { SESSION_USER_SELECT, publicUser } from "./session.js";
 import { signSessionToken } from "../../config/jwt.js";
 import { revokeLocalSessions } from "../../realtime/sessions.js";
@@ -77,8 +77,7 @@ export const emailChange = {
     try {
       outcome = await prisma.$transaction(async tx => {
         // All credential flows lock the account first; verification cannot race a reset.
-        await lockAccount(tx, userId);
-        const user = await tx.user.findUnique({ where: { id: userId }, select: { ...SESSION_USER_SELECT, lockedUntil: true } });
+        const user = await lockSessionAccount(tx, userId);
         const pending = await tx.emailChangeRequest.findUnique({ where: { userId } });
         if (!pending || pending.id !== id || pending.expiresAt <= new Date() || pending.attempts >= 5) {
           return { error: invalid() };
@@ -101,6 +100,7 @@ export const emailChange = {
       });
     } catch (error) {
       if (error.code === "P2002") throw new AppError(409, "Email is unavailable, request another address", "EMAIL_TAKEN");
+      if (error.code === "P2028") throw new AppError(503, "Email verification is busy. Check your profile and try again shortly", "EMAIL_VERIFICATION_UNAVAILABLE");
       throw error;
     }
     if (outcome.error) throw outcome.error;

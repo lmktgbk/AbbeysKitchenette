@@ -79,6 +79,7 @@ describe.skipIf(process.env.EMAIL_CHANGE_DB_CHECK !== "1")("PostgreSQL recovery 
     const r = await start();
     const outcomes = await Promise.allSettled(Array.from({ length: 8 }, () => emailChange.confirm(id, 0, r.emailChange.id, "000000")));
     expect(outcomes.every(x => x.status === "rejected")).toBe(true);
+    expect(outcomes.map(x => x.reason.code)).toEqual(Array(8).fill("INVALID_EMAIL_CODE"));
     expect(await h.db.emailChangeRequest.findUnique({ where: { userId: id } })).toMatchObject({ attempts: 5 });
     await expect(emailChange.confirm(id, 0, r.emailChange.id, code())).rejects.toMatchObject({ code: "INVALID_EMAIL_CODE" });
   }, 30000);

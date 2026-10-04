@@ -61,7 +61,8 @@ export function createAuthDatabase() {
     };
   }
   let queue = Promise.resolve();
-  db.$queryRaw = async () => [];
+  db.$queryRaw = async (sql, userId) => sql.join("").includes('image_url AS "imageUrl"')
+    ? db.state.user.filter(user => user.id === userId).map(user => structuredClone(user)) : [];
   db.$transaction = async callback => {
     const previous = queue;
     let release;
