@@ -1,7 +1,7 @@
 import { categoryRepository } from "./category.repository.js";
-import { productRepository } from "../products/product.repository.js";
+import prisma from "../../config/prisma.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
-import { auditLogService } from "../auditLogs/auditLog.service.js";
+import { recordEffects } from "../../services/domainEffects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
 // ── Response Helpers (DRY) ──────────────────────────────
@@ -82,37 +82,38 @@ export const categoryService = {
    * @throws {AppError} 500 BUNDLE_ENSURE_FAILED if the location cannot be resolved
    */
   async ensureBundleSubcategory(userId = null) {
-    let root;
-    let sub;
-    try {
-      root = await categoryRepository.upsertRootByName(
-        categoryService.BUNDLE_ROOT_NAME,
-        "System-owned root for promotion bundle products",
-      );
-      sub = await categoryRepository.upsertSub(
-        root.categoryId,
-        categoryService.BUNDLE_SUB_NAME,
-        "Auto-created for promotion bundle products",
-      );
-    } catch (err) {
-      console.error("[bundle] Failed to ensure Bundles/Bundle location:", err?.message ?? err);
-      throw new AppError(500, "Could not resolve Bundle category. Please try again.", "BUNDLE_ENSURE_FAILED");
-    }
-    if (!root || !sub) {
-      console.error("[bundle] Bundle location resolved to null after upsert.");
-      throw new AppError(500, "Could not resolve Bundle category. Please try again.", "BUNDLE_ENSURE_FAILED");
-    }
+    return prisma.$transaction(async tx => {
+      let root;
+      let sub;
+      try {
+        root = await categoryRepository.upsertRootByName(
+          categoryService.BUNDLE_ROOT_NAME,
+          "System-owned root for promotion bundle products", tx,
+        );
+        sub = await categoryRepository.upsertSub(
+          root.categoryId,
+          categoryService.BUNDLE_SUB_NAME,
+          "Auto-created for promotion bundle products", tx,
+        );
+      } catch (err) {
+        console.error("[bundle] Failed to ensure Bundles/Bundle location:", err?.message ?? err);
+        throw new AppError(500, "Could not resolve Bundle category. Please try again.", "BUNDLE_ENSURE_FAILED");
+      }
+      if (!root || !sub) {
+        console.error("[bundle] Bundle location resolved to null after upsert.");
+        throw new AppError(500, "Could not resolve Bundle category. Please try again.", "BUNDLE_ENSURE_FAILED");
+      }
 
-    // Best-effort audit trail for the auto-created row (never blocks creation).
-    auditLogService.logAction({
-      userId,
-      action: ACTIONS.CATEGORY_CREATED,
-      targetType: "subcategory",
-      targetId: String(sub.subcategoryId),
-      details: { name: sub.subcategoryName, parent_id: root.categoryId, auto: "bundle-ensure" },
-    }).catch(() => {});
+      await recordEffects(tx, { audit: {
+        userId: userId ?? undefined,
+        action: ACTIONS.CATEGORY_CREATED,
+        targetType: "subcategory",
+        targetId: String(sub.subcategoryId),
+        details: { name: sub.subcategoryName, parent_id: root.categoryId, auto: "bundle-ensure" },
+      } });
 
-    return toSubcategoryResponse(sub);
+      return toSubcategoryResponse(sub);
+    }, { timeout: 5000 });
   },
 
   /**
@@ -124,26 +125,28 @@ export const categoryService = {
    * @throws {AppError} 404 if parent category not found
    */
   async createSubcategory(categoryId, data, userId) {
-    const parent = await categoryRepository.findRootById(categoryId);
-    if (!parent) {
-      throw new AppError(404, "Parent category not found", "CATEGORY_NOT_FOUND");
-    }
+    return prisma.$transaction(async tx => {
+      const parent = await categoryRepository.findRootById(categoryId, tx);
+      if (!parent) {
+        throw new AppError(404, "Parent category not found", "CATEGORY_NOT_FOUND");
+      }
 
-    const sub = await categoryRepository.createSubcategory({
-      categoryId,
-      subcategoryName: data.subcategory_name.trim(),
-      description: data.description ?? null,
-    });
+      const sub = await categoryRepository.createSubcategory({
+        categoryId,
+        subcategoryName: data.subcategory_name.trim(),
+        description: data.description ?? null,
+      }, tx);
 
-    auditLogService.logAction({
-      userId,
-      action: ACTIONS.CATEGORY_CREATED,
-      targetType: "subcategory",
-      targetId: String(sub.subcategoryId),
-      details: { name: sub.subcategoryName, parent_id: categoryId },
-    });
+      await recordEffects(tx, { audit: {
+        userId: userId ?? undefined,
+        action: ACTIONS.CATEGORY_CREATED,
+        targetType: "subcategory",
+        targetId: String(sub.subcategoryId),
+        details: { name: sub.subcategoryName, parent_id: categoryId },
+      } });
 
-    return toSubcategoryResponse(sub);
+      return toSubcategoryResponse(sub);
+    }, { timeout: 5000 });
   },
 
   /**
@@ -157,37 +160,40 @@ export const categoryService = {
    * @throws {AppError} 404 if not found
    */
   async updateSubcategory(id, data, userId) {
-    const existing = await categoryRepository.findSubcategoryById(id);
-    if (!existing) {
-      throw new AppError(404, "Subcategory not found", "SUBCATEGORY_NOT_FOUND");
-    }
+    return prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT subcategory_id FROM subcategories WHERE subcategory_id = ${id} FOR UPDATE`;
+      const existing = await categoryRepository.findSubcategoryById(id, tx);
+      if (!existing) {
+        throw new AppError(404, "Subcategory not found", "SUBCATEGORY_NOT_FOUND");
+      }
 
-    const updateData = {};
-    if (data.subcategory_name !== undefined) updateData.subcategoryName = data.subcategory_name.trim();
-    if (data.description !== undefined) updateData.description = data.description;
+      const updateData = {};
+      if (data.subcategory_name !== undefined) updateData.subcategoryName = data.subcategory_name.trim();
+      if (data.description !== undefined) updateData.description = data.description;
 
-    // Toggle product availability when subcategory is deactivated
-    const wasActive = existing.isActive;
-    const isBeingDeactivated = data.is_active === false && wasActive;
+      // Toggle product availability when subcategory is deactivated
+      const wasActive = existing.isActive;
+      const isBeingDeactivated = data.is_active === false && wasActive;
 
-    if (data.is_active !== undefined) updateData.isActive = data.is_active;
+      if (data.is_active !== undefined) updateData.isActive = data.is_active;
 
-    const sub = await categoryRepository.updateSubcategory(id, updateData);
+      const sub = await categoryRepository.updateSubcategory(id, updateData, tx);
 
-    // Deactivate all products under this subcategory when subcategory is turned off
-    if (isBeingDeactivated) {
-      await this._deactivateProductsBySubcategory(id);
-    }
+      // Deactivate all products under this subcategory when subcategory is turned off
+      if (isBeingDeactivated) {
+        await this._deactivateProductsBySubcategory(id, tx);
+      }
 
-    auditLogService.logAction({
-      userId,
-      action: ACTIONS.CATEGORY_UPDATED,
-      targetType: "subcategory",
-      targetId: String(id),
-      details: { name: sub.subcategoryName, is_active: sub.isActive },
-    });
+      await recordEffects(tx, { audit: {
+        userId: userId ?? undefined,
+        action: ACTIONS.CATEGORY_UPDATED,
+        targetType: "subcategory",
+        targetId: String(id),
+        details: { name: sub.subcategoryName, is_active: sub.isActive },
+      } });
 
-    return toSubcategoryResponse(sub);
+      return toSubcategoryResponse(sub);
+    }, { timeout: 5000 });
   },
 
   /**
@@ -199,28 +205,31 @@ export const categoryService = {
    * @throws {AppError} 404 if not found, 400 if has products
    */
   async removeSubcategory(id, userId) {
-    const existing = await categoryRepository.findSubcategoryByIdWithCounts(id);
-    if (!existing) {
-      throw new AppError(404, "Subcategory not found", "SUBCATEGORY_NOT_FOUND");
-    }
+    return prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT subcategory_id FROM subcategories WHERE subcategory_id = ${id} FOR UPDATE`;
+      const existing = await categoryRepository.findSubcategoryByIdWithCounts(id, tx);
+      if (!existing) {
+        throw new AppError(404, "Subcategory not found", "SUBCATEGORY_NOT_FOUND");
+      }
 
-    if (existing._count.products > 0) {
-      throw new AppError(
-        400,
-        "Cannot delete subcategory with existing products. Reassign or remove products first.",
-        "SUBCATEGORY_HAS_PRODUCTS",
-      );
-    }
+      if (existing._count.products > 0) {
+        throw new AppError(
+          400,
+          "Cannot delete subcategory with existing products. Reassign or remove products first.",
+          "SUBCATEGORY_HAS_PRODUCTS",
+        );
+      }
 
-    await categoryRepository.deleteSubcategory(id);
+      await categoryRepository.deleteSubcategory(id, tx);
 
-    auditLogService.logAction({
-      userId,
-      action: ACTIONS.CATEGORY_DELETED,
-      targetType: "subcategory",
-      targetId: String(id),
-      details: { name: existing.subcategoryName },
-    });
+      await recordEffects(tx, { audit: {
+        userId: userId ?? undefined,
+        action: ACTIONS.CATEGORY_DELETED,
+        targetType: "subcategory",
+        targetId: String(id),
+        details: { name: existing.subcategoryName },
+      } });
+    }, { timeout: 5000 });
   },
 
   /* ── Internal Helpers ────────────────── */
@@ -233,11 +242,10 @@ export const categoryService = {
    * @returns {Promise<void>}
    * @private
    */
-  async _deactivateProductsBySubcategory(subcategoryId) {
-    const products = await productRepository.findActiveBySubcategory(subcategoryId);
-    for (const product of products) {
-      await productRepository.update(product.productId, { isAvailable: false });
-      await productRepository.deactivateAllVariants(product.productId);
-    }
+  async _deactivateProductsBySubcategory(subcategoryId, tx) {
+    // Two set-based writes replace two round trips per product.
+    await tx.product.updateMany({ where: { subcategoryId }, data: { isAvailable: false } });
+    await tx.productVariant.updateMany({ where: { product: { subcategoryId } },
+      data: { isAvailable: false, isManuallyDeactivated: true } });
   },
 };

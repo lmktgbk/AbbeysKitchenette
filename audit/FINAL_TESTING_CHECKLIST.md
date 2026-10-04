@@ -929,3 +929,28 @@ Use isolated test records; never inject failures or kill processes against produ
 - [ ] Verify pricing provider latency does not hold publication locks, and measure drawer closing latency on representative sales/refund history.
 
 Live browser/process-kill/hosted load cases remain **Not verified**. PostgreSQL fixture checks do not establish production capacity.
+
+
+## Product, category, staff and settings recovery — 2026-10-04
+
+Use disposable records and a test backend. Never inject database failures into production.
+
+- [ ] Confirm unauthenticated users receive 401 and cashier/kitchen users receive 403 for product/category/staff/settings mutations.
+- [ ] Create, edit, activate, deactivate and delete test products and variants; required audit records eventually appear once per successful mutation.
+- [ ] Race deactivation of the last two active variants; parent and both variants must end inactive. Verify manual deactivation remains after availability repair.
+- [ ] Replace variants with an ID from another product or a deleted variant: receive VARIANT_CHANGED (409), without creating a replacement or modifying the other product.
+- [ ] Products with order history cannot be deleted; referenced variants cannot be renamed and are manually deactivated when removed from the replacement payload.
+- [ ] Activate with sufficient stock, insufficient stock and archived ingredients; verify response summaries and recovered availability.
+- [ ] Replace and delete images: successful changes eventually clean old assets; rejected/conflicting/rolled-back changes keep the current image.
+- [ ] Deactivate a subcategory containing several products: category, products, variants and audit intent must commit or roll back together.
+- [ ] PATCH subcategories with malformed/out-of-range IDs: receive 400 before business writes.
+- [ ] Save settings concurrently on an empty test database: no duplicate-key error. Identical saves produce one audit/notification; omitted fields remain untouched.
+- [ ] Update staff role/email/active state and verify session invalidation only follows committed changes. Verify duplicate email conflicts and self-email verification restrictions.
+- [ ] Toggle the same staff member concurrently: both successful toggles are reflected in session versions and their audit/notification records.
+- [ ] Staff with drawer, order, stock, refund or recorded actor history cannot be deleted; use deactivation instead.
+- [ ] Invitation delivery failure reports emailed=false while preserving the created staff account. External email delivery/recovery remains Not verified.
+- [ ] In a disposable schema, block domain-effect insertion; verify every tested product/category/staff/settings mutation rolls back without image deletion or premature session revocation. Remove the injected fault and retry.
+- [ ] Stop a test backend after mutation commit and before follow-up delivery; restart and verify audit/notification recovery without repeating the business change.
+- [ ] Measure 50-variant edits and large subcategory deactivation against representative test data; five-second transaction limits are ceilings, not measured service latency.
+
+Actual browser, process-kill, provider delivery and representative load acceptance remain **Not verified**.

@@ -3,7 +3,7 @@ import { categoryService } from "../categories/category.service.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import prisma from "../../config/prisma.js";
 import { deleteImage } from "../../utils/cloudinary.js";
-import { auditLogService } from "../auditLogs/auditLog.service.js";
+import { recordEffects, recordMutation } from "../../services/domainEffects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
 /**
@@ -36,28 +36,6 @@ function mapToProductResponse(product, extra = {}) {
 }
 
 /**
- * Map a single variant to snake_case with nested recipes.
- * @param {object} variant - Prisma ProductVariant with recipes included
- * @returns {object} - snake_case variant object
- */
-function mapToVariantResponse(variant) {
-  return {
-    variant_id: variant.variantId,
-    size_name: variant.sizeName,
-    price: Number(variant.price),
-    is_available: variant.isAvailable,
-    is_manually_deactivated: variant.isManuallyDeactivated ?? false,
-    recipes: (variant.recipes || []).map((r) => ({
-      recipe_id: r.recipeId,
-      ingredient_id: r.ingredientId,
-      ingredient_name: r.ingredient?.ingredientName ?? null,
-      unit: r.ingredient?.unit ?? null,
-      quantity_needed: Number(r.quantityNeeded),
-    })),
-  };
-}
-
-/**
  * Product Service
  *
  * Business logic for product operations.
@@ -65,8 +43,8 @@ function mapToVariantResponse(variant) {
  */
 
 /** Require a product by ID or throw 404 */
-async function requireProduct(id) {
-  const product = await productRepository.findById(id);
+async function requireProduct(id, tx) {
+  const product = await productRepository.findById(id, tx);
   if (!product) throw new AppError(404, "Product not found", "PRODUCT_NOT_FOUND");
   return product;
 }
@@ -76,6 +54,40 @@ function requireVariant(product, variantId) {
   const variant = product.variants.find((v) => v.variantId === Number(variantId));
   if (!variant) throw new AppError(404, "Variant not found", "VARIANT_NOT_FOUND");
   return variant;
+}
+
+function productAudit(userId, action, product) {
+  return { audit: { userId, action, targetType: "product", targetId: product.productId,
+    details: { name: product.productName } } };
+}
+
+async function mutateProduct(id, write) {
+  return prisma.$transaction(async tx => {
+    // Lock the parent before variants; replacement and history checks share this order.
+    await tx.$queryRaw`SELECT product_id FROM products WHERE product_id = ${id}::uuid FOR UPDATE`;
+    await tx.$queryRaw`SELECT variant_id FROM product_variants WHERE product_id = ${id}::uuid ORDER BY variant_id FOR UPDATE`;
+    return write(tx, await requireProduct(id, tx));
+  }, { timeout: 5000 });
+}
+
+async function variantStock(variants, tx) {
+  const ids = [...new Set(variants.flatMap(v => v.recipes.map(r => r.ingredientId)))];
+  return productRepository.getStockByIngredientIds(ids, tx);
+}
+
+function stockSufficient(variant, stock) {
+  return variant.recipes.every(r => !r.ingredient?.isArchived &&
+    (stock[r.ingredientId] ?? 0) >= Number(r.quantityNeeded));
+}
+
+async function queueVariantRepair(tx, variantIds) {
+  if (!variantIds.length) return;
+  // Refresh revisions in one round trip; a concurrent stock change stays recoverable.
+  await tx.$executeRaw`
+    INSERT INTO availability_repairs (variant_id)
+    SELECT id FROM unnest(${variantIds}::integer[]) AS id ORDER BY id
+    ON CONFLICT (variant_id) DO UPDATE SET revision = gen_random_uuid(), queued_at = clock_timestamp()
+  `;
 }
 
 export const productService = {
@@ -236,29 +248,30 @@ export const productService = {
     let product;
     try {
       product = await prisma.$transaction(async (tx) => {
-      const newProduct = await productRepository.create(
-        {
-          productName: data.product_name.trim(),
-          subcategoryId,
-          description: data.description || null,
-          imageUrl: data.image_url || null,
-          isAvailable: data.is_available ?? true,
-        },
-        tx,
-      );
-
-      // Create each variant with its recipes
-      for (const v of data.variants) {
-        await productRepository.createVariant(
-          newProduct.productId,
-          v,
-          v.recipes || [],
+        const newProduct = await productRepository.create(
+          {
+            productName: data.product_name.trim(),
+            subcategoryId,
+            description: data.description || null,
+            imageUrl: data.image_url || null,
+            isAvailable: data.is_available ?? true,
+          },
           tx,
         );
-      }
 
-      return newProduct;
-      });
+        // Create each variant with its recipes
+        for (const v of data.variants) {
+          await productRepository.createVariant(
+            newProduct.productId,
+            v,
+            v.recipes || [],
+            tx,
+          );
+        }
+
+        await recordEffects(tx, productAudit(userId, ACTIONS.PRODUCT_CREATED, newProduct));
+        return newProduct;
+      }, { timeout: 5000 });
     } catch (err) {
       // Millisecond race: two creates with the same (case-insensitive) name
       // slipped past the pre-check together — the SEC03 index caught it.
@@ -268,7 +281,6 @@ export const productService = {
       throw err;
     }
 
-    auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_CREATED, targetType: "product", targetId: product.productId, details: { name: product.productName } });
 
     // Step 3: Return full product with variants
     return this.getById(product.productId);
@@ -317,8 +329,11 @@ export const productService = {
 
     try {
       // Compare the prior image atomically so concurrent replacements cannot orphan the winning asset.
-      await productRepository.update(id, updateData, undefined, updateData.imageUrl !== undefined ? existing.imageUrl : undefined);
+      await recordMutation(prisma,
+        tx => productRepository.update(id, updateData, tx, updateData.imageUrl !== undefined ? existing.imageUrl : undefined),
+        row => productAudit(userId, ACTIONS.PRODUCT_UPDATED, row));
     } catch (error) {
+      if (error?.code === 'P2002') throw new AppError(409, 'A product with that name already exists', 'PRODUCT_EXISTS');
       if (error?.code === 'P2025' && updateData.imageUrl !== undefined) throw new AppError(409, 'Product image changed. Refresh and retry.', 'IMAGE_CHANGED');
       throw error;
     }
@@ -326,7 +341,6 @@ export const productService = {
       void deleteImage(existing.imageUrl);
     }
 
-    auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_UPDATED, targetType: "product", targetId: id, details: { name: data.product_name ?? existing.productName } });
 
     return this.getById(id);
   },
@@ -342,42 +356,43 @@ export const productService = {
    * @throws {AppError} 404 if not found
    */
   async updateVariants(id, variantsData, userId) {
-    // Step 1: Validate product exists
-    const existing = await requireProduct(id);
 
     // Step 1b: Reject doubled recipe lines with a named error (not P2002).
     await this._assertNoDuplicateRecipeLines(variantsData);
 
-    // Step 2: Get current variants for diff
-    const currentVariants = await productRepository.findVariantsByProductId(id);
+    await mutateProduct(id, async (tx, existing) => {
+      // Read the replacement diff only after acquiring the product locks.
+      const currentVariants = existing.variants;
 
-    // Step 3: Build sets for diffing
-    const incomingIds = new Set(
-      variantsData.filter((v) => v.variant_id).map((v) => v.variant_id),
-    );
-    const currentIds = new Set(currentVariants.map((v) => v.variantId));
+      // Step 3: Build sets for diffing
+      const incomingIds = new Set(
+        variantsData.filter((v) => v.variant_id).map((v) => v.variant_id),
+      );
+      const currentIds = new Set(currentVariants.map((v) => v.variantId));
+      if (variantsData.some(v => v.variant_id && !currentIds.has(v.variant_id))) {
+        throw new AppError(409, "Variant does not belong to this product or was removed", "VARIANT_CHANGED");
+      }
 
-    // Step 4: Find variants to remove (in current but not in incoming)
-    const toRemove = currentVariants.filter((v) => !incomingIds.has(v.variantId));
+      // Step 4: Find variants to remove (in current but not in incoming)
+      const toRemove = currentVariants.filter((v) => !incomingIds.has(v.variantId));
 
-    // Step 5: Batch-check transaction counts for all variants we need to inspect
-    const idsToCheck = [
-      ...toRemove.map((v) => v.variantId),
-      ...variantsData
-        .filter((v) => v.variant_id && currentIds.has(v.variant_id))
-        .map((v) => v.variant_id),
-    ];
-    const txMap = await productRepository.countVariantTransactionsBatch(idsToCheck);
+      // Step 5: Batch-check transaction counts for all variants we need to inspect
+      const idsToCheck = [
+        ...toRemove.map((v) => v.variantId),
+        ...variantsData
+          .filter((v) => v.variant_id && currentIds.has(v.variant_id))
+          .map((v) => v.variant_id),
+      ];
+      const txMap = await productRepository.countVariantTransactionsBatch(idsToCheck, tx);
 
-    // Step 6: Run all changes in a transaction
-    await prisma.$transaction(async (tx) => {
+      // Step 6: Run all changes in a transaction
       // Handle removals: delete if no transactions, deactivate otherwise
       for (const v of toRemove) {
         if ((txMap[v.variantId] ?? 0) > 0) {
           // Has transactions — deactivate instead of delete
           await tx.productVariant.update({
             where: { variantId: v.variantId },
-            data: { isAvailable: false },
+            data: { isAvailable: false, isManuallyDeactivated: true },
           });
         } else {
           // No transactions — safe to delete (cascade removes recipes)
@@ -412,9 +427,8 @@ export const productService = {
           await productRepository.createVariant(id, v, v.recipes || [], tx);
         }
       }
+      await recordEffects(tx, productAudit(userId, ACTIONS.PRODUCT_VARIANTS_UPDATED, existing));
     });
-
-    auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_VARIANTS_UPDATED, targetType: "product", targetId: id, details: { name: existing.productName } });
 
     return this.getById(id);
   },
@@ -426,174 +440,70 @@ export const productService = {
    * @throws {AppError} 404 if not found
    */
   async deactivate(id, userId) {
-    const existing = await requireProduct(id);
-
-    await prisma.$transaction(async (tx) => {
+    await mutateProduct(id, async (tx, product) => {
       await productRepository.update(id, { isAvailable: false }, tx);
       await productRepository.deactivateAllVariants(id, tx);
+      await recordEffects(tx, productAudit(userId, ACTIONS.PRODUCT_DEACTIVATED, product));
     });
-
-    auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_DEACTIVATED, targetType: "product", targetId: id, details: { name: existing.productName } });
-
     return this.getById(id);
   },
 
-  /**
-   * Activate a product — per-variant stock check with summary.
-   * Activates only variants with sufficient stock and recipes.
-   * @param {string} id - product UUID
-   * @param {string} userId - admin user ID
-   * @returns {{ product, summary: { activated: string[], skipped: string[] } }}
-   * @throws {AppError} 404 if not found
-   */
   async activate(id, userId) {
-    const existing = await requireProduct(id);
-
-    // Get variants with recipes for stock checking
-    const variants = await productRepository.findVariantsByProductId(id);
-    const allIngredientIds = [...new Set(
-      variants.flatMap((v) => v.recipes.map((r) => r.ingredientId))
-    )];
-    const stockMap = allIngredientIds.length > 0
-      ? await productRepository.getStockByIngredientIds(allIngredientIds)
-      : {};
-
-    // Per-variant stock check
-    const activated = [];
-    const skipped = [];
-
-    for (const v of variants) {
-      const recipes = v.recipes || [];
-      const hasRecipes = recipes.length > 0;
-      const isStockOk = hasRecipes && recipes.every(
-        (r) => (stockMap[r.ingredientId] ?? 0) >= Number(r.quantityNeeded)
-      );
-
-      if (isStockOk) {
-        await productRepository.activateVariant(id, v.variantId);
-        activated.push(v.sizeName);
-      } else {
-        skipped.push(v.sizeName);
-      }
-    }
-
-    // Activate the product itself
-    await productRepository.update(id, { isAvailable: true });
-
-    auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_ACTIVATED, targetType: "product", targetId: id, details: { name: existing.productName } });
-
-    const product = await this.getById(id);
-    return { product, summary: { activated, skipped } };
+    const summary = await mutateProduct(id, async (tx, product) => {
+      const stock = await variantStock(product.variants, tx);
+      const eligible = product.variants.filter(v => v.recipes.length && stockSufficient(v, stock));
+      const ids = eligible.map(v => v.variantId);
+      await tx.productVariant.updateMany({ where: { productId: id, variantId: { in: ids } },
+        data: { isAvailable: true, isManuallyDeactivated: false } });
+      await productRepository.update(id, { isAvailable: true }, tx);
+      await queueVariantRepair(tx, ids);
+      await recordEffects(tx, productAudit(userId, ACTIONS.PRODUCT_ACTIVATED, product));
+      return { activated: eligible.map(v => v.sizeName),
+        skipped: product.variants.filter(v => !ids.includes(v.variantId)).map(v => v.sizeName) };
+    });
+    return { product: await this.getById(id), summary };
   },
 
-  /**
-   * Activate a single variant.
-   * @param {string} productId - product UUID
-   * @param {number} variantId - variant ID
-   * @param {string} userId - admin user ID
-   * @returns {object} - updated product
-   * @throws {AppError} 404 if product or variant not found
-   */
   async activateVariant(productId, variantId, userId) {
-    const product = await requireProduct(productId);
-    const variant = requireVariant(product, variantId);
-
-    // Validate stock sufficiency before activating
-    const recipes = variant.recipes || [];
-    if (recipes.length > 0) {
-      const ingredientIds = recipes.map((r) => r.ingredientId);
-      const stockMap = await productRepository.getStockByIngredientIds(ingredientIds);
-      const insufficient = recipes.filter(
-        (r) => (stockMap[r.ingredientId] ?? 0) < Number(r.quantityNeeded)
-      );
-      if (insufficient.length > 0) {
-        const names = insufficient.map((r) => r.ingredient?.ingredientName ?? "Unknown").join(", ");
-        throw new AppError(
-          400,
-          `Cannot activate variant "${variant.sizeName}" — insufficient stock for: ${names}`,
-          "INSUFFICIENT_STOCK"
-        );
+    await mutateProduct(productId, async (tx, product) => {
+      const variant = requireVariant(product, variantId);
+      if (!stockSufficient(variant, await variantStock([variant], tx))) {
+        throw new AppError(400, `Cannot activate variant "${variant.sizeName}" — insufficient stock or archived ingredients`, "INSUFFICIENT_STOCK");
       }
-    }
-
-    await productRepository.activateVariant(productId, variantId);
-
-    // Auto-activate parent product if it was inactive
-    if (!product.isAvailable) {
-      await productRepository.update(productId, { isAvailable: true });
-    }
-
-    auditLogService.logAction({
-      userId,
-      action: ACTIONS.VARIANT_ACTIVATED,
-      targetType: "variant",
-      targetId: String(variantId),
-      details: { name: product.productName, productId, sizeName: variant.sizeName },
+      await productRepository.activateVariant(productId, variantId, tx);
+      await productRepository.update(productId, { isAvailable: true }, tx);
+      await queueVariantRepair(tx, [variant.variantId]);
+      await recordEffects(tx, { audit: { userId, action: ACTIONS.VARIANT_ACTIVATED,
+        targetType: "variant", targetId: String(variantId),
+        details: { name: product.productName, productId, sizeName: variant.sizeName } } });
     });
-
     return this.getById(productId);
   },
 
-  /**
-   * Deactivate a single variant.
-   * If all variants become inactive, auto-deactivates the product.
-   * @param {string} productId - product UUID
-   * @param {number} variantId - variant ID
-   * @param {string} userId - admin user ID
-   * @returns {object} - updated product
-   * @throws {AppError} 404 if product or variant not found
-   */
   async deactivateVariant(productId, variantId, userId) {
-    const product = await requireProduct(productId);
-    const variant = requireVariant(product, variantId);
-
-    await productRepository.deactivateVariant(productId, variantId);
-
-    // Check if all variants are now inactive → auto-deactivate product
-    // Use the product's variants from findById to avoid a re-query
-    const otherVariantsActive = product.variants.some(
-      (v) => v.variantId !== Number(variantId) && v.isAvailable
-    );
-    if (!otherVariantsActive && product.isAvailable) {
-      await productRepository.update(productId, { isAvailable: false });
-    }
-
-    auditLogService.logAction({
-      userId,
-      action: ACTIONS.VARIANT_DEACTIVATED,
-      targetType: "variant",
-      targetId: String(variantId),
-      details: { name: product.productName, productId, sizeName: variant.sizeName },
+    await mutateProduct(productId, async (tx, product) => {
+      const variant = requireVariant(product, variantId);
+      await productRepository.deactivateVariant(productId, variantId, tx);
+      if (!product.variants.some(v => v.variantId !== Number(variantId) && v.isAvailable)) {
+        await productRepository.update(productId, { isAvailable: false }, tx);
+      }
+      await recordEffects(tx, { audit: { userId, action: ACTIONS.VARIANT_DEACTIVATED,
+        targetType: "variant", targetId: String(variantId),
+        details: { name: product.productName, productId, sizeName: variant.sizeName } } });
     });
-
     return this.getById(productId);
   },
 
-  /**
-   * Permanently delete a product and all its variants/recipes.
-   * @param {string} id - product UUID
-   * @returns {object} - confirmation
-   * @throws {AppError} 404 if not found, 400 if has transactions
-   */
   async remove(id, userId) {
-    const existing = await requireProduct(id);
-
-    // Block hard-delete when order history references this product
-    const txCount = await productRepository.countTransactions(id);
-    if (txCount > 0) {
-      throw new AppError(
-        400,
-        "Cannot delete product with existing transactions. Deactivate instead.",
-        "HAS_TRANSACTIONS",
-      );
-    }
-
-    // Hard delete (cascades to variants and recipes)
-    const deleted = await productRepository.delete(id);
+    const deleted = await mutateProduct(id, async (tx, product) => {
+      if (await productRepository.countTransactions(id, tx)) {
+        throw new AppError(400, "Cannot delete product with existing transactions. Deactivate instead.", "HAS_TRANSACTIONS");
+      }
+      const row = await productRepository.delete(id, tx);
+      await recordEffects(tx, productAudit(userId, ACTIONS.PRODUCT_DELETED, product));
+      return row;
+    });
     if (deleted.imageUrl) void deleteImage(deleted.imageUrl);
-
-    auditLogService.logAction({ userId, action: ACTIONS.PRODUCT_DELETED, targetType: "product", targetId: id, details: { name: existing.productName } });
-
     return { product_id: id };
   },
 };

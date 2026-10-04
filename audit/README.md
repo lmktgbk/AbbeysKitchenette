@@ -53,3 +53,5 @@ Sheets event/delivery remediation: [SHEETS_SYNC_FIXES.md](SHEETS_SYNC_FIXES.md).
 Readiness and shutdown follow-up: [DEPLOYMENT_LIFECYCLE_FIXES.md](./DEPLOYMENT_LIFECYCLE_FIXES.md). Hosting acceptance remains outstanding.
 
 Scheduled-job reliability follow-up: [AUTOMATION_RELIABILITY_FIXES.md](./AUTOMATION_RELIABILITY_FIXES.md). Public migration and hosted acceptance remain pending.
+
+Administrative mutation recovery: [ADMIN_MUTATION_RECOVERY_FIXES.md](ADMIN_MUTATION_RECOVERY_FIXES.md).

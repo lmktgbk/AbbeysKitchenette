@@ -16,8 +16,8 @@ export const categoryRepository = {
    * @param {number} id - category_id
    * @returns {Promise<object|null>}
    */
-  async findRootById(id) {
-    return prisma.category.findUnique({
+  async findRootById(id, tx = prisma) {
+    return tx.category.findUnique({
       where: { categoryId: id },
     });
   },
@@ -53,8 +53,8 @@ export const categoryRepository = {
    * @param {string|null} [description]
    * @returns {Promise<object>}
    */
-  async upsertRootByName(name, description = null) {
-    return prisma.category.upsert({
+  async upsertRootByName(name, description = null, tx = prisma) {
+    return tx.category.upsert({
       where: { categoryName: name },
       update: {},
       create: { categoryName: name, description },
@@ -68,8 +68,8 @@ export const categoryRepository = {
    * @param {string|null} [description]
    * @returns {Promise<object>}
    */
-  async upsertSub(categoryId, name, description = null) {
-    return prisma.subcategory.upsert({
+  async upsertSub(categoryId, name, description = null, tx = prisma) {
+    return tx.subcategory.upsert({
       where: { categoryId_subcategoryName: { categoryId, subcategoryName: name } },
       update: {},
       create: { categoryId, subcategoryName: name, description },
@@ -83,8 +83,8 @@ export const categoryRepository = {
    * @param {number} id - subcategory_id
    * @returns {Promise<object|null>}
    */
-  async findSubcategoryById(id) {
-    return prisma.subcategory.findUnique({
+  async findSubcategoryById(id, tx = prisma) {
+    return tx.subcategory.findUnique({
       where: { subcategoryId: id },
     });
   },
@@ -95,8 +95,8 @@ export const categoryRepository = {
    * @param {number} id - subcategory_id
    * @returns {Promise<object|null>}
    */
-  async findSubcategoryByIdWithCounts(id) {
-    return prisma.subcategory.findUnique({
+  async findSubcategoryByIdWithCounts(id, tx = prisma) {
+    return tx.subcategory.findUnique({
       where: { subcategoryId: id },
       include: {
         _count: { select: { products: true } },
@@ -109,8 +109,8 @@ export const categoryRepository = {
    * @param {object} data - { categoryId, subcategoryName, description? }
    * @returns {Promise<object>}
    */
-  async createSubcategory(data) {
-    return prisma.subcategory.create({ data });
+  async createSubcategory(data, tx = prisma) {
+    return tx.subcategory.create({ data });
   },
 
   /**
@@ -119,8 +119,8 @@ export const categoryRepository = {
    * @param {object} data - fields to update
    * @returns {Promise<object>}
    */
-  async updateSubcategory(id, data) {
-    return prisma.subcategory.update({
+  async updateSubcategory(id, data, tx = prisma) {
+    return tx.subcategory.update({
       where: { subcategoryId: id },
       data,
     });
@@ -132,8 +132,8 @@ export const categoryRepository = {
    * @param {number} id - subcategory_id
    * @returns {Promise<object>}
    */
-  async deleteSubcategory(id) {
-    return prisma.subcategory.delete({
+  async deleteSubcategory(id, tx = prisma) {
+    return tx.subcategory.delete({
       where: { subcategoryId: id },
     });
   },

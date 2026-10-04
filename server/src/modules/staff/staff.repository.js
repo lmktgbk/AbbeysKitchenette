@@ -1,5 +1,4 @@
 import prisma from "../../config/prisma.js";
-import { revokeLocalSessions } from "../../realtime/sessions.js";
 
 /**
  * Staff Repository
@@ -47,8 +46,8 @@ export const staffRepository = {
   /**
    * Find staff by ID.
    */
-  async findById(id) {
-    return prisma.user.findUnique({
+  async findById(id, tx = prisma) {
+    return tx.user.findUnique({
       where: { id },
       select: SAFE_SELECT,
     });
@@ -57,8 +56,8 @@ export const staffRepository = {
   /**
    * Find staff by email.
    */
-  async findByEmail(email) {
-    return prisma.user.findUnique({
+  async findByEmail(email, tx = prisma) {
+    return tx.user.findUnique({
       where: { email },
       select: { id: true, email: true },
     });
@@ -67,8 +66,8 @@ export const staffRepository = {
   /**
    * Create a new staff member.
    */
-  async create({ name, email, role, passwordHash }) {
-    return prisma.user.create({
+  async create({ name, email, role, passwordHash }, tx = prisma) {
+    return tx.user.create({
       data: {
         name,
         email,
@@ -83,60 +82,57 @@ export const staffRepository = {
   /**
    * Update staff fields.
    */
-  async update(id, data) {
-    const user = await prisma.user.update({
+  async update(id, data, tx = prisma) {
+    const user = await tx.user.update({
       where: { id },
       data: { ...data, sessionVersion: { increment: 1 } },
       select: SAFE_SELECT,
     });
-    revokeLocalSessions(id);
     return user;
   },
 
   /**
    * Toggle active status.
    */
-  async setActive(id, isActive) {
-    const user = await prisma.user.update({
+  async setActive(id, isActive, tx = prisma) {
+    const user = await tx.user.update({
       where: { id },
       data: { isActive, sessionVersion: { increment: 1 } },
       select: { id: true, isActive: true },
     });
-    revokeLocalSessions(id);
     return user;
   },
 
   /**
    * Hard delete staff.
    */
-  async deleteUser(id) {
-    const user = await prisma.user.delete({
+  async deleteUser(id, tx = prisma) {
+    const user = await tx.user.delete({
       where: { id },
       select: { id: true, name: true },
     });
-    revokeLocalSessions(id);
     return user;
   },
 
   /**
    * Check if staff has transaction history (restock, loss, orders).
    */
-  async hasTransactions(id) {
-    const [restockCount, lossCount, orderCount] = await Promise.all([
-      prisma.restockBatch.count({ where: { restockedById: id } }),
-      prisma.lossRecord.count({ where: { declaredById: id } }),
-      prisma.order.count({
-        where: {
-          OR: [
-            { createdBy: id },
-            { acceptedBy: id },
-            { preparingBy: id },
-            { completedBy: id },
-          ],
-        },
-      }),
-    ]);
-    return restockCount + lossCount + orderCount > 0;
+  async hasTransactions(id, tx = prisma) {
+    const [row] = await tx.$queryRaw`
+      SELECT EXISTS (SELECT 1 FROM restock_batches WHERE restocked_by = ${id}::uuid)
+        OR EXISTS (SELECT 1 FROM loss_records WHERE declared_by = ${id}::uuid OR overridden_by = ${id}::uuid)
+        OR EXISTS (SELECT 1 FROM stock_adjustments WHERE adjusted_by = ${id}::uuid)
+        OR EXISTS (SELECT 1 FROM orders WHERE created_by = ${id}::uuid OR accepted_by = ${id}::uuid
+          OR preparing_by = ${id}::uuid OR completed_by = ${id}::uuid)
+        OR EXISTS (SELECT 1 FROM order_items WHERE prepared_by = ${id}::uuid OR removed_by = ${id}::uuid)
+        OR EXISTS (SELECT 1 FROM order_cancellations WHERE cancelled_by = ${id}::uuid)
+        OR EXISTS (SELECT 1 FROM payment_refunds WHERE refunded_by = ${id}::uuid)
+        OR EXISTS (SELECT 1 FROM audit_logs WHERE "userId" = ${id}::uuid)
+        OR EXISTS (SELECT 1 FROM shifts WHERE opened_by = ${id}::uuid OR closed_by = ${id}::uuid)
+        AS has_history
+    `;
+    return row.has_history;
+
   },
 
   /**

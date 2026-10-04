@@ -4,7 +4,9 @@ import { staffRepository } from "./staff.repository.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { auditLogService } from "../auditLogs/auditLog.service.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
-import { notificationService } from "../notifications/notification.service.js";
+import prisma from "../../config/prisma.js";
+import { recordEffects, recordMutation } from "../../services/domainEffects.js";
+import { revokeLocalSessions } from "../../realtime/sessions.js";
 import { sendEmail, generateStaffInviteEmail } from "../../utils/email.js";
 import { signToken } from "../../config/jwt.js";
 import { env } from "../../config/env.js";
@@ -61,9 +63,17 @@ export const staffService = {
     // email a set-password link so staff choose their own password.
     const placeholder = crypto.randomBytes(32).toString("hex");
     const passwordHash = await bcrypt.hash(placeholder, SALT_ROUNDS);
-    const user = await staffRepository.create({ name, email, role, passwordHash });
-    auditLogService.logAction({ userId, action: ACTIONS.STAFF_CREATED, targetType: "staff", targetId: user.id, details: { name: user.name, email: user.email, role: user.role } });
-    notificationService.create({ type: "system", title: "New Staff Added", message: `${user.name} (${role}) has been added to the team`, referenceType: "staff", referenceId: user.id }).catch(() => {});
+    let user;
+    try {
+      user = await recordMutation(prisma,
+        tx => staffRepository.create({ name, email, role, passwordHash }, tx),
+        row => ({ audit: { userId, action: ACTIONS.STAFF_CREATED, targetType: "staff", targetId: row.id,
+          details: { name: row.name, email: row.email, role: row.role } },
+        notifications: [{ type: "system", title: "New Staff Added", message: `${row.name} (${role}) has been added to the team`, referenceType: "staff", referenceId: row.id }] }));
+    } catch (error) {
+      if (error.code === "P2002") throw new AppError(409, "Email already in use", "EMAIL_IN_USE");
+      throw error;
+    }
     // Email the set-password link. Return emailed flag so UI can warn if mail failed.
     // The link is single-use: stored (hashed) and burned on first reset.
     try {
@@ -83,7 +93,7 @@ export const staffService = {
       });
       auditLogService.logAction({ userId, action: ACTIONS.PASSWORD_RESET_REQUESTED, targetType: "staff", targetId: user.id, details: { email: user.email, role: user.role, context: "invite" } }).catch(() => {});
     } catch (err) {
-      console.error("[STAFF_INVITE_EMAIL]", err);
+      console.warn("[staff] Invitation delivery unavailable", err?.code ?? "DELIVERY_FAILED");
       auditLogService.logAction({ userId, action: ACTIONS.PASSWORD_RESET_REQUESTED, targetType: "staff", targetId: user.id, details: { email: user.email, role: user.role, context: "invite", emailed: false } }).catch(() => {});
       return { staff: mapToStaffResponse(user), emailed: false };
     }
@@ -103,31 +113,53 @@ export const staffService = {
     if (email !== undefined) updateData.email = email;
     if (role !== undefined) updateData.role = role;
     if (Object.keys(updateData).length === 0) throw new AppError(400, "No valid fields to update", "NO_CHANGES");
-    const updated = await staffRepository.update(id, updateData);
-    auditLogService.logAction({ userId, action: ACTIONS.STAFF_UPDATED, targetType: "staff", targetId: id, details: { name: user.name, fields: Object.keys(updateData) } });
+    let updated;
+    try {
+      updated = await recordMutation(prisma, tx => staffRepository.update(id, updateData, tx),
+        row => ({ audit: { userId, action: ACTIONS.STAFF_UPDATED, targetType: "staff", targetId: id,
+          details: { name: row.name, fields: Object.keys(updateData) } } }));
+    } catch (error) {
+      if (error.code === "P2002") throw new AppError(409, "Email already in use", "EMAIL_IN_USE");
+      if (error.code === "P2025") throw new AppError(409, "Staff changed. Refresh and retry", "STAFF_CHANGED");
+      throw error;
+    }
+    revokeLocalSessions(id);
     return mapToStaffResponse(updated);
   },
 
   async toggleActive(id, userId) {
-    const user = await staffRepository.findById(id);
-    if (!user) throw new AppError(404, "Staff not found", "STAFF_NOT_FOUND");
-    // Deactivation is the safe offboard: authenticate blocks !isActive, and
-    // all actor FKs keep resolving to a name. Delete is the last resort.
-    const updated = await staffRepository.setActive(id, !user.isActive);
-    auditLogService.logAction({ userId, action: !user.isActive ? ACTIONS.STAFF_ACTIVATED : ACTIONS.STAFF_DEACTIVATED, targetType: "staff", targetId: id, details: { name: user.name } });
-    notificationService.create({ type: "system", title: user.isActive ? "Staff Deactivated" : "Staff Activated", message: `${user.name} has been ${user.isActive ? "deactivated" : "activated"}`, referenceType: "staff", referenceId: id }).catch(() => {});
+    const updated = await prisma.$transaction(async tx => {
+      // A toggle derives its new value from the locked row, never a stale read.
+      const rows = await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${id}::uuid FOR UPDATE`;
+      if (!rows.length) throw new AppError(404, "Staff not found", "STAFF_NOT_FOUND");
+      const user = await staffRepository.findById(id, tx);
+      const row = await staffRepository.setActive(id, !user.isActive, tx);
+      await recordEffects(tx, {
+        audit: { userId, action: row.isActive ? ACTIONS.STAFF_ACTIVATED : ACTIONS.STAFF_DEACTIVATED,
+          targetType: "staff", targetId: id, details: { name: user.name } },
+        notifications: [{ type: "system", title: row.isActive ? "Staff Activated" : "Staff Deactivated",
+          message: `${user.name} has been ${row.isActive ? "activated" : "deactivated"}`, referenceType: "staff", referenceId: id }],
+      });
+      return row;
+    }, { timeout: 5000 });
+    revokeLocalSessions(id);
     return { staff_id: updated.id, is_active: updated.isActive };
   },
 
   async deleteStaff(id, userId) {
-    const user = await staffRepository.findById(id);
-    if (!user) throw new AppError(404, "Staff not found", "STAFF_NOT_FOUND");
-    // Hard delete is blocked when the user touched money or stock — dangling
-    // actor names in orders/shifts/audit would otherwise lose their meaning.
-    const hasTx = await staffRepository.hasTransactions(id);
-    if (hasTx) throw new AppError(400, "Cannot delete staff with transaction history", "STAFF_HAS_TRANSACTIONS");
-    const deleted = await staffRepository.deleteUser(id);
-    auditLogService.logAction({ userId, action: ACTIONS.STAFF_DELETED, targetType: "staff", targetId: id, details: { name: user.name } });
+    const deleted = await prisma.$transaction(async tx => {
+      // FOR UPDATE also serializes new FK references with the history check.
+      const rows = await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${id}::uuid FOR UPDATE`;
+      if (!rows.length) throw new AppError(404, "Staff not found", "STAFF_NOT_FOUND");
+      if (await staffRepository.hasTransactions(id, tx)) {
+        throw new AppError(400, "Cannot delete staff with transaction history", "STAFF_HAS_TRANSACTIONS");
+      }
+      const row = await staffRepository.deleteUser(id, tx);
+      await recordEffects(tx, { audit: { userId, action: ACTIONS.STAFF_DELETED,
+        targetType: "staff", targetId: id, details: { name: row.name } } });
+      return row;
+    }, { timeout: 5000 });
+    revokeLocalSessions(id);
     return deleted;
   },
 };

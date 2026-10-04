@@ -8,7 +8,7 @@ const RECIPE_INCLUDE = {
   recipes: {
     include: {
       ingredient: {
-        select: { ingredientId: true, ingredientName: true, unit: true },
+        select: { ingredientId: true, ingredientName: true, unit: true, isArchived: true },
       },
     },
   },
@@ -55,8 +55,8 @@ export const productRepository = {
    * @param {string} id - product UUID
    * @returns {object|null}
    */
-  async findById(id) {
-    return prisma.product.findUnique({
+  async findById(id, tx = prisma) {
+    return tx.product.findUnique({
       where: { productId: id },
       include: {
         subcategory: {
@@ -389,8 +389,8 @@ export const productRepository = {
    * @param {string} id - product UUID
    * @returns {number} - order item count referencing this product
    */
-  async countTransactions(id) {
-    return prisma.orderItem.count({ where: { productId: id } });
+  async countTransactions(id, tx = prisma) {
+    return tx.orderItem.count({ where: { productId: id } });
   },
 
   /**
@@ -398,9 +398,9 @@ export const productRepository = {
    * @param {number[]} variantIds - array of variant IDs
    * @returns {Object<number, number>} - map of variantId → transaction count
    */
-  async countVariantTransactionsBatch(variantIds) {
+  async countVariantTransactionsBatch(variantIds, tx = prisma) {
     if (variantIds.length === 0) return {};
-    const rows = await prisma.orderItem.groupBy({
+    const rows = await tx.orderItem.groupBy({
       by: ["variantId"],
       where: { variantId: { in: variantIds } },
       _count: { variantId: true },
@@ -419,9 +419,9 @@ export const productRepository = {
    * @param {string[]} ingredientIds - array of ingredient UUIDs
    * @returns {Object<string, number>} - map of ingredientId → stock
    */
-  async getStockByIngredientIds(ingredientIds) {
+  async getStockByIngredientIds(ingredientIds, tx = prisma) {
     if (ingredientIds.length === 0) return {};
-    const result = await prisma.restockBatch.groupBy({
+    const result = await tx.restockBatch.groupBy({
       by: ["ingredientId"],
       where: {
         ingredientId: { in: ingredientIds },

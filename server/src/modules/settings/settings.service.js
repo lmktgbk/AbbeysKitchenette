@@ -1,7 +1,7 @@
 import { settingsRepository } from "./settings.repository.js";
-import { auditLogService } from "../auditLogs/auditLog.service.js";
+import prisma from "../../config/prisma.js";
+import { recordEffects } from "../../services/domainEffects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
-import { notificationService } from "../notifications/notification.service.js";
 
 export const DEFAULT_PAYMENTS = ["cash", "gcash", "maya"];
 
@@ -42,36 +42,23 @@ export const settingsService = {
       }
     }
 
-    const current = await settingsRepository.find();
-    const changed = Object.keys(normalized).filter((key) => {
-      const before = current?.[key] ?? null;
-      const after = normalized[key] ?? null;
-      return JSON.stringify(before) !== JSON.stringify(after);
-    });
-
-    // No-op save: return current row without spamming audit/notification.
-    if (changed.length === 0) {
-      return current ?? settingsRepository.update({});
-    }
-
-    const settings = await settingsRepository.update(normalized);
-
-    // Payment availability may have changed — drop the cache.
+    const settings = await prisma.$transaction(async tx => {
+      await settingsRepository.ensure(tx);
+      // Serialize the diff with the write so two identical saves create one event.
+      await tx.$queryRaw`SELECT id FROM system_settings WHERE id = 1 FOR UPDATE`;
+      const current = await settingsRepository.find(tx);
+      const changed = Object.keys(normalized).filter(key =>
+        JSON.stringify(current?.[key] ?? null) !== JSON.stringify(normalized[key] ?? null));
+      if (!changed.length) return current;
+      const updated = await settingsRepository.update(normalized, tx);
+      await recordEffects(tx, {
+        audit: { userId, action: ACTIONS.SETTINGS_UPDATED, targetType: "settings", details: { fields: changed } },
+        notifications: [{ type: "system", title: "Settings Updated",
+          message: `System settings updated: ${changed.join(", ")}`, referenceType: "settings" }],
+      });
+      return updated;
+    }, { timeout: 5000 });
     _paymentsCache = null;
-
-    auditLogService.logAction({
-      userId,
-      action: ACTIONS.SETTINGS_UPDATED,
-      targetType: "settings",
-      details: { fields: changed },
-    }).catch(() => {});
-
-    notificationService.create({
-      type: "system",
-      title: "Settings Updated",
-      message: `System settings updated: ${changed.join(", ")}`,
-      referenceType: "settings",
-    }).catch(() => {});
 
     return settings;
   },

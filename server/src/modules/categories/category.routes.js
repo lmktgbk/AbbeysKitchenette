@@ -42,6 +42,7 @@ router.patch(
   "/subcategories/:id",
   authenticate,
   authorize("admin"),
+  validateParams(categoryIdParamSchema),
   validate(updateSubcategorySchema),
   categoryController.updateSubcategory,
 );
