@@ -37,10 +37,11 @@ async function generateInsight(rule, data) {
     const response = await ai.models.generateContent({
       model: GEMINI_MODEL,
       contents: prompt,
+      config: { httpOptions: { timeout: 20000 } },
     });
     return response.text || null;
-  } catch (err) {
-    console.error(`[anomaly] Gemini insight failed for "${rule.id}":`, err.message);
+  } catch {
+    console.warn(`[anomaly] Insight unavailable for "${rule.id}"`);
     return null;
   }
 }

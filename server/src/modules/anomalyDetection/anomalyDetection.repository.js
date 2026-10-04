@@ -96,20 +96,20 @@ export const anomalyRepository = {
 
   // Reviewed-today also blocks re-fire: marking reviewed means "I know, stop
   // telling me today". A still-abnormal condition fires fresh again tomorrow.
-  async existsActiveToday(ruleId, ingredientId = null) {
+  async existsActiveToday(ruleId, tx = prisma) {
     // Manila "today" start as an absolute instant — never host-local midnight.
     const start = manilaDayStart(toManilaDateString());
     const where = { ruleId, detectedAt: { gte: start } };
-    const found = await prisma.anomalyResult.findFirst({ where, select: { id: true } });
+    const found = await tx.anomalyResult.findFirst({ where, select: { id: true } });
     return !!found;
   },
 
   // Policeman dedup: one card per shift (shiftId is embedded in the
   // description since anomaly_results has no shift column). Prevents
   // duplicate cards for the same close while allowing 2 closes same day.
-  async existsShiftCard(shiftId) {
+  async existsShiftCard(shiftId, tx = prisma) {
     if (!shiftId) return false;
-    const found = await prisma.anomalyResult.findFirst({
+    const found = await tx.anomalyResult.findFirst({
       where: { ruleId: "shift_variance_spike", description: { contains: String(shiftId) } },
       select: { id: true },
     });

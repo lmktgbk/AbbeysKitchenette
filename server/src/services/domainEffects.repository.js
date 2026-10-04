@@ -1,5 +1,6 @@
 import prisma from "../config/prisma.js";
 import { effectSchema } from "./domainEffects.js";
+import { captureAnomalyTrigger } from "./anomalyTriggers.js";
 
 export function createEffectsRepository(db = prisma) {
   return {
@@ -13,6 +14,7 @@ export function createEffectsRepository(db = prisma) {
           claimed = row;
           const payload = effectSchema.parse(row.payload);
           if (payload.audit) {
+            await captureAnomalyTrigger(tx, row.id, payload.audit);
             const { userId, ...audit } = payload.audit;
             const actor = userId ? await tx.user.findUnique({ where: { id: userId }, select: { id: true } }) : null;
             await tx.auditLog.create({ data: { ...audit, userId: actor?.id ?? null, createdAt: row.created_at,

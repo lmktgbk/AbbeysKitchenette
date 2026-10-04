@@ -4,7 +4,6 @@ import { recordEffects, recordMutation } from "../../services/domainEffects.js";
 import { lockStock } from "../../services/stockLocks.js";
 import prisma from "../../config/prisma.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
-import { anomalyService } from "../anomalyDetection/anomalyDetection.service.js";
 
 // Frozen response/notification quantities use the ledger's three-decimal precision.
 const roundStock = quantity => Math.round(quantity * 1000) / 1000;
@@ -540,11 +539,6 @@ export const ingredientService = {
     const stockQuantity = roundStock(qtyBefore - qty);
     const response = mapToIngredientResponse(existing, stockQuantity);
 
-    // Recompute variant availability for this ingredient
-
-    // Real-time anomaly hook: loss spike (fire-and-forget). Covers
-    // writeOffExpired too — it delegates to declareLoss.
-    anomalyService.runScan(["loss_spike"]).catch((err) => console.warn("[anomaly] hook scan dropped:", err?.message));
 
     return response;
   },

@@ -17,7 +17,7 @@ export const automationRepository = {
     const enabled = ["forecast", "marketBasket", "reorder", "waste", "dailyReport"]
       .filter(kind => automation?.[kind]?.enabled === true);
     await prisma.$executeRaw`UPDATE automation_runs SET status = 'blocked', last_error = 'SCHEDULE_DISABLED',
-      updated_at = clock_timestamp() WHERE status = 'pending' AND NOT (kind = ANY(${enabled}::text[]))`;
+      updated_at = clock_timestamp() WHERE status = 'pending' AND kind <> 'anomaly' AND NOT (kind = ANY(${enabled}::text[]))`;
   },
   async refreshSubmitted() {
     // Admission acknowledgement is not job completion. Reconcile the saved ML
@@ -45,9 +45,9 @@ export const automationRepository = {
         status = CASE WHEN kind IN ('reorder','waste') AND attempts < 3 THEN 'pending' ELSE 'blocked' END,
         last_error = CASE WHEN kind IN ('reorder','waste') THEN 'WORKER_EXPIRED' ELSE 'EXTERNAL_OUTCOME_UNKNOWN' END,
         owner = NULL, lease_expires_at = NULL, updated_at = clock_timestamp()
-        WHERE status = 'running' AND lease_expires_at <= clock_timestamp()`;
+        WHERE kind <> 'anomaly' AND status = 'running' AND lease_expires_at <= clock_timestamp()`;
       const [run] = await tx.$queryRaw`WITH candidate AS (
-        SELECT run_key FROM automation_runs WHERE status = 'pending' AND next_attempt_at <= clock_timestamp()
+        SELECT run_key FROM automation_runs WHERE kind <> 'anomaly' AND status = 'pending' AND next_attempt_at <= clock_timestamp()
           AND EXISTS (SELECT 1 FROM system_settings WHERE id = 1 AND automation->kind->>'enabled' = 'true')
         ORDER BY scheduled_at, run_key FOR UPDATE SKIP LOCKED LIMIT 1
       ) UPDATE automation_runs AS run SET status = 'running', owner = ${owner}::uuid,

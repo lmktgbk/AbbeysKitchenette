@@ -2,7 +2,6 @@ import { shiftRepository } from "./shift.repository.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { recordEffects, recordMutation } from "../../services/domainEffects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
-import { anomalyService } from "../anomalyDetection/anomalyDetection.service.js";
 import prisma from "../../config/prisma.js";
 import { toManilaDateString, manilaDayStart, manilaDayEndExclusive } from "../../config/time.js";
 
@@ -263,7 +262,7 @@ export const shiftService = {
     // with its mandatory note.
     // Payment paths lock this same shift before writing orders. Once closure
     // owns the row, its summary cannot miss a sale assigned concurrently.
-    const { row: closed, expected, actual, variance, summary: closingSummary } = await prisma.$transaction(async (tx) => {
+    const { row: closed, summary: closingSummary } = await prisma.$transaction(async (tx) => {
       const current = await shiftRepository.lockById(id, tx);
       if (!current || current.status !== "open") {
         throw new AppError(409, "Shift is already closed", "SHIFT_ALREADY_CLOSED");
@@ -311,15 +310,6 @@ export const shiftService = {
       return { row, expected: expectedCash, actual: actualCashCount, variance: cashVariance,
         summary: { ...summary, actual_cash: actualCashCount, variance: cashVariance } };
     }, { timeout: 15000 });
-
-    // Real-time anomaly hook: every mismatch flags (policeman, per-shift).
-    if (variance !== 0) {
-      anomalyService
-        .runScan(["shift_variance_spike"], {
-          shift: { shiftId: String(closed.shift_id ?? closed.shiftId ?? id), expected, actual, variance },
-        })
-        .catch((err) => console.warn("[anomaly] hook scan dropped:", err?.message));
-    }
 
     return {
       ...formatShift(closed),

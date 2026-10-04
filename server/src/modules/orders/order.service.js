@@ -10,7 +10,6 @@ import { recordEffects } from "../../services/domainEffects.js";
 import { lockStock } from "../../services/stockLocks.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { settingsService } from "../settings/settings.service.js";
-import { anomalyService } from "../anomalyDetection/anomalyDetection.service.js";
 import { getBusinessDate } from "../../config/time.js";
 
 import { recordSheetEvent } from "../sheets/sheets.outbox.js";
@@ -595,9 +594,6 @@ export const orderService = {
 
       }, { timeout: 15000 });
 
-      // Real-time anomaly hooks: revenue + fulfillment evaluate the just-
-      // completed order; discount keeps its existing hook (fire-and-forget).
-      anomalyService.runScan(["revenue_anomaly", "fulfillment_outlier", "discount_spike"]).catch((err) => console.warn("[anomaly] hook scan dropped:", err?.message));
 
       return this.getById(id);
     }
@@ -767,8 +763,6 @@ export const orderService = {
       if (currentStatus !== "pending") await recordSheetEvent(tx, id, "cancelled");
     }, { timeout: 15000 });
 
-    // Real-time anomaly hooks (fire-and-forget, never block response)
-    anomalyService.runScan(["refund_spike", "cancellation_spike"]).catch((err) => console.warn("[anomaly] hook scan dropped:", err?.message));
 
     return { order_id: id, action: "cancelled", wasPaid: order.status !== "pending" };
   },
@@ -900,10 +894,6 @@ export const orderService = {
       await recordSheetEvent(tx, orderId, remainingCount === 0 ? "cancelled" : "adjusted", orderItemId);
     }, { timeout: 15000 });
 
-    // Real-time anomaly hooks (fire-and-forget, never block response)
-    if (refundAmount > 0) {
-      anomalyService.runScan(["refund_spike", "cancellation_spike"]).catch((err) => console.warn("[anomaly] hook scan dropped:", err?.message));
-    }
 
     return {
       order_id: orderId,

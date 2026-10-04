@@ -44,13 +44,17 @@ export const anomalyService = {
 
   _lastFired: new Map(),
 
-  async runScan(ruleIds = null, context = null, userId) {
+  async runScan(ruleIds = null, context = null, userId, trigger) {
     const startTime = Date.now();
     const allResults = [];
     const now = Date.now();
     const COOLDOWN_MS = 15 * 60 * 1000;
 
-    for (const rule of RULE_REGISTRY) {
+    let evaluationFailed = false;
+    for (const definition of RULE_REGISTRY) {
+      // Rule methods use this._lastData/_pendingShift; each evaluation owns
+      // its own object so concurrent scans cannot exchange cashier context.
+      const rule = { ...definition, config: { ...definition.config } };
       if (!rule.enabled) continue;
       if (ruleIds && !ruleIds.includes(rule.id)) continue;
       // Cash drawer is policeman (per-shift) — no 15-min cooldown so back-
@@ -66,8 +70,9 @@ export const anomalyService = {
           for (const r of flagged) {
             allResults.push(r);
           }
-        } catch (err) {
-          console.error(`[anomaly] Rule "${rule.id}" failed:`, err.message);
+        } catch {
+          evaluationFailed = true;
+          console.error(`[anomaly] Rule "${rule.id}" evaluation failed`);
         }
         continue;
       }
@@ -84,14 +89,35 @@ export const anomalyService = {
           }
           allResults.push(result);
         }
-      } catch (err) {
-        console.error(`[anomaly] Rule "${rule.id}" failed:`, err.message);
+      } catch {
+        evaluationFailed = true;
+        console.error(`[anomaly] Rule "${rule.id}" evaluation failed`);
       }
     }
 
+    if (trigger && evaluationFailed) throw Error("ANOMALY_EVALUATION_FAILED");
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    const saved = allResults.map(result => ({ ...result, id: crypto.randomUUID() }));
+    const saved = [];
     await prisma.$transaction(async tx => {
+      // Evaluation may overlap, but the final dedup check and publication
+      // share this short transaction lock across backend instances.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(73423, 1)`;
+      if (trigger) {
+        const claimed = await tx.$executeRaw`UPDATE automation_runs SET status = 'succeeded', owner = NULL,
+          lease_expires_at = NULL, last_error = NULL, updated_at = clock_timestamp()
+          WHERE run_key = ${trigger.runKey} AND owner = ${trigger.owner}::uuid AND kind = 'anomaly'
+            AND status = 'running' AND lease_expires_at > clock_timestamp()`;
+        if (claimed !== 1) throw Error("ANOMALY_LEASE_LOST");
+      }
+      for (const result of allResults) {
+        const shiftId = result.ruleId === "shift_variance_spike" ? result.description.match(/\[([a-f0-9-]{36})\]/i)?.[1] : null;
+        const duplicate = shiftId ? await anomalyRepository.existsShiftCard(shiftId, tx)
+          : await anomalyRepository.existsActiveToday(result.ruleId, tx);
+        if (duplicate) continue;
+        // ingredientId is evaluation metadata, not an anomaly_results column.
+        const { ingredientId: _ingredientId, ...data } = result;
+        saved.push({ ...data, id: crypto.randomUUID() });
+      }
       if (saved.length) await anomalyRepository.createMany(saved, tx);
       await recordEffects(tx, {
         audit: { userId, action: ACTIONS.ANOMALY_SCAN, targetType: "anomaly",
@@ -106,7 +132,7 @@ export const anomalyService = {
     console.log(`[anomaly] Scan complete: ${saved.length} anomalies found in ${elapsed}s`);
 
     // Refresh anomaly screens immediately; durable audit delivery runs independently.
-    emitAnomalyCompleted(allResults.length);
+    emitAnomalyCompleted(saved.length);
 
     // Retention: findings older than 90 days are pruned on every scan.
     // Cheap indexed delete, idempotent — this is the only pruning path
@@ -115,7 +141,7 @@ export const anomalyService = {
       console.warn("[anomaly] retention prune dropped:", err?.message),
     );
 
-    return { anomaliesFound: allResults.length, elapsedSeconds: Number(elapsed) };
+    return { anomaliesFound: saved.length, elapsedSeconds: Number(elapsed) };
   },
 
   // Policeman runner for cash drawer: hook context flags one shift,
