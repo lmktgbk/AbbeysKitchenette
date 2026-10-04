@@ -1,4 +1,4 @@
-# SmartCafe ? consolidated final testing checklist
+# SmartCafe — consolidated final testing checklist
 
 Use this single file for the final regression pass after the remaining audit fixes
 are implemented. It covers all 42 original audit findings, critical workflows,
@@ -10,6 +10,22 @@ Some cases require developer assistance, a concurrency harness or staging failur
 injection. A browser-only pass does not verify database locking or recovery.
 Automated tests should still run after each code batch; the comprehensive manual
 pass can wait until the remediation work is complete.
+
+## Start the manual pass after this batch
+
+The implementation batch is ready for acceptance testing after its pending migration is applied. This is not production approval. Read-only migration status found exactly one pending migration: `20261004010000_anomaly_trigger_kind` (internal anomaly runs plus shift opening-date index).
+
+Confirm the destination is your intended test Supabase project, then from `server`:
+
+```powershell
+npm.cmd run db:migrate:deploy
+npm.cmd run db:generate
+npm.cmd run db:migrate:status
+```
+
+Restart backend and ML service, and refresh/rebuild the frontend. Begin with login/OTP, POS sale → preparation → completion, cancellation/refund, stock reconciliation and shift close. Continue the detailed cases below. Record failures with X-Request-ID when available. Use separate test records/inboxes/storage/Sheets and never fault-inject into production.
+
+Final automated evidence: 940 cases passed in the combined run, including all 117 opt-in PostgreSQL checks; three additional React draft-state cases passed separately. Frontend build/lint pass with zero warnings and all 19 Python security/worker tests pass. The current server dependency scan still reports the known Prisma configuration advisory. CI/provider hosting, alert delivery, backup restoration and representative load are **Not verified**.
 
 ## Test run record
 
@@ -81,21 +97,7 @@ vulnerabilities. npm audit failures require fixes or a reviewed explicit excepti
 Migration status/validation/generation do not prove data integrity. No migration,
 reset or seed command is intentionally included in this verification block.
 
-Current reference, not a final PASS: the completed backend batches have 637 automated tests
-passing, including 23 recovery-email security/rollback cases. Six additional isolated PostgreSQL tests pass; they are opt-in and skipped in the ordinary suite. The frontend
-build passed with an existing large-bundle warning. Submission code and POS pages
-passed lint; the guest page retains its baseline four errors and one warning.
-The additive submission-ledger migration is applied; schema diff and read-only
-backend/public-role access checks passed. Real PostgreSQL contention and complete
-browser workflows remain **Not verified**. Full frontend lint/dependency findings remain
-open. The user reported basic login, OTP, logout and password reset working;
-that report does not replace the security/concurrency cases below.
-
-The item-consumption migration is also applied, and all four migrations are current
-with an empty Prisma schema diff. Actual PostgreSQL constraint, settlement SQL,
-stock-version and rollback checks passed using disposable fixtures that were rolled
-back. Both updated loss/reconciliation dialogs pass lint. This does not replace
-multi-connection transaction tests or a complete browser acceptance pass.
+Current automated evidence is recorded in CURRENT_STATUS.md and FINAL_IMPLEMENTATION_BATCH.md. Earlier batch counts are historical; they are not browser acceptance results. Automated database tests use disposable namespaces and do not establish the main database's deployed constraints or live provider behavior.
 
 From `server`, `npm.cmd run db:migrate:rehearse` repeats disposable schema/SQL checks
 and rolls back its fixtures. It requires schema-creation permission and never
@@ -995,3 +997,23 @@ Live inbox receipt, process-kill/provider ambiguity, hosted behavior and load re
 - [ ] Verify scheduled completion audit recovery, live report inbox receipt, actual forecast/MBA results and hosted service connectivity.
 
 Live integrations, anomaly trigger recovery/concurrency, process-kill behavior and load remain **Not verified**. This batch needs no new migration; restart backend and ML service.
+
+
+## Final batch acceptance — shifts, anomaly recovery, frontend and operations
+
+- [ ] Compare shift KPI totals against individual summaries for cash, manual GCash/Maya, paid cancellations, partial refunds, empty shifts and closed variance. Include inclusive opening/closing timestamps.
+- [ ] Increase history in an isolated fixture and measure realistic latency against the agreed budget; query count is one, but this is not proof of production throughput.
+- [ ] Stop/restart the test backend after an order completion/loss/shift-close commit but before audit delivery; confirm the durable anomaly trigger recovers without repeating the original mutation.
+- [ ] Race manual and queued scans: one finding for the same rule/day or exact shift; its notification references that persisted finding.
+- [ ] Reject anomaly publication/audit capture in staging: no partial findings; queued work retries, expired owners cannot publish, exhausted retries are visible as blocked work.
+- [ ] Change a list filter from a later page: page resets before the new query/display. Check product, demand and ingredient lists.
+- [ ] Edit filter/date/time/terminal settings drafts, close/reopen and confirm their saved values are restored without stale draft state.
+- [ ] Replace/remove a product preview, close/reopen and edit another product: correct preview/file is submitted; saved replacement still deletes the prior provider image through durable cleanup.
+- [ ] Change loss ingredients rapidly with a slow network: stale batch responses cannot overwrite the current ingredient's options.
+- [ ] Start forecast/MBA work: submission/loading/progress prevents repeat submission; completed/failed/missing job state releases the button and clears browser job persistence appropriately.
+- [ ] Verify settings section buttons, form validation/subscribed fields, staff roles, stock counts and combo price recalculation after frontend cleanup.
+- [ ] GET /api/operations/metrics without a session returns 401; cashier/kitchen returns 403; active admin returns no-store metrics.
+- [ ] Trigger a staging 500 containing synthetic sensitive text: response is generic; production log has request correlation without the raw message, URL query, cookies or tokens.
+- [ ] Observe blocked effects/anomaly/storage and oldest backlogs; configure and test hosted alerts. Do not place session tokens in public dashboard or monitor URLs.
+- [ ] Run the GitHub workflow on the final commit. Its dependency gate remains blocked by the documented Prisma advisory until resolved/reviewed; do not report a green security gate from local tests.
+- [ ] Perform the onboarding/backup/restore/rollback exercise in OPERATIONS_RUNBOOK.md and record recovery time/data reconciliation.
