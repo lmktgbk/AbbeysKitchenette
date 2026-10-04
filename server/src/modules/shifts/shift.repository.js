@@ -271,42 +271,45 @@ export const shiftRepository = {
    * Sessions opened in [from, to]; open_now counts all live drawers.
    */
   async getStats(from, to) {
-    const openNow = await prisma.shift.count({ where: { status: "open" } });
-    const sessions = await prisma.shift.findMany({
-      where: { openedAt: { gte: from, lte: to } },
-      select: { shiftId: true, openedAt: true, closedAt: true, openingCash: true, status: true, expectedCash: true, actualCash: true, variance: true },
-    });
-
-    let cashSales = 0, cashRefunds = 0, gcashSales = 0, gcashRefunds = 0, mayaSales = 0, mayaRefunds = 0, varianceTotal = 0, offCount = 0;
-    for (const s of sessions) {
-      const [sales, refunds] = await Promise.all([
-        this.getShiftSales(s.shiftId, s.openedAt, s.closedAt),
-        this.getShiftCashRefunds(s.shiftId, s.openedAt, s.closedAt),
-      ]);
-      cashSales += sales.cashSales;
-      cashRefunds += refunds.cashRefunds;
-      gcashSales += sales.gcashSales;
-      gcashRefunds += refunds.gcashRefunds;
-      mayaSales += sales.mayaSales;
-      mayaRefunds += refunds.mayaRefunds;
-      if (s.status === "closed") {
-        const v = s.variance != null ? Number(s.variance) : 0;
-        varianceTotal += v;
-        if (v !== 0) offCount += 1;
-      }
-    }
+    // Separate sales/refund aggregates avoid multiplying tender by refund joins.
+    // One statement gives every KPI the same snapshot and open-shift cutoff.
+    const [row] = await prisma.$queryRaw`
+      WITH sessions AS MATERIALIZED (
+        SELECT shift_id, opened_at, COALESCE(closed_at, statement_timestamp()) AS ended_at, status, variance
+        FROM shifts WHERE opened_at >= ${from} AND opened_at <= ${to}
+      ), sales AS (
+        SELECT COALESCE(o.payment_method, 'cash') AS method,
+          SUM(CASE WHEN o.amount_paid IS NULL THEN o.total_amount ELSE o.amount_paid - COALESCE(o.change, 0) END) AS amount
+        FROM sessions s JOIN orders o ON o.shift_id = s.shift_id
+        WHERE o.accepted_at >= s.opened_at AND o.accepted_at <= s.ended_at
+          AND (o.status IN ('accepted', 'preparing', 'completed') OR (o.status = 'cancelled' AND COALESCE(o.amount_paid, 0) > 0))
+        GROUP BY COALESCE(o.payment_method, 'cash')
+      ), refunds AS (
+        SELECT COALESCE(o.payment_method, 'cash') AS method, SUM(pr.amount) AS amount
+        FROM sessions s JOIN orders o ON o.shift_id = s.shift_id
+        JOIN payment_refunds pr ON pr.order_id = o.order_id
+        WHERE COALESCE(o.amount_paid, 0) > 0 AND pr.refunded_at >= s.opened_at AND pr.refunded_at <= s.ended_at
+        GROUP BY COALESCE(o.payment_method, 'cash')
+      )
+      SELECT (SELECT COUNT(*)::int FROM shifts WHERE status = 'open') AS "openNow",
+        COUNT(*)::int AS sessions,
+        COALESCE(SUM(variance) FILTER (WHERE status = 'closed'), 0) AS "varianceTotal",
+        COUNT(*) FILTER (WHERE status = 'closed' AND COALESCE(variance, 0) <> 0)::int AS "offCount",
+        COALESCE((SELECT amount FROM sales WHERE method = 'cash'), 0) AS "cashSales",
+        COALESCE((SELECT amount FROM sales WHERE method = 'gcash'), 0) AS "gcashSales",
+        COALESCE((SELECT amount FROM sales WHERE method = 'maya'), 0) AS "mayaSales",
+        COALESCE((SELECT amount FROM refunds WHERE method = 'cash'), 0) AS "cashRefunds",
+        COALESCE((SELECT amount FROM refunds WHERE method = 'gcash'), 0) AS "gcashRefunds",
+        COALESCE((SELECT amount FROM refunds WHERE method = 'maya'), 0) AS "mayaRefunds"
+      FROM sessions
+    `;
     const round = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
     return {
-      openNow,
-      sessions: sessions.length,
-      cashSales: round(cashSales),
-      cashRefunds: round(cashRefunds),
-      gcashSales: round(gcashSales),
-      gcashRefunds: round(gcashRefunds),
-      mayaSales: round(mayaSales),
-      mayaRefunds: round(mayaRefunds),
-      varianceTotal: round(varianceTotal),
-      offCount,
+      openNow: row.openNow, sessions: row.sessions,
+      cashSales: round(row.cashSales), cashRefunds: round(row.cashRefunds),
+      gcashSales: round(row.gcashSales), gcashRefunds: round(row.gcashRefunds),
+      mayaSales: round(row.mayaSales), mayaRefunds: round(row.mayaRefunds),
+      varianceTotal: round(row.varianceTotal), offCount: row.offCount,
     };
   },
 
