@@ -6,7 +6,7 @@ import { orderRequest, orderIdempotency } from "./order.idempotency.js";
 import { shiftService } from "../shifts/shift.service.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import prisma from "../../config/prisma.js";
-import { recordEffects } from "../../services/domainEffects.js";
+import { recordEffects } from "../../infrastructure/effects/domainEffects.js";
 import { lockStock } from "../../services/stockLocks.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { settingsService } from "../settings/settings.service.js";

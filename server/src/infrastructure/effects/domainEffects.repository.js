@@ -1,7 +1,8 @@
-import prisma from "../config/prisma.js";
+import prisma from "../../config/prisma.js";
 import { effectSchema } from "./domainEffects.js";
-import { captureAnomalyTrigger } from "./anomalyTriggers.js";
+import { captureAnomalyTrigger } from "../../modules/anomalyDetection/anomalyTriggers.js";
 
+/** Deliver one intent atomically; competing workers skip rows already locked by a delivery. */
 export function createEffectsRepository(db = prisma) {
   return {
     async deliverOne() {

@@ -1,9 +1,9 @@
 import crypto from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { Router } from "express";
-import { databasePool } from "../config/prisma.js";
-import authenticate from "../middleware/authenticate.middleware.js";
-import authorize from "../middleware/authorize.middleware.js";
+import { databasePool } from "../../config/prisma.js";
+import authenticate from "../../middleware/authenticate.middleware.js";
+import authorize from "../../middleware/authorize.middleware.js";
 
 export function createRequestTelemetry({ write = line => console.log(line), now = () => performance.now() } = {}) {
   const routes = new Map();

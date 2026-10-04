@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import prisma from "../config/prisma.js";
-import { env } from "../config/env.js";
+import prisma from "../../config/prisma.js";
+import { env } from "../../config/env.js";
 
 export function createStorageRepository(database = prisma, cloudName = env.CLOUDINARY_CLOUD_NAME) {
   return {

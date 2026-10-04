@@ -1,3 +1,4 @@
+/** Stop admission, drain in-flight work, then disconnect; repeated signals share the same shutdown. */
 export function createShutdown({ readiness, getServer, getRealtime, workers, disconnect, exit, graceMs = 20000 }) {
   let flight;
   return function shutdown() {

@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 vi.mock("../src/config/prisma.js", () => ({ default: {} }));
 vi.mock("../src/config/env.js", () => ({ env: {} }));
 import { isolatedPostgres } from "./helpers/isolatedPostgres.js";
-import { createStorageRepository } from "../src/services/storageAssets.repository.js";
+import { createStorageRepository } from "../src/infrastructure/storage/storageAssets.repository.js";
 import { mapPrismaError } from "../src/utils/response.js";
 let fixture, db, repo, migrationImages;
 const id = crypto.randomUUID(), publicId = "abbseys-kitchenette/avatars/fixture";

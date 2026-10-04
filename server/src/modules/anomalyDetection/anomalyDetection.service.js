@@ -4,7 +4,7 @@ import { engine } from "./rules/engine.js";
 import { RULE_REGISTRY } from "./rules/index.js";
 import prisma from "../../config/prisma.js";
 import crypto from "node:crypto";
-import { recordEffects } from "../../services/domainEffects.js";
+import { recordEffects } from "../../infrastructure/effects/domainEffects.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { env } from "../../config/env.js";

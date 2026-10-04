@@ -6,10 +6,10 @@ vi.mock("../src/modules/anomalyDetection/rules/engine.js", () => ({ engine: { ev
 vi.mock("../src/modules/anomalyDetection/rules/index.js", () => ({ RULE_REGISTRY: [{ id: "revenue_anomaly", enabled: true, config: {} }] }));
 vi.mock("../src/realtime/events.js", () => ({ emitAnomalyCompleted: vi.fn() }));
 import { isolatedPostgres } from "./helpers/isolatedPostgres.js";
-import { recordEffects } from "../src/services/domainEffects.js";
-import { createEffectsRepository } from "../src/services/domainEffects.repository.js";
+import { recordEffects } from "../src/infrastructure/effects/domainEffects.js";
+import { createEffectsRepository } from "../src/infrastructure/effects/domainEffects.repository.js";
 import { anomalyService } from "../src/modules/anomalyDetection/anomalyDetection.service.js";
-import { createAnomalyWorker } from "../src/services/anomalyTriggers.worker.js";
+import { createAnomalyWorker } from "../src/modules/anomalyDetection/anomalyTriggers.worker.js";
 import { automationRepository } from "../src/modules/automation/automation.repository.js";
 let fixture, db;
 const finding = () => ({ ruleId: "revenue_anomaly", category: "revenue", severity: "high", title: "Fixture", description: "Synthetic finding", actualValue: 500, expectedValue: 100, expectedMin: 0, expectedMax: 200, confidence: 0.9, geminiInsight: null, detectedAt: new Date(), ingredientId: "00000000-0000-4000-8000-000000000001" });

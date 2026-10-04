@@ -5,7 +5,7 @@ import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { sendAuthEmail } from "../auth/authEffects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import prisma from "../../config/prisma.js";
-import { recordEffects, recordMutation } from "../../services/domainEffects.js";
+import { recordEffects, recordMutation } from "../../infrastructure/effects/domainEffects.js";
 import { revokeLocalSessions } from "../../realtime/sessions.js";
 import { generateStaffInviteEmail } from "../../utils/email.js";
 import { signToken } from "../../config/jwt.js";

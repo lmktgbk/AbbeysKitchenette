@@ -1,6 +1,6 @@
 import prisma from "../config/prisma.js";
 import { AppError } from "../middleware/errorHandler.middleware.js";
-import { recordEffects } from "./domainEffects.js";
+import { recordEffects } from "../infrastructure/effects/domainEffects.js";
 
 export function resolveAdvisory(model, id, status, userId, action) {
   return prisma.$transaction(async tx => {

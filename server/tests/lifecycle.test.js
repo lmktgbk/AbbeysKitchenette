@@ -2,9 +2,9 @@ import { describe, it, expect, vi } from "vitest";
 import express from "express";
 import http from "node:http";
 vi.mock("../src/config/prisma.js", () => ({ databasePool: {} }));
-vi.mock("../src/services/mlClient.js", () => ({ fetchMl: vi.fn() }));
-import { createReadiness, healthRoutes } from "../src/services/readiness.js";
-import { createShutdown } from "../src/services/shutdown.js";
+vi.mock("../src/infrastructure/integrations/ml/mlClient.js", () => ({ fetchMl: vi.fn() }));
+import { createReadiness, healthRoutes } from "../src/infrastructure/operations/readiness.js";
+import { createShutdown } from "../src/infrastructure/operations/shutdown.js";
 
 const make = (overrides = {}) => createReadiness({ checkDatabase: async () => true, checkMl: async () => true, timeoutMs: 30, cacheMs: 0, ...overrides });
 describe("readiness", () => {

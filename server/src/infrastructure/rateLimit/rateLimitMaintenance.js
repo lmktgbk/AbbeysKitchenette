@@ -1,5 +1,5 @@
-import { env } from "../config/env.js";
-import { pruneRateLimitBuckets } from "../middleware/rateLimit.store.js";
+import { env } from "../../config/env.js";
+import { pruneRateLimitBuckets } from "../../middleware/rateLimit.store.js";
 
 export function createRateLimitMaintenance({ enabled = env.RATE_LIMIT_STORE === "postgres", prune = pruneRateLimitBuckets, intervalMs = 60000 } = {}) {
   let running = false, timer, flight;

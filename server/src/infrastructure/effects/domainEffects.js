@@ -15,7 +15,11 @@ function notificationMessage(message) {
   return `${message.slice(0, 499).replace(/[\uD800-\uDBFF]$/u, "")}…`;
 }
 
-/** Persist frozen follow-up work before the business transaction commits. */
+/**
+ * Save follow-up intent using the caller's business transaction.
+ * The delivery worker handles retries after commit; validation errors abort the
+ * business write rather than leaving an operation without its required audit.
+ */
 export async function recordEffects(tx, { audit, notifications = [] }) {
   const payload = effectSchema.parse(JSON.parse(JSON.stringify({ version: 1, audit,
     notifications: notifications.map(n => ({ ...n, message: notificationMessage(n.message) })),
@@ -24,6 +28,7 @@ export async function recordEffects(tx, { audit, notifications = [] }) {
   return tx.domainEffect.create({ data: { payload } });
 }
 
+/** Commit a write and its follow-up intent together; callbacks must use the supplied transaction. */
 export function recordMutation(db, write, effects) {
   return db.$transaction(async tx => {
     const row = await write(tx);

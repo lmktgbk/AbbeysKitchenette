@@ -12,12 +12,12 @@ if (!process.env.TZ) process.env.TZ = "Asia/Manila";
 
 import http from "http";
 import app from "./src/app.js";
-import { readiness } from "./src/services/readiness.js";
-import { createShutdown } from "./src/services/shutdown.js";
-import { rateLimitMaintenance } from "./src/services/rateLimitMaintenance.js";
-import { storageWorker } from "./src/services/storageAssets.worker.js";
-import { effectsWorker } from "./src/services/domainEffects.worker.js";
-import { anomalyWorker } from "./src/services/anomalyTriggers.worker.js";
+import { readiness } from "./src/infrastructure/operations/readiness.js";
+import { createShutdown } from "./src/infrastructure/operations/shutdown.js";
+import { rateLimitMaintenance } from "./src/infrastructure/rateLimit/rateLimitMaintenance.js";
+import { storageWorker } from "./src/infrastructure/storage/storageAssets.worker.js";
+import { effectsWorker } from "./src/infrastructure/effects/domainEffects.worker.js";
+import { anomalyWorker } from "./src/modules/anomalyDetection/anomalyTriggers.worker.js";
 import { env } from "./src/config/env.js";
 import prisma from "./src/config/prisma.js";
 import { automationScheduler } from "./src/modules/automation/automation.scheduler.js";

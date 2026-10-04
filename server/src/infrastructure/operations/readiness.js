@@ -1,7 +1,8 @@
 import { Router } from "express";
-import * as database from "../config/prisma.js";
-import { fetchMl } from "./mlClient.js";
+import * as database from "../../config/prisma.js";
+import { fetchMl } from "../integrations/ml/mlClient.js";
 
+/** Bound health responses and share dependency probes so repeated checks cannot accumulate stalled work. */
 export function createReadiness({ checkDatabase, checkMl, timeoutMs = 3000, cacheMs = 5000 }) {
   let draining = false;
   let cached;

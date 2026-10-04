@@ -5,7 +5,7 @@ import { beforeAll, afterAll, expect, it, vi } from "vitest";
 const h = vi.hoisted(() => ({ user: { id: "00000000-0000-4000-8000-000000000001", role: "admin", sessionVersion: 0, isActive: true } }));
 vi.mock("../src/config/prisma.js", () => ({ databasePool: {}, default: { user: { findUnique: async () => h.user } } }));
 vi.mock("../src/config/env.js", () => ({ env: { JWT_SECRET: "operations-fixture-secret-at-least-32-characters", JWT_EXPIRES_IN: "8h" } }));
-import { createRequestTelemetry, createQueueSnapshot, operationsRoutes } from "../src/services/observability.js";
+import { createRequestTelemetry, createQueueSnapshot, operationsRoutes } from "../src/infrastructure/operations/observability.js";
 import errorHandler from "../src/middleware/errorHandler.middleware.js";
 import { signToken } from "../src/config/jwt.js";
 let server, base;

@@ -6,8 +6,8 @@ vi.mock("../src/modules/auditLogs/auditLog.service.js", () => ({ auditLogService
 vi.mock("../src/modules/anomalyDetection/anomalyDetection.service.js", () => ({ anomalyService: { runScan: vi.fn().mockResolvedValue() } }));
 vi.mock("../src/modules/settings/settings.service.js", () => ({ settingsService: { getAcceptedPayments: async () => ["cash"] } }));
 import { isolatedPostgres } from "./helpers/isolatedPostgres.js";
-import { recordEffects } from "../src/services/domainEffects.js";
-import { createEffectsRepository } from "../src/services/domainEffects.repository.js";
+import { recordEffects } from "../src/infrastructure/effects/domainEffects.js";
+import { createEffectsRepository } from "../src/infrastructure/effects/domainEffects.repository.js";
 import { orderService } from "../src/modules/orders/order.service.js";
 import { ingredientService } from "../src/modules/ingredients/ingredient.service.js";
 let fixture, db, repo, user, ingredient, variant, batch;

@@ -1,6 +1,6 @@
 import sharp from "sharp";
 import { describe, it, expect } from "vitest";
-import { sanitizeImage } from "../src/services/imageValidation.js";
+import { sanitizeImage } from "../src/infrastructure/storage/imageValidation.js";
 const image = (format, width = 2) => sharp({ create: { width, height: 2, channels: 4, background: "red" } }).toFormat(format).toBuffer();
 const file = format => ({ originalname: `image.${format}`, mimetype: `image/${format}` });
 

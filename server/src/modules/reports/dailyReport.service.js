@@ -12,7 +12,7 @@ import { analyticsRepository } from "../analytics/analytics.repository.js";
 import { shiftService } from "../shifts/shift.service.js";
 import { orderRepository } from "../orders/order.repository.js";
 import crypto from "node:crypto";
-import { recordEffects } from "../../services/domainEffects.js";
+import { recordEffects } from "../../infrastructure/effects/domainEffects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { sendEmail, generateDailyReportEmail } from "../../utils/email.js";
 

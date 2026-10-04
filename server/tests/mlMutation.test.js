@@ -1,8 +1,8 @@
 import { beforeEach, expect, it, vi } from "vitest";
 const h = vi.hoisted(() => ({ capture: vi.fn(), fetch: vi.fn() }));
 vi.mock("../src/config/prisma.js", () => ({ default: { $transaction: write => write({ domainEffect: { create: h.capture } }) } }));
-vi.mock("../src/services/mlClient.js", () => ({ fetchMl: h.fetch }));
-import { proxyMlMutation } from "../src/services/mlMutation.js";
+vi.mock("../src/infrastructure/integrations/ml/mlClient.js", () => ({ fetchMl: h.fetch }));
+import { proxyMlMutation } from "../src/infrastructure/integrations/ml/mlMutation.js";
 const options = { serviceLabel: "Forecast", fallbackCode: "ML_ERROR", okMessage: "Accepted", action: "FORECAST_RUN", targetType: "forecast" };
 function run() {
   const res = { status: vi.fn().mockReturnThis(), json: vi.fn().mockReturnThis() };

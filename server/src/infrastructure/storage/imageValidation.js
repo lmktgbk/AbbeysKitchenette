@@ -1,6 +1,6 @@
 import sharp from "sharp";
 import { extname } from "node:path";
-import { AppError } from "../middleware/errorHandler.middleware.js";
+import { AppError } from "../../middleware/errorHandler.middleware.js";
 
 export const IMAGE_POLICIES = {
   products: { maxBytes: 5 * 1024 * 1024, allowed: ["jpeg", "png", "gif", "webp"] },

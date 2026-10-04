@@ -1,6 +1,6 @@
 import { settingsRepository } from "./settings.repository.js";
 import prisma from "../../config/prisma.js";
-import { recordEffects } from "../../services/domainEffects.js";
+import { recordEffects } from "../../infrastructure/effects/domainEffects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
 export const DEFAULT_PAYMENTS = ["cash", "gcash", "maya"];

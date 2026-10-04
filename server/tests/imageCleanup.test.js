@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const fixture = vi.hoisted(() => ({ schedule: vi.fn(), wake: vi.fn() }));
-vi.mock("../src/services/storageAssets.repository.js", () => ({ storageRepository: { schedule: fixture.schedule } }));
-vi.mock("../src/services/storageAssets.worker.js", () => ({ storageWorker: { wake: fixture.wake } }));
+vi.mock("../src/infrastructure/storage/storageAssets.repository.js", () => ({ storageRepository: { schedule: fixture.schedule } }));
+vi.mock("../src/infrastructure/storage/storageAssets.worker.js", () => ({ storageWorker: { wake: fixture.wake } }));
 vi.mock("../src/config/env.js", () => ({ env: { CLOUDINARY_CLOUD_NAME: "fixture" } }));
 import { deleteImage, extractPublicId } from "../src/utils/cloudinary.js";
 import { mapPrismaError } from "../src/utils/response.js";

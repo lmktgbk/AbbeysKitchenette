@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
-import prisma from "../config/prisma.js";
-import { recordEffects } from "./domainEffects.js";
+import prisma from "../../../config/prisma.js";
+import { recordEffects } from "../../effects/domainEffects.js";
 import { fetchMl } from "./mlClient.js";
 
 /** External admission is not a database commit; uncertain results are never replayed here. */

@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import prisma from "../../config/prisma.js";
 import { env } from "../../config/env.js";
-import { recordEffects } from "../../services/domainEffects.js";
+import { recordEffects } from "../../infrastructure/effects/domainEffects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { sendEmail } from "../../utils/email.js";
 

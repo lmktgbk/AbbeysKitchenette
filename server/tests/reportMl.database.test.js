@@ -9,7 +9,7 @@ import { resolveAdvisory } from "../src/services/advisoryEffects.js";
 import { reorderSuggestionsRepository as reorder } from "../src/modules/reorderSuggestions/reorderSuggestions.repository.js";
 import { wasteReductionRepository as waste } from "../src/modules/wasteReduction/wasteReduction.repository.js";
 import { automationRepository as automation } from "../src/modules/automation/automation.repository.js";
-import { createEffectsRepository } from "../src/services/domainEffects.repository.js";
+import { createEffectsRepository } from "../src/infrastructure/effects/domainEffects.repository.js";
 let fixture, db, user, ingredient;
 describe.skipIf(process.env.REPORT_ML_DB_CHECK !== "1")("PostgreSQL report and ML follow-up recovery", () => {
   beforeAll(async () => { fixture = await isolatedPostgres("report_ml_check"); db = h.db = fixture.db; }, 90000);

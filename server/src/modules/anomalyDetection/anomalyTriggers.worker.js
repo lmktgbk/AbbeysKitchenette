@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
-import prisma from "../config/prisma.js";
-import { anomalyService } from "../modules/anomalyDetection/anomalyDetection.service.js";
+import prisma from "../../config/prisma.js";
+import { anomalyService } from "./anomalyDetection.service.js";
 
 export function createAnomalyWorker({ db = prisma, scan = (...args) => anomalyService.runScan(...args), intervalMs = 5000 } = {}) {
   let running = false, timer, flight;

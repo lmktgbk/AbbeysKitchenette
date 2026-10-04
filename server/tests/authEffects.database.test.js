@@ -16,7 +16,7 @@ import { recordLoginFailure } from "../src/modules/auth/authEffects.js";
 import { staffService } from "../src/modules/staff/staff.service.js";
 import { generateOtp, verifyOtp } from "../src/utils/otp.js";
 import { revokeLocalSessions } from "../src/realtime/sessions.js";
-import { createEffectsRepository } from "../src/services/domainEffects.repository.js";
+import { createEffectsRepository } from "../src/infrastructure/effects/domainEffects.repository.js";
 let fixture, db, user, passwordHash;
 const password = "Fixture-only-passphrase!";
 describe.skipIf(process.env.AUTH_EFFECTS_DB_CHECK !== "1")("PostgreSQL authentication audit recovery", () => {

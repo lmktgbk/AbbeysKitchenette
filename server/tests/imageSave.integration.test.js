@@ -6,10 +6,10 @@ const h = vi.hoisted(() => ({ references: 0, fail: false, ambiguous: false, url:
 vi.mock("../src/config/env.js", () => ({ env: { CLOUDINARY_CLOUD_NAME: "fixture" } }));
 vi.mock("../src/config/prisma.js", () => ({ default: { product: { count: async () => h.references }, user: { count: async () => 0 } } }));
 vi.mock("../src/config/cloudinary.js", () => ({ default: { uploader: { upload_stream: h.upload, destroy: h.destroy } } }));
-vi.mock("../src/services/storageAssets.repository.js", () => ({ storageRepository: {
+vi.mock("../src/infrastructure/storage/storageAssets.repository.js", () => ({ storageRepository: {
   reserve: vi.fn(async () => "fixture"), ready: vi.fn(async () => {}), schedule: vi.fn(async () => {}),
 } }));
-import { storageRepository } from "../src/services/storageAssets.repository.js";
+import { storageRepository } from "../src/infrastructure/storage/storageAssets.repository.js";
 vi.mock("../src/middleware/authenticate.middleware.js", () => ({ default: (req, res, next) => {
   if (req.headers.authorization !== "fixture") return res.sendStatus(401);
   req.user = { id: "fixture-admin", role: "admin" }; next();

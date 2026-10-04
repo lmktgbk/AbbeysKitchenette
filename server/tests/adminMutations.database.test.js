@@ -14,7 +14,7 @@ import { settingsService as settings } from "../src/modules/settings/settings.se
 import { revokeLocalSessions } from "../src/realtime/sessions.js";
 import { sendEmail } from "../src/utils/email.js";
 import { deleteImage } from "../src/utils/cloudinary.js";
-import { createEffectsRepository } from "../src/services/domainEffects.repository.js";
+import { createEffectsRepository } from "../src/infrastructure/effects/domainEffects.repository.js";
 let fixture, db, actor, target, root, sub, product, variant;
 describe.skipIf(process.env.ADMIN_DB_CHECK !== "1")("PostgreSQL administrative mutation recovery", () => {
   beforeAll(async () => { fixture = await isolatedPostgres("admin_check"); db = h.db = fixture.db; }, 90000);

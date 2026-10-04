@@ -6,8 +6,8 @@ import cookieParser from "cookie-parser";
 
 // Imports
 import { env } from "./config/env.js";
-import { healthRoutes } from "./services/readiness.js";
-import { requestTelemetry, operationsRoutes } from "./services/observability.js";
+import { healthRoutes } from "./infrastructure/operations/readiness.js";
+import { requestTelemetry, operationsRoutes } from "./infrastructure/operations/observability.js";
 
 import errorHandler from "./middleware/errorHandler.middleware.js";
 import { requestBodyParsers } from "./middleware/requestBody.middleware.js";

@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 vi.mock("../src/config/prisma.js", () => ({ default: {} }));
 vi.mock("../src/config/env.js", () => ({ env: {} }));
 vi.mock("../src/config/cloudinary.js", () => ({ default: {} }));
-import { createStorageWorker } from "../src/services/storageAssets.worker.js";
+import { createStorageWorker } from "../src/infrastructure/storage/storageAssets.worker.js";
 const asset = { asset_id: "fixture", public_id: "abbseys-kitchenette/products/fixture", owner: "owner" };
 function fixture(results, destroy = vi.fn(async () => ({ result: "ok" })), options = {}) {
   const repository = { claim: vi.fn(async () => results.shift() ?? null), finish: vi.fn(async () => 1) };

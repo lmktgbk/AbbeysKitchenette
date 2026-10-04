@@ -1,4 +1,4 @@
-import { env } from "../config/env.js";
+import { env } from "../../../config/env.js";
 
 /** Consume the body within the deadline; never forward the service key across redirects. */
 export async function fetchMl(path, { method = "GET", body, signal, timeoutMs = env.ML_REQUEST_TIMEOUT_MS ?? 10000 } = {}) {

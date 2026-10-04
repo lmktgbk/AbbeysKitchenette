@@ -1,5 +1,5 @@
 import { effectsRepository } from "./domainEffects.repository.js";
-import { broadcast } from "../realtime/hub.js";
+import { broadcast } from "../../realtime/hub.js";
 
 export function createEffectsWorker({ repository = effectsRepository, emit = broadcast, intervalMs = 5000 } = {}) {
   let running = false, timer, flight, lastPrune = 0;

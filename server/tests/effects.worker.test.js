@@ -1,8 +1,8 @@
 import { beforeEach, afterEach, it, expect, vi } from "vitest";
 vi.mock("../src/config/prisma.js", () => ({ default: {} }));
 vi.mock("../src/realtime/hub.js", () => ({ broadcast: vi.fn() }));
-import { createEffectsWorker } from "../src/services/domainEffects.worker.js";
-import { recordEffects } from "../src/services/domainEffects.js";
+import { createEffectsWorker } from "../src/infrastructure/effects/domainEffects.worker.js";
+import { recordEffects } from "../src/infrastructure/effects/domainEffects.js";
 let worker;
 beforeEach(() => vi.useFakeTimers());
 afterEach(async () => { await worker?.stop(); vi.useRealTimers(); });

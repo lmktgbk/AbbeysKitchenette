@@ -16,7 +16,7 @@
 
 import { broadcast } from "./hub.js";
 
-import { fetchMl, proxyMl } from "../services/mlClient.js";
+import { fetchMl, proxyMl } from "../infrastructure/integrations/ml/mlClient.js";
 const POLL_MS = 2000;
 const MAX_WATCH_MS = 30 * 60 * 1000;
 

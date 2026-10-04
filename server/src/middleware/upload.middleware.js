@@ -1,6 +1,6 @@
 import multer from "multer";
-import { cloudinaryStorage } from "../services/cloudinaryStorage.js";
-import { IMAGE_POLICIES, checkImageType } from "../services/imageValidation.js";
+import { cloudinaryStorage } from "../infrastructure/storage/cloudinaryStorage.js";
+import { IMAGE_POLICIES, checkImageType } from "../infrastructure/storage/imageValidation.js";
 import { deleteImage } from "../utils/cloudinary.js";
 import { AppError } from "../middleware/errorHandler.middleware.js";
 
