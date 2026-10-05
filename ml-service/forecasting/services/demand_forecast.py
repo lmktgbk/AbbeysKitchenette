@@ -16,8 +16,9 @@ from config import (
     EVAL_ORIGINS,
 )
 from forecasting.services.data_loader import load_variant_daily_sales
-from forecasting.services.metrics import bound_r2, compute_metrics, naive_baseline, weekly_metrics
+from forecasting.services.metrics import compute_metrics, naive_baseline, weekly_metrics
 from forecasting.services.holidays import philippine_holidays
+from forecasting.services.allocation import size_shares, preparation_plan
 
 # Business timezone — the whole web app follows the Asia/Manila calendar day.
 BUSINESS_TZ = ZoneInfo("Asia/Manila")
@@ -28,8 +29,7 @@ def business_today() -> date:
     return datetime.now(BUSINESS_TZ).date()
 
 MIN_DATA_DAYS = 7
-KEEP_JOBS = 2
-MAX_PAD_DAYS = 30
+KEEP_JOBS = 10
 
 
 # ── Job management ────────────────────────────────────────────
@@ -62,7 +62,7 @@ async def fail_job(job_id: int, message: str):
 
 
 async def cleanup_old_jobs():
-    """Retain the latest two terminal jobs; running jobs are excluded from deletion."""
+    """Retain the latest ten terminal jobs; running jobs are excluded from deletion."""
     pool = await get_pool()
     await pool.execute("""
         DELETE FROM forecast_jobs
@@ -138,6 +138,8 @@ def build_prophet(n_days: int) -> Prophet:
         yearly_seasonality=n_days >= YEARLY_MIN_DAYS,  # needs ~2 full cycles to stay stable
         changepoint_range=PROPHET_CONFIG["changepoint_range"],
         interval_width=PROPHET_CONFIG["interval_width"],
+        # Only point forecasts are published; avoid simulating unused uncertainty bands.
+        uncertainty_samples=0,
         holidays=_HOLIDAYS,
         holidays_prior_scale=PROPHET_CONFIG["holidays_prior_scale"],
     )
@@ -164,32 +166,16 @@ def _from_fit(values):
 
 # ── Size-share split ──────────────────────────────────────────
 
-def size_shares(vdf: pd.DataFrame, product_total: float) -> dict:
-    """Trailing-window share per variant; falls back to all history, then even split."""
-    # Anchor the mix window to the latest recorded sale, not today; unsold recent variants receive zero share.
-    window = vdf[vdf["ds"] >= vdf["ds"].max() - pd.Timedelta(days=SHARE_WINDOW_DAYS)]
-    if window["units"].sum() == 0:
-        window = vdf
-    total = float(window["units"].sum())
-    if total == 0 or product_total == 0:
-        n = vdf["variant_id"].nunique()
-        return {vid: 1.0 / n for vid in vdf["variant_id"].unique()}
-    return {
-        vid: float(g["units"].sum()) / total
-        for vid, g in window.groupby("variant_id")
-    }
-
-
-# ── Main pipeline ─────────────────────────────────────────────
-# Predict at PRODUCT level (dense series), split to sizes by share.
-# Revenue uses real variant prices; ingredients use real variant recipes.
-
 async def run_demand_forecast(job_id: int) -> dict:
     """Fit/evaluate each product, split daily units to variants, and persist through short owned transactions."""
     period = FORECAST_PERIOD
+    # Freeze the completed-day cutoff so midnight cannot change a running job.
+    cutoff = business_today() - timedelta(days=1)
 
     try:
         df = await load_variant_daily_sales()
+        if not df.empty:
+            df = df[df["ds"] <= pd.Timestamp(cutoff)]
 
         if df.empty:
             await complete_job(job_id, 0, 0, 0, [])
@@ -211,9 +197,9 @@ async def run_demand_forecast(job_id: int) -> dict:
 
                 daily = pdf.groupby("ds")["units"].sum().reset_index()
 
-                # Treat absent sales dates as zero demand through the current Manila day.
+                # Treat absent sales dates as zero demand through the last completed Manila day.
                 # This is a modelling assumption; the loader cannot distinguish closure from no sales.
-                all_dates = pd.date_range(start=pdf["ds"].min(), end=business_today(), freq="D")
+                all_dates = pd.date_range(start=pdf["ds"].min(), end=cutoff, freq="D")
                 daily = (
                     pd.DataFrame({"ds": all_dates})
                     .merge(daily, on="ds", how="left")
@@ -241,27 +227,17 @@ async def run_demand_forecast(job_id: int) -> dict:
 
                 train = daily[["ds", "units"]].rename(columns={"units": "y"})
 
-                # The calendar above already reaches today. This guard handles a day rollover
-                # between clock reads; it does not normally limit zero-filled history.
-                today = pd.Timestamp(business_today())
-                if train["ds"].max() < today:
-                    if (today - train["ds"].max()).days > MAX_PAD_DAYS:
-                        train = train[train["ds"] >= train["ds"].max() - timedelta(days=MAX_PAD_DAYS)]
-                    pad_dates = pd.date_range(train["ds"].max() + timedelta(days=1), today)
-                    pad = pd.DataFrame({"ds": pad_dates, "y": [0] * len(pad_dates)})
-                    train = pd.concat([train, pad], ignore_index=True)
-
                 # Rolling-origin scoring uses non-overlapping hidden weeks (offsets 0/7/14d
                 # at EVAL_ORIGINS=3; just offset 0 at =1 for fast routine
                 # runs), each trained only on data before its window.
                 # Daily metrics pool all pairs; weekly totals stay per-origin
                 # for menu-level pooling + range. None when too short.
-                # Daily product R2 uses the existing reporting floor; weekly totals remain raw.
                 ORIGIN_OFFSETS = tuple(7 * i for i in range(EVAL_ORIGINS))
                 metrics = None
                 week_list = []
                 n_week_list = []
                 n_daily_list = []
+                variant_pairs = {int(v["variant_id"]): ([], []) for v in variants}
                 if len(train) > HOLDOUT_DAYS + MIN_DATA_DAYS:
                     daily_preds, daily_actuals = [], []
                     for off in ORIGIN_OFFSETS:
@@ -276,6 +252,17 @@ async def run_demand_forecast(job_id: int) -> dict:
                             m_eval.make_future_dataframe(periods=HOLDOUT_DAYS)
                         ).tail(HOLDOUT_DAYS)[["ds", "yhat"]]
                         eval_pred["yhat"] = _from_fit(eval_pred["yhat"].values)
+                        # Backtest the same integer preparation plan that we publish.
+                        # Shares use only pre-origin sales, never the hidden week's mix.
+                        origin_shares = size_shares(pdf, fit_df["ds"].max(), SHARE_WINDOW_DAYS)
+                        variant_ids = list(variant_pairs)
+                        plan = preparation_plan(eval_pred["yhat"], [origin_shares.get(vid, 0) for vid in variant_ids])
+                        eval_pred["yhat"] = [sum(day) for day in plan]
+                        for index, vid in enumerate(variant_ids):
+                            predicted, actual = variant_pairs[vid]
+                            predicted.extend(plan[day][index] for day in range(len(plan)))
+                            observed = pdf[pdf["variant_id"] == vid].groupby("ds")["units"].sum()
+                            actual.extend(float(observed.get(day, 0)) for day in holdout_df["ds"])
                         daily_preds.append(eval_pred)
                         daily_actuals.append(holdout_df)
                         wm = weekly_metrics(eval_pred, holdout_df)
@@ -293,7 +280,6 @@ async def run_demand_forecast(job_id: int) -> dict:
                     if daily_preds:
                         metrics = compute_metrics(
                             pd.concat(daily_preds), pd.concat(daily_actuals))
-                        metrics["r_squared"] = bound_r2(metrics["r_squared"])
 
                 m = build_prophet(len(train))
                 m.fit(_to_fit(train))
@@ -303,34 +289,15 @@ async def run_demand_forecast(job_id: int) -> dict:
                 # from output; interval_width stays Prophet-internal).
                 pred["yhat"] = _from_fit(pred["yhat"].values)
 
-                shares = size_shares(pdf, float(daily["units"].sum()))
+                shares = size_shares(pdf, cutoff, SHARE_WINDOW_DAYS)
                 vids = [int(v["variant_id"]) for v in variants]
                 share_list = [shares.get(vid, 0.0) for vid in vids]
 
-                # Week-aware apportionment with fractional backlog: on 1-unit
-                # days daily largest-remainder starves every minority size
-                # (a 45% share still rounds to 0), so fractions carry forward
-                # instead — weekly size totals match shares within 1 unit
-                # while each daily product total stays exact.
-                days_plan = []
-                for _, p in pred.iterrows():
-                    days_plan.append({
-                        "ds": p["ds"].strftime("%Y-%m-%d"),
-                        "units": max(0, round(float(p["yhat"]))),
-                    })
-                backlog = [0.0] * len(variants)
-                for i, day in enumerate(days_plan):
-                    p_units = day["units"]
-                    day_ds = day["ds"]
-                    exact = [s * p_units + backlog[k] for k, s in enumerate(share_list)]
-                    give = [max(0, int(x)) for x in exact]
-                    remainder = p_units - sum(give)
-                    order = sorted(range(len(variants)),
-                                   key=lambda k: exact[k] - give[k], reverse=True)
-                    for k in order[:max(0, remainder)]:
-                        give[k] += 1
-                    backlog = [exact[k] - give[k] for k in range(len(variants))]
-                    split = give
+                # Retain weekly demand when converting fractional predictions to counts.
+                plan = preparation_plan(pred["yhat"], share_list)
+                for day_index, (_, point) in enumerate(pred.iterrows()):
+                    day_ds = point["ds"].strftime("%Y-%m-%d")
+                    split = plan[day_index]
                     for k, v in enumerate(variants):
                         price = float(v["price"])
                         units = split[k]
@@ -361,12 +328,20 @@ async def run_demand_forecast(job_id: int) -> dict:
                     def _mean(rows, key):
                         """Average available origin values for legacy scalar fields, preserving four-decimal rounding."""
                         vals = [r[key] for r in rows if r.get(key) is not None]
-                        return round(sum(vals) / len(vals), 4) if vals else 0.0
+                        return round(sum(vals) / len(vals), 4) if vals else None
 
                     product_scores.append({
                         "product_id": str(product_id),
                         "product_name": product_name,
                         "variants": len(variants),
+                        "training_cutoff": cutoff.isoformat(),
+                        "evaluation_version": 2,
+                        "variant_scores": [
+                            {"variant_id": vid, **compute_metrics(
+                                pd.DataFrame({"ds": range(len(values[0])), "yhat": values[0]}),
+                                pd.DataFrame({"ds": range(len(values[1])), "y": values[1]}))}
+                            for vid, values in variant_pairs.items()
+                        ],
                         **metrics,
                         "w_mae": _mean(week_list, "w_mae"),
                         "w_mse": _mean(week_list, "w_mse"),

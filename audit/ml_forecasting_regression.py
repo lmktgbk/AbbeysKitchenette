@@ -63,6 +63,7 @@ class ForecastResponses(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.ingredients[0].total_needed, 2)
         self.assertEqual(result.ingredients[0].current_stock, 0)
         self.assertEqual(result.ingredients[0].status, "critical")
+        self.assertEqual(result.recipe_missing_variants, [999])
 
     async def test_no_results_does_not_load_recipes_or_stock(self):
         self.fixture([], [], [])
@@ -73,6 +74,19 @@ class ForecastResponses(unittest.IsolatedAsyncioTestCase):
     async def test_no_recipes_returns_empty_needs(self):
         self.fixture([{"variant_id": 1, "daily_data": []}], [], [])
         self.assertEqual((await demand.demand_ingredients(10)).ingredients, [])
+
+    async def test_missing_recipe_warns_only_for_positive_demand(self):
+        self.fixture([{"variant_id": 1, "daily_data": [{"date": "2026-10-05", "units": 2}]},
+                      {"variant_id": 2, "daily_data": [{"date": "2026-10-05", "units": 0}]}], [], [])
+        self.assertEqual((await demand.demand_ingredients(10)).recipe_missing_variants, [1])
+
+    async def test_rounding_does_not_hide_stock_shortfall(self):
+        self.fixture([{"variant_id": 1, "daily_data": [{"date": f"2026-10-{day:02d}", "units": 1} for day in range(1, 8)]}],
+                     [{"variant_id": 1, "ingredient_id": A, "ingredient_name": "Fixture", "unit": "g", "quantity_needed": 1}],
+                     [{"ingredient_id": A, "current_stock": 6.96}])
+        need = (await demand.demand_ingredients(10)).ingredients[0]
+        self.assertEqual(need.days_covered, 7.0)
+        self.assertEqual(need.status, "warning")
 
     def test_job_summary_keeps_public_fields_and_legacy_counter(self):
         summary = demand._job_summary(job_row()).model_dump()

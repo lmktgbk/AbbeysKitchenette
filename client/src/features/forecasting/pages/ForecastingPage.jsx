@@ -1,6 +1,7 @@
 ﻿import { useState, useMemo, useCallback } from "react";
 import { useDemandHistory, useDemandResults, useDemandIngredients, forecastKeys } from "../query";
 import { useQueryClient } from "@tanstack/react-query";
+import { summarizeEvaluation } from "../evaluation";
 import ForecastRunButton from "../components/ForecastRunButton";
 import SimpleForecastChart from "../components/SimpleForecastChart";
 import ProductDemandTab from "../components/ProductDemandTab";
@@ -8,6 +9,50 @@ import IngredientOrderTab from "../components/IngredientOrderTab";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatLabel, StatValue, StatSub } from "@/components/ui/stat";
 import Icon from "@/components/ui/icon";
+
+/** Undefined scores must remain visibly unavailable rather than becoming 0%. */
+function formatR2(value) {
+  return value == null ? "N/A" : `${(value * 100).toFixed(1)}%`;
+}
+
+/** Show individual errors alongside the pooled headline so volume differences do not hide weak variants. */
+function IndividualEvaluation({ scores, variants }) {
+  const names = new Map(variants.map((variant) => [variant.variant_id, variant.size_name]));
+  const rows = scores.flatMap((score) => [
+    { ...score, label: score.product_name, key: `product:${score.product_id}` },
+    ...(score.variant_scores || []).map((variant) => ({
+      ...variant,
+      key: `variant:${variant.variant_id}`,
+      label: `${score.product_name} / ${names.get(variant.variant_id) || variant.variant_id} (allocated)`,
+    })),
+  ]);
+  return (
+    <details className="rounded-xl border border-border p-4 text-sm">
+      <summary className="cursor-pointer">Individual product and allocated variant evaluation</summary>
+      <p className="my-2 text-xs text-muted-foreground">
+        Training through {scores[0].training_cutoff || "cutoff unavailable (older run)"}.
+        Variant quantities estimate historical sales mix; they are not independent Prophet models.
+        R² is N/A when actual sales have no variation. Errors below measure daily units.
+      </p>
+      <div className="max-h-96 overflow-auto">
+        <table className="w-full text-xs">
+          <thead><tr><th className="text-left">Product / variant</th><th>R²</th><th>MAE</th><th>RMSE</th><th>MSE</th></tr></thead>
+          <tbody>
+            {rows.map((score) => (
+              <tr key={score.key} className="border-b border-border">
+                <td className="py-2">{score.label}</td>
+                <td className="px-2 text-center">{formatR2(score.r_squared)}</td>
+                {[score.mae, score.rmse, score.mse].map((value, index) => (
+                  <td key={index} className="px-2 text-center">{value == null ? "N/A" : value.toFixed(2)}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  );
+}
 
 /**
  * ForecastingPage — friendly redesign.
@@ -33,7 +78,7 @@ export default function ForecastingPage() {
   const activeJobId = selectedJobId ?? jobs[0]?.id ?? null;
 
   const { data: resultsData, isLoading: resultsLoading } = useDemandResults(activeJobId);
-  const { data: ingredientsData, isLoading: ingredientsLoading } = useDemandIngredients(activeJobId);
+  const { data: ingredientsData, isLoading: ingredientsLoading, isError: ingredientsError } = useDemandIngredients(activeJobId);
 
   // Job switching clears the chart selection explicitly in handleJobComplete below —
   // no useEffect mirror needed (derived activeJobId never writes back to state).
@@ -50,9 +95,20 @@ export default function ForecastingPage() {
 
   const forecasted = useMemo(() => resultsData?.data?.forecasted || [], [resultsData]);
   const ingredients = useMemo(() => ingredientsData?.data?.ingredients || [], [ingredientsData]);
+  const recipeMissing = ingredientsData?.data?.recipe_missing_variants || [];
+  const ingredientIncomplete = ingredientsError || ingredientsLoading || !ingredientsData || recipeMissing.length > 0;
   const job = resultsData?.data?.job;
   const skipped = resultsData?.data?.skipped || [];
   const productScores = job?.product_scores || null;
+  // A zero forecast is different from a skipped product and remains in evaluation.
+  const productCounts = useMemo(() => {
+    const totals = new Map();
+    for (const variant of forecasted) {
+      const key = variant.product_id ?? variant.product_name;
+      totals.set(key, (totals.get(key) || 0) + variant.total_units);
+    }
+    return { total: totals.size, zero: [...totals.values()].filter((units) => units === 0).length };
+  }, [forecasted]);
 
   const periodTotals = useMemo(() => {
     if (!forecasted.length) return { units: 0, revenue: 0 };
@@ -92,79 +148,11 @@ export default function ForecastingPage() {
   const isFailed = job?.status === "failed";
   const showLoading = resultsLoading && !job;
 
-  // Weekly errors use available product-week scores with legacy product fallbacks.
-  // R2 pools prediction/actual points; it has no explicit volume weights or outlier protection.
-  // Aggregate stored evaluation results for display; this does not rerun the model.
-  const evalMetrics = useMemo(() => {
-    const avg = (rows, key) => {
-      const vals = rows.map((f) => f[key]).filter((v) => v != null);
-      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
-    };
-    const pooledR2 = (pts) => {
-      const live = pts.filter((f) => f.w_pred != null && f.w_actual != null && (f.w_pred > 0 || f.w_actual > 0));
-      if (live.length < 2) return null;
-      const mean = live.reduce((s, f) => s + f.w_actual, 0) / live.length;
-      const ssTot = live.reduce((s, f) => s + (f.w_actual - mean) ** 2, 0);
-      if (ssTot <= 0) return null;
-      const ssRes = live.reduce((s, f) => s + (f.w_actual - f.w_pred) ** 2, 0);
-      return 1 - ssRes / ssTot;
-    };
-    // Normalize old jobs (scalar week fields) into one pseudo-week so all
-    // downstream math runs on product-week pairs uniformly.
-    const weekPairsOf = (f) => (f.weeks?.length ? f.weeks : [{ w_pred: f.w_pred, w_actual: f.w_actual, w_mae: f.w_mae, w_mse: f.w_mse }]);
-    const naivePairsOf = (f) => (f.n_weeks?.length ? f.n_weeks : [{ w_pred: f.n_w_pred, w_actual: f.n_w_actual, w_mae: f.n_w_mae, w_mse: f.n_w_mse }]);
-    if (productScores?.length) {
-      const pairs = productScores.flatMap(weekPairsOf);
-      const nPairs = productScores.flatMap(naivePairsOf);
-      // Weekly RMSE is derived as sqrt(mean w_mse): per-product single-pair
-      // RMSE is degenerate (== |err|), so it is never averaged directly.
-      const mse = avg(pairs, "w_mse") ?? avg(productScores, "mse") ?? 0;
-      const r2 = pooledR2(pairs) ?? avg(productScores, "r_squared") ?? 0;
-      // Per-origin pooled R2 across products = the reported range (needs 2+
-      // origins; single-window jobs show no range).
-      const nOrigins = Math.max(...productScores.map((f) => f.weeks?.length || 1));
-      let range = null;
-      if (nOrigins > 1) {
-        const perOrigin = [];
-        for (let i = 0; i < nOrigins; i++) {
-          const pts = productScores.flatMap((f) => (f.weeks?.[i] ? [f.weeks[i]] : []));
-          const v = pooledR2(pts);
-          if (v != null) perOrigin.push(v);
-        }
-        if (perOrigin.length > 1) range = [Math.min(...perOrigin), Math.max(...perOrigin)];
-      }
-      const nLive = nPairs.filter((f) => (f.w_pred || 0) > 0 || (f.w_actual || 0) > 0);
-      const nMse = avg(nLive, "w_mse");
-      const naive = nLive.length
-        ? {
-            mae: avg(nLive, "w_mae") ?? 0,
-            mse: nMse ?? 0,
-            rmse: nMse != null ? Math.sqrt(nMse) : 0,
-            r2: pooledR2(nPairs) ?? 0,
-            count: productScores.filter((f) => naivePairsOf(f).some((w) => (w.w_pred || 0) > 0 || (w.w_actual || 0) > 0)).length,
-          }
-        : null;
-      return {
-        r2, mae: avg(pairs, "w_mae") ?? avg(productScores, "mae") ?? 0,
-        rmse: Math.sqrt(mse), mse,
-        count: productScores.length,
-        dailyMae: avg(productScores, "mae"),
-        naive, range,
-        unscored: 0,
-      };
-    }
-    if (!forecasted.length) return null;
-    const scored = forecasted.filter((f) => f.r_squared != null && f.mae != null);
-    if (!scored.length) return { unscored: forecasted.length };
-    const r2 = avg(scored, "r_squared") ?? 0;
-    return {
-      r2, mae: avg(scored, "mae") ?? 0,
-      rmse: avg(scored, "rmse") ?? 0, mse: avg(scored, "mse") ?? 0,
-      count: scored.length,
-      dailyMae: null,
-      unscored: forecasted.length - scored.length,
-    };
-  }, [productScores, forecasted]);
+  // Calculate product and baseline summaries from the same stored observations.
+  const evalMetrics = useMemo(
+    () => summarizeEvaluation(productScores, forecasted, job?.completed),
+    [productScores, forecasted, job?.completed],
+  );
 
   // ── Loading skeletons ──
   if (historyLoading || showLoading) {
@@ -210,6 +198,7 @@ export default function ForecastingPage() {
               <p className="mt-1 text-sm text-muted-foreground">No predictions yet — tap Update Forecast to generate.</p>
             ) : null}
             {lastUpdated && <p className="mt-1 text-xs text-muted-foreground">Last updated: {lastUpdated}</p>}
+            {hasData && <p className="mt-1 text-xs text-muted-foreground">{productCounts.total} products forecasted · {productCounts.zero} with zero preparation counts. The product table shows positive demand.</p>}
           </div>
           <div className="shrink-0">
             <ForecastRunButton onJobComplete={handleJobComplete} />
@@ -250,14 +239,18 @@ export default function ForecastingPage() {
               </>
             ) : (
               <>
-                <StatValue size="hero" className="mt-1 text-green-700 dark:text-green-400">All good</StatValue>
-                <StatSub>No urgent orders</StatSub>
+                <StatValue size="hero" className="mt-1 text-green-700 dark:text-green-400">{ingredientIncomplete ? "Review needed" : "All good"}</StatValue>
+                <StatSub>{ingredientIncomplete ? "Ingredient calculation incomplete; check recipes and resale items" : "No urgent orders"}</StatSub>
               </>
             )}
           </div>
         </div>
       )}
 
+      {recipeMissing.length > 0 && <p className="text-sm text-amber-700">{recipeMissing.length} forecasted variants have no recipe. Confirm they are resale items; otherwise ingredient requirements are incomplete.</p>}
+      {forecasted.some((variant) => variant.current_available === false && variant.total_units > 0) && (
+        <p className="text-sm text-amber-700">Demand includes currently unavailable variants. Review availability before preparing items; projected revenue assumes those variants can be sold.</p>
+      )}
       {/* 7-Day Forecast Plan Chart — filters when a product or size is selected */}
       {hasData && (
         <SimpleForecastChart
@@ -292,6 +285,7 @@ export default function ForecastingPage() {
         )
       )}
 
+      {productScores?.length > 0 && <IndividualEvaluation scores={productScores} variants={forecasted} />}
       {/* Evaluation — clean card, matches KPI/Chart style */}
       {hasData && evalMetrics && (
         <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -303,8 +297,8 @@ export default function ForecastingPage() {
             <div className="flex shrink-0 items-center gap-2">
               {evalMetrics.count != null ? (
                 <>
-                  <span title="R-squared — how well the model fits past sales" className="hidden sm:inline-flex rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                    Fit {(evalMetrics.r2*100).toFixed(1)}%
+                  <span title="Pooled R-squared across held-out product-week totals" className="hidden sm:inline-flex rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                    Pooled R² {formatR2(evalMetrics.r2)}
                   </span>
                   <span title="Mean Absolute Error — typical weekly miss per product" className="inline-flex rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                     Typical error {evalMetrics.mae.toFixed(1)}/week{evalMetrics.dailyMae != null ? ` · ±${evalMetrics.dailyMae.toFixed(1)}/day` : ""}
@@ -323,9 +317,9 @@ export default function ForecastingPage() {
               {evalMetrics.count != null && (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div className="rounded-lg border border-border bg-card px-3 py-2">
-                  <p className="text-xs text-muted-foreground">Fit (R²)</p>
-                  <p className="text-sm font-semibold text-foreground">{(evalMetrics.r2*100).toFixed(1)}%</p>
-                  <p className="text-xs text-muted-foreground">How well it fits past sales</p>
+                  <p className="text-xs text-muted-foreground">Pooled weekly R²</p>
+                  <p className="text-sm font-semibold text-foreground">{formatR2(evalMetrics.r2)}</p>
+                  <p className="text-xs text-muted-foreground">Across held-out product-week totals</p>
                 </div>
                 <div className="rounded-lg border border-border bg-card px-3 py-2">
                   <p className="text-xs text-muted-foreground">Typical error (MAE)</p>
@@ -333,7 +327,7 @@ export default function ForecastingPage() {
                   <p className="text-xs text-muted-foreground">Average miss per product week</p>
                 </div>
                 <div className="rounded-lg border border-border bg-card px-3 py-2">
-                  <p className="text-xs text-muted-foreground">Worst-case (RMSE)</p>
+                  <p className="text-xs text-muted-foreground">RMSE</p>
                   <p className="text-sm font-semibold text-foreground">±{evalMetrics.rmse.toFixed(2)} units/week</p>
                   <p className="text-xs text-muted-foreground">Larger errors penalized</p>
                 </div>
@@ -347,23 +341,23 @@ export default function ForecastingPage() {
               {evalMetrics.count != null ? (
                 <>
                   <p className="text-xs text-muted-foreground">
-                    Whole-menu 7-day-total average across {evalMetrics.count} products (hidden weeks, zeros included)
-                    {evalMetrics.range ? ` · R² range ${(evalMetrics.range[0] * 100).toFixed(1)}–${(evalMetrics.range[1] * 100).toFixed(1)}% across 3 hidden weeks` : ""}
+                    Held-out product-week totals across {evalMetrics.count} products (hidden weeks, zeros included)
+                    {evalMetrics.range ? ` · R² range ${(evalMetrics.range[0] * 100).toFixed(1)}–${(evalMetrics.range[1] * 100).toFixed(1)}% across evaluated hidden weeks` : ""}
                     {evalMetrics.unscored ? ` · ${evalMetrics.unscored} too new to score` : ""} · Lower is better for MAE/RMSE/MSE
                   </p>
                   {evalMetrics.naive && (() => {
                     const n = evalMetrics.naive;
                     const pct = (base, val) => base > 0 ? Math.round((1 - val / base) * 100) : 0;
-                    const r2gap = ((evalMetrics.r2 - n.r2) * 100).toFixed(0);
+                    const r2gap = n.productR2 != null && n.r2 != null ? ((n.productR2 - n.r2) * 100).toFixed(0) : null;
                     return (
                       <p className="text-xs text-muted-foreground">
-                        vs carry-forward baseline ({n.count} products): MAE {n.mae.toFixed(2)}/week · RMSE {n.rmse.toFixed(2)}/week · R² {(n.r2 * 100).toFixed(1)}% — Prophet cuts MAE by {pct(n.mae, evalMetrics.mae)}% and RMSE by {pct(n.rmse, evalMetrics.rmse)}%, and leads R² by {r2gap} pts.
+                        Carry-forward baseline ({n.observations} matched product-weeks): MAE {n.mae.toFixed(2)}/week · RMSE {n.rmse.toFixed(2)}/week · R² {formatR2(n.r2)}. Prophet error reduction: MAE {pct(n.mae, n.productMae)}%, RMSE {pct(n.rmse, n.productRmse)}% (negative means worse). R² difference: {r2gap == null ? "N/A" : `${r2gap} pts`}.
                       </p>
                     );
                   })()}
                 </>
               ) : (
-                <p className="text-xs text-muted-foreground">Not enough history to score yet — forecasts below still show for prep. Scores appear once a product has 14+ days.</p>
+                <p className="text-xs text-muted-foreground">Not enough completed history to evaluate yet. Preparation estimates can still appear without evaluation scores.</p>
               )}
 
               <p className="border-t border-border pt-2 text-xs text-muted-foreground">

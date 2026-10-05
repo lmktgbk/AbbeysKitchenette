@@ -17,9 +17,9 @@ def compute_metrics(pred_df, actual_df) -> dict:
     actual_col = "y" if "y" in actual_df.columns else "units"
     merged = pred_df.merge(actual_df.rename(columns={actual_col: "y"}), on="ds", how="inner")
 
-    # Preserve the legacy zero sentinel for too few observations; this does not mean a perfect fit.
-    if len(merged) < 3:
-        return {"rmse": 0.0, "mae": 0.0, "mse": 0.0, "r_squared": 0.0}
+    # No matching observations means unavailable, not zero prediction error.
+    if merged.empty:
+        return {"rmse": None, "mae": None, "mse": None, "r_squared": None}
 
     actual = merged["y"].values.astype(float)
     predicted = merged["yhat"].values.astype(float)
@@ -30,22 +30,14 @@ def compute_metrics(pred_df, actual_df) -> dict:
 
     ss_res = float(np.sum((actual - predicted) ** 2))
     ss_tot = float(np.sum((actual - np.mean(actual)) ** 2))
-    r_squared = float(1 - (ss_res / ss_tot)) if ss_tot > 0 else 0.0
+    r_squared = float(1 - (ss_res / ss_tot)) if len(merged) >= 2 and ss_tot > 0 else None
 
     return {
         "rmse": round(rmse, 2),
         "mae": round(mae, 2),
         "mse": round(mse, 2),
-        "r_squared": round(r_squared, 4),
+        "r_squared": round(r_squared, 4) if r_squared is not None else None,
     }
-
-
-R2_FLOOR = -1.0  # Reporting policy for daily per-product R2; predictions remain unchanged.
-
-
-def bound_r2(r_squared: float) -> float:
-    """Apply the daily R2 reporting floor without changing forecasts or other error metrics."""
-    return max(R2_FLOOR, float(r_squared))
 
 
 def weekly_metrics(eval_pred_df, holdout_df) -> dict:
@@ -92,7 +84,6 @@ def naive_baseline(train, holdout_days: int = 7) -> dict:
     pred_df = pd.DataFrame({"ds": ds, "yhat": preds})
     actual_df = pd.DataFrame({"ds": ds, "y": actuals})
     daily = compute_metrics(pred_df, actual_df)
-    daily["r_squared"] = bound_r2(daily["r_squared"])
     weekly = weekly_metrics(pred_df, actual_df)
     return {
         "mae": daily["mae"],

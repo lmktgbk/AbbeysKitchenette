@@ -15,6 +15,7 @@ sys.path.insert(0, str(ROOT / "ml-service"))
 import jobs
 from forecasting.services import demand_forecast as forecast
 from forecasting.routers import demand
+from forecasting.services import data_loader
 from mba.services import fpgrowth as mba
 
 
@@ -28,13 +29,14 @@ async def verify():
     try:
         await admin.execute(f'CREATE SCHEMA "{schema}"')
         baseline = (ROOT / "server/prisma/migrations/00000000000000_baseline/migration.sql").read_text()
-        for table in ["forecast_jobs", "forecast_results", "mba_jobs", "mba_rules", "product_variants"]:
+        for table in ["forecast_jobs", "forecast_results", "mba_jobs", "mba_rules", "product_variants", "products"]:
             ddl = re.search(r'CREATE TABLE "public"\."' + table + r'" \([\s\S]*?\n\);', baseline).group(0)
             await admin.execute(ddl.replace('"public"', f'"{schema}"'))
         effects = (ROOT / "server/prisma/migrations/20261004000000_domain_effects/migration.sql").read_text(encoding="utf-8")
         ddl = re.search(r"CREATE TABLE domain_effects \([\s\S]*?\n\);", effects).group(0)
         await admin.execute(ddl.replace("CREATE TABLE domain_effects", f'CREATE TABLE "{schema}".domain_effects'))
         product_id = uuid4()
+        await admin.execute(f'INSERT INTO "{schema}".products(product_id,product_name,subcategory_id,updated_at) VALUES($1,\'Fixture\',1,NOW())', product_id)
         await admin.execute(f'INSERT INTO "{schema}".product_variants(variant_id,product_id,size_name,price) VALUES(1,$1,\'Small\',10)', product_id)
         await admin.execute(f'INSERT INTO "{schema}".forecast_jobs(status) VALUES(\'completed\')')
         await admin.execute(f'INSERT INTO "{schema}".forecast_results(job_id,variant_id,product_id,product_name,size_name,price,category_id,daily_data) VALUES(1,1,123,\'Fixture\',\'Small\',10,1,\'[]\')')
@@ -53,6 +55,24 @@ async def verify():
 
         async def get_test_pool():
             return selected_pool.get(pools[0])
+
+        # Minimal sales tables exercise the real loader query without public-table access.
+        await admin.execute(f'CREATE TABLE "{schema}".subcategories(subcategory_id int,category_id int)')
+        await admin.execute(f'CREATE TABLE "{schema}".orders(order_id uuid,order_date date,status text)')
+        await admin.execute(f'CREATE TABLE "{schema}".order_items(order_id uuid,variant_id int,quantity int,removed_at timestamptz)')
+        await admin.execute(f'INSERT INTO "{schema}".subcategories VALUES(1,1)')
+        async with pools[0].acquire() as connection:
+            await connection.execute("INSERT INTO product_variants(variant_id,product_id,size_name,price,is_available) VALUES(2,$1,'Unavailable',20,FALSE),(3,$1,'Never sold',30,TRUE)", product_id)
+            for variant, days_ago, status, quantity, removed in [(1, 2, 'completed', 3, False), (2, 1, 'completed', 4, False),
+                                                               (1, 0, 'completed', 100, False), (1, 1, 'cancelled', 100, False),
+                                                               (1, 1, 'completed', 100, True)]:
+                order_id = uuid4()
+                await connection.execute("INSERT INTO orders VALUES($1,(NOW() AT TIME ZONE 'Asia/Manila')::date - $2::int,$3)", order_id, days_ago, status)
+                await connection.execute("INSERT INTO order_items VALUES($1,$2,$3,CASE WHEN $4 THEN NOW() ELSE NULL END)", order_id, variant, quantity, removed)
+        with patch.object(data_loader, "get_pool", get_test_pool):
+            sales = await data_loader.load_variant_daily_sales()
+            assert sales.groupby("variant_id")["units"].sum().to_dict() == {1: 3, 2: 4, 3: 0}
+        print("PASS: actual loader retains unavailable history, excludes incomplete/removed/cancelled sales and includes never-sold variants")
 
         # Isolate advisory keys too, so test traffic cannot block a real ML submission.
         key = int(uuid4().hex[:7], 16)

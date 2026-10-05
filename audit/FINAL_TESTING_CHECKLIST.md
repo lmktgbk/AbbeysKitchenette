@@ -1320,3 +1320,32 @@ checks passed, including migration retirement and a cost-safe change exceeding
 were removed, with no active references left. Previous migrations and historical
 suggestion context remain intact. No public migration or live Gemini call occurred.
 Live estimates, local market accuracy and interactive UI remain **Not verified**.
+# Forecasting accuracy corrections — October 6, 2026
+
+Use a newly generated run after restarting the ML service, backend and client.
+Existing runs retain their original numbers; no migration is required for this batch.
+
+- [ ] Record the new run ID and the exact seven forecast dates. A run today starts today,
+  using completed sales through yesterday in Asia/Manila.
+- [ ] Open individual evaluation and confirm the training cutoff, product scores and
+  allocated variant scores. Constant actuals show R² N/A; negative scores are preserved.
+- [ ] The baseline comparison states matched product-week observations, including zero weeks.
+- [ ] Expand product sizes. Historical mix is labelled estimated; unavailable variants have
+  a warning and retain historical demand rather than silently erasing previous sales.
+- [ ] Sum daily counts and variant counts to confirm they match the weekly product total.
+  Sparse demand is rounded across the week rather than independently discarded each day.
+- [ ] Check revenue equals forecasted variant units multiplied by their captured prices.
+- [ ] Review the missing-recipe warning. Confirm legitimate resale items separately; missing
+  recipes must not appear as complete ingredient calculations.
+- [ ] Switch to the previous run. Its chart shows its original dates rather than claiming
+  that an expired forecast is the next seven days. Current recipes and stock remain current.
+
+The reported previous run (159 units, ₱23,205, pooled R² 71.8%, MAE 1.53,
+RMSE 2.57, MSE 6.60) is a user-reported baseline, not independently verified accuracy.
+Corrections change cutoff, eligibility, rounding and evaluation populations; do not
+claim a model improvement solely from comparing those two headline scores.
+
+Live seeded-data model accuracy, browser acceptance and direct variant Prophet
+comparison remain Not verified until those checks are performed. For the separate
+read-only experiment, use an activated Python environment at the repository root:
+`python audit/compare_forecast_methods.py --product-id PRODUCT_UUID`.

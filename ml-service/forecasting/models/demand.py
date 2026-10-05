@@ -52,6 +52,15 @@ class WeekScore(BaseModel):
     w_mse: float = 0.0
 
 
+class VariantScore(BaseModel):
+    """Held-out allocation errors; these do not represent independent Prophet models."""
+    variant_id: int
+    rmse: float | None
+    mae: float | None
+    mse: float | None
+    r_squared: float | None
+
+
 class ProductScore(BaseModel):
     """Paper metrics scored at product level (dense series, configurable rolling-origin
     7-day holdouts).
@@ -63,10 +72,13 @@ class ProductScore(BaseModel):
     product_id: str | int
     product_name: str
     variants: int
+    training_cutoff: str | None = None
+    evaluation_version: int | None = None
+    variant_scores: list[VariantScore] = []
     rmse: float
     mae: float
     mse: float
-    r_squared: float
+    r_squared: float | None
     w_mae: float = 0.0
     w_mse: float = 0.0
     w_pred: float = 0.0
@@ -76,7 +88,7 @@ class ProductScore(BaseModel):
     n_mae: float = 0.0
     n_mse: float = 0.0
     n_rmse: float = 0.0
-    n_r_squared: float = 0.0
+    n_r_squared: float | None = None
     n_w_mae: float = 0.0
     n_w_mse: float = 0.0
     n_w_pred: float = 0.0
@@ -99,6 +111,7 @@ class VariantResult(BaseModel):
     skip_reason: str | None
     # Share of parent product forecast (0-1); None on jobs before the split.
     share: float | None = None
+    current_available: bool | None = None
     rmse: float | None = None
     mae: float | None = None
     mse: float | None = None
@@ -137,6 +150,9 @@ class IngredientNeed(BaseModel):
 
 class IngredientsResponse(BaseModel):
     ingredients: list[IngredientNeed]
+    # No recipe may be legitimate for resale; callers must review rather than
+    # interpreting missing calculation inputs as sufficient inventory.
+    recipe_missing_variants: list[int] = []
 
 
 # ── Run endpoint responses ─────────────────────────────────────

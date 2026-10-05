@@ -8,7 +8,7 @@ import { useReducedMotion } from "@/hooks/useReducedMotion";
 function formatDayLabel(dateStr) {
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return dateStr;
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", weekday: "short" });
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", weekday: "short", timeZone: "Asia/Manila" });
 }
 
 export default function SimpleForecastChart({ results, selectedVariant, selectedProduct, selectedVariantName, onClear, isLoading }) {
@@ -58,7 +58,7 @@ export default function SimpleForecastChart({ results, selectedVariant, selected
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div>
           <h3 className="text-sm font-semibold text-foreground">7-Day Forecast Plan{selectedVariantName ? ` · ${selectedVariantName}` : ""}</h3>
-          <p className="text-xs text-muted-foreground">Items and revenue per day</p>
+          <p className="text-xs text-muted-foreground">{`${formatDayLabel(chartData[0].date)} – ${formatDayLabel(chartData.at(-1).date)} · Items and revenue per day`}</p>
         </div>
         {(selectedVariant || selectedProduct) && (
           <button onClick={onClear} className="rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium hover:bg-muted/80">
@@ -89,7 +89,7 @@ export default function SimpleForecastChart({ results, selectedVariant, selected
             <Tooltip
               contentStyle={{ backgroundColor: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: "8px", fontSize: "12px" }}
               formatter={(value, name) => {
-                if (name === "units") return [`${value} items`, "Items to Prepare"];
+                if (name === "Items to Prepare") return [`${value} items`, "Items to Prepare"];
                 return [`₱${Number(value).toLocaleString()}`, "Expected Sales"];
               }}
               labelFormatter={formatDayLabel}
@@ -100,7 +100,7 @@ export default function SimpleForecastChart({ results, selectedVariant, selected
           </ComposedChart>
         </ResponsiveContainer>
         <p className="mt-2 text-xs text-muted-foreground text-center">
-          Total next 7 days: {totals.units.toLocaleString()} items · ₱{totals.revenue.toLocaleString()} sales
+          Total selected 7 days: {totals.units.toLocaleString()} items · ₱{totals.revenue.toLocaleString()} sales
         </p>
       </div>
     </div>

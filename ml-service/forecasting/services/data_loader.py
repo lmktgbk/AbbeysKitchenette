@@ -4,32 +4,31 @@ from database import get_pool
 
 
 async def load_variant_daily_sales() -> pd.DataFrame:
-    """Read completed, nonremoved sales for currently active variants across the available history."""
-    # Missing dates are omitted here; the pipeline decides how to fill the training calendar.
+    """Read completed, nonremoved sales for nonarchived products without discarding unavailable variant history."""
+    # Include never-sold catalog variants as zero rows so they are visible in results.
+    # Other missing dates are filled by the pipeline; availability does not erase sales.
     pool = await get_pool()
     rows = await pool.fetch("""
-        SELECT
-            pv.variant_id,
-            pv.product_id,
-            p.product_name,
-            pv.size_name,
-            pv.price::float AS price,
-            sc.category_id,
-            o.order_date::text AS ds,
-            SUM(oi.quantity)::int AS units
-        FROM order_items oi
-        JOIN orders o ON o.order_id = oi.order_id
-        JOIN product_variants pv ON pv.variant_id = oi.variant_id
+        WITH sales AS (
+            SELECT oi.variant_id, o.order_date,
+                   SUM(oi.quantity)::int AS units
+            FROM order_items oi
+            JOIN orders o ON o.order_id = oi.order_id
+            WHERE o.status = 'completed'
+              AND oi.removed_at IS NULL
+              AND o.order_date < (NOW() AT TIME ZONE 'Asia/Manila')::date
+            GROUP BY oi.variant_id, o.order_date
+        )
+        SELECT pv.variant_id, pv.product_id, p.product_name,
+               pv.size_name, pv.price::float AS price, sc.category_id,
+               COALESCE(s.order_date, (NOW() AT TIME ZONE 'Asia/Manila')::date - 1)::text AS ds,
+               COALESCE(s.units, 0)::int AS units
+        FROM product_variants pv
         JOIN products p ON p.product_id = pv.product_id
         JOIN subcategories sc ON sc.subcategory_id = p.subcategory_id
-        WHERE o.status = 'completed'
-          AND o.order_date IS NOT NULL
-          AND oi.removed_at IS NULL
-          AND pv.is_available = TRUE
-          AND p.is_archived = FALSE
-        GROUP BY pv.variant_id, p.product_id, p.product_name,
-                 pv.size_name, pv.price, sc.category_id, o.order_date
-        ORDER BY pv.variant_id, o.order_date
+        LEFT JOIN sales s ON s.variant_id = pv.variant_id
+        WHERE p.is_archived = FALSE
+        ORDER BY pv.variant_id, s.order_date
     """)
     if not rows:
         return pd.DataFrame(columns=[

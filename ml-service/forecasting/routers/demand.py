@@ -25,6 +25,11 @@ router = APIRouter(prefix="/forecast", tags=["forecast"])
 DEFAULT_PERIOD = 7
 
 
+def _daily_values(value):
+    """Accept asyncpg JSON text and decoded fixtures through one read boundary."""
+    return json.loads(value) if isinstance(value, str) else value
+
+
 def _job_summary(row, product_scores=None):
     """Select the public job fields and format timestamps without exposing lease ownership."""
     return JobSummary(
@@ -94,16 +99,18 @@ async def demand_results(job_id: int = Query(...)):
 
     # Running jobs can have partial variant rows; the returned job status tells callers whether publication finished.
     rows = await pool.fetch(
-        "SELECT * FROM forecast_results WHERE job_id = $1 ORDER BY total_units DESC",
+        """SELECT fr.*, (pv.is_available AND p.is_available AND NOT p.is_archived) AS current_available
+           FROM forecast_results fr
+           LEFT JOIN product_variants pv ON pv.variant_id = fr.variant_id
+           LEFT JOIN products p ON p.product_id = pv.product_id
+           WHERE fr.job_id = $1 ORDER BY fr.total_units DESC""",
         job_id,
     )
 
     forecasted = []
     skipped = []
     for r in rows:
-        daily = r["daily_data"]
-        if isinstance(daily, str):
-            daily = json.loads(daily)
+        daily = _daily_values(r["daily_data"])
 
         # product_id/share exist only on jobs after the product-level split.
         keys = set(r.keys())
@@ -121,6 +128,7 @@ async def demand_results(job_id: int = Query(...)):
             "skipped": r["skipped"],
             "skip_reason": r["skip_reason"],
             "share": float(r["share"]) if "share" in keys and r["share"] is not None else None,
+            "current_available": r["current_available"] if "current_available" in keys else None,
             "rmse": float(r["rmse"]) if r["rmse"] is not None else None,
             "mae": float(r["mae"]) if r["mae"] is not None else None,
             "mse": float(r["mse"]) if r["mse"] is not None else None,
@@ -152,11 +160,11 @@ async def demand_results(job_id: int = Query(...)):
 
 @router.get("/demand/history", response_model=HistoryResponse)
 async def demand_history():
-    """Return the latest two terminal jobs using the same summary contract as the results endpoint."""
+    """Return the latest ten terminal jobs using the same summary contract as the results endpoint."""
     pool = await get_pool()
     rows = await pool.fetch(
         "SELECT id, status, total_variants, completed, failed, period, started_at, completed_at "
-        "FROM forecast_jobs WHERE status IN ('completed', 'failed') ORDER BY started_at DESC LIMIT 2"
+        "FROM forecast_jobs WHERE status IN ('completed', 'failed') ORDER BY started_at DESC LIMIT 10"
     )
     jobs = [_job_summary(row) for row in rows]
     return HistoryResponse(jobs=jobs)
@@ -178,7 +186,10 @@ async def demand_ingredients(job_id: int = Query(...)):
     stock_df = await load_current_stock()
 
     if recipe_df.empty:
-        return IngredientsResponse(ingredients=[])
+        return IngredientsResponse(ingredients=[], recipe_missing_variants=[
+            r["variant_id"] for r in result_rows
+            if any(day["units"] > 0 for day in _daily_values(r["daily_data"]))
+        ])
 
     # Index once per response, instead of scanning the full recipe and stock frames repeatedly.
     # Preserve recipe order and the first stock row, matching the original lookup behavior.
@@ -188,15 +199,16 @@ async def demand_ingredients(job_id: int = Query(...)):
         if not stock_df.empty else {}
     )
     daily_needs = defaultdict(lambda: defaultdict(float))
+    missing_recipes = []
 
     for r in result_rows:
-        daily = r["daily_data"]
-        if isinstance(daily, str):
-            daily = json.loads(daily)
+        daily = _daily_values(r["daily_data"])
         vid = r["variant_id"]
 
         variant_recipes = recipes_by_variant.get(vid)
         if variant_recipes is None:
+            if any(day["units"] > 0 for day in daily):
+                missing_recipes.append(vid)
             continue
         for _, rec in variant_recipes.iterrows():
             ing_id = rec["ingredient_id"]
@@ -213,21 +225,22 @@ async def demand_ingredients(job_id: int = Query(...)):
         date_list = sorted(dates.keys())
         current_stock = float(stock_by_ingredient.get(ing_id, 0))
 
-        # Round each day before summing, preserving the API's existing quantity contract.
+        # Display rounded days, but round the total once to retain small recipe quantities.
         daily_values = [
             IngredientDailyValue(date=d, quantity=round(dates[d], 2))
             for d in date_list
         ]
-        total_needed = round(sum(dv.quantity for dv in daily_values), 2)
+        total_needed = round(sum(dates.values()), 2)
 
         avg_daily = total_needed / len(date_list) if date_list else 0
-        days_covered = round(current_stock / avg_daily, 1) if avg_daily > 0 else None
+        coverage = current_stock / avg_daily if avg_daily > 0 else None
+        days_covered = round(coverage, 1) if coverage is not None else None
 
         if total_needed <= 0.01:
             status = "ok"
-        elif days_covered is not None and days_covered >= 7:
+        elif coverage is not None and coverage >= 7:
             status = "ok"
-        elif days_covered is not None and days_covered >= 3:
+        elif coverage is not None and coverage >= 3:
             status = "warning"
         else:
             status = "critical"
@@ -245,4 +258,4 @@ async def demand_ingredients(job_id: int = Query(...)):
 
     ingredients.sort(key=lambda x: {"critical": 0, "warning": 1, "ok": 2}[x.status])
 
-    return IngredientsResponse(ingredients=ingredients)
+    return IngredientsResponse(ingredients=ingredients, recipe_missing_variants=missing_recipes)

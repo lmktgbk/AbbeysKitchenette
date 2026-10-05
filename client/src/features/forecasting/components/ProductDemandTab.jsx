@@ -166,7 +166,7 @@ export default function ProductDemandTab({
         <EmptyState
           icon="trendingUp"
           title="No forecasted demand"
-          copy="No products with forecasted demand in the next 7 days."
+          copy="No products with forecasted demand in the selected period."
         />
       </div>
     );
@@ -178,7 +178,7 @@ export default function ProductDemandTab({
         <div className="flex items-center justify-between gap-3">
           <div>
             <h3 className="text-sm font-semibold text-foreground">Product Forecast</h3>
-            <p className="text-xs text-muted-foreground">{filtered.length} products with demand · next 7 days</p>
+            <p className="text-xs text-muted-foreground">{filtered.length} products with demand · selected forecast period</p>
           </div>
           {activeTab && onTabChange && (
             <FilterPill
@@ -236,7 +236,7 @@ export default function ProductDemandTab({
                           <p className="font-medium text-foreground">{p.product_name}</p>
                           <p className="text-xs text-muted-foreground">
                             {p.variants.length > 1 ? `${p.variants.length} sizes` : p.variants[0].size_name}
-                            {p.score ? ` · R² ${(p.score.r_squared * 100).toFixed(0)}%` : ""}
+                            {p.score?.r_squared != null ? ` · R² ${(p.score.r_squared * 100).toFixed(0)}%` : ""}
                           </p>
                         </div>
                       </div>
@@ -254,8 +254,9 @@ export default function ProductDemandTab({
                       >
                         <td className="px-4 py-2 pl-10">
                           <p className="font-medium text-foreground">{v.size_name}</p>
+                          {v.current_available === false && <p className="text-xs text-amber-700">Currently unavailable · demand estimate retained</p>}
                           <p className="text-xs text-muted-foreground">
-                            {v.share != null ? `${(v.share * 100).toFixed(0)}% of ${p.product_name}` : p.product_name}
+                            {v.share != null ? `${(v.share * 100).toFixed(0)}% historical mix of ${p.product_name} (estimated)` : p.product_name}
                           </p>
                         </td>
                         <NumCell align="center" className="whitespace-nowrap py-2">{v.units.toLocaleString()}</NumCell>
