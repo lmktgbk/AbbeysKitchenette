@@ -1,4 +1,4 @@
-import { GEMINI_MODEL, ai } from "../../config/gemini.js";
+import { GEMINI_MODEL, ai } from "../../infrastructure/integrations/gemini.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 
 /**

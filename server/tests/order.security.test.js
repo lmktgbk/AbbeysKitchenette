@@ -18,7 +18,7 @@ vi.mock("../src/modules/notifications/notification.service.js", () => ({ notific
 vi.mock("../src/modules/products/product.service.js", () => ({ productService: { recomputeVariantAvailability: vi.fn().mockResolvedValue({}) } }));
 vi.mock("../src/modules/settings/settings.service.js", () => ({ settingsService: { getAcceptedPayments: vi.fn().mockResolvedValue(["cash", "gcash", "maya"]) } }));
 vi.mock("../src/modules/anomalyDetection/anomalyDetection.service.js", () => ({ anomalyService: { runScan: vi.fn().mockResolvedValue({}) } }));
-vi.mock("../src/realtime/events.js", () => ({ emitOrderChanged: vi.fn(), emitStockChanged: vi.fn(), emitGuestForOrder: vi.fn() }));
+vi.mock("../src/infrastructure/realtime/events.js", () => ({ emitOrderChanged: vi.fn(), emitStockChanged: vi.fn(), emitGuestForOrder: vi.fn() }));
 
 import router from "../src/modules/orders/order.routes.js";
 import errorHandler from "../src/middleware/errorHandler.middleware.js";

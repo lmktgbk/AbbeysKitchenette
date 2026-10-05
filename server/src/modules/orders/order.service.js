@@ -7,12 +7,12 @@ import { orderRequest, orderIdempotency } from "./order.idempotency.js";
 import { shiftService } from "../shifts/shift.service.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import prisma from "../../config/prisma.js";
-import { recordEffects } from "../../infrastructure/effects/domainEffects.js";
+import { recordEffects } from "../../infrastructure/effects/effects.js";
 import { lockStock } from "../ingredients/ingredient.lock.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { getBusinessDate } from "../../config/time.js";
 
-import { recordSheetEvent } from "../sheets/sheets.outbox.js";
+import { recordSheetEvent } from "../../infrastructure/integrations/sheets/sheets.outbox.js";
 
 export const orderService = {
   ...orderPricing,

@@ -6,15 +6,15 @@ import sharp from "sharp";
 import ExcelJS from "exceljs";
 import nodemailer from "nodemailer";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { cloudinaryStorage } from "../src/infrastructure/storage/cloudinaryStorage.js";
+import { cloudinaryStorage } from "../src/infrastructure/storage/cloudinary.js";
 import { uploadAvatar, uploadProductImage } from "../src/middleware/upload.middleware.js";
 import { mapUploadError } from "../src/utils/response.js";
-import { storageRepository } from "../src/infrastructure/storage/storageAssets.repository.js";
+import { storageRepository } from "../src/infrastructure/storage/storage.repository.js";
 
 const sdk = vi.hoisted(() => ({ uploader: { upload_stream: vi.fn(), destroy: vi.fn() } }));
 vi.mock("../src/config/cloudinary.js", () => ({ default: sdk }));
 vi.mock("../src/config/env.js", () => ({ env: { CLOUDINARY_CLOUD_NAME: "fixture" } }));
-vi.mock("../src/infrastructure/storage/storageAssets.repository.js", () => ({ storageRepository: {
+vi.mock("../src/infrastructure/storage/storage.repository.js", () => ({ storageRepository: {
   reserve: vi.fn(async () => "fixture"), ready: vi.fn(async () => {}), schedule: vi.fn(async () => {}),
 } }));
 let server, base, mode;

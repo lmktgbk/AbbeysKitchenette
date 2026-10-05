@@ -289,3 +289,34 @@ The existing automation repository formatting was preserved outside this commit.
 Documentation is not a blanket claim that every complex line throughout the
 server has now been exhaustively reviewed. Further concrete gaps should be fixed
 where found; do not treat file headers or raw comment totals as completion criteria.
+
+
+## Batch 13 — align the proposed server layout
+
+Relocated 25 implementations without compatibility wrappers or duplicate files:
+- effects/{effects,effects.repository,effects.worker}.js.
+- storage/{storage.repository,storage.worker,cloudinary}.js; separate existing
+  image validation and safe cleanup scheduling remain beside the upload adapter.
+- integrations/{email,gemini}.js and ml/{ml.client,ml.mutation}.js.
+- integrations/sheets/{sheets.service,sheets.repository,sheets.transport,sheets.outbox}.js.
+- infrastructure/realtime contains the existing eight socket implementation files.
+- rateLimit/{rateLimit.store,rateLimit.maintenance}.js; middleware now uses
+  rateLimit.middleware.js rather than the prior misspelled filename.
+
+Updated production imports, test mocks, the maintenance script, feature guides,
+and the HTTP-test generator's socket mock path. Historical audit reports and their
+original report generator retain original locations/evidence; they are not current
+implementation guides and were not regenerated. Infrastructure/README.md records
+current ownership and deliberate retained files: OTP in auth, provider setup in
+config, and the shared advisory business resolver outside infrastructure.
+
+Verification: 838 ordinary tests passed (119 opt-in cases skipped); source layout
+checks passed. Normalized syntax trees match before/after relocation for 100
+JavaScript/TypeScript files, permitting only references to the relocated modules.
+All 181 non-generated source files have no missing relative import targets or
+static import cycles in the graph check. No functions, exports, SQL, limits,
+transaction boundaries, or worker timings changed. No database migration is needed.
+Live provider calls, hosted startup, PostgreSQL suites, and manual acceptance were
+not repeated in this import-only batch and remain separate verification work.
+The prior automation repository formatting is preserved but excluded from the
+commit; only its necessary import update is staged.

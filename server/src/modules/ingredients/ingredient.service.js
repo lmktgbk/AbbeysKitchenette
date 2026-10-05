@@ -1,6 +1,6 @@
 import { ingredientRepository } from "./ingredient.repository.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
-import { recordEffects, recordMutation } from "../../infrastructure/effects/domainEffects.js";
+import { recordEffects, recordMutation } from "../../infrastructure/effects/effects.js";
 import { lockStock } from "./ingredient.lock.js";
 import prisma from "../../config/prisma.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { reportDay } from "../src/modules/reports/dailyReport.service.js";
-import { generateDailyReportEmail } from "../src/utils/email.js";
+import { generateDailyReportEmail } from "../src/infrastructure/integrations/email.js";
 
 describe("reportDay (Manila yesterday)", () => {
   it("maps Sep 26 15:00 Manila to Sep 25", () => {

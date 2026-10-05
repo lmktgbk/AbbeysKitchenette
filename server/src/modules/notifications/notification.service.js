@@ -1,5 +1,5 @@
 import { notificationRepository } from "./notification.repository.js";
-import { broadcast } from "../../realtime/hub.js";
+import { broadcast } from "../../infrastructure/realtime/hub.js";
 
 /**
  * Notification Service (admin-only readers — enforced in routes + header)

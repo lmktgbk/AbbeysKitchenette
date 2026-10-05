@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import prisma from "../config/prisma.js";
-import { env } from "../config/env.js";
-import { AppError } from "./errorHandler.middleware.js";
+import prisma from "../../config/prisma.js";
+import { env } from "../../config/env.js";
+import { AppError } from "../../middleware/errorHandler.middleware.js";
 
 /** Shared fixed-window counters for Express rate limiting; database failure rejects protected requests. */
 export class PostgresRateLimitStore {

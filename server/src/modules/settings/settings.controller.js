@@ -2,7 +2,7 @@ import { settingsService } from "./settings.service.js";
 import { automationScheduler } from "../automation/automation.scheduler.js";
 import { successResponse, controllerError } from "../../utils/response.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
-import { emitSettingsChanged } from "../../realtime/events.js";
+import { emitSettingsChanged } from "../../infrastructure/realtime/events.js";
 
 /**
  * Settings Controller (admin-only — router guard plus in-handler re-check)

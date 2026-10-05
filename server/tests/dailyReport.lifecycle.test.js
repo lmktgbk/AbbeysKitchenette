@@ -6,7 +6,7 @@ vi.mock("../src/modules/analytics/analytics.repository.js", () => ({ analyticsRe
 vi.mock("../src/modules/shifts/shift.service.js", () => ({ shiftService: {} }));
 vi.mock("../src/modules/orders/order.repository.js", () => ({ orderRepository: {} }));
 vi.mock("../src/modules/auditLogs/auditLog.service.js", () => ({ auditLogService: { logAction: h.audit } }));
-vi.mock("../src/utils/email.js", () => ({ sendEmail: h.send, generateDailyReportEmail: () => ({ subject: "Fixture", html: "Fixture" }) }));
+vi.mock("../src/infrastructure/integrations/email.js", () => ({ sendEmail: h.send, generateDailyReportEmail: () => ({ subject: "Fixture", html: "Fixture" }) }));
 vi.mock("../src/modules/analytics/exportPdf.js", () => ({ buildPdfBuffer: async () => Buffer.from("Fixture") }));
 import { dailyReportService, reportDay } from "../src/modules/reports/dailyReport.service.js";
 beforeEach(() => {

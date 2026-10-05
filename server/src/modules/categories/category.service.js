@@ -1,7 +1,7 @@
 import { categoryRepository } from "./category.repository.js";
 import prisma from "../../config/prisma.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
-import { recordEffects } from "../../infrastructure/effects/domainEffects.js";
+import { recordEffects } from "../../infrastructure/effects/effects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
 // ── Response Helpers (DRY) ──────────────────────────────

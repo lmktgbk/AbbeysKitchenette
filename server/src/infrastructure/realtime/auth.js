@@ -5,7 +5,7 @@
  * frontend code never needs a JavaScript-readable session token.
  */
 
-import { publicUser, resolveSession } from "../modules/auth/auth.session.js";
+import { publicUser, resolveSession } from "../../modules/auth/auth.session.js";
 
 function parseCookies(header) {
   const out = {};

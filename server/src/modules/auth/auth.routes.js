@@ -3,7 +3,7 @@ import { Router } from "express";
 import { authController } from "./auth.controller.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import authenticate from "../../middleware/authenticate.middleware.js";
-import { authLimiter, accountLimiter, emailChangeLimiter } from "../../middleware/rateLimitin.middleware.js";
+import { authLimiter, accountLimiter, emailChangeLimiter } from "../../middleware/rateLimit.middleware.js";
 import { uploadAvatar } from "../../middleware/upload.middleware.js";
 import {
   loginSchema,

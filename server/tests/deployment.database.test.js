@@ -11,7 +11,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client.ts";
 vi.mock("../src/config/prisma.js", () => ({ default: {} }));
 vi.mock("../src/config/env.js", () => ({ env: { NODE_ENV: "test" } }));
-import { PostgresRateLimitStore, pruneRateLimitBuckets } from "../src/middleware/rateLimit.store.js";
+import { PostgresRateLimitStore, pruneRateLimitBuckets } from "../src/infrastructure/rateLimit/rateLimit.store.js";
 const schema = `deployment_check_${crypto.randomUUID().replaceAll("-", "")}`;
 let admin, db, madeSchema = false;
 describe.skipIf(process.env.DEPLOYMENT_DB_CHECK !== "1")("PostgreSQL deployment rate protection", () => {

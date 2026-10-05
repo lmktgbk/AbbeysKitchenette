@@ -11,7 +11,7 @@ import { requestTelemetry, operationsRoutes } from "./infrastructure/operations/
 
 import errorHandler from "./middleware/errorHandler.middleware.js";
 import { requestBodyParsers } from "./middleware/requestBody.middleware.js";
-import { generalLimiter } from "./middleware/rateLimitin.middleware.js";
+import { generalLimiter } from "./middleware/rateLimit.middleware.js";
 
 // Routes
 import authRoutes from "./modules/auth/auth.routes.js";

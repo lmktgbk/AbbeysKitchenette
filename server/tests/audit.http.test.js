@@ -6,7 +6,7 @@ vi.mock("../src/config/env.js", () => ({ env: { NODE_ENV: "test", CLIENT_URL: "h
 vi.mock("../src/config/prisma.js", () => ({ default: { user: { findUnique: async () => ({ id: "123e4567-e89b-42d3-a456-426614174000", role: h.role, isActive: true, sessionVersion: 0 }) } } }));
 vi.mock("../src/middleware/upload.middleware.js", () => ({ uploadProductImage: (req,res,next) => next(), uploadAvatar: (req,res,next) => next(), productUploadBody: (req,res,next) => next() }));
 vi.mock("../src/modules/auditLogs/auditLog.service.js", () => ({ auditLogService: { logAction: vi.fn().mockResolvedValue({}) } }));
-vi.mock("../src/realtime/jobs.js", () => ({ proxyMlStatus: vi.fn() }));
+vi.mock("../src/infrastructure/realtime/jobs.js", () => ({ proxyMlStatus: vi.fn() }));
 vi.mock("../src/modules/auth/auth.controller.js", () => ({ authController: h.proxy() }));
 vi.mock("../src/modules/categories/category.controller.js", () => ({ categoryController: h.proxy() }));
 vi.mock("../src/modules/ingredients/ingredient.controller.js", () => ({ ingredientController: h.proxy() }));

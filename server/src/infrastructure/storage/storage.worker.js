@@ -1,6 +1,6 @@
 import cloudinary from "../../config/cloudinary.js";
 import { env } from "../../config/env.js";
-import { storageRepository } from "./storageAssets.repository.js";
+import { storageRepository } from "./storage.repository.js";
 
 /** Reconcile persisted cleanup claims; provider failures remain eligible for repository-managed retries. */
 export function createStorageWorker({ repository = storageRepository, destroy = id => cloudinary.uploader.destroy(id,

@@ -3,7 +3,7 @@ import { reorderSuggestionsService } from '../reorderSuggestions/reorderSuggesti
 import { wasteReductionService } from '../wasteReduction/wasteReduction.service.js';
 import { dailyReportService, reportDay } from '../reports/dailyReport.service.js';
 import { toManilaDateString, manilaDayStart } from '../../config/time.js';
-import { fetchMl } from '../../infrastructure/integrations/ml/mlClient.js';
+import { fetchMl } from '../../infrastructure/integrations/ml/ml.client.js';
 
 export const JOB_KINDS = ['forecast', 'reorder', 'waste', 'marketBasket', 'dailyReport'];
 const weekdays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];

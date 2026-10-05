@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { env } from "./env.js";
+import { env } from "../../config/env.js";
 
 /**
  * Gemini AI Client

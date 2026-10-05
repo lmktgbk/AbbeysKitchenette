@@ -19,7 +19,7 @@
  */
 
 import { broadcast } from "./hub.js";
-import prisma from "../config/prisma.js";
+import prisma from "../../config/prisma.js";
 
 function safeBroadcast(topic, event) {
   try {

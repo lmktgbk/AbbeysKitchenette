@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { env } from "../../config/env.js";
+import { env } from "../../../config/env.js";
 
 /** Stable failure codes distinguish retryable provider errors from layout/configuration problems. */
 export class SheetsError extends Error {

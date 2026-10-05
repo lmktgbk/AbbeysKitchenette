@@ -1,6 +1,6 @@
 import { shiftRepository } from "./shift.repository.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
-import { recordEffects, recordMutation } from "../../infrastructure/effects/domainEffects.js";
+import { recordEffects, recordMutation } from "../../infrastructure/effects/effects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import prisma from "../../config/prisma.js";
 import { toManilaDateString, manilaDayStart, manilaDayEndExclusive } from "../../config/time.js";

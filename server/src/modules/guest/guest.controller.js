@@ -1,6 +1,6 @@
 import { guestService } from "./guest.service.js";
 import { successResponse, controllerError } from "../../utils/response.js";
-import { emitOrderChanged } from "../../realtime/events.js";
+import { emitOrderChanged } from "../../infrastructure/realtime/events.js";
 import { settingsRepository } from "../settings/settings.repository.js";
 import { DEFAULT_DINING_TABLES } from "../settings/settings.validation.js";
 import { isStoreOpen } from "../../utils/storeHours.js";

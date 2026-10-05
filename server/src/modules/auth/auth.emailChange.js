@@ -5,11 +5,11 @@ import bcrypt from "bcryptjs";
 import prisma from "../../config/prisma.js";
 import { env } from "../../config/env.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
-import { generateOtpEmail } from "../../utils/email.js";
+import { generateOtpEmail } from "../../infrastructure/integrations/email.js";
 import { lockAccount, lockSessionAccount } from "./auth.accountLock.js";
 import { SESSION_USER_SELECT, publicUser } from "./auth.session.js";
 import { signSessionToken } from "../../config/jwt.js";
-import { revokeLocalSessions } from "../../realtime/sessions.js";
+import { revokeLocalSessions } from "../../infrastructure/realtime/sessions.js";
 import { authRepository } from "./auth.repository.js";
 
 const invalid = () => new AppError(400, "Invalid or expired email verification code", "INVALID_EMAIL_CODE");

@@ -7,7 +7,7 @@ vi.mock("../src/modules/priceOptimization/priceOptimization.prompts.js", () => (
 import { isolatedPostgres } from "./helpers/isolatedPostgres.js";
 import { shiftService } from "../src/modules/shifts/shift.service.js";
 import pricing from "../src/modules/priceOptimization/priceOptimization.service.js";
-import { createEffectsRepository } from "../src/infrastructure/effects/domainEffects.repository.js";
+import { createEffectsRepository } from "../src/infrastructure/effects/effects.repository.js";
 let fixture, db, user;
 describe.skipIf(process.env.MUTATION_DB_CHECK !== "1")("PostgreSQL pricing and shift audit recovery", () => {
   beforeAll(async () => { fixture = await isolatedPostgres("mutation_check"); db = h.db = fixture.db; }, 90000);

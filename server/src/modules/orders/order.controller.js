@@ -1,6 +1,6 @@
 import { orderService } from "./order.service.js";
 import { successResponse, controllerError } from "../../utils/response.js";
-import { emitOrderChanged, emitStockChanged, emitGuestForOrder } from "../../realtime/events.js";
+import { emitOrderChanged, emitStockChanged, emitGuestForOrder } from "../../infrastructure/realtime/events.js";
 
 /**
  * Order Controller

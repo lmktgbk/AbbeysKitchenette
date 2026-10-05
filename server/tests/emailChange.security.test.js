@@ -10,10 +10,10 @@ vi.mock("../src/config/prisma.js", () => ({ default: new Proxy({}, { get: (_, ke
 vi.mock("../src/config/env.js", () => ({ env: {
   NODE_ENV: "test", JWT_SECRET: "test-email-change-secret-at-least-32-characters", JWT_EXPIRES_IN: "8h",
 } }));
-vi.mock("../src/utils/email.js", () => ({ generateOtpEmail: code => code, generateResetPasswordEmail: x => x,
+vi.mock("../src/infrastructure/integrations/email.js", () => ({ generateOtpEmail: code => code, generateResetPasswordEmail: x => x,
   sendEmail: async message => { if (message.to === h.failRecipient) throw new Error("SMTP unavailable"); h.mail.push(message); },
 }));
-vi.mock("../src/realtime/sessions.js", () => ({ revokeLocalSessions: id => h.revoked.push(id) }));
+vi.mock("../src/infrastructure/realtime/sessions.js", () => ({ revokeLocalSessions: id => h.revoked.push(id) }));
 vi.mock("../src/utils/ipCheck.js", () => ({ isStoreIP: async () => true }));
 vi.mock("../src/infrastructure/storage/imageCleanup.js", () => ({ deleteImage: vi.fn() }));
 vi.mock("../src/middleware/upload.middleware.js", () => ({ uploadAvatar: (_, __, next) => next() }));
@@ -21,7 +21,7 @@ vi.mock("../src/modules/auditLogs/auditLog.service.js", () => ({ auditLogService
 import authRoutes from "../src/modules/auth/auth.routes.js";
 import { emailChange } from "../src/modules/auth/auth.emailChange.js";
 import { staffService } from "../src/modules/staff/staff.service.js";
-import { authLimiter, emailChangeLimiter } from "../src/middleware/rateLimitin.middleware.js";
+import { authLimiter, emailChangeLimiter } from "../src/middleware/rateLimit.middleware.js";
 import { signSessionToken, verifySessionToken } from "../src/config/jwt.js";
 import errorHandler from "../src/middleware/errorHandler.middleware.js";
 

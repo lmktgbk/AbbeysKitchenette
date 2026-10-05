@@ -1,5 +1,5 @@
 import prisma from "../../config/prisma.js";
-import { effectSchema } from "./domainEffects.js";
+import { effectSchema } from "./effects.js";
 import { captureAnomalyTrigger } from "../../modules/anomalyDetection/anomalyTriggers.js";
 
 /** Deliver one intent atomically; competing workers skip rows already locked by a delivery. */

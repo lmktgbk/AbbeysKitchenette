@@ -1,6 +1,6 @@
 import proxyaddr from "proxy-addr";
 import { ipKeyGenerator } from "express-rate-limit";
-import { env } from "../config/env.js";
+import { env } from "../../config/env.js";
 
 /** Resolve process-local socket budgets while reserving database capacity for HTTP transactions. */
 export function realtimeLimits(config = env) {

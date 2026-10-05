@@ -7,16 +7,16 @@ import {
   broadcast,
   topicStats,
   __reset,
-} from "../src/realtime/hub.js";
+} from "../src/infrastructure/realtime/hub.js";
 import {
   extractUpgradeToken,
   canSubscribe,
-} from "../src/realtime/auth.js";
+} from "../src/infrastructure/realtime/auth.js";
 import {
   ensureJobWatcher,
   watcherStats,
   __resetWatchers,
-} from "../src/realtime/jobs.js";
+} from "../src/infrastructure/realtime/jobs.js";
 
 vi.mock("../src/config/prisma.js", () => ({
   default: { user: { findUnique: vi.fn() } },
@@ -128,7 +128,7 @@ describe("topic ACL", () => {
 
 describe("resolveUser", () => {
   it("rejects missing and garbage tokens without touching the DB", async () => {
-    const { resolveUser } = await import("../src/realtime/auth.js");
+    const { resolveUser } = await import("../src/infrastructure/realtime/auth.js");
     const prisma = (await import("../src/config/prisma.js")).default;
     await expect(resolveUser(null)).rejects.toMatchObject({ status: 401 });
     await expect(resolveUser("garbage")).rejects.toMatchObject({ status: 401 });
@@ -136,7 +136,7 @@ describe("resolveUser", () => {
   });
 
   it("resolves active users and rejects inactive ones", async () => {
-    const { resolveUser } = await import("../src/realtime/auth.js");
+    const { resolveUser } = await import("../src/infrastructure/realtime/auth.js");
     const { signToken } = await import("../src/config/jwt.js");
     const prisma = (await import("../src/config/prisma.js")).default;
     const token = signToken({ sub: "u2", role: "cashier", version: 0 });
@@ -154,7 +154,7 @@ describe("resolveUser", () => {
   });
 
   it("rejects purpose-only tokens (e.g. password reset)", async () => {
-    const { resolveUser } = await import("../src/realtime/auth.js");
+    const { resolveUser } = await import("../src/infrastructure/realtime/auth.js");
     const { signToken } = await import("../src/config/jwt.js");
     const reset = signToken({ sub: "u2", purpose: "password-reset" }, "15m");
     await expect(resolveUser(reset)).rejects.toMatchObject({ status: 401 });

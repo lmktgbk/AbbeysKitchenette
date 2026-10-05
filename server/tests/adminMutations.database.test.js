@@ -2,19 +2,19 @@ import { beforeAll, beforeEach, afterAll, describe, it, expect, vi } from "vites
 const h = vi.hoisted(() => ({ db: null }));
 vi.mock("../src/config/prisma.js", () => ({ default: new Proxy({}, { get: (_t, key) => typeof h.db[key] === "function" ? h.db[key].bind(h.db) : h.db[key] }) }));
 vi.mock("../src/config/env.js", () => ({ env: { JWT_SECRET: "fixture-key-only", CLIENT_URL: "https://fixture.invalid" } }));
-vi.mock("../src/utils/email.js", () => ({ sendEmail: vi.fn().mockRejectedValue(Error("Fixture mail offline")), generateStaffInviteEmail: () => "fixture" }));
+vi.mock("../src/infrastructure/integrations/email.js", () => ({ sendEmail: vi.fn().mockRejectedValue(Error("Fixture mail offline")), generateStaffInviteEmail: () => "fixture" }));
 vi.mock("../src/infrastructure/storage/imageCleanup.js", () => ({ deleteImage: vi.fn().mockResolvedValue() }));
 vi.mock("../src/modules/auditLogs/auditLog.service.js", () => ({ auditLogService: { logAction: vi.fn().mockResolvedValue() } }));
-vi.mock("../src/realtime/sessions.js", () => ({ revokeLocalSessions: vi.fn() }));
+vi.mock("../src/infrastructure/realtime/sessions.js", () => ({ revokeLocalSessions: vi.fn() }));
 import { isolatedPostgres } from "./helpers/isolatedPostgres.js";
 import { productService as products } from "../src/modules/products/product.service.js";
 import { categoryService as categories } from "../src/modules/categories/category.service.js";
 import { staffService as staff } from "../src/modules/staff/staff.service.js";
 import { settingsService as settings } from "../src/modules/settings/settings.service.js";
-import { revokeLocalSessions } from "../src/realtime/sessions.js";
-import { sendEmail } from "../src/utils/email.js";
+import { revokeLocalSessions } from "../src/infrastructure/realtime/sessions.js";
+import { sendEmail } from "../src/infrastructure/integrations/email.js";
 import { deleteImage } from "../src/infrastructure/storage/imageCleanup.js";
-import { createEffectsRepository } from "../src/infrastructure/effects/domainEffects.repository.js";
+import { createEffectsRepository } from "../src/infrastructure/effects/effects.repository.js";
 let fixture, db, actor, target, root, sub, product, variant;
 describe.skipIf(process.env.ADMIN_DB_CHECK !== "1")("PostgreSQL administrative mutation recovery", () => {
   beforeAll(async () => { fixture = await isolatedPostgres("admin_check"); db = h.db = fixture.db; }, 90000);

@@ -2,7 +2,7 @@ import { Router } from "express";
 
 import { guestController } from "./guest.controller.js";
 import { validate, validateQuery, validateParams } from "../../middleware/validate.middleware.js";
-import { guestOrderLimiter, guestTrackLimiter } from "../../middleware/rateLimitin.middleware.js";
+import { guestOrderLimiter, guestTrackLimiter } from "../../middleware/rateLimit.middleware.js";
 import { createGuestOrderSchema, getMenuQuerySchema, guestTokenParamSchema } from "./guest.validation.js";
 
 const router = Router();

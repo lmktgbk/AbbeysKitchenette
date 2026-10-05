@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import prisma from "../../../config/prisma.js";
-import { recordEffects } from "../../effects/domainEffects.js";
-import { fetchMl } from "./mlClient.js";
+import { recordEffects } from "../../effects/effects.js";
+import { fetchMl } from "./ml.client.js";
 
 /**
  * Audit manual mutation attempts before contacting Python, then capture the outcome.

@@ -8,7 +8,8 @@ or retry policy.
 | --- | --- |
 | `effects` | Record audit/notification intent inside the business transaction and deliver it durably. |
 | `storage` | Validate uploaded images, track asset ownership, and schedule/retry safe provider cleanup through `imageCleanup.js`. |
-| `integrations/ml` | Bound external ML requests and record admission outcomes without replaying uncertain requests. |
+| `integrations` | Email delivery, Gemini client, ML requests/admission, and Sheets snapshots/transport. |
+| `realtime` | WebSocket authentication, bounded admission, session invalidation, and process-local fanout. |
 | `operations` | Readiness, redacted telemetry, and graceful process shutdown. |
 | `rateLimit` | Maintain persisted rate-limit records. |
 
@@ -32,9 +33,25 @@ they own feature-specific rules. The effects repository invokes that admission
 within its delivery transaction; this dependency is intentional and ensures that
 an audit event cannot be marked delivered without recording its required scan.
 
-## Incremental cleanup
+## Aligned file ownership
 
-The remaining `src/services` helpers and existing realtime, Sheets, and provider
-configuration folders are deferred to later batches. Their placement is not an
-invitation to duplicate them here. Move an implementation and update its callers;
-avoid compatibility wrappers that leave two paths to the same responsibility.
+- effects: effects.js, effects.repository.js, effects.worker.js.
+- storage: storage.repository.js, storage.worker.js, cloudinary.js (upload
+  adapter), imageValidation.js, imageCleanup.js (safe deletion scheduling).
+- integrations: email.js, gemini.js, ml/ml.client.js, ml/ml.mutation.js,
+  and sheets/sheets.{outbox,repository,service,transport}.js.
+- realtime: the existing socket implementation moved intact from src/realtime.
+- rateLimit: rateLimit.store.js and rateLimit.maintenance.js. Express limiter
+  declarations remain in middleware/rateLimit.middleware.js.
+- operations: readiness.js, observability.js, shutdown.js.
+
+Configuration retains Cloudinary/Nodemailer setup alongside environment, database,
+cookie, token, and time settings. OTP stays feature-owned in auth/auth.otp.js.
+The shared business resolver services/advisoryEffects.js remains outside infrastructure
+because it resolves recommendation state rather than delivering provider effects.
+These existing responsibility-specific files are deliberate additions to the
+illustrative structure, not duplicate implementations or compatibility wrappers.
+
+All imports, test mocks, and the Sheets maintenance script use the new locations.
+Moving these files does not change worker timing, leases, queries, or transaction
+ownership. Hosted startup and live provider acceptance still require verification.

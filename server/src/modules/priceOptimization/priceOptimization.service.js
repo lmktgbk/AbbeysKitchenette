@@ -1,4 +1,4 @@
-import { recordEffects } from "../../infrastructure/effects/domainEffects.js";
+import { recordEffects } from "../../infrastructure/effects/effects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import repo from "./priceOptimization.repository.js";
 import { normalizeRecommendations } from "./priceOptimization.output.js";

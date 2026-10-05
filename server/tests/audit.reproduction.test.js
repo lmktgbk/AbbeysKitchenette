@@ -15,7 +15,7 @@ vi.mock("../src/config/env.js", () => ({ env: {
   JWT_SECRET: "audit-only-secret-never-used-for-real-authentication",
   JWT_EXPIRES_IN: "8h", NODE_ENV: "test", CLIENT_URL: "http://localhost:5173",
 } }));
-vi.mock("../src/utils/email.js", () => ({ sendEmail: vi.fn().mockResolvedValue({}), generateOtpEmail: vi.fn(), generateResetPasswordEmail: vi.fn() }));
+vi.mock("../src/infrastructure/integrations/email.js", () => ({ sendEmail: vi.fn().mockResolvedValue({}), generateOtpEmail: vi.fn(), generateResetPasswordEmail: vi.fn() }));
 vi.mock("../src/infrastructure/storage/imageCleanup.js", () => ({ deleteImage: vi.fn() }));
 vi.mock("../src/utils/ipCheck.js", () => ({ isStoreIP: vi.fn().mockResolvedValue(true) }));
 vi.mock("../src/modules/auditLogs/auditLog.service.js", () => ({ auditLogService: { logAction: vi.fn().mockResolvedValue({}) } }));
@@ -33,7 +33,7 @@ import { authRepository } from "../src/modules/auth/auth.repository.js";
 import { orderService } from "../src/modules/orders/order.service.js";
 import { orderRepository } from "../src/modules/orders/order.repository.js";
 import { getOrdersQuerySchema, createOrderSchema, updateStatusSchema } from "../src/modules/orders/order.validation.js";
-import { sendEmail } from "../src/utils/email.js";
+import { sendEmail } from "../src/infrastructure/integrations/email.js";
 
 const user = { id: "123e4567-e89b-42d3-a456-426614174000", role: "admin", isActive: true, email: "audit@example.invalid" };
 beforeEach(() => { vi.restoreAllMocks(); vi.clearAllMocks(); });

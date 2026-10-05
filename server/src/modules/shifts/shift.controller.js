@@ -1,6 +1,6 @@
 import { shiftService } from "./shift.service.js";
 import { successResponse, controllerError } from "../../utils/response.js";
-import { emitShiftChanged } from "../../realtime/events.js";
+import { emitShiftChanged } from "../../infrastructure/realtime/events.js";
 
 /**
  * Shift Controller

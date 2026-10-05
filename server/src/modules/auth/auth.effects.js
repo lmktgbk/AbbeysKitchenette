@@ -1,9 +1,9 @@
 import crypto from "node:crypto";
 import prisma from "../../config/prisma.js";
 import { env } from "../../config/env.js";
-import { recordEffects } from "../../infrastructure/effects/domainEffects.js";
+import { recordEffects } from "../../infrastructure/effects/effects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
-import { sendEmail } from "../../utils/email.js";
+import { sendEmail } from "../../infrastructure/integrations/email.js";
 
 /** Record credential audit intent using the caller's transaction; subject and actor may differ. */
 export function authAudit(tx, userId, action, details = {}, subjectId = userId) {

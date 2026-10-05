@@ -3,8 +3,8 @@ import crypto from "node:crypto";
 import { beforeAll, beforeEach, afterAll, describe, expect, it, vi } from "vitest";
 vi.mock("../src/config/env.js", () => ({ env: {} }));
 vi.mock("../src/config/prisma.js", () => ({ default: {} }));
-import { createSheetsTransport, SheetsError } from "../src/modules/sheets/sheets.transport.js";
-import { createSheetsWorker } from "../src/modules/sheets/sheets.service.js";
+import { createSheetsTransport, SheetsError } from "../src/infrastructure/integrations/sheets/sheets.transport.js";
+import { createSheetsWorker } from "../src/infrastructure/integrations/sheets/sheets.service.js";
 let server, base, config, mode, cells, calls, rows, columns;
 beforeAll(async () => {
   config = { GOOGLE_SERVICE_ACCOUNT_EMAIL: "fixture@example.invalid", GOOGLE_PRIVATE_KEY: crypto.generateKeyPairSync("rsa", { modulusLength: 2048 }).privateKey.export({ type: "pkcs8", format: "pem" }) };

@@ -3,11 +3,11 @@ import authenticate from "../../middleware/authenticate.middleware.js";
 import authorize from "../../middleware/authorize.middleware.js";
 import { validateQuery } from "../../middleware/validate.middleware.js";
 import { forecastJobQuerySchema } from "./forecasting.validation.js";
-import { proxyMlMutation } from "../../infrastructure/integrations/ml/mlMutation.js";
+import { proxyMlMutation } from "../../infrastructure/integrations/ml/ml.mutation.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
-import { proxyMlStatus } from "../../realtime/jobs.js";
+import { proxyMlStatus } from "../../infrastructure/realtime/jobs.js";
 
-import { proxyMl } from "../../infrastructure/integrations/ml/mlClient.js";
+import { proxyMl } from "../../infrastructure/integrations/ml/ml.client.js";
 
 const router = Router();
 

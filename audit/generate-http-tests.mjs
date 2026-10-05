@@ -20,7 +20,7 @@ vi.mock("../src/config/env.js", () => ({ env: { NODE_ENV: "test", CLIENT_URL: "h
 vi.mock("../src/config/prisma.js", () => ({ default: { user: { findUnique: async () => ({ id: "123e4567-e89b-42d3-a456-426614174000", role: h.role, isActive: true, sessionVersion: 0 }) } } }));
 vi.mock("../src/middleware/upload.middleware.js", () => ({ uploadProductImage: (req,res,next) => next(), uploadAvatar: (req,res,next) => next() }));
 vi.mock("../src/modules/auditLogs/auditLog.service.js", () => ({ auditLogService: { logAction: vi.fn().mockResolvedValue({}) } }));
-vi.mock("../src/realtime/jobs.js", () => ({ proxyMlStatus: vi.fn() }));
+vi.mock("../src/infrastructure/realtime/jobs.js", () => ({ proxyMlStatus: vi.fn() }));
 ${[...controllers].map(([p, n]) => `vi.mock(${JSON.stringify(p)}, () => ({ ${n}: h.proxy() }));`).join("\n")}
 import app from "../src/app.js";
 import { signToken } from "../src/config/jwt.js";

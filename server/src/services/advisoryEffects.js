@@ -1,6 +1,6 @@
 import prisma from "../config/prisma.js";
 import { AppError } from "../middleware/errorHandler.middleware.js";
-import { recordEffects } from "../infrastructure/effects/domainEffects.js";
+import { recordEffects } from "../infrastructure/effects/effects.js";
 
 /** Resolve a pending suggestion once and save its audit atomically; model is supplied by trusted feature code. */
 export function resolveAdvisory(model, id, status, userId, action) {

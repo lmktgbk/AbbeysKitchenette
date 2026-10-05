@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { createAuthQueue } from "../src/realtime/authQueue.js";
+import { createAuthQueue } from "../src/infrastructure/realtime/authQueue.js";
 describe("bounded realtime authentication queue", () => {
   it("queues a normal connection burst while limiting actual queries", async () => {
     const finishes = [];

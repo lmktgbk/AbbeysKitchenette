@@ -4,10 +4,10 @@ vi.mock("../src/config/prisma.js", () => ({ default: new Proxy({}, { get: (_t, k
 vi.mock("../src/config/env.js", () => ({ env: {} }));
 vi.mock("../src/modules/anomalyDetection/rules/engine.js", () => ({ engine: { evaluate: h.evaluate } }));
 vi.mock("../src/modules/anomalyDetection/rules/index.js", () => ({ RULE_REGISTRY: [{ id: "revenue_anomaly", enabled: true, config: {} }] }));
-vi.mock("../src/realtime/events.js", () => ({ emitAnomalyCompleted: vi.fn() }));
+vi.mock("../src/infrastructure/realtime/events.js", () => ({ emitAnomalyCompleted: vi.fn() }));
 import { isolatedPostgres } from "./helpers/isolatedPostgres.js";
-import { recordEffects } from "../src/infrastructure/effects/domainEffects.js";
-import { createEffectsRepository } from "../src/infrastructure/effects/domainEffects.repository.js";
+import { recordEffects } from "../src/infrastructure/effects/effects.js";
+import { createEffectsRepository } from "../src/infrastructure/effects/effects.repository.js";
 import { anomalyService } from "../src/modules/anomalyDetection/anomalyDetection.service.js";
 import { createAnomalyWorker } from "../src/modules/anomalyDetection/anomalyTriggers.worker.js";
 import { automationRepository } from "../src/modules/automation/automation.repository.js";

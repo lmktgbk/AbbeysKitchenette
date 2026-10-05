@@ -4,12 +4,12 @@ import { engine } from "./rules/engine.js";
 import { RULE_REGISTRY } from "./rules/index.js";
 import prisma from "../../config/prisma.js";
 import crypto from "node:crypto";
-import { recordEffects } from "../../infrastructure/effects/domainEffects.js";
+import { recordEffects } from "../../infrastructure/effects/effects.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { env } from "../../config/env.js";
 import { BUSINESS_TZ } from "../../config/time.js";
-import { emitAnomalyCompleted } from "../../realtime/events.js";
+import { emitAnomalyCompleted } from "../../infrastructure/realtime/events.js";
 
 /**
  * Anomaly Detection Service (BR-12)

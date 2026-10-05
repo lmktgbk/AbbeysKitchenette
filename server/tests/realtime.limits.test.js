@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { EventEmitter } from "node:events";
 vi.mock("../src/config/env.js", () => ({ env: {} }));
-import { createAdmission, realtimeLimits, upgradeClientKey, consumeMessage, sendBounded } from "../src/realtime/limits.js";
-import { subscribe, broadcast, topicStats, __reset } from "../src/realtime/hub.js";
+import { createAdmission, realtimeLimits, upgradeClientKey, consumeMessage, sendBounded } from "../src/infrastructure/realtime/limits.js";
+import { subscribe, broadcast, topicStats, __reset } from "../src/infrastructure/realtime/hub.js";
 describe("realtime resource accounting", () => {
   const defaults = realtimeLimits({});
   it("reserves HTTP database headroom instead of allocating the whole pool to sockets", () => {

@@ -1,4 +1,4 @@
-import { ai, GEMINI_MODEL } from "../../config/gemini.js";
+import { ai, GEMINI_MODEL } from "../../infrastructure/integrations/gemini.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { wasteReductionRepository as repo } from "./wasteReduction.repository.js";
 import { buildWastePrompt } from "./wasteReduction.prompts.js";

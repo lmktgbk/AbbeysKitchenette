@@ -15,8 +15,8 @@ vi.mock("../src/config/prisma.js", () => ({ default: new Proxy({}, { get: (_, ke
 vi.mock("../src/config/env.js", () => ({ env: {
   JWT_SECRET: "isolated-database-email-test-secret-at-least-32-characters", JWT_EXPIRES_IN: "8h",
 } }));
-vi.mock("../src/utils/email.js", () => ({ generateOtpEmail: x => x, sendEmail: async message => h.mail.push(message) }));
-vi.mock("../src/realtime/sessions.js", () => ({ revokeLocalSessions: vi.fn() }));
+vi.mock("../src/infrastructure/integrations/email.js", () => ({ generateOtpEmail: x => x, sendEmail: async message => h.mail.push(message) }));
+vi.mock("../src/infrastructure/realtime/sessions.js", () => ({ revokeLocalSessions: vi.fn() }));
 import { emailChange } from "../src/modules/auth/auth.emailChange.js";
 import { authRepository } from "../src/modules/auth/auth.repository.js";
 

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 vi.mock("../src/config/prisma.js", () => ({ default: {} }));
 vi.mock("../src/config/env.js", () => ({ env: { NODE_ENV: "test" } }));
-import { PostgresRateLimitStore } from "../src/middleware/rateLimit.store.js";
-import { createRateLimitMaintenance } from "../src/infrastructure/rateLimit/rateLimitMaintenance.js";
+import { PostgresRateLimitStore } from "../src/infrastructure/rateLimit/rateLimit.store.js";
+import { createRateLimitMaintenance } from "../src/infrastructure/rateLimit/rateLimit.maintenance.js";
 describe("rate protection failure handling", () => {
   it("fails closed with a safe 503 when storage is unavailable", async () => {
     const store = new PostgresRateLimitStore("fixture", { $queryRaw: vi.fn(async () => { throw Error("secret connection string"); }) });

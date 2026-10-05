@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchMl, proxyMl } from "../src/infrastructure/integrations/ml/mlClient.js";
+import { fetchMl, proxyMl } from "../src/infrastructure/integrations/ml/ml.client.js";
 import { env } from "../src/config/env.js";
 
 vi.mock("../src/config/env.js", () => ({ env: { ML_SERVICE_KEY: "a".repeat(64), ML_REQUEST_TIMEOUT_MS: 100 } }));

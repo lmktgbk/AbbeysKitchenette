@@ -1,6 +1,6 @@
 import { staffService } from "./staff.service.js";
 import { successResponse, controllerError } from "../../utils/response.js";
-import { emitStaffChanged } from "../../realtime/events.js";
+import { emitStaffChanged } from "../../infrastructure/realtime/events.js";
 
 /**
  * Staff Controller

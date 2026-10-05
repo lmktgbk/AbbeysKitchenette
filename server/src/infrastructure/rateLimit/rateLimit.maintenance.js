@@ -1,5 +1,5 @@
 import { env } from "../../config/env.js";
-import { pruneRateLimitBuckets } from "../../middleware/rateLimit.store.js";
+import { pruneRateLimitBuckets } from "./rateLimit.store.js";
 
 /** Prune expired persisted counters without overlapping sweeps; shutdown drains admitted cleanup. */
 export function createRateLimitMaintenance({ enabled = env.RATE_LIMIT_STORE === "postgres", prune = pruneRateLimitBuckets, intervalMs = 60000 } = {}) {

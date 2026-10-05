@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import express from "express";
 import http from "node:http";
 vi.mock("../src/config/prisma.js", () => ({ databasePool: {} }));
-vi.mock("../src/infrastructure/integrations/ml/mlClient.js", () => ({ fetchMl: vi.fn() }));
+vi.mock("../src/infrastructure/integrations/ml/ml.client.js", () => ({ fetchMl: vi.fn() }));
 import { createReadiness, healthRoutes } from "../src/infrastructure/operations/readiness.js";
 import { createShutdown } from "../src/infrastructure/operations/shutdown.js";
 

@@ -1,7 +1,7 @@
 import prisma from "../src/config/prisma.js";
 import { env } from "../src/config/env.js";
-import { sheetsRepository } from "../src/modules/sheets/sheets.repository.js";
-import { createSheetsTransport } from "../src/modules/sheets/sheets.transport.js";
+import { sheetsRepository } from "../src/infrastructure/integrations/sheets/sheets.repository.js";
+import { createSheetsTransport } from "../src/infrastructure/integrations/sheets/sheets.transport.js";
 
 let lease;
 try {

@@ -2,9 +2,9 @@ import { beforeAll, afterAll, describe, it, expect, vi } from "vitest";
 import http from "node:http";
 import { WebSocket } from "ws";
 vi.mock("../src/config/env.js", () => ({ env: { NODE_ENV: "production", CLIENT_URL: "https://app.example.com", WS_HEARTBEAT_MS: 25000 } }));
-vi.mock("../src/realtime/auth.js", () => ({ extractUpgradeToken: () => null, resolveUser: vi.fn(async () => { throw Error("No session"); }), canSubscribe: () => false }));
-import { resolveUser } from "../src/realtime/auth.js";
-import { attachRealtimeServer } from "../src/realtime/server.js";
+vi.mock("../src/infrastructure/realtime/auth.js", () => ({ extractUpgradeToken: () => null, resolveUser: vi.fn(async () => { throw Error("No session"); }), canSubscribe: () => false }));
+import { resolveUser } from "../src/infrastructure/realtime/auth.js";
+import { attachRealtimeServer } from "../src/infrastructure/realtime/server.js";
 describe("production WebSocket ingress", () => {
   let server, realtime, url;
   beforeAll(async () => {

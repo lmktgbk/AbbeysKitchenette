@@ -11,8 +11,8 @@ vi.mock("../src/config/prisma.js", () => ({ default: new Proxy({}, { get: (_, ke
   const value = h.db[key]; return typeof value === "function" ? value.bind(h.db) : value;
 } }) }));
 vi.mock("../src/config/env.js", () => ({ env: { GOOGLE_SERVICE_ACCOUNT_EMAIL: "fixture@example.invalid", GOOGLE_PRIVATE_KEY: "fixture-no-network", SHEETS_ORDERS_ID: "fixture-sheet" } }));
-import { sheetsRepository } from "../src/modules/sheets/sheets.repository.js";
-import { recordSheetEvent } from "../src/modules/sheets/sheets.outbox.js";
+import { sheetsRepository } from "../src/infrastructure/integrations/sheets/sheets.repository.js";
+import { recordSheetEvent } from "../src/infrastructure/integrations/sheets/sheets.outbox.js";
 const schema = `sheets_check_${crypto.randomUUID().replaceAll("-", "")}`, orderId = crypto.randomUUID();
 let admin, madeSchema = false;
 describe.skipIf(process.env.SHEETS_DB_CHECK !== "1")("PostgreSQL Sheets outbox and replica leases", () => {

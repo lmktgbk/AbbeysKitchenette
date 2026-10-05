@@ -15,7 +15,7 @@ vi.mock("../src/config/env.js", () => ({ env: {
 } }));
 vi.mock("../src/utils/ipCheck.js", () => ({ isStoreIP: async () => h.storeAllowed }));
 vi.mock("../src/infrastructure/storage/imageCleanup.js", () => ({ deleteImage: vi.fn() }));
-vi.mock("../src/utils/email.js", () => ({
+vi.mock("../src/infrastructure/integrations/email.js", () => ({
   sendEmail: async message => {
     if (h.mailFailure) throw new Error("Injected mail failure");
     h.messages.push(message);
@@ -31,14 +31,14 @@ import { authService } from "../src/modules/auth/auth.service.js";
 import { authRepository } from "../src/modules/auth/auth.repository.js";
 import { signToken, signSessionToken, verifySessionToken, verifyToken } from "../src/config/jwt.js";
 import { resolveSession } from "../src/modules/auth/auth.session.js";
-import { resolveUser } from "../src/realtime/auth.js";
-import { registerSessionSocket } from "../src/realtime/sessions.js";
-import { subscribe, topicStats, __reset } from "../src/realtime/hub.js";
+import { resolveUser } from "../src/infrastructure/realtime/auth.js";
+import { registerSessionSocket } from "../src/infrastructure/realtime/sessions.js";
+import { subscribe, topicStats, __reset } from "../src/infrastructure/realtime/hub.js";
 import { generateOtp, verifyOtp } from "../src/modules/auth/auth.otp.js";
 import errorHandler from "../src/middleware/errorHandler.middleware.js";
-import { authLimiter, accountLimiter } from "../src/middleware/rateLimitin.middleware.js";
+import { authLimiter, accountLimiter } from "../src/middleware/rateLimit.middleware.js";
 import { staffRepository } from "../src/modules/staff/staff.repository.js";
-import { attachRealtimeServer } from "../src/realtime/server.js";
+import { attachRealtimeServer } from "../src/infrastructure/realtime/server.js";
 
 const ID = "123e4567-e89b-42d3-a456-426614174000";
 const PASSWORD = "Audit-passphrase-only!";

@@ -4,7 +4,7 @@ vi.mock('../src/modules/reorderSuggestions/reorderSuggestions.service.js', () =>
 vi.mock('../src/modules/wasteReduction/wasteReduction.service.js', () => ({ wasteReductionService: {} }));
 vi.mock('../src/modules/reports/dailyReport.service.js', () => ({ dailyReportService: {}, reportDay: () => '2026-10-02' }));
 vi.mock('../src/modules/auditLogs/auditLog.service.js', () => ({ auditLogService: {} }));
-vi.mock('../src/infrastructure/integrations/ml/mlClient.js', () => ({ fetchMl: vi.fn() }));
+vi.mock('../src/infrastructure/integrations/ml/ml.client.js', () => ({ fetchMl: vi.fn() }));
 import { createAutomationScheduler, dueRuns } from '../src/modules/automation/automation.scheduler.js';
 const schedule = { reorder: { enabled: true, frequency: 'daily', time: '08:00' } };
 const now = new Date('2026-10-03T00:01:00Z');

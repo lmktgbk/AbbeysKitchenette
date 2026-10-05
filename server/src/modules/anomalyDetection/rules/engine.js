@@ -1,4 +1,4 @@
-import { ai, GEMINI_MODEL } from "../../../config/gemini.js";
+import { ai, GEMINI_MODEL } from "../../../infrastructure/integrations/gemini.js";
 
 /**
  * Existing deviation score: median-centered differences divided by 1.4826

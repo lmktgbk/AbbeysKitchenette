@@ -1,6 +1,6 @@
 import { env } from "../../config/env.js";
-import { storageRepository } from "./storageAssets.repository.js";
-import { storageWorker } from "./storageAssets.worker.js";
+import { storageRepository } from "./storage.repository.js";
+import { storageWorker } from "./storage.worker.js";
 
 /** Only storage URLs belonging to this application's account and folders are deletable. */
 export function extractPublicId(imageUrl) {

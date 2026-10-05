@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
-import prisma from "../../config/prisma.js";
-import { env } from "../../config/env.js";
+import prisma from "../../../config/prisma.js";
+import { env } from "../../../config/env.js";
 
 export const SHEETS_GAP_MS = 2200;
 const leaseKey = () => `sheets:${createHash("sha256").update(env.GOOGLE_SERVICE_ACCOUNT_EMAIL || "").digest("hex")}`;

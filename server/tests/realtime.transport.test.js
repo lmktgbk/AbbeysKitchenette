@@ -3,13 +3,13 @@ import http from "node:http";
 import { WebSocket } from "ws";
 import { setTimeout as delay } from "node:timers/promises";
 vi.mock("../src/config/env.js", () => ({ env: { NODE_ENV: "test" } }));
-vi.mock("../src/realtime/auth.js", () => ({ extractUpgradeToken: req => req.headers.cookie?.split("=")[1] ?? null,
+vi.mock("../src/infrastructure/realtime/auth.js", () => ({ extractUpgradeToken: req => req.headers.cookie?.split("=")[1] ?? null,
   resolveUser: vi.fn(), canSubscribe: (user, topic) => user.role === "admin" && topic === "orders" }));
-import { resolveUser } from "../src/realtime/auth.js";
-import { attachRealtimeServer } from "../src/realtime/server.js";
-import { realtimeLimits } from "../src/realtime/limits.js";
-import { topicStats, __reset } from "../src/realtime/hub.js";
-import { revokeLocalSessions } from "../src/realtime/sessions.js";
+import { resolveUser } from "../src/infrastructure/realtime/auth.js";
+import { attachRealtimeServer } from "../src/infrastructure/realtime/server.js";
+import { realtimeLimits } from "../src/infrastructure/realtime/limits.js";
+import { topicStats, __reset } from "../src/infrastructure/realtime/hub.js";
+import { revokeLocalSessions } from "../src/infrastructure/realtime/sessions.js";
 const user = { id: "fixture", role: "admin", expiresAt: Date.now() + 3600000 };
 const guest = number => `guest:00000000-0000-0000-0000-${String(number).padStart(12, "0")}`;
 let server, realtime, url, sockets;

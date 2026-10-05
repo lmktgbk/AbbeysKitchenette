@@ -7,13 +7,13 @@ import { authRepository } from "./auth.repository.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { signToken, signSessionToken, verifyToken } from "../../config/jwt.js";
 import { publicUser } from "./auth.session.js";
-import { revokeLocalSessions } from "../../realtime/sessions.js";
+import { revokeLocalSessions } from "../../infrastructure/realtime/sessions.js";
 import { isStoreIP } from "../../utils/ipCheck.js";
 import { generateOtp, discardOtp, verifyOtp as verifyOtpCode } from "./auth.otp.js";
 import {
   generateResetPasswordEmail,
   generateOtpEmail,
-} from "../../utils/email.js";
+} from "../../infrastructure/integrations/email.js";
 import { env } from "../../config/env.js";
 import { deleteImage } from "../../infrastructure/storage/imageCleanup.js";
 

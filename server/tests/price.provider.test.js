@@ -1,6 +1,6 @@
 import { beforeEach, it, expect, vi } from "vitest";
-vi.mock("../src/config/gemini.js", () => ({ GEMINI_MODEL: "fixture", ai: { models: { generateContent: vi.fn() } } }));
-import { ai } from "../src/config/gemini.js";
+vi.mock("../src/infrastructure/integrations/gemini.js", () => ({ GEMINI_MODEL: "fixture", ai: { models: { generateContent: vi.fn() } } }));
+import { ai } from "../src/infrastructure/integrations/gemini.js";
 import { generatePriceSuggestions, buildSystemPrompt } from "../src/modules/priceOptimization/priceOptimization.prompts.js";
 const context = { product: { product_name: "Coffee", category_name: "Drinks" }, variants: [], recipes: [], sales: "None" };
 beforeEach(() => vi.resetAllMocks());

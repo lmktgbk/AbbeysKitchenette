@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import cloudinary from "../../config/cloudinary.js";
 import { IMAGE_POLICIES, sanitizeImage } from "./imageValidation.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
-import { storageRepository } from "./storageAssets.repository.js";
+import { storageRepository } from "./storage.repository.js";
 import { extractPublicId } from "./imageCleanup.js";
 
 let activeUploads = 0;

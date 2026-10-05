@@ -1,5 +1,5 @@
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
-import { sharedRateLimitStore } from "./rateLimit.store.js";
+import { sharedRateLimitStore } from "../infrastructure/rateLimit/rateLimit.store.js";
 import { env } from "../config/env.js";
 
 // Authenticated identity prevents rotating IPs from bypassing this outer budget.
