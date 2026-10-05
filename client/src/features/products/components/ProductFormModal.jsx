@@ -55,7 +55,8 @@ export default function ProductFormModal({
   const isEdit = isEditMode;
   // The selected file is upload intent; the preview is a browser URL or the saved remote URL.
   const [imageFile, setImageFile] = useResettableState(null, [open, isEdit, product]);
-  const [imagePreview, setImagePreview] = useResettableState(product?.image_url || null, [open, isEdit, product]);
+  // Create mode starts empty even if its caller still holds cached edit details.
+  const [imagePreview, setImagePreview] = useResettableState(isEdit ? product?.image_url || null : null, [open, isEdit, product]);
   const imageGuidelinesId = useId();
   const [imageProcessing, setImageProcessing] = useResettableState(false, [open, isEdit, product]);
 

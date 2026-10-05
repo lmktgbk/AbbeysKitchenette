@@ -64,7 +64,8 @@ export default function ProductsPage() {
   const detailProduct = detailData?.data?.product ?? detailPreview;
 
   // Edit draft (browser-only instant paint); full product derived from Query when it lands.
-  const fullEditProduct = editDetailData?.data?.product ?? selectedProduct;
+  // Cached edit details belong only to an edit draft, never to a new product.
+  const fullEditProduct = isEditMode ? editDetailData?.data?.product ?? selectedProduct : null;
 
   // ── Mutations ───────────────────────
 
@@ -96,6 +97,7 @@ export default function ProductsPage() {
                   toast.success("Product updated");
                   setShowFormModal(false);
                   setSelectedProduct(null);
+                  setEditProductId(null);
                   setIsEditMode(false);
                 },
                 onError: (err) =>
@@ -116,6 +118,7 @@ export default function ProductsPage() {
   /** Starts a new creation scope; the incremented key remounts the product form with an empty draft. */
   function handleAdd() {
     setSelectedProduct(null);
+    setEditProductId(null);
     setIsEditMode(false);
     setAddKey((k) => k + 1);
     setShowFormModal(true);

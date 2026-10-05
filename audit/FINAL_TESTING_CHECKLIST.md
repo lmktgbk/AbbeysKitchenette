@@ -1238,3 +1238,21 @@ build passed. The supplied 5062 x 4824 PNG was processed in a real browser into
 (96415 sanitized bytes) through an isolated local harness. No database or
 Cloudinary writes occurred. Full live product saving/provider cleanup remains
 **Not verified** by this harness.
+
+## Product create/edit image draft isolation (2026-10-06)
+
+Starting Add and successfully finishing Edit clear the prior edit query identity.
+Create mode receives no saved product details and initializes its image preview
+empty even if a caller supplies stale cached details. Upload processing and
+stored-asset cleanup remain unchanged.
+
+- [ ] Edit a product image and save; immediately open Add. No previous image,
+  file, product metadata or variants appear in the new draft.
+- [ ] Close Add and reopen; its image stays empty. Edit another product and
+  verify only that product's saved image appears.
+- [ ] Cancel an image replacement and open Add; the old draft is not submitted.
+
+Verification: 30 focused draft/image tests passed. The real form was rendered in
+Edit then Add with cached details deliberately retained; Add's preview was empty,
+while Edit still loaded its saved image. Interactive browser save-to-Add flow
+remains **Not verified** by these component tests.
