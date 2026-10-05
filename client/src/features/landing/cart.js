@@ -1,9 +1,14 @@
+/**
+ * Persists guest cart intent only: IDs and quantities, never customer details or trusted prices.
+ * Menu reconciliation supplies the current display quote; the API validates and prices the order.
+ */
 export const CART_KEY = "smartcafe:guest-cart:v1";
 export const CART_TTL = 24 * 60 * 60 * 1000;
 export const MAX_LINES = 100;
 export const MAX_QUANTITY = 1000;
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** Filters untrusted stored/draft lines, caps size and quantities, and strips display metadata. */
 export function cartIntent(items) {
   if (!Array.isArray(items)) return [];
   const seen = new Set();
@@ -15,6 +20,7 @@ export function cartIntent(items) {
   }).map(({ product_id, variant_id, quantity }) => ({ product_id, variant_id, quantity }));
 }
 
+/** Restores valid versioned intent; malformed, oversized, future-dated, or expired drafts become empty. */
 export function readCart(storage, now = Date.now()) {
   try {
     const text = storage?.getItem(CART_KEY);
@@ -25,6 +31,7 @@ export function readCart(storage, now = Date.now()) {
   } catch { return []; }
 }
 
+/** Saves sanitized intent or clears an empty draft; blocked storage must not prevent in-memory editing. */
 export function writeCart(storage, items, now = Date.now()) {
   try {
     const intent = cartIntent(items);
@@ -33,6 +40,7 @@ export function writeCart(storage, items, now = Date.now()) {
   } catch { /* Storage restrictions must not prevent editing the in-memory cart. */ }
 }
 
+/** Matches each saved variant to its product and current menu; missing/unavailable lines remain visible for removal. */
 export function reconcileCart(intent, products) {
   const variants = new Map(products.flatMap(product => (product.variants ?? []).map(variant => [variant.variant_id, { product, variant }])));
   return cartIntent(intent).map(item => {
@@ -47,6 +55,7 @@ export function reconcileCart(intent, products) {
   });
 }
 
+/** Detects ordered-line, quantity, price, or availability changes that require another checkout review. */
 export function sameCartQuote(previous, next) {
   return previous.length === next.length && previous.every((item, index) => {
     const current = next[index];

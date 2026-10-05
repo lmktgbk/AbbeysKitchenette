@@ -210,3 +210,26 @@ The six planned client structural cleanup stages now have local automated
 verification recorded. This is not a full audit of every client line, a guarantee
 of no regressions, or completed manual acceptance. Next scope: ML service structure
 and comments; browser acceptance and deployment verification remain outstanding.
+
+## Comment follow-up — submission identity and guest cart recovery
+
+The earlier structural cleanup did not complete documentation of all client
+logic. Added a module contract, function parameters/return description, and
+explanatory comments to orders/submission.js: operator/action scope, canonical
+fingerprints, stable retry keys, shared active promises, outcome classification,
+and guarded cleanup. Explained that this is browser coordination; backend
+idempotency/transactions enforce consistency. Storage retains fingerprints and
+keys rather than original customer/payment fields.
+
+Also documented each guest cart helper and useGuestCart storage/draft ownership,
+including sanitized intent, expiry, blocked storage, menu reconciliation, and
+quote comparison. No helper, condition, payload, timing, or storage behavior was
+changed. This is a targeted comment pass, not a claim that all client files now
+have complete comments.
+
+Verification: normalized executable syntax trees are unchanged. Production build,
+ESLint, and 52 client-focused cases passed, including seven submission identity
+cases and guest cart recovery. Existing submission formatting is preserved in the
+worktree and excluded from the comment-only commit, along with the pre-existing
+Router.jsx and server automation edits. Live browser acceptance remains
+**Not verified**. No migration is required.
