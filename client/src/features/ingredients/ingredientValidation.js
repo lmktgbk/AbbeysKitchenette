@@ -7,6 +7,7 @@ import { z } from "zod";
  * Number fields use z.preprocess to coerce empty/NaN to 0 before validation.
  */
 
+// Blank numeric fields become zero; positive-only operations still reject them downstream.
 const coerceNumber = (schema) => z.preprocess(
   (v) => (v === "" || v === undefined || v === null || (typeof v === "number" && isNaN(v)) ? 0 : Number(v)),
   schema,
@@ -25,20 +26,8 @@ export const createIngredientSchema = z.object({
   minimum_threshold: coerceNumber(z.number().min(0, "Cannot be negative")),
 });
 
-// Edit ingredient form (same as create, all fields optional for partial update)
-export const editIngredientSchema = z.object({
-  ingredient_name: z
-    .string()
-    .min(1, "Ingredient name is required")
-    .max(150, "Must not exceed 150 characters")
-    .optional(),
-  unit: z
-    .string()
-    .min(1, "Unit is required")
-    .max(50, "Must not exceed 50 characters")
-    .optional(),
-  minimum_threshold: coerceNumber(z.number().min(0, "Cannot be negative")).optional(),
-});
+// Edits accept omitted fields but retain the same value limits and numeric coercion as creation.
+export const editIngredientSchema = createIngredientSchema.partial();
 
 // Restock form
 export const restockSchema = z.object({

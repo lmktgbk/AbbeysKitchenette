@@ -51,7 +51,9 @@ export default function ProductFormModal({
   ingredientsError = false,
   onRetryIngredients,
 }) {
+  // Explicit edit mode prevents a create schema from being selected while detail data is loading.
   const isEdit = isEditMode;
+  // The selected file is upload intent; the preview is a browser URL or the saved remote URL.
   const [imageFile, setImageFile] = useResettableState(null, [open, isEdit, product]);
   const [imagePreview, setImagePreview] = useResettableState(product?.image_url || null, [open, isEdit, product]);
 
@@ -71,7 +73,7 @@ export default function ProductFormModal({
     name: "variants",
   });
 
-  // Reset form when product changes or modal opens/closes
+  // Reload saved values when the dialog opens or fetched product identity changes.
   useEffect(() => {
     if (open) {
       reset(getDefaultValues(product, isEdit));
@@ -83,6 +85,7 @@ export default function ProductFormModal({
     if (imagePreview?.startsWith("blob:")) URL.revokeObjectURL(imagePreview);
   }, [imagePreview]);
 
+  /** Discards the form and image draft; the preview effect releases any local blob URL. */
   function handleClose() {
     reset();
     setImageFile(null);
@@ -90,11 +93,12 @@ export default function ProductFormModal({
     onOpenChange(false);
   }
 
+  /** Sends metadata and file intent together; remote asset replacement/cleanup belongs to the API. */
   async function handleFormSubmit(data) {
     if (ingredientsLoading || ingredientsError) return;
     let imageUrl = data.image_url || null;
 
-    // If image was removed
+    // An explicit removal clears the saved URL; choosing a replacement instead sends its file.
     if (!imageFile && !imagePreview && data.image_url) {
       imageUrl = null;
     }
@@ -317,7 +321,8 @@ function EditSkeleton() {
 }
 
 /**
- * Build default values for react-hook-form based on mode.
+ * Maps fetched variants and recipes to editable fields while retaining IDs and history locks.
+ * Creation uses empty variants; a loading edit never invents saved recipe or stock data.
  */
 function getDefaultValues(product, isEdit) {
   if (isEdit && product) {

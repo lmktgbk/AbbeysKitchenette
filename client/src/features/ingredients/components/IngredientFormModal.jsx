@@ -49,43 +49,21 @@ export default function IngredientFormModal({
     formState: { errors },
   } = useForm({
     resolver: zodResolver(isEdit ? editIngredientSchema : createIngredientSchema),
-    defaultValues: isEdit
-      ? {
-        ingredient_name: ingredient.ingredient_name,
-        unit: ingredient.unit,
-        minimum_threshold: ingredient.minimum_threshold,
-      }
-      : {
-        ingredient_name: "",
-        unit: "",
-        minimum_threshold: "",
-      },
+    defaultValues: getDefaultValues(ingredient),
   });
 
-  // Reset form when ingredient changes or modal opens/closes
+  // Reopening or selecting another ingredient starts from its saved values, not the previous draft.
   useEffect(() => {
-    if (open) {
-      if (isEdit) {
-        reset({
-          ingredient_name: ingredient.ingredient_name,
-          unit: ingredient.unit,
-          minimum_threshold: ingredient.minimum_threshold,
-        });
-      } else {
-        reset({
-          ingredient_name: "",
-          unit: "",
-          minimum_threshold: "",
-        });
-      }
-    }
+    if (open) reset(getDefaultValues(ingredient));
   }, [open, isEdit, ingredient, reset]);
 
+  /** Discards the local draft; closing does not submit an inventory change. */
   function handleClose() {
     reset();
     onOpenChange(false);
   }
 
+  /** Forwards resolver-validated fields; the parent mutation owns persistence and errors. */
   function handleFormSubmit(data) {
     onSubmit(data);
   }
@@ -174,4 +152,15 @@ export default function IngredientFormModal({
       </DialogContent>
     </Dialog>
   );
+}
+
+/** Uses the same field values for initial registration and subsequent dialog resets. */
+function getDefaultValues(ingredient) {
+  return ingredient
+    ? {
+      ingredient_name: ingredient.ingredient_name,
+      unit: ingredient.unit,
+      minimum_threshold: ingredient.minimum_threshold,
+    }
+    : { ingredient_name: "", unit: "", minimum_threshold: "" };
 }

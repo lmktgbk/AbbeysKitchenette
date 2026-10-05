@@ -143,3 +143,28 @@ line discounts, loading/error gates, modal reopen, and receipt reconciliation
 remain **Not verified**; use FLOW-02, FLOW-04, and FLOW-05 in the consolidated
 FINAL_TESTING_CHECKLIST.md. No API/schema/migration change is required.
 Existing Router.jsx and server automation repository edits are excluded.
+
+## Batch 5b — product and ingredient form contracts
+
+- Reused one local ingredient default-value function for registration and reset,
+  preserving empty creation drafts and saved edit values without adding files.
+- Derived editIngredientSchema with createIngredientSchema.partial(), eliminating
+  duplicate constraints while retaining omitted-field support and numeric coercion.
+- Kept product edit rules separate: required variants, nullable image removal,
+  and availability defaults differ from creation and must not be merged blindly.
+- Added professional product/ingredient handler comments covering draft reset,
+  async edit identity, recipe mapping, upload intent, and persistence ownership.
+- Corrected ImageUpload documentation: it opens a file picker; it has no drag/drop
+  implementation. Explained that blob cleanup is local and stored-asset deletion
+  occurs through the backend on successful save.
+
+Verification: production build, ESLint, and all 52 existing client-focused tests
+passed. Ad hoc before/after comparison matched 102 ingredient validation cases,
+including missing/null/empty/nonfinite/nonnumeric values and long/Unicode strings,
+with identical successful values and validation issues. Five ingredient draft
+fixtures matched the old initializer. ProductFormModal and ImageUpload executable
+syntax trees are unchanged. No UI markup, API payload, server, or schema change
+is included. Actual product/ingredient dialog interaction and stored-image
+replacement/removal remain **Not verified** for this batch; use the consolidated
+FINAL_TESTING_CHECKLIST.md. Existing Router.jsx and automation edits are excluded.
+No migration is required. Broader cleanup and final regression remain outstanding.

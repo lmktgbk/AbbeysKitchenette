@@ -6,21 +6,22 @@ import Icon from "@/components/ui/icon";
  * ImageUpload
  *
  * File input with preview for product images.
- * Shows current image or placeholder, allows click-to-upload or drag.
+ * Opens the native file picker and delegates file/preview ownership to the product form.
  *
  * Props:
- * - value: string | null (current image URL)
  * - onChange: (file: File | null) => void
- * - previewUrl: string | null (derived preview URL from value or selected file)
+ * - previewUrl: string | null (saved remote URL or parent-owned browser blob URL)
  * - className: string (additional classes for the container)
  */
 export default function ImageUpload({ onChange, previewUrl, className }) {
   const inputRef = useRef(null);
 
+  /** Opens the hidden file input; this component does not upload files. */
   function handleClick() {
     inputRef.current?.click();
   }
 
+  /** Passes selection intent to the parent; file authenticity and size are checked by the API. */
   function handleFileChange(e) {
     const file = e.target.files?.[0];
     if (file) {
@@ -28,6 +29,7 @@ export default function ImageUpload({ onChange, previewUrl, className }) {
     }
   }
 
+  /** Clears selection without reopening the picker; stored-image deletion occurs on a successful save. */
   function handleRemove(e) {
     e.stopPropagation();
     onChange(null);
