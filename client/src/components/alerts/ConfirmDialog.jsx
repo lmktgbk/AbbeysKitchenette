@@ -1,6 +1,15 @@
 import Swal from "sweetalert2";
 import { toast } from "sonner";
 
+/** Encode caller text for HTML text and quoted attributes in our static dialog templates.
+ * Encoding ampersands preserves existing entity-like input as literal text after HTML parsing.
+ */
+function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    })[character]);
+}
+
 const VARIANTS = {
     danger: { confirmColor: "var(--destructive)", icon: "warning" },
     warning: { confirmColor: "var(--warning)", icon: "warning" },
@@ -33,20 +42,20 @@ const DEFAULT_REASONS = [
 export async function confirm({ title, message, note, confirmLabel = "Confirm", cancelLabel = "Cancel", variant = "danger", onConfirm, loadingText }) {
     const v = VARIANTS[variant] || VARIANTS.danger;
 
-    // The note branch renders raw HTML, including message text; caller values are not escaped.
+    // Keep the layout as HTML while treating every caller-supplied value as literal text.
     const hasNote = !!note;
     const html = hasNote
-        ? `<p style="text-align:center; margin: 0 0 8px 0;">${message}</p><div style="text-align:center; background: var(--muted); padding: 8px 12px; border-radius: 6px; font-size: 13px; margin-top: 8px;">${note}</div>`
+        ? `<p style="text-align:center; margin: 0 0 8px 0;">${escapeHtml(message)}</p><div style="text-align:center; background: var(--muted); padding: 8px 12px; border-radius: 6px; font-size: 13px; margin-top: 8px;">${escapeHtml(note)}</div>`
         : undefined;
 
     const result = await Swal.fire({
-        title,
+        titleText: title,
         html,
         text: hasNote ? undefined : message,
         icon: v.icon,
         showCancelButton: true,
-        confirmButtonText: confirmLabel,
-        cancelButtonText: cancelLabel,
+        confirmButtonText: escapeHtml(confirmLabel),
+        cancelButtonText: escapeHtml(cancelLabel),
         confirmButtonColor: v.confirmColor,
         reverseButtons: true,
         background: "var(--card)",
@@ -93,15 +102,15 @@ export async function confirmWithReason({ title, message, reasons = DEFAULT_REAS
     );
     const isOther = (val) => val === "other";
 
-    // Caller values below are interpolated as HTML without escaping; review before passing stored/user text.
+    // Encode chip values for quoted attributes as well as visible labels; dataset reads decode them.
     const htmlContent = `
-    <p style="text-align:center; margin:0 0 12px 0;">${message}</p>
+    <p style="text-align:center; margin:0 0 12px 0;">${escapeHtml(message)}</p>
     <div id="reason-chips" style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:12px;">
       ${normalizedReasons.map((r) => `
-        <button type="button" class="reason-chip" data-value="${r.value}"
+        <button type="button" class="reason-chip" data-value="${escapeHtml(r.value)}"
           style="padding:6px 14px; border-radius:20px; border:1.5px solid var(--border); background:var(--background);
                  color:var(--foreground); font-size:13px; cursor:pointer; transition:all 0.15s;">
-          ${r.label}
+          ${escapeHtml(r.label)}
         </button>
       `).join("")}
     </div>
@@ -121,12 +130,12 @@ export async function confirmWithReason({ title, message, reasons = DEFAULT_REAS
     document.head.appendChild(styleTag);
 
     const result = await Swal.fire({
-        title,
+        titleText: title,
         html: htmlContent,
         icon: "warning",
         showCancelButton: true,
-        confirmButtonText: confirmLabel,
-        cancelButtonText: cancelLabel,
+        confirmButtonText: escapeHtml(confirmLabel),
+        cancelButtonText: escapeHtml(cancelLabel),
         confirmButtonColor: "var(--destructive)",
         reverseButtons: true,
         background: "var(--card)",
@@ -212,7 +221,7 @@ export async function confirmWithLossOption({ orderNumber }) {
 
     const htmlContent = `
     <p style="text-align:center; margin:0 0 12px 0;">
-      Order <strong>${orderNumber}</strong> is being prepared.<br/>
+      Order <strong>${escapeHtml(orderNumber)}</strong> is being prepared.<br/>
       How do you want to handle cancellation?
     </p>
     <div style="display:flex; flex-direction:column; gap:10px; margin-top:16px;">

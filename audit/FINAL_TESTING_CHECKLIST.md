@@ -1044,3 +1044,16 @@ Local cleanup checks on 2026-10-05: production build and lint passed; 234 source
 files reachable with no missing relative/alias imports or cycles; 838 tests passed,
 119 skipped, including 52 passing client-focused cases. The checks above remain
 **NOT RUN** for this structural cleanup. Record results with the commit tested.
+
+## Confirmation dialog security regression
+
+Use isolated local/test records; cancel each dialog without performing deletion
+or deactivation. Never use production business records for these fixtures.
+
+- [ ] Give a test product the harmless name `<b>test-name</b> & Café 🧋`; open deactivate/delete confirmation. Tags and ampersand must display literally, with no bold name or injected elements.
+- [ ] Check ordinary product/variant names containing apostrophes and quotes; messages remain readable and static note layout remains intact.
+- [ ] Verify reason chips retain their selected values and cancellation returns to the original screen without submitting an action.
+- [ ] Verify regular confirmation success/failure behavior on isolated fixtures and ensure no browser console errors.
+
+Automated renderer-contract regressions: six passed on 2026-10-05. Live cases
+above remain **NOT RUN**; record the tested commit and browser.

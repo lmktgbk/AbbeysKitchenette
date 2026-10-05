@@ -364,3 +364,18 @@ performing the action. The name must appear literally, not as bold markup.
 Recommended separate security fix: escape dynamic text and attribute values or
 construct text nodes; add regression tests for tags, quotes, and event attributes.
 This comment-only batch does not resolve that finding.
+
+## Security follow-up — confirmation text rendering
+
+Resolved the raw interpolation path in ConfirmDialog: one private encoder handles
+HTML text and quoted reason attributes; dynamic titles use SweetAlert titleText;
+button labels are encoded because SweetAlert renders them as HTML. Static layout,
+callbacks, reason payloads, and cancellation result contracts remain unchanged.
+No dependency, server endpoint, database schema, or transaction change is needed.
+
+Six new renderer-contract regression tests cover stored-name/note tags, reason
+attribute breakout, order labels, title/button options, Unicode/quotes/entities,
+plain-message rendering, and confirmation results. All 58 client-focused tests,
+production build, and ESLint passed. These tests mock the renderer and do not
+prove browser DOM behavior; live dialog verification remains **Not verified**.
+Existing Router, submission formatting, and automation edits are excluded.
