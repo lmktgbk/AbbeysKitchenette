@@ -26,7 +26,7 @@ PROPHET_CONFIG = {
     "seasonality_prior_scale": 2.0,
     "weekly_seasonality": True,
     "changepoint_range": 0.8,  # fit trend on first 80%, keep tail stable
-    "interval_width": 0.90,  # 90% band -> daily lower/upper
+    "interval_width": 0.90,  # retained Prophet setting; no uncertainty bands are published
     "holidays_prior_scale": 10.0,
 }
 
@@ -41,7 +41,3 @@ HOLDOUT_DAYS = 7
 # More origins require additional fitting; runtime depends on data and hosting capacity.
 # Same code path, same hidden-week design — only the origin count changes.
 EVAL_ORIGINS = max(1, int(os.getenv("FORECAST_EVAL_ORIGINS", "3")))
-
-# Size-share window: trailing days used to split a product forecast into
-# sizes. Recent mix beats lifetime mix; falls back to all history.
-SHARE_WINDOW_DAYS = 30

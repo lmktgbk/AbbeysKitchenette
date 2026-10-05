@@ -1,4 +1,4 @@
-"""Fit product demand in a child worker, split it to variants, and persist through lease-fenced writes."""
+"""Fit independent variant demand in a child worker and persist through lease-fenced writes."""
 import json
 import traceback
 from datetime import datetime, timezone, date, timedelta
@@ -12,13 +12,12 @@ from config import (
     PROPHET_CONFIG,
     YEARLY_MIN_DAYS,
     HOLDOUT_DAYS,
-    SHARE_WINDOW_DAYS,
     EVAL_ORIGINS,
 )
 from forecasting.services.data_loader import load_variant_daily_sales
-from forecasting.services.metrics import compute_metrics, naive_baseline, weekly_metrics
+from forecasting.services.metrics import compute_metrics, weekly_metrics
 from forecasting.services.holidays import philippine_holidays
-from forecasting.services.allocation import size_shares, preparation_plan
+from forecasting.services.allocation import preparation_plan
 
 # Business timezone — the whole web app follows the Asia/Manila calendar day.
 BUSINESS_TZ = ZoneInfo("Asia/Manila")
@@ -73,7 +72,7 @@ async def cleanup_old_jobs():
 
 
 # ── Result storage ────────────────────────────────────────────
-# Variant rows carry the split forecast (units/revenue for prep + ingredients).
+# Variant rows carry independent forecasts (units/revenue for prep + ingredients).
 # Product-level RMSE/MAE/MSE/R2 live on the job as product_scores JSON.
 # Each write verifies the live execution lease before touching forecast data.
 
@@ -92,7 +91,9 @@ async def save_result(job_id, variant_id, product_id, product_name, size_name, p
                 total_units = EXCLUDED.total_units,
                 total_revenue = EXCLUDED.total_revenue,
                 product_id = EXCLUDED.product_id,
-                share = EXCLUDED.share,
+                product_name = EXCLUDED.product_name, size_name = EXCLUDED.size_name,
+                price = EXCLUDED.price, category_id = EXCLUDED.category_id,
+                days_of_data = EXCLUDED.days_of_data, share = EXCLUDED.share,
                 skipped = FALSE, skip_reason = NULL
         """, job_id, variant_id, product_id, product_name, size_name, price,
              category_id, json.dumps(daily_data),
@@ -109,7 +110,8 @@ async def save_skipped(job_id, variant_id, product_name, size_name, price,
                  daily_data, total_units, total_revenue, trend, days_of_data, skipped, skip_reason, product_id)
             VALUES ($1,$2,$3,$4,$5,$6,'[]'::json,0,0,'stable',$7, TRUE, $8, $9)
             ON CONFLICT (job_id, variant_id) DO UPDATE SET
-                skipped = TRUE, skip_reason = EXCLUDED.skip_reason,
+                skipped = TRUE, skip_reason = EXCLUDED.skip_reason, share = NULL,
+                days_of_data = EXCLUDED.days_of_data,
                 daily_data = '[]'::json, total_units = 0, total_revenue = 0,
                 product_id = COALESCE(EXCLUDED.product_id, forecast_results.product_id)
         """, job_id, variant_id, product_name, size_name, price,
@@ -148,247 +150,179 @@ def build_prophet(n_days: int) -> Prophet:
 FORECAST_PERIOD = 7
 
 
-# ── Variance stabilization ─────────────────────────────────────
-# Fit sqrt(units), then square nonnegative predictions before scoring/splitting.
-# Scoring always happens in original units, so metrics stay comparable.
-
-def _to_fit(df):
-    """Copy the series and transform nonnegative counts; do not mutate the original training data."""
-    out = df.copy()
-    out["y"] = np.sqrt(out["y"].clip(lower=0))
-    return out
+def training_reason(train):
+    """Require seven calendar days since the first sale; zero-only series cannot establish demand."""
+    sold = train.loc[train.y > 0, "ds"]
+    if sold.empty:
+        return "No actual sales in training data"
+    days = (train.ds.max() - sold.min()).days + 1
+    return f"Insufficient history ({days} calendar days since first sale, need {MIN_DATA_DAYS})" if days < MIN_DATA_DAYS else None
 
 
-def _from_fit(values):
-    """Restore nonnegative demand units from model-space predictions."""
-    return np.square(np.maximum(values, 0.0))
+def predict_units(train, period=FORECAST_PERIOD):
+    """Fit raw counts and round the weekly total once, distributing whole units across days.
+
+    An unlearnable historical series receives a zero fallback for matched backtests;
+    production marks it skipped instead. Negative Prophet point estimates are clipped.
+    No database transaction is held while fitting or predicting.
+    """
+    if training_reason(train):
+        return [0] * period
+    model = build_prophet(len(train))
+    model.fit(train)
+    future = pd.DataFrame({"ds": pd.date_range(train.ds.max() + pd.Timedelta(days=1), periods=period)})
+    values = np.maximum(model.predict(future).yhat.to_numpy(), 0)
+    return [day[0] for day in preparation_plan(values, [1])]
 
 
-# ── Size-share split ──────────────────────────────────────────
+def sales_coverage(sales, cutoff):
+    """Describe recorded menu-wide gaps; absence alone cannot identify closure or incomplete entry."""
+    dates = pd.DatetimeIndex(sales.loc[sales.units > 0, "ds"].unique()).sort_values()
+    if dates.empty:
+        return {"first_sale": None, "last_sale": None, "gap_days": 0, "recent_gap_dates": [], "trailing_gap_days": None}
+    missing = pd.date_range(dates.min(), cutoff).difference(dates)
+    return {"first_sale": dates.min().date().isoformat(), "last_sale": dates.max().date().isoformat(),
+            "gap_days": len(missing), "recent_gap_dates": [d.date().isoformat() for d in missing[-14:]],
+            "trailing_gap_days": (pd.Timestamp(cutoff) - dates.max()).days}
+
+
+def week_pair(prediction, actual):
+    """Store one horizon pair in the shared product/variant response shape."""
+    score = weekly_metrics(pd.DataFrame({"yhat": prediction}), pd.DataFrame({"y": actual}))
+    return {"w_pred": score["w_pred"], "w_actual": score["w_actual"],
+            "w_mae": score["mae"], "w_mse": score["mse"]}
+
+
+def evaluate_product(calendar):
+    """Backtest variant plans on matched hidden weeks, then sum them for product scores.
+
+    Every model sees only the history before its holdout. Zero-history/short-history
+    variants use zero fallback estimates in evaluation, including their actual errors.
+    Daily pairs and weekly totals are retained for both Prophet and the baseline.
+    """
+    dates = calendar.index
+    variant_pairs = {int(vid): ([], []) for vid in calendar.columns}
+    variant_weeks = {int(vid): [] for vid in calendar.columns}
+    variant_baselines = {int(vid): [] for vid in calendar.columns}
+    product_predictions, product_actuals, baseline_predictions = [], [], []
+    weeks, baseline_weeks = [], []
+    for origin in range(EVAL_ORIGINS):
+        end = len(calendar) - origin * HOLDOUT_DAYS
+        split = end - HOLDOUT_DAYS
+        if split <= MIN_DATA_DAYS:
+            continue
+        actual = calendar.iloc[split:end]
+        plans = []
+        for vid in calendar.columns:
+            train = pd.DataFrame({"ds": dates[:split], "y": calendar[vid].iloc[:split].to_numpy()})
+            prediction = predict_units(train, HOLDOUT_DAYS)
+            observed = actual[vid].tolist()
+            baseline = calendar[vid].iloc[split - HOLDOUT_DAYS:split].tolist()
+            variant_pairs[int(vid)][0].extend(prediction)
+            variant_pairs[int(vid)][1].extend(observed)
+            variant_weeks[int(vid)].append(week_pair(prediction, observed))
+            variant_baselines[int(vid)].append(week_pair(baseline, observed))
+            plans.append(prediction)
+        predicted = np.asarray(plans).sum(axis=0).tolist()
+        observed = actual.sum(axis=1).tolist()
+        baseline = calendar.iloc[split - HOLDOUT_DAYS:split].sum(axis=1).tolist()
+        product_predictions.extend(predicted)
+        product_actuals.extend(observed)
+        baseline_predictions.extend(baseline)
+        weeks.append(week_pair(predicted, observed))
+        baseline_weeks.append(week_pair(baseline, observed))
+    if not weeks:
+        return None
+
+    def daily_score(prediction, actual):
+        """Synthetic pair indices avoid duplicate-date joins across multiple evaluation windows."""
+        return compute_metrics(pd.DataFrame({"ds": range(len(prediction)), "yhat": prediction}),
+                               pd.DataFrame({"ds": range(len(actual)), "y": actual}))
+
+    def weekly_fields(rows, prefix=""):
+        """Keep legacy mean fields while preserving all origin pairs for correct pooled metrics."""
+        return {prefix + key: round(sum(row[key] for row in rows) / len(rows), 4)
+                for key in ("w_pred", "w_actual", "w_mae", "w_mse")}
+
+    return {**daily_score(product_predictions, product_actuals), **weekly_fields(weeks),
+            "weeks": weeks, "n_weeks": baseline_weeks, **weekly_fields(baseline_weeks, "n_"),
+            **{"n_" + key: value for key, value in daily_score(baseline_predictions, product_actuals).items()},
+            "variant_scores": [{"variant_id": vid, **daily_score(*values),
+                                "weeks": variant_weeks[vid], "n_weeks": variant_baselines[vid]}
+                               for vid, values in variant_pairs.items()]}
+
 
 async def run_demand_forecast(job_id: int) -> dict:
-    """Fit/evaluate each product, split daily units to variants, and persist through short owned transactions."""
-    period = FORECAST_PERIOD
-    # Freeze the completed-day cutoff so midnight cannot change a running job.
+    """Fit each variant independently; product counters and response fields remain backward compatible."""
     cutoff = business_today() - timedelta(days=1)
-
     try:
         df = await load_variant_daily_sales()
         if not df.empty:
-            df = df[df["ds"] <= pd.Timestamp(cutoff)]
-
+            df = df[df.ds <= pd.Timestamp(cutoff)].copy()
         if df.empty:
             await complete_job(job_id, 0, 0, 0, [])
             return {"job_id": job_id, "message": "No sales data found"}
-
-        product_groups = df.groupby("product_id")
-        total = len(product_groups)
-        completed_count = 0
-        failed_count = 0
-        failed_skips = []
-        product_scores = []
-
+        coverage = sales_coverage(df, cutoff)
+        groups = df.groupby("product_id")
+        total = len(groups)
+        completed_count, failed_count = 0, 0
+        failed_skips, product_scores = [], []
         await pool_update_total(job_id, total)
-
-        for product_id, pdf in product_groups:
+        for product_id, history in groups:
+            variants = history.drop_duplicates("variant_id").to_dict("records")
+            product_name = history.iloc[0].product_name
+            days_of_data = 0
             try:
-                product_name = pdf.iloc[0]["product_name"]
-                variants = pdf.drop_duplicates("variant_id").to_dict("records")
-
-                daily = pdf.groupby("ds")["units"].sum().reset_index()
-
-                # Treat absent sales dates as zero demand through the last completed Manila day.
-                # This is a modelling assumption; the loader cannot distinguish closure from no sales.
-                all_dates = pd.date_range(start=pdf["ds"].min(), end=cutoff, freq="D")
-                daily = (
-                    pd.DataFrame({"ds": all_dates})
-                    .merge(daily, on="ds", how="left")
-                    .fillna(0)
-                    .sort_values("ds")
-                    .reset_index(drop=True)
-                )
-                daily["units"] = daily["units"].astype(int)
-                days_of_data = len(daily)
-
-                if days_of_data < MIN_DATA_DAYS or daily["units"].sum() == 0:
-                    reason = (
-                        f"Insufficient data ({days_of_data} days, need {MIN_DATA_DAYS})"
-                        if days_of_data < MIN_DATA_DAYS
-                        else "No actual sales in training data"
-                    )
-                    for v in variants:
-                        await save_skipped(job_id, int(v["variant_id"]), product_name,
-                                           v["size_name"], float(v["price"]),
-                                           int(v["category_id"]), days_of_data, reason, str(product_id))
+                # Align variants on the parent product's observed calendar. Earlier zero
+                # entries mean no recorded sale, not verified historical availability.
+                dates = pd.date_range(history.ds.min(), cutoff)
+                calendar = history.pivot_table(index="ds", columns="variant_id", values="units", aggfunc="sum").reindex(dates).fillna(0)
+                days_of_data = len(dates)
+                product_saved = False
+                for variant in variants:
+                    vid = int(variant["variant_id"])
+                    train = pd.DataFrame({"ds": dates, "y": calendar[vid].to_numpy()})
+                    reason = training_reason(train)
+                    if reason:
+                        await save_skipped(job_id, vid, product_name, variant["size_name"], float(variant["price"]),
+                                           int(variant["category_id"]), days_of_data, reason, str(product_id))
+                        failed_skips.append(f"{product_name} / {variant['size_name']}: {reason}")
+                        continue
+                    units = predict_units(train)
+                    price = float(variant["price"])
+                    days = [{"date": day.date().isoformat(), "units": count, "revenue": round(count * price, 2)}
+                            for day, count in zip(pd.date_range(pd.Timestamp(cutoff) + pd.Timedelta(days=1), periods=FORECAST_PERIOD), units)]
+                    # share=NULL distinguishes independent forecasts from legacy mix allocations.
+                    await save_result(job_id, vid, str(product_id), product_name, variant["size_name"], price,
+                                      int(variant["category_id"]), days, sum(units),
+                                      round(sum(day["revenue"] for day in days), 2), days_of_data, None)
+                    product_saved = True
+                score = evaluate_product(calendar) if calendar.to_numpy().sum() > 0 else None
+                if score:
+                    product_scores.append({"product_id": str(product_id), "product_name": product_name,
+                                           "variants": len(variants), "training_cutoff": cutoff.isoformat(),
+                                           "evaluation_version": 3, "forecast_method": "variant_prophet_raw",
+                                           "coverage": coverage, **score})
+                if product_saved:
+                    completed_count += 1
+                else:
                     failed_count += 1
-                    failed_skips.append(f"{product_name}: {reason}")
-                    await update_job_progress(job_id, completed_count, failed_count)
-                    continue
-
-                train = daily[["ds", "units"]].rename(columns={"units": "y"})
-
-                # Rolling-origin scoring uses non-overlapping hidden weeks (offsets 0/7/14d
-                # at EVAL_ORIGINS=3; just offset 0 at =1 for fast routine
-                # runs), each trained only on data before its window.
-                # Daily metrics pool all pairs; weekly totals stay per-origin
-                # for menu-level pooling + range. None when too short.
-                ORIGIN_OFFSETS = tuple(7 * i for i in range(EVAL_ORIGINS))
-                metrics = None
-                week_list = []
-                n_week_list = []
-                n_daily_list = []
-                variant_pairs = {int(v["variant_id"]): ([], []) for v in variants}
-                if len(train) > HOLDOUT_DAYS + MIN_DATA_DAYS:
-                    daily_preds, daily_actuals = [], []
-                    for off in ORIGIN_OFFSETS:
-                        end = len(train) - off
-                        if end - HOLDOUT_DAYS <= MIN_DATA_DAYS:
-                            continue  # older origin lacks training history
-                        fit_df = train.iloc[:end - HOLDOUT_DAYS]
-                        holdout_df = train.iloc[end - HOLDOUT_DAYS:end]
-                        m_eval = build_prophet(len(fit_df))
-                        m_eval.fit(_to_fit(fit_df))
-                        eval_pred = m_eval.predict(
-                            m_eval.make_future_dataframe(periods=HOLDOUT_DAYS)
-                        ).tail(HOLDOUT_DAYS)[["ds", "yhat"]]
-                        eval_pred["yhat"] = _from_fit(eval_pred["yhat"].values)
-                        # Backtest the same integer preparation plan that we publish.
-                        # Shares use only pre-origin sales, never the hidden week's mix.
-                        origin_shares = size_shares(pdf, fit_df["ds"].max(), SHARE_WINDOW_DAYS)
-                        variant_ids = list(variant_pairs)
-                        plan = preparation_plan(eval_pred["yhat"], [origin_shares.get(vid, 0) for vid in variant_ids])
-                        eval_pred["yhat"] = [sum(day) for day in plan]
-                        for index, vid in enumerate(variant_ids):
-                            predicted, actual = variant_pairs[vid]
-                            predicted.extend(plan[day][index] for day in range(len(plan)))
-                            observed = pdf[pdf["variant_id"] == vid].groupby("ds")["units"].sum()
-                            actual.extend(float(observed.get(day, 0)) for day in holdout_df["ds"])
-                        daily_preds.append(eval_pred)
-                        daily_actuals.append(holdout_df)
-                        wm = weekly_metrics(eval_pred, holdout_df)
-                        week_list.append({
-                            "w_pred": wm["w_pred"], "w_actual": wm["w_actual"],
-                            "w_mae": wm["mae"], "w_mse": wm["mse"],
-                        })
-                        # Compare the same held-out dates with a no-fit same-weekday baseline.
-                        nm = naive_baseline(train.iloc[:end], HOLDOUT_DAYS)
-                        n_daily_list.append({k: nm[k] for k in ("mae", "mse", "rmse", "r_squared")})
-                        n_week_list.append({
-                            "w_pred": nm["w_pred"], "w_actual": nm["w_actual"],
-                            "w_mae": nm["w_mae"], "w_mse": nm["w_mse"],
-                        })
-                    if daily_preds:
-                        metrics = compute_metrics(
-                            pd.concat(daily_preds), pd.concat(daily_actuals))
-
-                m = build_prophet(len(train))
-                m.fit(_to_fit(train))
-                pred = m.predict(m.make_future_dataframe(periods=period)).tail(period)
-                # Back-transform the point forecast only (bands removed: summed
-                # per-variant intervals rendered lopsided and were dropped
-                # from output; interval_width stays Prophet-internal).
-                pred["yhat"] = _from_fit(pred["yhat"].values)
-
-                shares = size_shares(pdf, cutoff, SHARE_WINDOW_DAYS)
-                vids = [int(v["variant_id"]) for v in variants]
-                share_list = [shares.get(vid, 0.0) for vid in vids]
-
-                # Retain weekly demand when converting fractional predictions to counts.
-                plan = preparation_plan(pred["yhat"], share_list)
-                for day_index, (_, point) in enumerate(pred.iterrows()):
-                    day_ds = point["ds"].strftime("%Y-%m-%d")
-                    split = plan[day_index]
-                    for k, v in enumerate(variants):
-                        price = float(v["price"])
-                        units = split[k]
-                        v["__days"] = v.get("__days", [])
-                        v["__days"].append({
-                            "date": day_ds,
-                            "units": units,
-                            "revenue": round(units * price, 2),
-                        })
-
-                # Variant order matches share_list; direct indexing avoids a repeated linear ID search.
-                for variant_index, v in enumerate(variants):
-                    vid = int(v["variant_id"])
-                    days = v.pop("__days", [])
-                    total_units = sum(d["units"] for d in days)
-                    total_revenue = round(sum(d["revenue"] for d in days), 2)
-                    await save_result(
-                        job_id, vid, str(product_id), product_name, v["size_name"],
-                        float(v["price"]), int(v["category_id"]), days,
-                        total_units, total_revenue, days_of_data,
-                        round(share_list[variant_index], 4),
-                    )
-
-                if metrics:
-                    # Means across scored origins double as legacy scalars;
-                    # `weeks`/`n_weeks` carry the per-origin pairs the menu
-                    # headline pools over (headline + range need them).
-                    def _mean(rows, key):
-                        """Average available origin values for legacy scalar fields, preserving four-decimal rounding."""
-                        vals = [r[key] for r in rows if r.get(key) is not None]
-                        return round(sum(vals) / len(vals), 4) if vals else None
-
-                    product_scores.append({
-                        "product_id": str(product_id),
-                        "product_name": product_name,
-                        "variants": len(variants),
-                        "training_cutoff": cutoff.isoformat(),
-                        "evaluation_version": 2,
-                        "variant_scores": [
-                            {"variant_id": vid, **compute_metrics(
-                                pd.DataFrame({"ds": range(len(values[0])), "yhat": values[0]}),
-                                pd.DataFrame({"ds": range(len(values[1])), "y": values[1]}))}
-                            for vid, values in variant_pairs.items()
-                        ],
-                        **metrics,
-                        "w_mae": _mean(week_list, "w_mae"),
-                        "w_mse": _mean(week_list, "w_mse"),
-                        "w_pred": _mean(week_list, "w_pred"),
-                        "w_actual": _mean(week_list, "w_actual"),
-                        "weeks": week_list,
-                        "n_mae": _mean(n_daily_list, "mae"),
-                        "n_mse": _mean(n_daily_list, "mse"),
-                        "n_rmse": _mean(n_daily_list, "rmse"),
-                        "n_r_squared": _mean(n_daily_list, "r_squared"),
-                        "n_w_mae": _mean(n_week_list, "w_mae"),
-                        "n_w_mse": _mean(n_week_list, "w_mse"),
-                        "n_w_pred": _mean(n_week_list, "w_pred"),
-                        "n_w_actual": _mean(n_week_list, "w_actual"),
-                        "n_weeks": n_week_list,
-                    })
-
-                completed_count += 1
-
-            except Exception as e:
-                # Replace this product's partial forecasts with skip records before counting the failure.
-                # Lost ownership still rejects these writes through job_connection.
-                tb = traceback.format_exc()
-                first = pdf.iloc[0]
-                reason = f"{type(e).__name__}: {str(e)[:150]}"
-                for v in pdf.drop_duplicates("variant_id").to_dict("records"):
-                    await save_skipped(job_id, int(v["variant_id"]), product_name,
-                                       v["size_name"], float(v["price"]),
-                                       int(v["category_id"]), len(pdf.groupby("ds")), reason, str(product_id))
+            except Exception as error:
+                # A product failure replaces every partial result with a skip record.
+                # Ownership fencing still prevents a stale worker from publishing data.
+                reason = f"{type(error).__name__}: {str(error)[:150]}"
+                for variant in variants:
+                    await save_skipped(job_id, int(variant["variant_id"]), product_name, variant["size_name"],
+                                       float(variant["price"]), int(variant["category_id"]), days_of_data, reason, str(product_id))
                 failed_count += 1
-                failed_skips.append(f"{first['product_name']}: {reason}")
-                print(f"[Forecast Error] product {product_id}: {tb}")
-
+                failed_skips.append(f"{product_name}: {reason}")
+                print(f"[Forecast Error] product {product_id}: {traceback.format_exc()}")
             await update_job_progress(job_id, completed_count, failed_count)
-
         await complete_job(job_id, total, completed_count, failed_count, failed_skips, product_scores)
         await cleanup_old_jobs()
-
-        return {
-            "job_id": job_id,
-            "total": total,
-            "completed": completed_count,
-            "failed": failed_count,
-        }
-
-    except Exception as e:
-        await fail_job(job_id, str(e)[:500])
+        return {"job_id": job_id, "total": total, "completed": completed_count, "failed": failed_count}
+    except Exception as error:
+        await fail_job(job_id, str(error)[:500])
         raise
 
 

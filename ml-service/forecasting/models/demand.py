@@ -53,12 +53,23 @@ class WeekScore(BaseModel):
 
 
 class VariantScore(BaseModel):
-    """Held-out allocation errors; these do not represent independent Prophet models."""
+    """Daily errors and hidden-week pairs; method metadata distinguishes direct and legacy models."""
     variant_id: int
+    weeks: list[WeekScore] = []
+    n_weeks: list[WeekScore] = []
     rmse: float | None
     mae: float | None
     mse: float | None
     r_squared: float | None
+
+
+class SalesCoverage(BaseModel):
+    """Recorded menu-wide coverage, without asserting that empty dates were closed or complete."""
+    first_sale: str | None
+    last_sale: str | None
+    gap_days: int
+    recent_gap_dates: list[str]
+    trailing_gap_days: int | None
 
 
 class ProductScore(BaseModel):
@@ -74,6 +85,8 @@ class ProductScore(BaseModel):
     variants: int
     training_cutoff: str | None = None
     evaluation_version: int | None = None
+    forecast_method: str | None = None
+    coverage: SalesCoverage | None = None
     variant_scores: list[VariantScore] = []
     rmse: float
     mae: float
@@ -109,7 +122,7 @@ class VariantResult(BaseModel):
     days_of_data: int
     skipped: bool
     skip_reason: str | None
-    # Share of parent product forecast (0-1); None on jobs before the split.
+    # Historical allocation share on legacy runs; NULL for independent variant models.
     share: float | None = None
     current_available: bool | None = None
     rmse: float | None = None

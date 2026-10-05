@@ -1,0 +1,64 @@
+{
+  "cutoff": "2026-09-28",
+  "read_only": true,
+  "writes_mocked": true,
+  "elapsed_seconds": 210.02,
+  "outcome": {
+    "job_id": 0,
+    "total": 126,
+    "completed": 124,
+    "failed": 2
+  },
+  "forecasted_variants": 210,
+  "skipped_variants": 4,
+  "coverage": {
+    "first_sale": "2025-01-01",
+    "last_sale": "2026-09-28",
+    "gap_days": 0,
+    "recent_gap_dates": [],
+    "trailing_gap_days": 0
+  },
+  "scores": {
+    "product_weekly": {
+      "observations": 372,
+      "mae": 1.3736559139784945,
+      "mse": 4.389784946236559,
+      "rmse": 2.0951813635665433,
+      "r2": 0.8281851419953881,
+      "actual_total": 1085.0,
+      "predicted_total": 934.0,
+      "bias": -0.40591397849462363
+    },
+    "product_weekly_baseline": {
+      "observations": 372,
+      "mae": 1.6666666666666667,
+      "mse": 6.5,
+      "rmse": 2.5495097567963922,
+      "r2": 0.7455919616318729,
+      "actual_total": 1085.0,
+      "predicted_total": 1059.0,
+      "bias": -0.06989247311827956
+    },
+    "variant_weekly": {
+      "observations": 630,
+      "mae": 1.0142857142857142,
+      "mse": 2.8047619047619046,
+      "rmse": 1.6747423398128753,
+      "r2": 0.8024459779253288,
+      "actual_total": 1085.0,
+      "predicted_total": 934.0,
+      "bias": -0.2396825396825397
+    },
+    "variant_weekly_baseline": {
+      "observations": 630,
+      "mae": 1.3047619047619048,
+      "mse": 4.749206349206349,
+      "rmse": 2.1792673881849263,
+      "r2": 0.665488605519289,
+      "actual_total": 1085.0,
+      "predicted_total": 1059.0,
+      "bias": -0.04126984126984127
+    }
+  },
+  "data_classification": "Mixed receipt-informed synthetic history; not real-world accuracy validation"
+}

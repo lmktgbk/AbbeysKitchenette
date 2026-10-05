@@ -8,7 +8,8 @@ import unittest
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "ml-service"))
-from forecasting.services.allocation import apportion, preparation_plan, size_shares
+from forecasting.services.allocation import apportion, preparation_plan
+from benchmark_forecasting import size_shares
 from forecasting.services.metrics import compute_metrics, naive_baseline
 from forecasting.models.demand import ProductScore
 

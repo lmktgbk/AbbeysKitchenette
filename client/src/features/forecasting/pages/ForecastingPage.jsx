@@ -23,15 +23,17 @@ function IndividualEvaluation({ scores, variants }) {
     ...(score.variant_scores || []).map((variant) => ({
       ...variant,
       key: `variant:${variant.variant_id}`,
-      label: `${score.product_name} / ${names.get(variant.variant_id) || variant.variant_id} (allocated)`,
+      label: `${score.product_name} / ${names.get(variant.variant_id) || variant.variant_id}${score.forecast_method === "variant_prophet_raw" ? "" : " (allocated)"}`,
     })),
   ]);
   return (
     <details className="rounded-xl border border-border p-4 text-sm">
-      <summary className="cursor-pointer">Individual product and allocated variant evaluation</summary>
+      <summary className="cursor-pointer">Individual product and variant evaluation</summary>
       <p className="my-2 text-xs text-muted-foreground">
         Training through {scores[0].training_cutoff || "cutoff unavailable (older run)"}.
-        Variant quantities estimate historical sales mix; they are not independent Prophet models.
+        {scores[0].forecast_method === "variant_prophet_raw"
+          ? " Each variant is forecast independently with Prophet using unit counts."
+          : " Legacy run: variant quantities were allocated from historical sales mix."}
         R² is N/A when actual sales have no variation. Errors below measure daily units.
       </p>
       <div className="max-h-96 overflow-auto">
@@ -100,6 +102,7 @@ export default function ForecastingPage() {
   const job = resultsData?.data?.job;
   const skipped = resultsData?.data?.skipped || [];
   const productScores = job?.product_scores || null;
+  const coverage = productScores?.[0]?.coverage;
   // A zero forecast is different from a skipped product and remains in evaluation.
   const productCounts = useMemo(() => {
     const totals = new Map();
@@ -154,6 +157,11 @@ export default function ForecastingPage() {
     [productScores, forecasted, job?.completed],
   );
 
+  // Weekly variant scores reuse the product summary calculation with variant-week pairs.
+  const variantMetrics = useMemo(() => summarizeEvaluation(
+    productScores?.flatMap((score) => score.variant_scores || []).filter((score) => score.weeks?.length), [],
+  ), [productScores]);
+
   // ── Loading skeletons ──
   if (historyLoading || showLoading) {
     return (
@@ -181,7 +189,7 @@ export default function ForecastingPage() {
           <div className="mt-6 flex justify-center">
             <ForecastRunButton onJobComplete={handleJobComplete} />
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">Usually about a minute. Stay on this page — progress shows on the button. Needs at least 7 days of sales to predict.</p>
+          <p className="mt-3 text-xs text-muted-foreground">Runtime depends on sales history and variant count. Progress shows on the button. Needs at least 7 calendar days since a variant’s first sale.</p>
         </div>
       </div>
     );
@@ -212,10 +220,25 @@ export default function ForecastingPage() {
         )}
         {!hasData && !isFailed && skipped.length > 0 && (
           <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-900/50 dark:bg-amber-950/20">
-            <p className="text-xs text-amber-800 dark:text-amber-300">Need more sales — sell at least 7 days before we can predict. {skipped.length} products waiting.</p>
+            <p className="text-xs text-amber-800 dark:text-amber-300">Need more history — at least 7 calendar days since a variant’s first sale. {skipped.length} variants waiting.</p>
           </div>
         )}
       </div>
+
+      {productScores?.[0]?.training_cutoff && (
+        <div className="rounded-lg border border-border px-4 py-3 text-xs text-muted-foreground">
+          <p>Training through {productScores[0].training_cutoff} (Asia/Manila); forecast dates are shown in the chart.</p>
+          {coverage?.gap_days > 0 && <p className="mt-1">
+            {coverage.gap_days} dates have no recorded completed sales across the menu.
+            {coverage.trailing_gap_days > 0 ? ` Last recorded sale: ${coverage.last_sale}.` : ""}
+            {" "}Empty dates are treated as zero recorded sales; closure and incomplete records cannot be distinguished.
+          </p>}
+          {coverage?.recent_gap_dates?.length > 0 && <details className="mt-1">
+            <summary className="cursor-pointer">Recent dates without recorded sales</summary>
+            <p className="mt-1">{coverage.recent_gap_dates.join(", ")}</p>
+          </details>}
+        </div>
+      )}
 
       {/* 3 KPI Cards */}
       {hasData && (
@@ -360,8 +383,13 @@ export default function ForecastingPage() {
                 <p className="text-xs text-muted-foreground">Not enough completed history to evaluate yet. Preparation estimates can still appear without evaluation scores.</p>
               )}
 
+              {variantMetrics?.count != null && <p className="text-xs text-muted-foreground">
+                Weekly variant totals ({variantMetrics.count} variants): R² {formatR2(variantMetrics.r2)} ·
+                MAE {variantMetrics.mae.toFixed(2)} · RMSE {variantMetrics.rmse.toFixed(2)} · MSE {variantMetrics.mse.toFixed(2)}.
+                {variantMetrics.naive && ` Matched variant baseline: R² ${formatR2(variantMetrics.naive.r2)} · MAE ${variantMetrics.naive.mae.toFixed(2)} · RMSE ${variantMetrics.naive.rmse.toFixed(2)}.`}
+              </p>}
               <p className="border-t border-border pt-2 text-xs text-muted-foreground">
-                Forecast ID: {job?.id} · {forecasted.length} predicted{skipped.length ? ` · ${skipped.length} need more sales (≥7 days)` : ""}
+                Forecast ID: {job?.id} · {forecasted.length} predicted{skipped.length ? ` · ${skipped.length} skipped; see history or error reason` : ""}
               </p>
             </div>
           )}

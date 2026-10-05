@@ -144,6 +144,11 @@ async def verify():
 
             jobs.WORKER_OWNER.set(f_owner)
             await forecast.save_result(f_id, 1, str(product_id), "Fixture", "Small", 10, 1, [{"date": "2026-10-03", "units": 2, "revenue": 20}], 2, 20, 10, 1)
+            # A retry must replace price metadata with the same snapshot used for revenue.
+            await forecast.save_result(f_id, 1, str(product_id), "Fixture", "Small", 12, 1,
+                                       [{"date": "2026-10-03", "units": 2, "revenue": 24}], 2, 24, 11, None)
+            row = await pools[0].fetchrow("SELECT price,total_revenue,days_of_data,share FROM forecast_results WHERE job_id=$1 AND variant_id=1", f_id)
+            assert float(row["price"]) == 12 and float(row["total_revenue"]) == 24 and row["days_of_data"] == 11 and row["share"] is None
             await forecast.save_skipped(f_id, 1, "Fixture", "Small", 10, 1, 10, "Fixture skip")
             row = await pools[0].fetchrow("SELECT total_units,total_revenue,skipped FROM forecast_results WHERE job_id=$1", f_id)
             assert row["skipped"] and row["total_units"] == 0 and row["total_revenue"] == 0
@@ -156,6 +161,9 @@ async def verify():
                 pass
             assert await pools[0].fetchval("SELECT status FROM forecast_jobs WHERE id=$1", f_id) == "running"
             score = {"product_id": str(product_id), "product_name": "Fixture", "variants": 1, "rmse": 1, "mae": 1, "mse": 1, "r_squared": 0.5}
+            score.update(forecast_method="variant_prophet_raw", evaluation_version=3, training_cutoff="2026-10-02",
+                         coverage={"first_sale": "2026-09-01", "last_sale": "2026-10-01", "gap_days": 1,
+                                   "recent_gap_dates": ["2026-10-02"], "trailing_gap_days": 1})
             await forecast.complete_job(f_id, 1, 0, 1, ["Fixture skip"], [score])
             row = await pools[0].fetchrow("SELECT status,product_scores,lease_owner FROM forecast_jobs WHERE id=$1", f_id)
             assert row["status"] == "completed" and row["product_scores"] and row["lease_owner"] is None
@@ -164,6 +172,8 @@ async def verify():
                 payload = response.model_dump(mode="json")
                 assert payload["job"]["product_scores"][0]["product_id"] == str(product_id)
                 assert payload["skipped"][0]["product_id"] == str(product_id)
+                assert payload["job"]["product_scores"][0]["coverage"]["trailing_gap_days"] == 1
+                assert payload["job"]["product_scores"][0]["forecast_method"] == "variant_prophet_raw"
             print("PASS: forecast writes are fenced and final metrics/status commit together")
 
             for fail in [False, True]:

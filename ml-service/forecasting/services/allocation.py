@@ -1,7 +1,6 @@
 """Convert expected demand to preparation counts without losing weekly totals."""
 import math
 
-import pandas as pd
 
 
 def apportion(total, weights):
@@ -34,18 +33,3 @@ def preparation_plan(predictions, shares):
         remaining = [quota - used for quota, used in zip(remaining, split)]
         plan.append(split)
     return plan
-
-
-def size_shares(sales, cutoff, window_days=30):
-    """Learn the recent mix strictly before the forecast origin; fall back to history.
-
-    A zero share is an estimate from recorded sales, not evidence that a variant
-    cannot sell. Never learn shares from the held-out evaluation period.
-    """
-    cutoff = pd.Timestamp(cutoff)
-    history = sales[sales["ds"] <= cutoff]
-    recent = history[history["ds"] >= cutoff - pd.Timedelta(days=window_days - 1)]
-    window = recent if recent["units"].sum() > 0 else history
-    total = float(window["units"].sum())
-    return {vid: float(group["units"].sum()) / total
-            for vid, group in window.groupby("variant_id")} if total else {}

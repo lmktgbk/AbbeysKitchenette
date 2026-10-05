@@ -1349,3 +1349,21 @@ Live seeded-data model accuracy, browser acceptance and direct variant Prophet
 comparison remain Not verified until those checks are performed. For the separate
 read-only experiment, use an activated Python environment at the repository root:
 `python audit/compare_forecast_methods.py --product-id PRODUCT_UUID`.
+
+
+## Direct variant forecasting and recorded-sales coverage (October 6)
+
+- [ ] Restart the ML service and client, then generate a new forecast. Older runs retain their original method and scores.
+- [ ] Expand a multi-size product. Confirm new variant rows have their own predictions and no historical-percentage allocation label.
+- [ ] Confirm a never-sold/new variant shows its skip reason; seven days means calendar history since its first sale, not seven distinct selling days.
+- [ ] Check seven dates begin after the displayed training cutoff in Asia/Manila. Today's sales must not enter training.
+- [ ] Sum variant quantities to the product/menu total; compare revenue with units × each captured price.
+- [ ] Compare ingredient requirements against those same quantities and recipes. Missing recipe warnings must remain visible.
+- [ ] Open evaluation: product and variant weekly R²/MAE/RMSE/MSE, matched baselines and individual daily errors are visible. Undefined R² stays N/A.
+- [ ] Check the coverage notice for days with no recorded menu-wide sales. It must explain unknown closure/completeness, rather than claim missing receipts or zero demand.
+- [ ] Switch to an older run: allocated forecasts remain labelled as legacy and old scores are not rewritten.
+- [ ] Record local runtime. Production hosting capacity and future real-sales accuracy remain Not verified.
+
+The fixed historical benchmark ends September 28, the existing synthetic-history
+boundary. Normal forecasts use yesterday; no synthetic extension was inserted.
+The dataset is predominantly simulated and cannot establish real-world accuracy.

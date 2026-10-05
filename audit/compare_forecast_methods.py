@@ -14,10 +14,11 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "ml-service"))
 from database import close_pool
-from config import HOLDOUT_DAYS, SHARE_WINDOW_DAYS
+from config import HOLDOUT_DAYS
+from benchmark_forecasting import SHARE_WINDOW_DAYS, _to_fit, _from_fit, size_shares
 from forecasting.services.data_loader import load_variant_daily_sales
-from forecasting.services.demand_forecast import build_prophet, business_today, MIN_DATA_DAYS, _to_fit, _from_fit
-from forecasting.services.allocation import preparation_plan, size_shares
+from forecasting.services.demand_forecast import build_prophet, business_today, MIN_DATA_DAYS
+from forecasting.services.allocation import preparation_plan
 from forecasting.services.metrics import compute_metrics
 
 
@@ -28,7 +29,7 @@ def score(predictions, actuals):
 
 
 def predict(training):
-    """Fit one historical origin, returning the same whole-unit plan used in the application."""
+    """Fit one historical origin, for the historical square-root comparator."""
     if training.y.sum() == 0:
         return [0] * HOLDOUT_DAYS
     model = build_prophet(len(training))

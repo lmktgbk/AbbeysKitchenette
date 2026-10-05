@@ -38,3 +38,15 @@ test("missing scores do not appear as a perfect forecast", () => {
   assert.deepEqual(summarizeEvaluation([], [{ mae: null }]), { unscored: 1 });
   assert.equal(summarizeEvaluation([], []), null);
 });
+
+
+test("direct variant weekly pairs use the same pooled calculation and matched baseline", () => {
+  const variants = [{ variant_id: 1, weeks: [week(3, 2), week(4, 5)], n_weeks: [week(0, 2), week(2, 5)] },
+    { variant_id: 2, weeks: [week(0, 0), week(1, 1)], n_weeks: [week(0, 0), week(0, 1)] }];
+  const result = summarizeEvaluation(variants, []);
+  assert.equal(result.count, 2);
+  assert.equal(result.mae, .5);
+  assert.equal(result.mse, .5);
+  assert.equal(result.naive.observations, 4);
+  assert.equal(result.naive.mae, 1.5);
+});
