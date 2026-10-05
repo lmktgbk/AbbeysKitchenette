@@ -1,3 +1,4 @@
+vi.mock("../src/modules/priceOptimization/priceOptimization.market.js", () => ({ getMarketContext: vi.fn().mockResolvedValue({variants:{7:{status:"insufficient",count:0,median:null,records:[]}},note:"fixture"}) }));
 import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("../src/modules/priceOptimization/priceOptimization.repository.js", () => ({ default: {
   getProductInfo: vi.fn(), getVariantPricingContext: vi.fn(), getRecipeDetails: vi.fn(), saveSuggestions: vi.fn(),
@@ -10,24 +11,44 @@ import repo from "../src/modules/priceOptimization/priceOptimization.repository.
 import { generatePriceSuggestions } from "../src/modules/priceOptimization/priceOptimization.prompts.js";
 import service from "../src/modules/priceOptimization/priceOptimization.service.js";
 import { normalizeRecommendations } from "../src/modules/priceOptimization/priceOptimization.output.js";
+import { getMarketContext } from "../src/modules/priceOptimization/priceOptimization.market.js";
 
 const variants = [{ variant_id: 7, product_name: "Coffee", size_name: "Regular", price: 85, cost_per_unit: 30 }];
-const valid = () => ({ recommendations: [{ variant_id: 7, recommended_price: 95, confidence: 0.85, reasoning: "Ingredient cost and sales support this price." }] });
+const valid = () => ({ recommendations: [{ variant_id: 7, recommended_price: 90, confidence: 0.85, reasoning: "Ingredient cost and sales support this price." }] });
 beforeEach(() => {
   vi.resetAllMocks();
+  getMarketContext.mockResolvedValue({ variants: {7: {status: "insufficient", count: 0, median: null, records: []}}, note: "fixture" });
   repo.getProductInfo.mockResolvedValue({ productName: "Coffee", isArchived: false });
   repo.getVariantPricingContext.mockResolvedValue(variants);
   repo.getRecipeDetails.mockResolvedValue([]);
   generatePriceSuggestions.mockResolvedValue(valid());
 });
 describe("AI pricing boundary", () => {
+  it.each([70, 100])("rejects prices outside the permitted band (%s)", price => {
+    const result = valid(); result.recommendations[0].recommended_price = price;
+    expect(() => normalizeRecommendations(result, variants)).toThrow("10% change limit");
+  });
+  it("rejects below-cost prices even within the change band", () => {
+    expect(() => normalizeRecommendations(valid(), [{ ...variants[0], cost_per_unit: 91 }])).toThrow("cost floor");
+  });
+  it("does not call providers when ingredient costs are missing", async () => {
+    repo.getVariantPricingContext.mockResolvedValue([{ ...variants[0], missing_costs: 1 }]);
+    await expect(service.generate("product")).rejects.toMatchObject({ code: "PRICING_COSTS_MISSING" });
+    expect(generatePriceSuggestions).not.toHaveBeenCalled();
+    expect(getMarketContext).not.toHaveBeenCalled();
+  });
+  it("uses unknown forecasts rather than manufacturing stable demand", async () => {
+    await service.generate("product");
+    expect(generatePriceSuggestions.mock.calls[0][0].variants[0].forecast).toEqual({ status: "unavailable" });
+    expect(repo.saveSuggestions.mock.calls[0][0][0].competitorAvg).toBeNull();
+  });
   it("uses database identity and derives financial fields", async () => {
     const response = await service.generate("product");
     const rows = repo.saveSuggestions.mock.calls[0][0];
-    expect(rows[0]).toMatchObject({ variantId: 7, productName: "Coffee", currentPrice: 85, recommendedPrice: 95,
-      priceChange: 10, changePercent: 11.76, direction: "increase", marginBefore: 64.71, marginAfter: 68.42 });
+    expect(rows[0]).toMatchObject({ variantId: 7, productName: "Coffee", currentPrice: 85, recommendedPrice: 90,
+      priceChange: 5, changePercent: 5.88, direction: "increase", marginBefore: 64.71, marginAfter: 66.67 });
     expect(repo.saveSuggestions).toHaveBeenCalledWith(rows, "product", undefined);
-    expect(response[0]).toMatchObject({ variant_id: 7, product_name: "Coffee", current_price: 85, recommended_price: 95 });
+    expect(response[0]).toMatchObject({ variant_id: 7, product_name: "Coffee", current_price: 85, recommended_price: 90 });
   });
   it.each([null, {}, { recommendations: [] }, { recommendations: Array(51).fill(valid().recommendations[0]) }])("rejects malformed or excessive batches %j", async result => {
     generatePriceSuggestions.mockResolvedValue(result);
@@ -37,7 +58,7 @@ describe("AI pricing boundary", () => {
   it.each([
     { variant_id: 8 }, { variant_id: "7" }, { variant_id: -1 },
     { recommended_price: 0 }, { recommended_price: -5 }, { recommended_price: NaN },
-    { recommended_price: Infinity }, { recommended_price: 100000000 }, { recommended_price: 95.001 },
+    { recommended_price: Infinity }, { recommended_price: 100000000 }, { recommended_price: 90.001 },
     { confidence: 1.1 }, { confidence: -0.1 }, { confidence: "0.9" },
     { reasoning: " " }, { reasoning: "x".repeat(2001) }, { current_price: 1 }, { product_name: "Forged" },
   ])("rejects untrusted fields %j before any write", async change => {
@@ -50,7 +71,7 @@ describe("AI pricing boundary", () => {
     const result = valid(); result.recommendations.push({ ...result.recommendations[0] });
     expect(() => normalizeRecommendations(result, variants)).toThrow("invalid recommendations");
   });
-  it.each([95, 85, 75])("derives increase/keep/decrease for %s", price => {
+  it.each([90, 85, 80])("derives increase/keep/decrease for %s", price => {
     const result = valid(); result.recommendations[0].recommended_price = price;
     expect(normalizeRecommendations(result, variants)[0].direction).toBe(price > 85 ? "increase" : price < 85 ? "decrease" : "keep");
   });

@@ -17,13 +17,20 @@ describe.skipIf(process.env.PRICE_DB_CHECK !== "1")("PostgreSQL recommendation p
     const sub = await db.subcategory.create({ data: { categoryId: category.categoryId, subcategoryName: "Fixture" } });
     product = await db.product.create({ data: { subcategoryId: sub.subcategoryId, productName: "Coffee" } });
     variant = await db.productVariant.create({ data: { productId: product.productId, sizeName: "Regular", price: 85 } });
-    rows = normalizeRecommendations({ recommendations: [{ variant_id: variant.variantId, recommended_price: 95, confidence: 0.8, reasoning: "Fixture pricing" }] }, await repo.getVariantPricingContext(product.productId));
+    await db.ingredient.deleteMany();
+    const ingredient = await db.ingredient.create({ data: { ingredientName: "Fixture cost", unit: "g" } });
+    const user = await db.user.upsert({ where: { email: "pricing-fixture@example.test" },
+      create: { email: "pricing-fixture@example.test", name: "Fixture", passwordHash: "unused", role: "admin" }, update: {} });
+    await db.restockBatch.create({ data: { ingredientId: ingredient.ingredientId, restockedById: user.id,
+      quantityAdded: 10, quantityLeft: 10, costPerUnit: 30, totalCost: 300 } });
+    await db.recipe.create({ data: { variantId: variant.variantId, ingredientId: ingredient.ingredientId, quantityNeeded: 1 } });
+    rows = normalizeRecommendations({ recommendations: [{ variant_id: variant.variantId, recommended_price: 90, confidence: 0.8, reasoning: "Fixture pricing" }] }, await repo.getVariantPricingContext(product.productId));
     await repo.saveSuggestions(rows, product.productId);
   });
   it("persists authoritative context through the actual SQL queries", async () => {
     const [saved] = await db.priceOptimization.findMany();
     expect(saved.productName).toBe("Coffee"); expect(Number(saved.currentPrice)).toBe(85);
-    expect(await repo.getRecipeDetails(product.productId)).toEqual([]);
+    expect((await repo.getRecipeDetails(product.productId))[0].cost_per_unit.toNumber()).toBe(30);
   });
   it("rolls back replacement when the price has changed", async () => {
     const before = await db.priceOptimization.findMany();
@@ -50,11 +57,18 @@ describe.skipIf(process.env.PRICE_DB_CHECK !== "1")("PostgreSQL recommendation p
     for (const result of results) if (result.status === "rejected") expect([404, 409]).toContain(result.reason.statusCode);
     const price = Number((await db.productVariant.findUnique({ where: { variantId: variant.variantId } })).price);
     const saved = await db.priceOptimization.findMany();
-    if (price === 95) {
+    if (price === 90) {
       expect(saved.some(row => row.status === "accepted")).toBe(true);
       expect(saved.filter(row => row.status === "pending")).toHaveLength(0);
     } else {
       expect(price).toBe(85); expect(saved).toHaveLength(1); expect(saved[0].status).toBe("pending");
     }
+  });
+  it("rechecks increased ingredient costs before applying and rolls back the claim", async () => {
+    const suggestion = await db.priceOptimization.findFirst();
+    await db.restockBatch.updateMany({ data: { costPerUnit: 100 } });
+    await expect(service.applyPrice(suggestion.id)).rejects.toMatchObject({ code: "STALE_PRICE_SUGGESTION" });
+    expect(Number((await db.productVariant.findUnique({ where: { variantId: variant.variantId } })).price)).toBe(85);
+    expect((await db.priceOptimization.findUnique({ where: { id: suggestion.id } })).status).toBe("pending");
   });
 });

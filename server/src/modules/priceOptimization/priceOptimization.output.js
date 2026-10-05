@@ -15,7 +15,7 @@ const round = value => Math.round(value * 100) / 100;
 /** Validate provider output and bind each unique variant to observed pricing before publication. */
 export function normalizeRecommendations(result, variants) {
   const parsed = output.safeParse(result);
-  if (!parsed.success) throw invalid();
+  if (!parsed.success || parsed.data.recommendations.length !== variants.length) throw invalid();
   const allowed = new Map(variants.map(v => [v.variant_id, v]));
   const seen = new Set();
   return parsed.data.recommendations.map(r => {
@@ -29,6 +29,13 @@ export function normalizeRecommendations(result, variants) {
     if (!money(true).safeParse(currentPrice).success || !Number.isFinite(cost) || cost < 0) {
       throw new AppError(409, "Product pricing context is invalid", "INVALID_PRICING_CONTEXT");
     }
+    if (v.missing_costs > 0 || v.recipe_count === 0) {
+      throw new AppError(409, "Complete recipe and ingredient cost records before optimizing prices", "PRICING_COSTS_MISSING");
+    }
+    // The model cannot bypass the ingredient floor or the permitted change band.
+    if (r.recommended_price < cost || r.recommended_price < currentPrice * 0.9 || r.recommended_price > currentPrice * 1.1) {
+      throw new AppError(502, "Recommendation violates the ingredient cost floor or 10% change limit. Manual pricing review may be required", "UNSAFE_PRICE_RECOMMENDATION");
+    }
     // Derive financial metadata from the database snapshot, never from model arithmetic.
     const delta = (Math.round(r.recommended_price * 100) - Math.round(currentPrice * 100)) / 100;
     return {
@@ -40,6 +47,7 @@ export function normalizeRecommendations(result, variants) {
       marginBefore: round((currentPrice - cost) / currentPrice * 100),
       marginAfter: round((r.recommended_price - cost) / r.recommended_price * 100),
       status: "pending",
+      policyVersion: 2,
     };
   });
 }

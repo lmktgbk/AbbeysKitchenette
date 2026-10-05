@@ -26,7 +26,7 @@ afterAll(async () => { server.closeAllConnections(); await new Promise(resolve =
 
 beforeEach(() => {
   vi.clearAllMocks(); h.role = "admin";
-  const state = { suggestions: [{ id: 1, variantId: 7, currentPrice: 85, recommendedPrice: 95, productName: "Fixture", status: "pending" }], variants: [{ variantId: 7, price: 85, archived: false }], priceWrites: 0, effects: [] };
+  const state = { suggestions: [{ id: 1, variantId: 7, policyVersion: 2, currentPrice: 85, recommendedPrice: 90, productName: "Fixture", status: "pending" }], variants: [{ variantId: 7, price: 85, archived: false }], priceWrites: 0, effects: [] };
   const db = h.db = { state };
   db.domainEffect = { async create({ data }) {
     if (db.failEffect) throw new Error("Injected effect failure");
@@ -69,13 +69,19 @@ beforeEach(() => {
 const request = (id, action) => fetch(`${base}/${id}/${action}`, { method: "POST" });
 
 describe("Price approval authorization and transactional correctness", () => {
+  it("requires regeneration of legacy suggestions without changing their status", async () => {
+    h.db.state.suggestions[0].policyVersion = 1;
+    await expect(service.applyPrice(1)).rejects.toMatchObject({ code: "PRICE_POLICY_OUTDATED" });
+    expect(h.db.state.suggestions[0].status).toBe("pending");
+    expect(h.db.state.priceWrites).toBe(0);
+  });
   it("admin approval commits the price and status together with matching response metadata", async () => {
     const response = await request(1, "apply");
     expect(response.status).toBe(200);
     const result = (await response.json()).data.suggestion;
-    expect(result).toMatchObject({ status: "accepted", variantId: 7, recommendedPrice: 95 });
+    expect(result).toMatchObject({ status: "accepted", variantId: 7, recommendedPrice: 90 });
     expect(result.updatedAt).toBe(h.db.state.suggestions[0].updatedAt.toISOString());
-    expect(h.db.state.variants[0].price).toBe(95);
+    expect(h.db.state.variants[0].price).toBe(90);
     expect(h.db.state.effects).toHaveLength(1);
     expect(h.db.state.effects[0].payload.audit.userId).toBe("00000000-0000-4000-8000-000000000001");
   });
@@ -125,7 +131,7 @@ describe("Price approval authorization and transactional correctness", () => {
     expect(h.db.state.variants[0].price).toBe(85);
     h.db[failure] = false;
     await service.applyPrice(1);
-    expect(h.db.state.variants[0].price).toBe(95);
+    expect(h.db.state.variants[0].price).toBe(90);
   });
   it("duplicate approvals have one winner and one price write", async () => {
     const results = await Promise.allSettled([service.applyPrice(1), service.applyPrice(1)]);
@@ -137,10 +143,10 @@ describe("Price approval authorization and transactional correctness", () => {
     const results = await Promise.allSettled(applyFirst ? [service.applyPrice(1), service.dismiss(1)] : [service.dismiss(1), service.applyPrice(1)]);
     expect(results.filter(row => row.status === "fulfilled")).toHaveLength(1);
     expect(h.db.state.suggestions[0].status).toBe(applyFirst ? "accepted" : "rejected");
-    expect(h.db.state.variants[0].price).toBe(applyFirst ? 95 : 85);
+    expect(h.db.state.variants[0].price).toBe(applyFirst ? 90 : 85);
   });
   it("two recommendations based on the same price cannot overwrite one another", async () => {
-    h.db.state.suggestions.push({ ...h.db.state.suggestions[0], id: 2, recommendedPrice: 100 });
+    h.db.state.suggestions.push({ ...h.db.state.suggestions[0], id: 2, recommendedPrice: 92 });
     const results = await Promise.allSettled([service.applyPrice(1), service.applyPrice(2)]);
     expect(results.filter(row => row.status === "fulfilled")).toHaveLength(1);
     expect(h.db.state.priceWrites).toBe(1);

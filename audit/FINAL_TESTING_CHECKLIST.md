@@ -1270,3 +1270,31 @@ remains **Not verified** by these component tests.
 Verification: 14 product detail rendering/action regressions passed, including
 missing category relations, empty/long/multiline descriptions and HTML escaping.
 Interactive desktop/mobile layout remains **Not verified** by rendering tests.
+
+## Evidence-based price optimization trial (2026-10-06)
+
+- [ ] Apply the additive pricing_evidence migration, generate Prisma and restart.
+- [ ] Regenerate a product with complete recipes and costs. Names, categories,
+  descriptions, 30-day sales and fresh remaining forecast dates inform Gemini.
+- [ ] Check ingredient margin labels and explicit market unavailability. Only
+  three distinct equivalent online-menu competitors can establish a median.
+- [ ] Source records show menu link, item, portion, amount and collection date;
+  collection date is not a verified publication date. No hardcoded averages.
+- [ ] Missing recipe costs block generation; no-sales/missing forecasts are
+  disclosed rather than treated as proof of high prices or stable demand.
+- [ ] Recommendations outside ±10% or below ingredient costs are rejected. A
+  cost floor above the allowed band requires manual pricing review.
+- [ ] Old policy-1 suggestions are viewable/dismissible but cannot be applied;
+  regenerate before using them. Failed generation preserves prior suggestions.
+- [ ] Successful application requires admin confirmation. Changed price/cost,
+  duplicate application or failed audit insertion cannot partially commit.
+- [ ] Generate again within seven days: matching product/source context reuses
+  the persistent cache; changed context or expiry triggers lazy refresh.
+
+Verification: 926 automated tests passed, 122 skipped; seven isolated PostgreSQL
+pricing checks passed (including migration and increased-cost rollback). Client
+lint/build passed. Actual public retrieval exposed price text from Cafe 1740;
+Prism/Cafe de Lipa did not expose usable prices. Three comparable competitors
+are **Not verified**, so market context may remain unavailable. Live Gemini output,
+semantic portion matching and interactive application remain **Not verified**.
+No migration was applied to public business data; no paid search is enabled.

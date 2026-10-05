@@ -13,7 +13,8 @@ import { AppError } from "../../middleware/errorHandler.middleware.js";
 const priceOptimizationRepository = {
   /**
    * Get variant pricing context: current price, COGS, margin, sales volume, trend.
-   * Joins ProductVariant → Recipe → RestockBatch (FIFO cost) and aggregates sales.
+   * Uses quantity-weighted historical restock cost consistently with recipe detail.
+   * Missing costs remain distinguishable from an explicitly recorded zero cost.
    */
   async getVariantPricingContext(productId) {
     return prisma.$queryRawUnsafe(`
@@ -25,14 +26,19 @@ const priceOptimizationRepository = {
             ELSE 0
           END AS avg_cost_per_unit
         FROM restock_batches
+        WHERE ingredient_id IN (SELECT r.ingredient_id FROM recipes r
+          JOIN product_variants pv ON pv.variant_id = r.variant_id WHERE pv.product_id = $1)
         GROUP BY ingredient_id
       ),
       variant_costs AS (
         SELECT
           r.variant_id,
-          SUM(r.quantity_needed * ac.avg_cost_per_unit) AS total_cog
+          SUM(r.quantity_needed * ac.avg_cost_per_unit) AS total_cog,
+          COUNT(*) FILTER (WHERE ac.avg_cost_per_unit IS NULL) AS missing_costs,
+          COUNT(*) AS recipe_count
         FROM recipes r
         LEFT JOIN avg_costs ac ON ac.ingredient_id = r.ingredient_id
+        WHERE r.variant_id IN (SELECT variant_id FROM product_variants WHERE product_id = $1)
         GROUP BY r.variant_id
       ),
       variant_sales AS (
@@ -43,16 +49,24 @@ const priceOptimizationRepository = {
         FROM order_items oi
         JOIN orders o ON o.order_id = oi.order_id
         WHERE o.status = 'completed'
-          AND o.order_date >= ${MANILA_TODAY_SQL} - INTERVAL '30 days'
+          AND o.order_date >= ${MANILA_TODAY_SQL} - INTERVAL '29 days'
+          AND o.order_date <= ${MANILA_TODAY_SQL}
           AND oi.removed_at IS NULL
+          AND oi.variant_id IN (SELECT variant_id FROM product_variants WHERE product_id = $1)
         GROUP BY oi.variant_id
       ),
       forecast_trends AS (
         SELECT DISTINCT ON (fr.variant_id)
           fr.variant_id,
-          fr.trend
+          fr.trend,
+          (SELECT jsonb_agg(day) FROM jsonb_array_elements(fr.daily_data) day
+            WHERE (day->>'date')::date >= ${MANILA_TODAY_SQL}) AS daily_data,
+          fj.completed_at, fj.period
         FROM forecast_results fr
-        ORDER BY fr.variant_id, fr.id DESC
+        JOIN forecast_jobs fj ON fj.id = fr.job_id
+        WHERE fj.status = 'completed' AND fr.skipped = false
+          AND fr.variant_id IN (SELECT variant_id FROM product_variants WHERE product_id = $1)
+        ORDER BY fr.variant_id, fj.completed_at DESC, fr.id DESC
       )
       SELECT
         pv.variant_id AS variant_id,
@@ -60,6 +74,8 @@ const priceOptimizationRepository = {
         pv.size_name,
         pv.price AS price,
         COALESCE(vc.total_cog, 0) AS cost_per_unit,
+        COALESCE(vc.missing_costs, 1)::int AS missing_costs,
+        COALESCE(vc.recipe_count, 0)::int AS recipe_count,
         CASE
           WHEN pv.price > 0 AND COALESCE(vc.total_cog, 0) > 0
           THEN ROUND(((pv.price - vc.total_cog) / pv.price * 100)::numeric, 1)
@@ -67,7 +83,12 @@ const priceOptimizationRepository = {
         END AS margin_percent,
         COALESCE(vs.total_units, 0)::int AS total_units_sold,
         COALESCE(vs.total_revenue, 0) AS total_revenue,
-        COALESCE(ft.trend, 'stable') AS trend
+        CASE WHEN ft.completed_at >= NOW() - INTERVAL '7 days'
+          AND ft.completed_at <= NOW() AND ft.daily_data IS NOT NULL
+          AND ft.completed_at + ft.period * INTERVAL '1 day' >= NOW()
+          THEN ft.trend ELSE NULL END AS trend,
+        ft.daily_data AS forecast_daily_data, ft.completed_at AS forecast_completed_at,
+        ft.period AS forecast_period
       FROM product_variants pv
       JOIN products p ON p.product_id = pv.product_id
       LEFT JOIN variant_costs vc ON vc.variant_id = pv.variant_id
@@ -83,6 +104,13 @@ const priceOptimizationRepository = {
    */
   async getRecipeDetails(productId) {
     return prisma.$queryRawUnsafe(`
+      WITH avg_costs AS (
+        SELECT ingredient_id, SUM(quantity_added * cost_per_unit) / NULLIF(SUM(quantity_added), 0) AS cost
+        FROM restock_batches
+        WHERE ingredient_id IN (SELECT r.ingredient_id FROM recipes r
+          JOIN product_variants pv ON pv.variant_id = r.variant_id WHERE pv.product_id = $1)
+        GROUP BY ingredient_id
+      )
       SELECT
         r.variant_id,
         p.product_name,
@@ -90,24 +118,13 @@ const priceOptimizationRepository = {
         i.ingredient_name,
         r.quantity_needed,
         i.unit,
-        COALESCE(
-          (SELECT rb.cost_per_unit
-           FROM restock_batches rb
-           WHERE rb.ingredient_id = r.ingredient_id AND rb.quantity_left > 0
-           ORDER BY rb.restocked_at DESC LIMIT 1),
-          0
-        ) AS cost_per_unit,
-        ROUND((r.quantity_needed * COALESCE(
-          (SELECT rb.cost_per_unit
-           FROM restock_batches rb
-           WHERE rb.ingredient_id = r.ingredient_id AND rb.quantity_left > 0
-           ORDER BY rb.restocked_at DESC LIMIT 1),
-          0
-        ))::numeric, 2) AS line_cost
+        ac.cost AS cost_per_unit,
+        ROUND((r.quantity_needed * ac.cost)::numeric, 2) AS line_cost
       FROM recipes r
       JOIN product_variants pv ON pv.variant_id = r.variant_id
       JOIN products p ON p.product_id = pv.product_id
       JOIN ingredients i ON i.ingredient_id = r.ingredient_id
+      LEFT JOIN avg_costs ac ON ac.ingredient_id = r.ingredient_id
       WHERE pv.product_id = $1
       ORDER BY pv.size_name, i.ingredient_name
     `, productId);
@@ -193,10 +210,24 @@ const priceOptimizationRepository = {
   async updateVariantPrice(variantId, currentPrice, price, tx) {
     // PostgreSQL rechecks this predicate after waiting on a concurrent price
     // writer. A recommendation cannot overwrite a price changed since generation.
+    // The same statement rechecks recipe completeness and the current weighted
+    // ingredient cost, so approval cannot bypass safeguards using persisted rows.
     return tx.$executeRaw`
       UPDATE product_variants AS v SET price = ${String(price)}::numeric
       WHERE v.variant_id = ${variantId} AND v.price = ${String(currentPrice)}::numeric
         AND EXISTS (SELECT 1 FROM products AS p WHERE p.product_id = v.product_id AND p.is_archived = false)
+        AND ${String(price)}::numeric BETWEEN v.price * 0.9 AND v.price * 1.1
+        AND EXISTS (
+          SELECT 1 FROM recipes r LEFT JOIN (
+            SELECT ingredient_id, SUM(quantity_added * cost_per_unit) / NULLIF(SUM(quantity_added), 0) AS cost
+            FROM restock_batches GROUP BY ingredient_id
+          ) ac ON ac.ingredient_id = r.ingredient_id
+          WHERE r.variant_id = v.variant_id
+          GROUP BY r.variant_id
+          HAVING COUNT(*) FILTER (WHERE ac.cost IS NULL) = 0
+            AND COUNT(*) FILTER (WHERE ac.cost < 0) = 0
+            AND SUM(r.quantity_needed * ac.cost) <= ${String(price)}::numeric
+        )
     `;
   },
 };
