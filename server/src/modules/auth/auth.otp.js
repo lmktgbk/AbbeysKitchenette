@@ -47,7 +47,10 @@ export async function generateOtp(userId, challengeId, expiresAt, resend = false
       throw new AppError(401, "Login challenge expired, please sign in again", "INVALID_CHALLENGE");
     }
     if (recent && Date.now() - recent.createdAt.getTime() < RESEND_COOLDOWN_MS) {
-      throw new AppError(429, "Please wait before requesting a new code", "OTP_RESEND_COOLDOWN");
+      const error = new AppError(429, "Please wait before requesting a new code", "OTP_RESEND_COOLDOWN");
+      // Measure from persisted issuance; rejected requests do not extend the cooldown.
+      error.retryAfterSeconds = Math.max(1, Math.ceil((recent.createdAt.getTime() + RESEND_COOLDOWN_MS - Date.now()) / 1000));
+      throw error;
     }
     const code = crypto.randomInt(100000, 1000000).toString();
     await tx.otpCode.deleteMany({ where: { userId } });

@@ -52,7 +52,7 @@ export const generalLimiter = rateLimit({
 
 /**
  * Auth rate limiter: 10 attempts per 15 min per IP.
- * Applied to POST /login and POST /login-pin.
+ * Shared by password login, OTP verification/resend and password recovery routes.
  * Prevents brute-force attacks from a single IP.
  */
 export const authLimiter = rateLimit({
@@ -62,11 +62,14 @@ export const authLimiter = rateLimit({
   keyGenerator: (req) => ipKeyGenerator(req.ip ?? "unknown"),
   standardHeaders: true,
   legacyHeaders: false,
-  message: {
-    success: false,
-    message: "Too many attempts, please try again in 15 minutes",
-    error: "AUTH_RATE_LIMIT_EXCEEDED",
-    data: null,
+  // Include timing in JSON: cross-origin browsers cannot always read Retry-After.
+  // Use the limiter's actual reset, not a fresh fifteen-minute delay per rejection.
+  handler: (req, res) => {
+    const retryAfterSeconds = Math.max(1, Math.ceil((req.rateLimit.resetTime.getTime() - Date.now()) / 1000));
+    res.setHeader("Retry-After", String(retryAfterSeconds));
+    return res.status(429).json({ success: false,
+      message: `Too many attempts. Please try again in ${retryAfterSeconds} seconds.`,
+      error: "AUTH_RATE_LIMIT_EXCEEDED", data: { retryAfterSeconds } });
   },
 });
 

@@ -1106,6 +1106,28 @@ Fourteen isolated MBA cases plus 28 existing ML cases passed on 2026-10-05.
 Seeded detail/pricing comparisons and SELECT/parameter comparison also passed.
 Live cases above and real PostgreSQL query execution remain **NOT RUN** for this
 batch; no schema migration was introduced.
+## OTP resend feedback regression (2026-10-05)
+
+- [ ] After password login, resend shows a one-minute countdown; verification
+  remains available while only resend is cooling down.
+- [ ] After the countdown, resend once: a new email arrives, another countdown
+  begins, and the delivered code completes login. Resend does not extend the
+  original ten-minute challenge expiry.
+- [ ] A rejected resend shows the actual server message, not only "Failed to
+  resend OTP". Cooldown responses include remaining seconds in JSON and Retry-After.
+- [ ] In isolated testing, exhausting the shared auth budget blocks both verify
+  and resend until its remaining retry deadline. Do not bypass server limits.
+- [ ] An expired/revoked challenge shows the reason and "Sign in again" returns
+  to the correct portal's password form.
+- [ ] An unavailable API reports a connection problem; successful delivery and
+  interactive browser timing remain **Not verified** by automated tests alone.
+
+Automated verification: 863 tests passed, 119 skipped. New tests cover remaining
+cooldown timing without database mutation, replacement delivery with preserved
+expiry, shared limit timing, expired challenges, backend message retention,
+malformed retry values, network feedback and background-tab clock catch-up.
+HTTP tests use in-memory fixtures; no production database or email was used.
+
 # Final ML integration review (2026-10-05)
 
 - Automated baseline: 854 Vitest tests passed, 119 skipped; client build/lint,

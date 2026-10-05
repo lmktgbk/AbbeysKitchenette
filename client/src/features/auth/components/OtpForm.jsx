@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { verifyOtpRequest, resendOtpRequest } from "../api";
+import { verifyOtpRequest, resendOtpRequest, otpFailure, otpSecondsRemaining } from "../api";
 import { establishSession } from "../session";
 import { otpSchema } from "../authValidation";
 import Icon from "@/components/ui/icon";
@@ -10,10 +10,40 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
-/** OtpForm — 6-digit email code verification. WHY it exists: completes email-OTP 2FA (admin + staff) after EmailForm and establishes session; consumed by login flow. State: local [serverError, resending]; writes authStore.user. */
-export default function OtpForm({ userId }) {
+/**
+ * Complete the password-bound email challenge for either login portal.
+ * Retry deadlines are presentation state; the backend still enforces issuance,
+ * expiry and attempt limits. onRestart returns an expired challenge to password
+ * entry without navigating staff users into the admin portal or vice versa.
+ */
+export default function OtpForm({ userId, onRestart }) {
     const [serverError, setServerError] = useState("");
     const [resending, setResending] = useState(false);
+    // Initial/successful delivery uses a conservative one-minute wait. A server
+    // rejection replaces it with the remaining persisted cooldown or IP limit.
+    const [retryAt, setRetryAt] = useState(() => Date.now() + 60_000);
+    const [verifyBlockedUntil, setVerifyBlockedUntil] = useState(0);
+    const [expired, setExpired] = useState(false);
+    const [now, setNow] = useState(Date.now);
+    const secondsLeft = otpSecondsRemaining(retryAt, now);
+    useEffect(() => {
+        const timer = setInterval(() => setNow(Date.now()), 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    /** Apply timing to resend only, unless the shared auth budget blocks verification too. */
+    const showFailure = useCallback((err) => {
+        const failure = otpFailure(err);
+        setServerError(failure.message);
+        if (failure.retryAfterSeconds) {
+            const deadline = Date.now() + failure.retryAfterSeconds * 1000;
+            setRetryAt(deadline);
+            setNow(Date.now());
+            if (failure.rateLimited) setVerifyBlockedUntil(deadline);
+        }
+        if (failure.expired) setExpired(true);
+        return failure.message;
+    }, []);
     const navigate = useNavigate();
 
     const {
@@ -41,19 +71,21 @@ export default function OtpForm({ userId }) {
                 default: navigate("/dashboard");
             }
         } catch (err) {
-            setServerError(
-                err.response?.data?.message || "Invalid or expired OTP code."
-            );
+            showFailure(err);
         }
     };
 
     const handleResend = async () => {
+        if (resending || expired || otpSecondsRemaining(retryAt) > 0) return;
         setResending(true);
+        setServerError("");
         try {
             await resendOtpRequest(userId);
+            setRetryAt(Date.now() + 60_000);
+            setNow(Date.now());
             toast.success("OTP Sent", { description: "Check your email for a new code." });
-        } catch {
-            toast.error("Failed to resend OTP");
+        } catch (err) {
+            toast.error(showFailure(err));
         } finally {
             setResending(false);
         }
@@ -65,7 +97,7 @@ export default function OtpForm({ userId }) {
             <p className="text-sm font-medium">Enter the 6-digit code sent to your email</p>
 
             {serverError && (
-                <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                <div role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
                     {serverError}
                 </div>
             )}
@@ -81,17 +113,18 @@ export default function OtpForm({ userId }) {
             />
 
             <div className="flex flex-col gap-3">
-                <Button type="submit" fullWidth disabled={isSubmitting}>
+                <Button type="submit" fullWidth disabled={isSubmitting || resending || expired || verifyBlockedUntil > now}>
                     {isSubmitting ? "Verifying..." : "Verify"}
                 </Button>
                 <Button
                     type="button"
                     variant="ghost"
                     onClick={handleResend}
-                    disabled={resending || isSubmitting}
+                    disabled={resending || isSubmitting || expired || secondsLeft > 0}
                 >
-                    {resending ? "Sending..." : "Resend OTP"}
+                    {resending ? "Sending..." : secondsLeft > 0 ? `Resend OTP in ${secondsLeft}s` : "Resend OTP"}
                 </Button>
+                {expired && <Button type="button" variant="ghost" onClick={onRestart}>Sign in again</Button>}
             </div>
         </form>
     );

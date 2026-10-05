@@ -5,6 +5,23 @@
  */
 import api from "@/config/axios";
 
+/** Interpret OTP failures without replacing actionable backend messages with a generic toast. */
+export function otpFailure(error) {
+  const response = error.response;
+  const seconds = Number(response?.data?.data?.retryAfterSeconds ?? response?.headers?.["retry-after"]);
+  return {
+    message: response?.data?.message || (response ? "Unable to complete this request. Please try again." : "Cannot reach the server. Check your connection and try again."),
+    retryAfterSeconds: Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : 0,
+    expired: response?.data?.error === "INVALID_CHALLENGE",
+    rateLimited: response?.data?.error === "AUTH_RATE_LIMIT_EXCEEDED",
+  };
+}
+
+/** Recompute from a deadline so background-tab timer throttling cannot extend the wait. */
+export function otpSecondsRemaining(deadline, now = Date.now()) {
+  return Math.max(0, Math.ceil((deadline - now) / 1000));
+}
+
 /* ── Login  */
 
 /** Staff login (cashier + kitchen) — admins get USE_ADMIN_PORTAL */

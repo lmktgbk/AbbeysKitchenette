@@ -23,6 +23,10 @@ function clearChallenge(res) {
 }
 
 function handleError(res, error, fallbackCode) {
+  if (error instanceof AppError && error.code === "OTP_RESEND_COOLDOWN") {
+    res.setHeader("Retry-After", String(error.retryAfterSeconds));
+    return errorResponse(res, error.message, { retryAfterSeconds: error.retryAfterSeconds }, error.statusCode, error.code);
+  }
   return controllerError(res, error, fallbackCode);
 }
 

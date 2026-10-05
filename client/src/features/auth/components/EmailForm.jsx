@@ -60,7 +60,7 @@ export default function EmailForm({ onBack, mode = "staff" }) {
     };
 
     if (otpData) {
-        return <OtpForm userId={otpData.user.id} />;
+        return <OtpForm userId={otpData.user.id} onRestart={() => setOtpData(null)} />;
     }
 
     return (

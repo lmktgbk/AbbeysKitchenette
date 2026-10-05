@@ -73,7 +73,7 @@ async function request(route, body, cookie = "") {
     headers: { "Content-Type": "application/json", Cookie: cookie },
     ...(body !== undefined && { body: JSON.stringify(body) }),
   });
-  return { status: response.status, body: await response.json(), cookies: response.headers.getSetCookie() };
+  return { status: response.status, body: await response.json(), cookies: response.headers.getSetCookie(), retryAfter: response.headers.get("retry-after") };
 }
 function cookieFrom(result, name) {
   return result.cookies.find(cookie => cookie.startsWith(name + "="))?.split(";")[0];
@@ -92,6 +92,51 @@ async function loggedIn(role = "admin") {
   expect(done.status).toBe(200);
   return { ...step, done, session: cookieFrom(done, "token") };
 }
+
+describe("OTP resend retry feedback", () => {
+  it("returns the remaining issuance wait without replacing the code or extending expiry", async () => {
+    const flow = await login();
+    const stored = h.db.state.otpCode[0];
+    stored.createdAt = new Date(Date.now() - 45_000);
+    const before = { code: stored.code, expiresAt: stored.expiresAt, createdAt: stored.createdAt };
+    const result = await request("/resend-otp", { userId: ID }, flow.challenge);
+    expect(result.status).toBe(429);
+    expect(result.body.error).toBe("OTP_RESEND_COOLDOWN");
+    expect(result.body.data.retryAfterSeconds).toBeGreaterThan(0);
+    expect(result.body.data.retryAfterSeconds).toBeLessThanOrEqual(15);
+    expect(Number(result.retryAfter)).toBe(result.body.data.retryAfterSeconds);
+    expect(stored).toMatchObject(before);
+    expect(h.messages).toHaveLength(1);
+  });
+  it("resends after cooldown and invalidates the prior code without extending the challenge", async () => {
+    const flow = await login();
+    const expiry = h.db.state.otpCode[0].expiresAt;
+    h.db.state.otpCode[0].createdAt = new Date(Date.now() - 61_000);
+    const result = await request("/resend-otp", { userId: ID }, flow.challenge);
+    expect(result.status).toBe(200);
+    expect(h.messages).toHaveLength(2);
+    expect(h.db.state.otpCode).toHaveLength(1);
+    expect(h.db.state.otpCode[0].expiresAt).toEqual(expiry);
+    // Verification uses the delivered replacement; no raw code is added to retry metadata.
+    expect((await request("/verify-otp", { userId: ID, code: h.messages.at(-1).html }, flow.challenge)).status).toBe(200);
+  });
+  it("provides the shared auth budget reset separately from the OTP cooldown", async () => {
+    for (let i = 0; i < 10; i++) await request("/resend-otp", { userId: ID });
+    const result = await request("/resend-otp", { userId: ID });
+    expect(result.status).toBe(429);
+    expect(result.body.error).toBe("AUTH_RATE_LIMIT_EXCEEDED");
+    expect(result.body.data.retryAfterSeconds).toBeGreaterThan(60);
+    expect(result.body.data.retryAfterSeconds).toBeLessThanOrEqual(900);
+    expect(Number(result.retryAfter)).toBe(result.body.data.retryAfterSeconds);
+  });
+  it("expired challenges instruct a fresh sign-in instead of returning a cooldown", async () => {
+    const result = await request("/resend-otp", { userId: ID });
+    expect(result.status).toBe(401);
+    expect(result.body.error).toBe("INVALID_CHALLENGE");
+    expect(result.body.message).toContain("sign in again");
+    expect(result.body.data).toBeNull();
+  });
+});
 
 async function openSocket(token) {
   const socket = new WebSocket(base.replace("http://", "ws://").replace("/api/auth", "/ws"), {
