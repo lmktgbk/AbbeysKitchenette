@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useVariantProfitability } from "../variantQuery";
+import { useVariantProfitability } from "../query";
 import { useCategoryList } from "@/features/products/query";
 import { SearchBar } from "@/components/filters/SearchBar";
 import FilterModal from "@/components/filters/FilterModal";

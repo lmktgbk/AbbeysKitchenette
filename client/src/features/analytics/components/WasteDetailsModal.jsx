@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useWasteDetails } from "../variantQuery";
+import { useWasteDetails } from "../query";
 import { SearchBar } from "@/components/filters/SearchBar";
 import { FilterPill } from "@/components/filters/FilterPill";
 import { Pagination } from "@/components/filters/Pagination";

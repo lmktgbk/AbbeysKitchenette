@@ -51,3 +51,23 @@ provide new browser interaction coverage of the moved dialogs. Live/manual
 cancellation, removal, and reduced-motion acceptance remain **Not verified**.
 No migration or server implementation change is required. The existing server
 automation formatting is excluded from this commit.
+
+
+## Batch 2 — analytics transport and query consolidation
+
+- Merged variantApi.js into api.js and variantQuery.js into query.js; removed
+  both redundant files rather than retaining compatibility exports.
+- Updated profitability-table and waste-modal hook imports.
+- Preserved exported function names, endpoint paths, response envelopes,
+  filter forwarding, cache-key arrays, and all 30-second staleTime settings.
+- Added function comments distinguishing KPI/export date normalization from
+  unchanged detail-filter forwarding and explained retained cache ownership.
+
+Verification: syntax-tree comparison confirms all eight executable declarations
+match the original two-file pairs, and both callers changed only their imports.
+Production build and ESLint passed; 52 existing client-focused cases passed.
+Those cases protect broader client safeguards, not browser-level coverage of
+analytics tables or downloads. Live analytics filtering, pagination, and Excel/PDF
+exports remain **Not verified** for this batch. No server/API/schema change or
+migration is required. Existing Router.jsx and automation repository edits were
+preserved outside this commit.

@@ -1,10 +1,12 @@
 /**
- * Analytics API — owns KPI fetch + report export transport.
- * WHY: centralizes date-param normalization (camelCase to snake_case) and blob download. Contract: GET /analytics/kpis, GET /analytics/export?format=excel|pdf (blob, parses content-disposition filename, triggers download); KPI calls return res.data envelope.
- * State: axios wrappers, no state.
+ * Analytics transport returns API envelopes for KPI, profitability, and waste
+ * reads. KPI/export requests normalize date aliases; detail reads forward their
+ * existing filters unchanged. Exports consume binary responses and release the
+ * temporary browser download URL after triggering the download.
  */
 import api from "@/config/axios";
 
+/** Normalize KPI/export date aliases; explicit snake_case dates take precedence when both forms are supplied. */
 function toSnakeParams(params = {}) {
   const out = {};
   if (params.dateFrom) out.date_from = params.dateFrom;
@@ -52,4 +54,16 @@ export async function exportAnalyticsRequest(params = {}) {
   a.remove();
   window.URL.revokeObjectURL(url);
   return res;
+}
+
+/** Fetch the profitability page using its existing snake_case filter contract. */
+export async function getVariantProfitabilityRequest(params = {}) {
+  const res = await api.get("/analytics/variants/profitability", { params });
+  return res.data;
+}
+
+/** Fetch filtered waste records without applying the KPI/export date-alias mapping. */
+export async function getWasteDetailsRequest(params = {}) {
+  const res = await api.get("/analytics/waste/details", { params });
+  return res.data;
 }
