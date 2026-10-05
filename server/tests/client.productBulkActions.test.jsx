@@ -30,6 +30,31 @@ function button(label) {
   return h.buttons.find(props => React.Children.toArray(props.children).some(child => child === label));
 }
 describe("bulk product visibility and confirmation lifecycle", () => {
+  it("shows the assigned category path and safely renders multiline descriptions", () => {
+    const detail = { ...product, category_name: "Beverages", subcategory_name: "Coffee", description: "Fresh coffee\n<script>unsafe()</script>" };
+    const markup = renderToStaticMarkup(<ProductDetailModal product={detail} detail={detail} open onOpenChange={() => {}} />);
+    expect(markup).toContain("Beverages › Coffee");
+    expect(markup).toContain("Fresh coffee\n&lt;script&gt;unsafe()&lt;/script&gt;");
+    expect(markup).not.toContain("<script>");
+    expect(markup).toContain("whitespace-pre-wrap");
+    expect(markup.indexOf("Description")).toBeLessThan(markup.indexOf(">Variants<"));
+  });
+  it.each([
+    ["Beverages", null, "Beverages"], [null, "Coffee", "Coffee"], [null, null, null],
+  ])("handles missing category relations (%s / %s)", (category_name, subcategory_name, expected) => {
+    const detail = { ...product, category_name, subcategory_name, description: "   " };
+    const markup = renderToStaticMarkup(<ProductDetailModal product={detail} detail={detail} open onOpenChange={() => {}} />);
+    expect(markup).toContain("No description provided");
+    expect(markup).not.toContain(" › ");
+    if (expected) expect(markup).toContain(expected);
+  });
+  it("retains long descriptions with wrapping rather than truncating their content", () => {
+    const description = "longword".repeat(500);
+    const detail = { ...product, description };
+    const markup = renderToStaticMarkup(<ProductDetailModal product={detail} detail={detail} open onOpenChange={() => {}} />);
+    expect(markup).toContain(description);
+    expect(markup).toContain("[overflow-wrap:anywhere]");
+  });
   it("offers both actions for mixed manual settings and low stock", () => {
     render();
     expect(button("Activate All").disabled).toBe(false);

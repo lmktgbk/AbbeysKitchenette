@@ -1256,3 +1256,17 @@ Verification: 30 focused draft/image tests passed. The real form was rendered in
 Edit then Add with cached details deliberately retained; Add's preview was empty,
 while Edit still loaded its saved image. Interactive browser save-to-Add flow
 remains **Not verified** by these component tests.
+
+## Product detail description and category path (2026-10-06)
+
+- [ ] Open product details: the badge shows parent category > assigned subcategory;
+  missing relations do not leave a dangling separator.
+- [ ] The Description section appears before Variants. Empty/whitespace-only
+  descriptions show "No description provided".
+- [ ] Multiline and long descriptions wrap inside the modal; mobile scrolling
+  keeps variant controls and footer actions reachable.
+- [ ] HTML-like description content appears as plain text, never executable HTML.
+
+Verification: 14 product detail rendering/action regressions passed, including
+missing category relations, empty/long/multiline descriptions and HTML escaping.
+Interactive desktop/mobile layout remains **Not verified** by rendering tests.

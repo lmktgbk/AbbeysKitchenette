@@ -131,9 +131,11 @@ export default function ProductDetailModal({
 
               {/* Details */}
               <div className="flex flex-1 flex-col gap-1.5">
-                {data.category_name && (
-                  <Badge variant="outline" className="w-fit text-xs">
-                    {data.category_name}
+                {(data.category_name || data.subcategory_name) && (
+                  <Badge variant="outline" className="w-fit max-w-full whitespace-normal break-words text-xs">
+                    {/* Show the assigned subcategory with its parent; missing relations
+                        must not leave a dangling separator in the category path. */}
+                    {[data.category_name, data.subcategory_name].filter(Boolean).join(" › ")}
                   </Badge>
                 )}
 
@@ -159,6 +161,15 @@ export default function ProductDetailModal({
                 </p>
               </div>
             </div>
+
+            {/* Plain text preserves user line breaks without interpreting saved HTML.
+                Full-row wrapping keeps long descriptions out of the compact image header. */}
+            <section className="mt-4 min-w-0">
+              <h3 className="mb-2 text-sm font-semibold text-foreground">Description</h3>
+              <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">
+                {data.description?.trim() ? data.description : "No description provided"}
+              </p>
+            </section>
 
             {/* Variants Section */}
             {variants.length > 0 && (
