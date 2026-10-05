@@ -154,6 +154,7 @@ export default function ProductsPage() {
       onConfirm: () => mutations.deactivate.mutateAsync(product.product_id),
     });
     if (ok) toast.success("Product deactivated");
+    return ok;
   }
 
   // Retain the activation response across the confirmation callback to report skipped variants accurately.
@@ -164,7 +165,8 @@ export default function ProductsPage() {
     activateResultRef.current = null;
     const ok = await confirm({
       title: "Activate Product?",
-      message: `This will activate "${product.product_name}".`,
+      message: `This will activate eligible variants of "${product.product_name}".`,
+      note: "Variants with insufficient ingredients, archived ingredients or no recipe will be skipped. Manually disabled sizes that are skipped stay disabled after restocking.",
       confirmLabel: "Activate",
       loadingText: "Activating...",
       variant: "success",
@@ -175,14 +177,14 @@ export default function ProductsPage() {
     });
     if (ok) {
       const msg = activateResultRef.current?.message || "Product activated";
-      const activated = activateResultRef.current?.data?.summary?.activated?.length ?? 0;
-      const skipped = activateResultRef.current?.data?.summary?.skipped?.length ?? 0;
-      if (activated === 0 && skipped > 0) {
-        toast.warning(msg);
+      const skippedSizes = activateResultRef.current?.data?.summary?.skipped ?? [];
+      if (skippedSizes.length > 0) {
+        toast.warning(msg, { description: `Skipped: ${skippedSizes.join(", ")}. Check recipes and stock, then retry activation.` });
       } else {
         toast.success(msg);
       }
     }
+    return ok;
   }
 
   /** Requests permanent deletion after confirmation; backend references/history determine whether it is allowed. */
@@ -197,6 +199,7 @@ export default function ProductsPage() {
       onConfirm: () => mutations.remove.mutateAsync(product.product_id),
     });
     if (ok) toast.success("Product deleted permanently");
+    return ok;
   }
 
   /** Requests activation for the selected stored variant under its owning product. */

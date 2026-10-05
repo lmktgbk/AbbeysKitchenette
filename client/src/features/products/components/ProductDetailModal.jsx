@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
-import { isProductActive } from "../product.utils";
+import { bulkVariantActions, isProductActive } from "../product.utils";
 
 /**
  * ProductDetailModal
@@ -29,9 +29,7 @@ import { isProductActive } from "../product.utils";
  * - detail: object | null (full detail with variants + recipes, from useProductDetail)
  * - loading: boolean — true while fetching detail
  * - onEdit: (product) => void
- * - onDeactivate: (product) => void
- * - onActivate: (product) => void
- * - onDelete: (product) => void
+ * - onDeactivate/onActivate/onDelete: async (product) => boolean; true on confirmed success
  * - onActivateVariant: (product, variant) => void
  * - onDeactivateVariant: (product, variant) => void
  */
@@ -49,6 +47,7 @@ export default function ProductDetailModal({
   onDeactivateVariant,
 }) {
   const [expandedVariants, setExpandedVariants] = useState(new Set());
+  const [actionPending, setActionPending] = useState(false);
 
   if (!product) return null;
 
@@ -89,27 +88,27 @@ export default function ProductDetailModal({
     onOpenChange(false);
   }
 
-  function handleDeactivate() {
-    onDeactivate(product);
-    onOpenChange(false);
+  /** Keep the nested confirmation's container mounted until the mutation finishes.
+   * Cancellation and handled API failures return false and preserve the detail
+   * view. The pending guard prevents overlapping product actions in this modal.
+   */
+  async function confirmAction(action) {
+    if (actionPending) return;
+    setActionPending(true);
+    try {
+      if (await action(product)) onOpenChange(false);
+    } finally {
+      setActionPending(false);
+    }
   }
 
-  function handleActivate() {
-    onActivate(product);
-    onOpenChange(false);
-  }
-
-  function handleDelete() {
-    onDelete(product);
-    onOpenChange(false);
-  }
-
-  const allVariantsActive = variants.length > 0 && variants.every((v) => v.is_available && v.is_stock_sufficient);
+  const { canActivate, canDeactivate } = bulkVariantActions(data);
+  const actionsDisabled = loading || !detail || actionPending;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(nextOpen) => { if (!actionPending) onOpenChange(nextOpen); }}>
       <DialogContent className="max-w-full sm:max-w-2xl">
-        <DialogClose onClick={() => onOpenChange(false)} />
+        <DialogClose disabled={actionPending} onClick={() => { if (!actionPending) onOpenChange(false); }} />
 
         <DialogHeader>
           <DialogTitle>{loading ? "Loading..." : data.product_name}</DialogTitle>
@@ -192,13 +191,13 @@ export default function ProductDetailModal({
                         key={variant.variant_id}
                         className="rounded-lg border border-border"
                       >
-                        {/* Variant header — clickable */}
-                        <button
-                          type="button"
-                          onClick={() => toggleVariant(variant.variant_id)}
+                        {/* Keep the expand control and mutation button as siblings;
+                            nesting buttons creates invalid markup and ambiguous keyboard actions. */}
+                        <div
                           className="flex w-full items-center justify-between px-3 py-2 text-left transition-colors hover:bg-muted/50"
                         >
-                          <div className="flex items-center gap-2">
+                          <button type="button" onClick={() => toggleVariant(variant.variant_id)}
+                            aria-expanded={isExpanded} className="flex flex-1 items-center gap-2 text-left">
                             <Icon
                               name={isExpanded ? "chevronDown" : "chevronRight"}
                               size={14}
@@ -210,7 +209,7 @@ export default function ProductDetailModal({
                             <span className="text-sm text-muted-foreground">
                               ₱{Number(variant.price).toLocaleString()}
                             </span>
-                          </div>
+                          </button>
 
                           <div className="flex items-center gap-2">
                             {variant.has_transactions && (
@@ -231,6 +230,7 @@ export default function ProductDetailModal({
                               size="sm"
                               variant={variant.is_available && variant.is_stock_sufficient ? "destructive" : "outline"}
                               className="h-6 px-2 text-xs"
+                              disabled={actionPending}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 variant.is_available && variant.is_stock_sufficient
@@ -241,7 +241,7 @@ export default function ProductDetailModal({
                               {variant.is_available && variant.is_stock_sufficient ? "Deactivate" : "Activate"}
                             </Button>
                           </div>
-                        </button>
+                        </div>
 
                         {/* Variant body — recipes */}
                         {isExpanded && (
@@ -280,27 +280,25 @@ export default function ProductDetailModal({
 
         {/* Action buttons */}
         <DialogFooter>
-          <Button size="sm" variant="outline" onClick={handleEdit}>
+          <Button size="sm" variant="outline" onClick={handleEdit} disabled={actionsDisabled}>
             <Icon name="pencil" size={14} className="mr-1" />
             Edit
           </Button>
 
-          {allVariantsActive ? (
-            <Button size="sm" variant="outline" onClick={handleDeactivate}>
+            <Button size="sm" variant="outline" onClick={() => confirmAction(onDeactivate)} disabled={actionsDisabled || !canDeactivate}>
               <Icon name="eyeOff" size={14} className="mr-1" />
               Deactivate All
             </Button>
-          ) : (
-            <Button size="sm" variant="outline" onClick={handleActivate}>
+            <Button size="sm" variant="outline" onClick={() => confirmAction(onActivate)} disabled={actionsDisabled || !canActivate}>
               <Icon name="eye" size={14} className="mr-1" />
               Activate All
             </Button>
-          )}
 
           <Button
             size="sm"
             variant="outline"
-            onClick={handleDelete}
+            onClick={() => confirmAction(onDelete)}
+            disabled={actionsDisabled}
             className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
           >
             <Icon name="trash2" size={14} className="mr-1" />

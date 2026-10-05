@@ -1106,6 +1106,39 @@ Fourteen isolated MBA cases plus 28 existing ML cases passed on 2026-10-05.
 Seeded detail/pricing comparisons and SELECT/parameter comparison also passed.
 Live cases above and real PostgreSQL query execution remain **NOT RUN** for this
 batch; no schema migration was introduced.
+## Product bulk visibility regression (2026-10-05)
+
+The retained policy is stock-checked activation: individual activation rejects
+insufficient ingredients; bulk activation activates eligible variants and reports
+skipped sizes. A manually disabled skipped size stays disabled after restocking.
+Automatic stock unavailability can recover after restocking if not manually disabled.
+
+- [ ] Open a product with one available and one manually disabled variant: both
+  Activate All and Deactivate All are visible and actionable.
+- [ ] All variants active: Activate All is disabled. All manually disabled with
+  the product disabled: Deactivate All is disabled. Loading/empty details cannot
+  submit bulk variant actions.
+- [ ] Deactivate All: confirmation stays visible; confirm persists parent and all
+  variant deactivation after refresh. Cancel keeps the detail modal open.
+- [ ] Activate All with mixed stock: eligible sizes activate; the warning names
+  skipped sizes. Nothing forces a low-stock or archived-ingredient variant active.
+- [ ] Try individual activation with insufficient ingredients: the backend error
+  remains visible. Restock a manually disabled skipped size and confirm it remains
+  disabled until explicit activation succeeds.
+- [ ] A size unavailable only because of stock automatically recovers after stock
+  replenishment and availability repair; Deactivate All prevents that recovery.
+- [ ] Product deletion confirmation also remains mounted until its action finishes;
+  cancellation/failure preserves the details. Expansion and variant action controls
+  are separate keyboard buttons.
+
+Verification: 872 ordinary regression tests passed, 121 skipped; nine new component
+callback/visibility checks passed within that suite. Three opt-in PostgreSQL tests
+passed in a created-and-removed disposable schema: mixed-stock activation/rollback,
+manual restrictions after restocking, automatic stock recovery, archived-ingredient
+rejection and queued availability repair. Production business rows were not modified.
+Client lint and production build passed. Actual browser confirmation/focus behavior
+and full POS/guest visibility after refresh remain **Not verified** in this batch.
+
 ## OTP resend feedback regression (2026-10-05)
 
 - [ ] After password login, resend shows a one-minute countdown; verification

@@ -33,6 +33,20 @@ export function isProductActive(product) {
   return product.variants?.some((v) => v.is_available && v.is_stock_sufficient) ?? false;
 }
 
+/** Determine bulk actions from stored visibility, not whether every size has stock.
+ * Both actions can be useful for mixed variants. Activation remains a backend
+ * eligibility check; enabling this button never authorizes a stock override.
+ */
+export function bulkVariantActions(product) {
+  const variants = product.variants ?? [];
+  return {
+    canActivate: variants.length > 0 && (!product.is_available ||
+      variants.some(v => !v.is_available || v.is_manually_deactivated)),
+    canDeactivate: variants.length > 0 && (Boolean(product.is_available) ||
+      variants.some(v => !v.is_manually_deactivated)),
+  };
+}
+
 /**
  * Extract API error message from axios error.
  * @param {Error} err — axios error

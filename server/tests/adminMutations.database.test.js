@@ -121,6 +121,53 @@ describe.skipIf(process.env.ADMIN_DB_CHECK !== "1")("PostgreSQL administrative m
     await db.ingredient.update({ where: { ingredientId: ingredient.ingredientId }, data: { isArchived: true } });
     await expect(products.activateVariant(product.productId, variant.variantId, actor.id)).rejects.toMatchObject({ code: "INSUFFICIENT_STOCK" });
   }, 30000);
+  it("bulk activation handles mixed stock without clearing skipped manual restrictions", async () => {
+    const ingredient = await db.ingredient.create({ data: { ingredientName: "Fixture beans", unit: "g", minimumThreshold: 1 } });
+    const low = await db.productVariant.create({ data: { productId: product.productId, sizeName: "Large", price: 100 } });
+    const noRecipe = await db.productVariant.create({ data: { productId: product.productId, sizeName: "Unconfigured", price: 100 } });
+    await db.recipe.createMany({ data: [
+      { variantId: variant.variantId, ingredientId: ingredient.ingredientId, quantityNeeded: 2 },
+      { variantId: low.variantId, ingredientId: ingredient.ingredientId, quantityNeeded: 20 },
+    ] });
+    const batch = await db.restockBatch.create({ data: { ingredientId: ingredient.ingredientId, restockedById: actor.id,
+      quantityAdded: 10, quantityLeft: 10, costPerUnit: 1, totalCost: 10 } });
+    await products.deactivate(product.productId, actor.id);
+    expect(await db.productVariant.count({ where: { isAvailable: false, isManuallyDeactivated: true } })).toBe(3);
+    await blocked(() => products.activate(product.productId, actor.id));
+    expect((await db.product.findFirst()).isAvailable).toBe(false);
+    expect(await db.productVariant.count({ where: { isManuallyDeactivated: true } })).toBe(3);
+    const result = await products.activate(product.productId, actor.id);
+    expect(result.summary.activated).toEqual(["Regular"]);
+    expect(result.summary.skipped.sort()).toEqual(["Large", "Unconfigured"]);
+    expect((await db.productVariant.findUnique({ where: { variantId: low.variantId } })).isManuallyDeactivated).toBe(true);
+    expect((await db.productVariant.findUnique({ where: { variantId: noRecipe.variantId } })).isAvailable).toBe(false);
+    await expect(products.activateVariant(product.productId, low.variantId, actor.id)).rejects.toMatchObject({ code: "INSUFFICIENT_STOCK" });
+
+    // Restocking cannot undo the manual restriction left by the skipped activation.
+    await db.restockBatch.update({ where: { restockId: batch.restockId }, data: { quantityAdded: 50, quantityLeft: 50, totalCost: 50 } });
+    await db.availabilityRepair.upsert({ where: { variantId: low.variantId }, create: { variantId: low.variantId }, update: {} });
+    await createEffectsRepository(db).repairAvailability();
+    expect((await db.productVariant.findUnique({ where: { variantId: low.variantId } })).isAvailable).toBe(false);
+    expect((await products.activate(product.productId, actor.id)).summary.activated.sort()).toEqual(["Large", "Regular"]);
+  }, 60000);
+  it("automatic stock recovery restores variants while bulk manual deactivation survives restocking", async () => {
+    const ingredient = await db.ingredient.create({ data: { ingredientName: "Fixture milk", unit: "ml", minimumThreshold: 1 } });
+    await db.recipe.create({ data: { variantId: variant.variantId, ingredientId: ingredient.ingredientId, quantityNeeded: 20 } });
+    const batch = await db.restockBatch.create({ data: { ingredientId: ingredient.ingredientId, restockedById: actor.id,
+      quantityAdded: 10, quantityLeft: 10, costPerUnit: 1, totalCost: 10 } });
+    const repair = async () => {
+      await db.availabilityRepair.upsert({ where: { variantId: variant.variantId }, create: { variantId: variant.variantId }, update: {} });
+      await createEffectsRepository(db).repairAvailability();
+    };
+    await repair();
+    expect(await db.productVariant.findUnique({ where: { variantId: variant.variantId } })).toMatchObject({ isAvailable: false, isManuallyDeactivated: false });
+    await db.restockBatch.update({ where: { restockId: batch.restockId }, data: { quantityAdded: 50, quantityLeft: 50, totalCost: 50 } });
+    await repair();
+    expect((await db.productVariant.findUnique({ where: { variantId: variant.variantId } })).isAvailable).toBe(true);
+    await products.deactivate(product.productId, actor.id);
+    await repair();
+    expect(await db.productVariant.findUnique({ where: { variantId: variant.variantId } })).toMatchObject({ isAvailable: false, isManuallyDeactivated: true });
+  }, 60000);
   it("history blocks product deletion and renaming, and removal preserves its variant", async () => {
     await db.order.create({ data: { orderNumber: 1, orderDate: new Date("2026-10-04"), customerName: "Fixture", tableNumber: "1", orderSource: "walk_in", createdBy: actor.id,
       items: { create: { productId: product.productId, variantId: variant.variantId, quantity: 1, unitPrice: 85 } } } });
