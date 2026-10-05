@@ -13,6 +13,7 @@ export function useReducedMotion() {
   );
 
   useEffect(() => {
+    // Listen to preference changes while mounted and remove the same listener on cleanup.
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     const onChange = (e) => setReduced(e.matches);
     mq.addEventListener("change", onChange);

@@ -7,6 +7,7 @@ import { z } from "zod";
  * Separate schemas for create vs edit modes.
  */
 
+// Blank/NaN numeric form fields become zero; positive price/recipe constraints then reject them.
 const coerceNumber = (schema) => z.preprocess(
   (v) => (v === "" || v === undefined || v === null || (typeof v === "number" && isNaN(v)) ? 0 : Number(v)),
   schema,
@@ -34,7 +35,7 @@ const variantEntrySchema = z.object({
 
 // ── Product Schemas ───────────────────────────────
 
-// Create product form — all fields required
+// Creation requires name, category, and variants; description/image are optional and availability defaults true.
 export const createProductSchema = z.object({
   product_name: z
     .string()
@@ -53,7 +54,7 @@ export const createProductSchema = z.object({
     .min(1, "At least one variant is required"),
 });
 
-// Edit product form — all fields optional for partial update
+// Editing allows omitted metadata but still requires variants. Null image_url explicitly requests removal.
 export const editProductSchema = z.object({
   product_name: z
     .string()

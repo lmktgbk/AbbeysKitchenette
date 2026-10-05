@@ -16,6 +16,7 @@ export const forecastKeys = {
   demandIngredients: (jobId) => ["forecasting", "demand", "ingredients", jobId],
 };
 
+/** Starts a durable demand job; refreshing history exposes the returned run to job selection. */
 export function useRunDemandForecast() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -26,6 +27,7 @@ export function useRunDemandForecast() {
   });
 }
 
+/** Watches one job topic and polls while its last fetched status is running; caller options may override polling. */
 export function useDemandStatus(jobId, options = {}) {
   const queryClient = useQueryClient();
   // Live progress: the server watches the ML job and pushes completion.
@@ -40,14 +42,14 @@ export function useDemandStatus(jobId, options = {}) {
     queryKey: forecastKeys.demandStatus(jobId),
     queryFn: () => api.getDemandStatus(jobId),
     enabled: !!jobId,
-    // Realtime broadcast is primary; 2s polling is backup while running
-    // so progress never freezes when the socket drops or no watcher armed.
+    // Realtime invalidation is supplemented by polling only while the cached status is running.
     refetchInterval: (query) =>
       query?.state?.data?.data?.status === "running" ? 2000 : false,
     ...options,
   });
 }
 
+/** Fetches results for the selected job; automatic retry is disabled unless overridden by options. */
 export function useDemandResults(jobId, options = {}) {
   return useQuery({
     queryKey: forecastKeys.demandResults(jobId),
@@ -58,6 +60,7 @@ export function useDemandResults(jobId, options = {}) {
   });
 }
 
+/** Fetches selectable runs without automatic retry; the page owns selection and error presentation. */
 export function useDemandHistory() {
   return useQuery({
     queryKey: forecastKeys.demandHistory,
@@ -66,6 +69,7 @@ export function useDemandHistory() {
   });
 }
 
+/** Fetches ingredient requirements separately from demand results using the same selected job identity. */
 export function useDemandIngredients(jobId, options = {}) {
   return useQuery({
     queryKey: forecastKeys.demandIngredients(jobId),

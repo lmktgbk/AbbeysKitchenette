@@ -9,6 +9,7 @@ const LABELS = {
   sunday: "Sun",
 };
 
+/** Converts configured HH:MM text for display; an omitted time uses the existing 08:00 fallback. */
 function fmtTime(t) {
   const [h, m] = (t || "08:00").split(":");
   const hr = parseInt(h, 10);
@@ -34,6 +35,7 @@ export function formatStoreHours(hours) {
     const range = `${fmtTime(slot.open)} – ${fmtTime(slot.close)}`;
     const last = groups[groups.length - 1];
     const dayIdx = DAYS.indexOf(day);
+    // Merge only adjacent weekday positions; a disabled day must break an otherwise matching range.
     if (last && last.range === range && dayIdx === DAYS.indexOf(last.end) + 1) {
       last.end = day;
     } else {

@@ -317,6 +317,7 @@ export function useIngredientMutations() {
   };
 }
 
+/** Loads the complete recipe picker catalog with cancellation; enabled prevents fetching before it is needed. */
 export function useIngredientOptions(enabled) {
   return useQuery({ queryKey: ["ingredients", "options"], enabled,
     queryFn: ({ signal }) => loadIngredientOptions(api.getIngredientOptionsRequest, signal) });

@@ -1,8 +1,10 @@
+/** Client form feedback only; backend validation and authorization remain authoritative. */
 import { z } from "zod";
 
 const TIME_RE = /^\d{2}:\d{2}$/;
 const IPV4_RE = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
 
+/** Converts clock text to minutes for same-day ordering checks; TIME_RE checks shape, not clock ranges. */
 function toMinutes(t) {
   const [h, m] = (t || "").split(":").map(Number);
   return h * 60 + m;
@@ -20,6 +22,7 @@ const dayScheduleSchema = z
 
 const paymentMethodSchema = z.enum(["cash", "gcash", "maya"]);
 
+// Weekly jobs require a weekday; daily jobs may omit it. Execution timezone is configured server-side.
 const automationJobSchema = z
   .object({
     enabled: z.boolean(),
@@ -47,6 +50,7 @@ const diningTableSchema = z.object({
   enabled: z.boolean(),
 });
 
+// Labels are persisted as order references, so their length follows the server’s table_number contract.
 const diningTablesSchema = z.object({
   tables: z.array(diningTableSchema).max(50).default([]),
   takeoutEnabled: z.boolean().default(true),

@@ -10,6 +10,7 @@ import faviconUrl from "@/assets/favicon.png";
 
 export const DOT_WIDTH_58MM = 384;
 
+/** Resolves when the bundled image loads; load failures flow to the text-only fallback. */
 function loadImage(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -46,8 +47,9 @@ export async function loadLogoRaster(maxWidth = DOT_WIDTH_58MM, maxHeight = 160)
     for (let y = 0; y < h; y += 1) {
       for (let x = 0; x < width; x += 1) {
         const i = (y * width + x) * 4;
-        // Luma threshold keeps the mono logo crisp at 80-90mm/s.
+        // Convert luminance to one black/white bit; this does not establish physical printer quality.
         const luma = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        // Each byte holds eight horizontal dots, highest bit first, matching the raster command.
         if (luma < 128) packed[(y * width + x) >> 3] |= 0x80 >> (x & 7);
       }
     }

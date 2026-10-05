@@ -11,6 +11,7 @@ const landingKeys = {
   storeSettings: ["landing", "storeSettings"],
 };
 
+/** Reads public branding, hours, and dining-table settings independently of authenticated settings data. */
 export function useStoreSettings() {
   return useQuery({
     queryKey: landingKeys.storeSettings,

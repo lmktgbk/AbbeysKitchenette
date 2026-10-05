@@ -233,3 +233,41 @@ cases and guest cart recovery. Existing submission formatting is preserved in th
 worktree and excluded from the comment-only commit, along with the pre-existing
 Router.jsx and server automation edits. Live browser acceptance remains
 **Not verified**. No migration is required.
+
+## Comment follow-up — helper and query responsibilities
+
+Reviewed and documented 19 source files without changing executable logic:
+
+- hooks: useResettableState.js, useReducedMotion.js
+- lib: orderNumber.js
+- ingredients: options.js, query.js
+- landing: formatHours.js, query.js
+- orders: guestKeys.js, api.js
+- products: imagePayload.js, productValidation.js, query.js
+- forecasting: query.js
+- dashboard/utils: dashboardUtils.js
+- shifts: shiftUtils.js
+- settings: validation.js
+- receipts: printerService.js, escpos.js, logo.js
+
+Comments explain state scope/identity, catalog pagination limits and cancellation,
+public cache keys, API replay headers, image intent versus server cleanup,
+create/edit validation differences, outcome-based cache refreshes, forecast job
+subscriptions and conditional polling, and printer text/raster encoding.
+Corrected overstatements about polling never freezing, USB vendor filtering,
+physical print completion, and printer speed/quality. Documented actual limits:
+raw printer dates use the device timezone, settings TIME_RE validates text shape,
+and print handoff does not acknowledge physical delivery. No behavioral fix is
+included in this documentation pass.
+
+Verification: final normalized AST comparison against HEAD passes for all 19
+files. Production build and ESLint passed. Full ordinary suite: 838 cases passed,
+119 skipped across 48 passing/13 skipped files. Final two wording corrections
+also passed AST verification. Generated HTTP test results were restored. Existing
+Router.jsx, submission.js formatting, and automation edits remain excluded.
+No migration is needed. Live browser/printer/hosting behavior is **Not verified**.
+
+This completes the scoped helper/query pass; larger page/component readability
+still needs review. It does not certify all 234 client source files as fully
+commented. Existing adequate comments were retained rather than adding redundant
+line-by-line narration.

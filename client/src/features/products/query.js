@@ -84,6 +84,7 @@ export function useProductMutations() {
   const queryClient = useQueryClient();
 
   /** Invalidate all product queries */
+  /** Refreshes this hook’s related cache prefixes after successful writes; components own user feedback. */
   function invalidateAll() {
     queryClient.invalidateQueries({ queryKey: productKeys.all });
   }
@@ -159,6 +160,7 @@ export function useProductMutations() {
 export function useCategoryMutations() {
   const queryClient = useQueryClient();
 
+  /** Refreshes this hook’s related cache prefixes after successful writes; components own user feedback. */
   function invalidateAll() {
     queryClient.invalidateQueries({ queryKey: categoryKeys.all });
     queryClient.invalidateQueries({ queryKey: productKeys.all });
@@ -204,11 +206,13 @@ export function usePriceSuggestions(productId) {
 export function usePriceOptimizationMutations() {
   const queryClient = useQueryClient();
 
+  /** Refreshes the selected suggestion list and product prices after generation. */
   function invalidatePrice(productId) {
     queryClient.invalidateQueries({ queryKey: priceKeys.suggestions(productId) });
     queryClient.invalidateQueries({ queryKey: productKeys.all });
   }
 
+  /** Reconciles price/suggestion state even when a response was lost after a server-side commit. */
   function refreshResolution() {
     // A lost response or stale action can follow a committed change. Refetch
     // both prices and suggestions regardless of the mutation outcome.

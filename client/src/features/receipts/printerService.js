@@ -8,6 +8,7 @@
  * - "webusb": experimental direct USB bulk transfer where Chrome claims it.
  */
 
+/** Encodes raw printer bytes in bounded chunks to avoid oversized spread arguments. */
 function bytesToBase64(bytes) {
   let bin = "";
   const chunk = 0x8000;
@@ -20,7 +21,7 @@ function bytesToBase64(bytes) {
 /** Hand ESC/POS bytes to the RawBT app (Android Bluetooth). */
 export function printViaRawBT(bytes) {
   const base64 = bytesToBase64(bytes);
-  // RawBT custom scheme — opens the app with the job queued.
+  // Hand off to the installed app; navigation does not acknowledge physical print completion.
   window.location.href = `rawbt:base64,${base64}`;
 }
 
@@ -42,17 +43,18 @@ export function downloadEscposJob(bytes, filename = "receipt-escpos.bin") {
   document.body.appendChild(a);
   a.click();
   a.remove();
+  // Keep the URL briefly available for the download handoff, then release its browser allocation.
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
 /**
  * Experimental WebUSB bulk transfer (Chrome desktop/Android where the OS
- * hasn't claimed the printer). Returns true when bytes were accepted.
+ * hasn't claimed the printer). Returns true after transferOut resolves;
+ * this is not confirmation of physical print completion.
  */
 export async function printViaWebUSB(bytes) {
   if (!("usb" in navigator)) return false;
-  // 0x0483/0x5743 covers common POS58-class USB interfaces; requestDevice
-  // filters to printers so the picker never shows unrelated hardware.
+  // Filter by USB printer class/subclass. The picker is not restricted to a particular vendor/product.
   const device = await navigator.usb.requestDevice({
     filters: [{ classCode: 7, subclassCode: 1 }],
   });
@@ -69,7 +71,7 @@ export async function printViaWebUSB(bytes) {
     try {
       await device.close();
     } catch {
-      // closing a claimed-then-lost device throws — job already sent
+      // Device loss can make close fail; preserve the original transfer result or exception.
     }
   }
 }

@@ -1,3 +1,4 @@
+/** Chart-axis currency labels use K/M abbreviations; receipt amounts use the full money formatter. */
 export const formatPeso = (n) => {
   const num = Number(n || 0);
   if (Math.abs(num) >= 1_000_000) {
@@ -12,6 +13,7 @@ export const formatPeso = (n) => {
   })}`;
 };
 
+/** Compact non-currency chart labels; these are display values, not financial calculations. */
 export const formatCompact = (n) => {
   const num = Number(n || 0);
   if (Math.abs(num) >= 1_000_000) {

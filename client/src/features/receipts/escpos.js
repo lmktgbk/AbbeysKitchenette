@@ -14,6 +14,7 @@ const BOLD_OFF = [0x1b, 0x45, 0x00];
 const SIZE_NORMAL = [0x1d, 0x21, 0x00];
 const SIZE_DOUBLE = [0x1d, 0x21, 0x11];
 
+/** Selects the configured paper’s text width; unrecognized sizes use the 58mm default. */
 export function columnsForPaper(paperSize) {
   return paperSize === "80mm" ? 48 : 32;
 }
@@ -29,18 +30,22 @@ export function escposText(str) {
     .replace(/[^\x20-\x7e\n]/g, "?");
 }
 
+/** Encodes the ASCII-compatible text returned by escposText into command bytes. */
 function enc(str) {
   return Array.from(new TextEncoder().encode(escposText(str)));
 }
 
+/** Creates one full-width separator without changing printer alignment. */
 function divider(cols) {
   return enc(`${"-".repeat(cols)}\n`);
 }
 
+/** Centers one line, then restores left alignment for subsequent receipt content. */
 function centered(str) {
   return [...ALIGN_CENTER, ...enc(`${str}\n`), ...ALIGN_LEFT];
 }
 
+/** Places a value after its label with at least one space; callers decide when to split long lines. */
 function row(left, right, cols) {
   const l = escposText(left);
   const r = escposText(right);
@@ -48,10 +53,12 @@ function row(left, right, cols) {
   return enc(`${l}${" ".repeat(gap)}${r}\n`);
 }
 
+/** Uses an ASCII peso marker for printer text; reads already-calculated receipt amounts. */
 function peso(n) {
   return `P${Number(n ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
 }
 
+/** Labels the persisted order-level discount summary, including mixed per-line discounts. */
 function discountTag(order) {
   if (!order?.discount_type || order.discount_type === "none") return null;
   if (order.discount_type === "senior") return "Senior 20%";
@@ -65,6 +72,7 @@ function discountTag(order) {
 /** GS v 0 raster bitmap (m=0, normal) for the B/W logo. */
 export function rasterCommand(raster) {
   const { width, height, data } = raster;
+  // GS v 0 encodes row width in bytes and height in dots, each as little-endian low/high bytes.
   const widthBytes = Math.ceil(width / 8);
   const xL = widthBytes & 0xff;
   const xH = (widthBytes >> 8) & 0xff;
@@ -73,9 +81,11 @@ export function rasterCommand(raster) {
   return [0x1d, 0x76, 0x30, 0x00, xL, xH, yL, yH, ...data];
 }
 
+/** Formats saved order data without recomputing settlements; removed items are excluded. */
 function orderLines(order, store, cols) {
   const out = [];
   const dt = order.created_at ? new Date(order.created_at) : new Date();
+  // This raw printer path uses the device timezone; it does not use the shared Manila date formatter.
   const dateStr = dt.toLocaleString("en-US", {
     month: "short", day: "numeric", year: "numeric",
     hour: "numeric", minute: "2-digit", hour12: true,

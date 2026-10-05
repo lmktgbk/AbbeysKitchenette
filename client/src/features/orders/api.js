@@ -6,6 +6,7 @@
 import api from "@/config/axios";
 import { submitOrder } from "./submission";
 
+/** Supplies backend replay identity and a transport timeout; timeout is not proof that the order failed. */
 function submissionOptions(key) {
   // A timeout can precede a server commit; submitOrder retains the replay key.
   return { headers: { "Idempotency-Key": key }, timeout: 30000 };

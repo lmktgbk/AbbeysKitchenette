@@ -3,11 +3,13 @@
  */
 import { toLocalDate, BUSINESS_TZ } from "@/lib/date";
 
+/** Returns up to two initials for the operator badge, or a placeholder for an absent name. */
 export function initials(name) {
   if (!name) return "?";
   return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 }
 
+/** Compares business calendar dates rather than the browser’s local timezone. */
 function sameManilaDay(a, b) {
   return toLocalDate(a) === toLocalDate(b);
 }
@@ -25,6 +27,7 @@ export function humanDay(ts) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: BUSINESS_TZ });
 }
 
+/** Displays a shift timestamp in Manila; missing timestamps use the table placeholder. */
 export function timeHM(ts) {
   if (!ts) return "—";
   return new Date(ts).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: BUSINESS_TZ });
