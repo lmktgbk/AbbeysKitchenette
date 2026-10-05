@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 import { formatPeso } from "../utils/dashboardUtils";
-import { useReducedMotion } from "@/lib/useReducedMotion";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 const GRANULARITY_OPTIONS = [
   { value: "daily", label: "Daily" },

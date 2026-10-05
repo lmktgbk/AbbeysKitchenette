@@ -5,7 +5,7 @@ import {
 } from "recharts";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useReducedMotion } from "@/lib/useReducedMotion";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 /**
  * IngredientCostChart — bar chart of top ingredients by cost.

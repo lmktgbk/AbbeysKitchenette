@@ -5,7 +5,7 @@ import {
 } from "recharts";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useReducedMotion } from "@/lib/useReducedMotion";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 function TableUtilizationChart({ data, isLoading }) {
   const reduced = useReducedMotion();

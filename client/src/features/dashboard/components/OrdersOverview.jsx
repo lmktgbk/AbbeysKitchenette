@@ -6,7 +6,7 @@ import {
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { useReducedMotion } from "@/lib/useReducedMotion";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 const STATUS_COLORS = {
   pending: "#f59e0b",

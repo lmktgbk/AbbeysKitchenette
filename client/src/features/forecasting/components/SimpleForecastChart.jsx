@@ -3,7 +3,7 @@ import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
 } from "recharts";
-import { useReducedMotion } from "@/lib/useReducedMotion";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 function formatDayLabel(dateStr) {
   const d = new Date(dateStr);

@@ -4,7 +4,7 @@ import {
 } from "recharts";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useReducedMotion } from "@/lib/useReducedMotion";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 const COLORS = [
   "var(--color-chart-1)",

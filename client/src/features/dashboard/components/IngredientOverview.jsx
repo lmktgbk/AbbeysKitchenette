@@ -5,7 +5,7 @@ import {
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatPeso } from "../utils/dashboardUtils";
-import { useReducedMotion } from "@/lib/useReducedMotion";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 const STATUS_CONFIG = {
   healthy: { label: "Healthy", color: "#22c55e" },
