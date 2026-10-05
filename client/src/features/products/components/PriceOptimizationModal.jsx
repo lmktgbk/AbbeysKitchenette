@@ -118,7 +118,7 @@ export default function PriceOptimizationModal({ open, onOpenChange, product }) 
         {/* Generate button */}
         <Button
           variant="secondary"
-          className="w-full"
+          className="mb-4 w-full"
           onClick={handleGenerate}
           disabled={mutations.generate.isPending}
         >
