@@ -44,6 +44,7 @@ export default function MarketBasketPage() {
   const combosFound = job?.combos_found ?? 0;
   const lastUpdated = job?.completed_at ? new Date(job.completed_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : null;
 
+  // Selecting a suggestion opens an editable draft; it does not create a product yet.
   const handleCreateCombo = useCallback((combo) => {
     setSelectedCombo(combo);
     setShowComboModal(true);
@@ -60,6 +61,7 @@ export default function MarketBasketPage() {
   // Page window over the combo grid (global index preserved for isTop).
   // Plain slice — O(n) trivial, no memo needed.
   const startIdx = (page - 1) * pageSize;
+  // Pagination preserves response order, independently of the hero suggestion score.
   const visibleRules = rules.slice(startIdx, startIdx + pageSize);
 
   return (

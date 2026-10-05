@@ -34,6 +34,7 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
   const PANEL_WIDTH = 288;
   const [pos, setPos] = useState({ top: 0, left: 0, ready: false, gen: 0 });
 
+  // Measure the trigger and portal so the calendar can flip upward and stay inside the viewport.
   function updatePos() {
     const el = ref.current;
     if (!el) return;
@@ -76,13 +77,13 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
 
   // ── Helpers ──────────────────────────
 
-  // Emits Manila calendar days (server interprets YYYY-MM-DD as Manila).
-  // Grid Dates are device-local midnights; converting the instant keeps the
-  // emitted day on the Manila calendar even near midnight. See lib/date.js.
+  // Format the Date instant in Manila for the API date-only contract.
+  // Grid cells are device-local midnights, so other device timezones can shift the emitted day.
   function toISO(date) {
     return toLocalDate(date);
   }
 
+  // Build device-local calendar cells from date-only strings, avoiding UTC string parsing.
   function parseISO(str) {
     const [y, m, d] = str.split("-").map(Number);
     return new Date(y, m - 1, d);
@@ -147,6 +148,7 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
 
   // ── Selection logic ──────────────────
 
+  // A third click starts a new range; an earlier second click becomes its start.
   function handleDayClick(dateStr) {
     const clicked = parseISO(dateStr);
 
@@ -201,6 +203,7 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
   // Each preset resolves to a { start, end } ISO range; go* applies it to the
   // draft, isPresetActive highlights the preset matching the current draft.
 
+  // Build calendar presets from the Manila business day using local Date arithmetic.
   function presetRange(kind) {
     // Manila "now": week/month arithmetic follows the business calendar.
     const now = manilaTodayLocal();
@@ -280,11 +283,13 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
 
   // ── Apply / Clear ────────────────────
 
+  // Publish the draft endpoints; a missing endpoint is represented by null.
   function handleApply() {
     onDateChange(startDate || null, endDate || null);
     setOpen(false);
   }
 
+  // Clearing immediately removes the parent filter as well as the calendar draft.
   function handleClear() {
     setStartDate(null);
     setEndDate(null);

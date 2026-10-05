@@ -5,6 +5,9 @@ import Icon from "@/components/ui/icon";
 
 /** Dialog — portal modal with backdrop/Esc/X close. WHY it exists: single overlay + scroll-lock + close handling shared by FilterModal, BatchListModal, ProfileModal; consumed via open/onOpenChange. State: none (caller-owned open; local Escape listener). */
 
+/** Caller-controlled portal overlay. Closing unmounts its contents.
+ * Escape and backdrop dismissal are provided here; focus trapping/restoration are not implemented.
+ */
 function Dialog({ open, onOpenChange, children }) {
   // Close on Escape key
   const handleKeyDown = useCallback(
@@ -17,6 +20,7 @@ function Dialog({ open, onOpenChange, children }) {
   useEffect(() => {
     if (open) {
       document.addEventListener("keydown", handleKeyDown);
+      // This scroll lock assumes one active overlay; cleanup does not restore a previous lock.
       document.body.style.overflow = "hidden";
     }
     return () => {

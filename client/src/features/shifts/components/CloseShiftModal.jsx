@@ -40,6 +40,8 @@ export default function CloseShiftModal({ open, onOpenChange, shift, forced, onC
   const isValid =
     summary && !blockedByKitchen && actual != null && Number.isFinite(actual) && actual >= 0 && (!needsNote || closeNote.trim().length > 0);
 
+  // Submit counted cash and its explanation; the caller selects normal or forced closure.
+  // Summary and variance are previews: the server recomputes settlement inside its transaction.
   function handleConfirm() {
     if (!isValid) return;
     onConfirm?.({ actual_cash: actual, close_note: closeNote.trim() || undefined });

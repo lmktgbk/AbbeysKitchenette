@@ -12,6 +12,7 @@ const STORAGE_KEY = "mbaJobId";
  * Persists active job ID in localStorage so progress survives navigation.
  * Shows spinner immediately on click (optimistic UI).
  */
+/** Start or resume analysis without treating browser state as a server job lock. */
 export default function MarketBasketRunButton({ compact = false }) {
   const [activeJobId, setActiveJobId] = useState(() => {
     try { return localStorage.getItem(STORAGE_KEY) || null; }
@@ -26,6 +27,7 @@ export default function MarketBasketRunButton({ compact = false }) {
   const isRunning = status?.status === "running";
   const isComplete = status?.status === "completed";
   const isFailed = status?.status === "failed";
+  // Missing query data after a fetch is a UI recovery signal, not an explicit server 404.
   const isNotFound = isFetchedAfterMount && !status && !optimisticPending && activeJobId;
   const isStatusLoading = activeJobId && isFetching && !isFetchedAfterMount;
 
@@ -49,6 +51,7 @@ export default function MarketBasketRunButton({ compact = false }) {
 
 
 
+  // Both compact and full controls use the same submission and returned job identity.
   const handleRun = async () => {
     if (showSpinner) return;
     setActiveJobId(null);

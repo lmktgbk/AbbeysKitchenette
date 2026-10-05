@@ -37,7 +37,7 @@ export function useMarketBasketJob(jobId) {
     queryFn: () => api.getMarketBasketJob(jobId),
     enabled: !!jobId,
     // Realtime broadcast is primary; 2s polling is backup while running
-    // so progress never freezes when the socket drops.
+    // while cached job status is running; absent initial data does not enable this fallback.
     refetchInterval: (query) =>
       query?.state?.data?.data?.status === "running" ? 2000 : false,
   });
@@ -73,6 +73,9 @@ export function useAnalyzeMarketBasket() {
   });
 }
 
+/** Create the product, then associate its recommendation in a separate request.
+ * Association failure can follow a successful product save; these writes are not atomic.
+ */
 export function useCreateComboProduct() {
   const queryClient = useQueryClient();
   return useMutation({

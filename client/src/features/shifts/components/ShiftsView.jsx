@@ -39,6 +39,7 @@ export default function ShiftsView({ dateFrom, dateTo, onDateChange }) {
   const openCards = shifts.filter((s) => s.status === "open");
   const closedCards = shifts.filter((s) => s.status !== "open");
 
+  // Choose the closure endpoint by shift ownership; backend authorization still controls forced closure.
   async function handleCloseShiftConfirm(form) {
     if (!closingShift) return;
     const forced = closingShift.opened_by !== user?.id;
@@ -57,6 +58,7 @@ export default function ShiftsView({ dateFrom, dateTo, onDateChange }) {
     }
   }
 
+  // A new date range starts local history pagination again; the query returns at most 50 shifts.
   function handleDateChange(from, to) {
     setHistoryPage(1);
     onDateChange?.(from, to);

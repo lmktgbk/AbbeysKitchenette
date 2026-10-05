@@ -33,6 +33,7 @@ export default function FilterModal({
   currentFilters = {},
 }) {
   const [selectedSort, setSelectedSort] = useResettableState(currentSort || "", [open, currentSort]);
+  // Compare filter values rather than object identity so parent rerenders do not erase edits.
   const [selectedFilters, setSelectedFilters] = useResettableState(() => ({ ...currentFilters }), [open, JSON.stringify(currentFilters)]);
 
 
@@ -40,11 +41,13 @@ export default function FilterModal({
     setSelectedFilters((prev) => ({ ...prev, [key]: value }));
   }
 
+  // Publish a copy of the draft only when the user applies it.
   function handleApply() {
     onApply(selectedSort, { ...selectedFilters });
     onOpenChange(false);
   }
 
+  // Reset the local draft; the parent query remains unchanged until Apply.
   function handleReset() {
     setSelectedSort(sortOptions[0]?.value || "");
     const resetFilters = {};

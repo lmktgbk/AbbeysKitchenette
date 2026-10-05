@@ -42,6 +42,7 @@ export default function StaffPage() {
     setShowFormModal(true);
   }
 
+  // Account creation and invitation delivery have separate outcomes; failed email does not undo creation.
   function handleFormSubmit(data) {
     if (isEditMode) {
       mutations.update.mutate(
@@ -83,6 +84,7 @@ export default function StaffPage() {
   }
 
   // ── Toggle Active ────────────────
+  // Confirm the action shown for this snapshot; the API enforces permissions and session revocation.
   async function handleToggleActive(staff) {
     const action = staff.is_active ? "deactivate" : "activate";
     const ok = await confirm({
@@ -101,6 +103,7 @@ export default function StaffPage() {
   }
 
   // ── Delete ────────────────
+  // Request deletion after confirmation; related-record constraints are enforced by the backend.
   async function handleDelete(staff) {
     const ok = await confirm({
       title: "Delete Permanently?",

@@ -24,6 +24,8 @@ export default function OpenShiftModal({ open, onOpenChange, onConfirm, isLoadin
   const cash = openingCash === "" ? null : Number(openingCash);
   const isValid = cash != null && Number.isFinite(cash) && cash >= 0;
 
+  // Preserve the distinction between missing input and zero cash before submitting.
+  // The server rechecks the amount and prevents overlapping open shifts.
   function handleConfirm() {
     if (!isValid) return;
     onConfirm?.({ opening_cash: cash });

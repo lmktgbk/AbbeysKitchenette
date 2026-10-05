@@ -38,6 +38,7 @@ export default function ForecastingPage() {
   // Job switching clears the chart selection explicitly in handleJobComplete below —
   // no useEffect mirror needed (derived activeJobId never writes back to state).
 
+  // Select the finished run and discard filters belonging to the previous result set.
   const handleJobComplete = useCallback((jobId) => {
     setSelectedJobId(jobId);
     setSelectedVariant(null);
@@ -91,9 +92,9 @@ export default function ForecastingPage() {
   const isFailed = job?.status === "failed";
   const showLoading = resultsLoading && !job;
 
-  // Whole-menu headline over 7-DAY TOTALS (the prep decision): weekly
-  // MAE/RMSE/MSE averaged per product, R2 pooled volume-weighted so one
-  // freak week can't sink the mean. Daily means ride along as context.
+  // Weekly errors use available product-week scores with legacy product fallbacks.
+  // R2 pools prediction/actual points; it has no explicit volume weights or outlier protection.
+  // Aggregate stored evaluation results for display; this does not rerun the model.
   const evalMetrics = useMemo(() => {
     const avg = (rows, key) => {
       const vals = rows.map((f) => f[key]).filter((v) => v != null);

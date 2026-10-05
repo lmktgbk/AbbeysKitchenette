@@ -33,6 +33,7 @@ const DEFAULT_REASONS = [
 export async function confirm({ title, message, note, confirmLabel = "Confirm", cancelLabel = "Cancel", variant = "danger", onConfirm, loadingText }) {
     const v = VARIANTS[variant] || VARIANTS.danger;
 
+    // The note branch renders raw HTML, including message text; caller values are not escaped.
     const hasNote = !!note;
     const html = hasNote
         ? `<p style="text-align:center; margin: 0 0 8px 0;">${message}</p><div style="text-align:center; background: var(--muted); padding: 8px 12px; border-radius: 6px; font-size: 13px; margin-top: 8px;">${note}</div>`
@@ -92,6 +93,7 @@ export async function confirmWithReason({ title, message, reasons = DEFAULT_REAS
     );
     const isOther = (val) => val === "other";
 
+    // Caller values below are interpolated as HTML without escaping; review before passing stored/user text.
     const htmlContent = `
     <p style="text-align:center; margin:0 0 12px 0;">${message}</p>
     <div id="reason-chips" style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:12px;">

@@ -57,6 +57,7 @@ export default function TransactionsView({ switcher, actions }) {
   const [staffFilter, setStaffFilter] = useState("all");
   const [filterOpen, setFilterOpen] = useState(false);
 
+  // These filters reach the API. Text search below applies only to the returned page.
   const queryParams = useMemo(() => ({
     page: String(page),
     limit: String(pageSize),
@@ -98,6 +99,7 @@ export default function TransactionsView({ switcher, actions }) {
     setPage(1);
   }
 
+  // Search changes displayed rows, not the server-provided financial summary or full ledger.
   const visible = search.trim()
     ? transactions.filter((t) => {
       const q = search.trim().toLowerCase();

@@ -55,6 +55,7 @@ export default function StaffFormModal({
     onOpenChange(false);
   }
 
+  // Forward schema-validated fields to the page mutation; the modal does not own persistence.
   function handleFormSubmit(data) {
     onSubmit(data);
   }
@@ -134,6 +135,7 @@ export default function StaffFormModal({
   );
 }
 
+/** Keep create defaults separate from saved staff values when reopening or changing the edited identity. */
 function getDefaultValues(staff, isEditMode) {
   if (isEditMode && staff) {
     return {

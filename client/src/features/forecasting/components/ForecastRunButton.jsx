@@ -11,6 +11,7 @@ const STORAGE_KEY = "forecastJobId";
  * Persists active job ID in localStorage so progress survives navigation.
  * Shows spinner immediately on click (optimistic UI).
  */
+/** Resume a server job using a browser-stored ID; the backend owns job execution and concurrency. */
 function ForecastRunButton({ onJobComplete }) {
   const [activeJobId, setActiveJobId] = useState(() => {
     try { return localStorage.getItem(STORAGE_KEY) || null; }
@@ -53,6 +54,7 @@ function ForecastRunButton({ onJobComplete }) {
 
 
 
+  // Attach to the returned job, including an existing busy run. The spinner only gates this UI.
   const handleRun = async () => {
     if (showSpinner) return;
     setActiveJobId(null);

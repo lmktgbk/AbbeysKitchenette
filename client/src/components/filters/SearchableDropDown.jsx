@@ -71,6 +71,7 @@ export function SearchableDropDown({
     }
   }, [open]);
 
+  // Emit the option value and clear the temporary search before the next opening.
   function handleSelect(opt) {
     onChange(opt.value);
     setOpen(false);

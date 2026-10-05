@@ -55,6 +55,7 @@ export default function CreateComboModal({ open, onOpenChange, combo }) {
     [price, totalCost],
   );
 
+  // Recalculate the edited recipe line estimate; backend validation remains authoritative.
   function handleIngredientChange(index, field, value) {
     setIngredients((prev) => {
       const updated = [...prev];
@@ -70,6 +71,7 @@ export default function CreateComboModal({ open, onOpenChange, combo }) {
     setIngredients((prev) => prev.filter((_, i) => i !== index));
   }
 
+  // Translate the recommendation draft into one bundle variant and its ingredient recipes.
   async function onSubmit(data) {
     // No subcategory_id — server assigns Bundles/Bundle via the is_bundle flag.
     const payload = {

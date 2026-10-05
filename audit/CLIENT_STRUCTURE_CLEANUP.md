@@ -330,3 +330,37 @@ server automation edits remain excluded.
 Remaining review includes forecasting/market-basket UI, staff/shift/transaction
 components, and shared UI behavior where comments would clarify non-obvious logic.
 The broader client comment review remains unfinished.
+
+## Comment follow-up — analysis, staff, settlement, and shared controls
+
+Added professional comments to 17 source files covering forecast/MBA job identity,
+recommendation drafts, evaluation calculations, staff invitations, shift settlement,
+transaction search scope, filter drafts, calendar positioning, and dialog lifecycle.
+No executable logic, endpoints, schemas, or transaction boundaries changed.
+
+Documented important limits: recommendation product creation and association are
+separate requests; shift history is limited to 50 returned records; transaction text
+search covers the returned page; dialog focus trapping/restoration is absent; and
+calendar instant conversion can shift dates on devices outside Manila. Corrected
+overstated polling and forecast metric comments. These limits are not fixes.
+
+Verification: executable AST equality against HEAD for all 17 source files;
+production build, ESLint, and 52 client-focused tests passed. Browser analysis,
+shift settlement, keyboard accessibility, and cross-timezone calendar behavior
+remain **Not verified** in this pass. Existing Router, submission formatting, and
+server automation edits were excluded. No migration is required.
+
+### Follow-up security finding: confirmation HTML interpolation
+
+Confirmed source path: ProductsPage handleDeactivate/delete supplies stored
+product_name in message alongside a note; ConfirmDialog.confirm interpolates
+message and note into SweetAlert html without escaping. Reason-dialog message
+and reason values also enter HTML templates. Stored text can therefore change
+dialog markup. Script execution/exploitability remains **Not verified**.
+
+Reproduce safely on an isolated local product: use a harmless name such as
+<b>test-name</b>, open deactivate or delete confirmation, and cancel without
+performing the action. The name must appear literally, not as bold markup.
+Recommended separate security fix: escape dynamic text and attribute values or
+construct text nodes; add regression tests for tags, quotes, and event attributes.
+This comment-only batch does not resolve that finding.
