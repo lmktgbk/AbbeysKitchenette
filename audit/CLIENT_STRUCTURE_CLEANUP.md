@@ -95,3 +95,25 @@ cache keys, access decisions, or fallback behavior changed. Live multi-tab sessi
 rotation, hosted cookies/WebSockets, and browser acceptance remain **Not verified**.
 Existing Router.jsx and server automation formatting edits remain outside this
 commit. No migration is required.
+
+## Batch 4 — guest ordering component boundaries
+
+- Extracted the existing product card, cart panel (including its private line row),
+  product-detail dialog, checkout dialog, and confirmation screen into five
+  feature-owned components. OrderingPage now has 354 lines instead of 1,151.
+- Kept cart persistence, menu reconciliation, dialog coordination, and success
+  state in the page. Kept the full checkout preflight and retry flow together.
+- Added responsibility comments and documented the synchronous submission gate,
+  server pricing authority, and uncertain-response recovery contract.
+- Preserved props, rendered markup, CSS classes, quantity limits, query behavior,
+  calculations, and submission payloads. No generic framework or extra hook was added.
+
+Verification: all nine original function declarations have identical normalized
+executable syntax trees after relocation. All 52 client-focused regression cases
+passed. The final production build and ESLint passed. Existing tests cover cart,
+submission, session, transport, and related safeguards; they do not constitute
+browser interaction coverage of these extracted components. Guest menu selection,
+cart recovery, checkout, retry, and confirmation browser acceptance remain
+**Not verified** for this batch; use the consolidated FINAL_TESTING_CHECKLIST.md.
+Existing Router.jsx and server automation repository changes are excluded.
+No API, database, or migration change is required.
