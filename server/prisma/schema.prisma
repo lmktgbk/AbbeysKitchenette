@@ -116,7 +116,6 @@ model Product {
 
   variants   ProductVariant[]
   orderItems OrderItem[]
-  pricingMarketCache PricingMarketCache?
 
   @@index([isArchived])
   @@index([isAvailable])
@@ -632,7 +631,6 @@ model PriceOptimization {
   reasoning        String   @db.Text
   marginBefore     Float    @map("margin_before")
   marginAfter      Float    @map("margin_after")
-  competitorAvg    Float?   @map("competitor_avg")
   // Versioned evidence lets approval reject legacy assumptions without deleting history.
   policyVersion    Int      @default(1) @map("policy_version")
   pricingContext   Json?    @map("pricing_context")
@@ -645,16 +643,6 @@ model PriceOptimization {
   @@index([status])
   @@index([variantId])
   @@map("price_optimizations")
-}
-
-// Weekly, on-demand market refreshes survive server restarts. Cache entries are
-// advisory evidence, not product prices or authoritative competitor inventories.
-model PricingMarketCache {
-  productId String @id @map("product_id") @db.Uuid
-  context Json
-  refreshedAt DateTime @default(now()) @map("refreshed_at") @db.Timestamptz
-  product Product @relation(fields: [productId], references: [productId], onDelete: Cascade)
-  @@map("pricing_market_cache")
 }
 
 // ── Market Basket Analytics ───────────────────────────────────

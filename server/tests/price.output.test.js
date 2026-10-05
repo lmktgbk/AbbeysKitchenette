@@ -1,46 +1,54 @@
-vi.mock("../src/modules/priceOptimization/priceOptimization.market.js", () => ({ getMarketContext: vi.fn().mockResolvedValue({variants:{7:{status:"insufficient",count:0,median:null,records:[]}},note:"fixture"}) }));
 import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("../src/modules/priceOptimization/priceOptimization.repository.js", () => ({ default: {
   getProductInfo: vi.fn(), getVariantPricingContext: vi.fn(), getRecipeDetails: vi.fn(), saveSuggestions: vi.fn(),
 } }));
 vi.mock("../src/config/prisma.js", () => ({ default: {} }));
 vi.mock("../src/modules/priceOptimization/priceOptimization.prompts.js", () => ({
-  generatePriceSuggestions: vi.fn(), getCompetitorAverage: () => 75,
+  generatePriceSuggestions: vi.fn(),
 }));
 import repo from "../src/modules/priceOptimization/priceOptimization.repository.js";
 import { generatePriceSuggestions } from "../src/modules/priceOptimization/priceOptimization.prompts.js";
 import service from "../src/modules/priceOptimization/priceOptimization.service.js";
 import { normalizeRecommendations } from "../src/modules/priceOptimization/priceOptimization.output.js";
-import { getMarketContext } from "../src/modules/priceOptimization/priceOptimization.market.js";
 
 const variants = [{ variant_id: 7, product_name: "Coffee", size_name: "Regular", price: 85, cost_per_unit: 30 }];
-const valid = () => ({ recommendations: [{ variant_id: 7, recommended_price: 90, confidence: 0.85, reasoning: "Ingredient cost and sales support this price." }] });
+const valid = () => ({ recommendations: [{ variant_id: 7, recommended_price: 90, confidence: 0.85, market_estimate: { low: 80, high: 120 }, reasoning: "Ingredient cost and sales support this price." }] });
 beforeEach(() => {
   vi.resetAllMocks();
-  getMarketContext.mockResolvedValue({ variants: {7: {status: "insufficient", count: 0, median: null, records: []}}, note: "fixture" });
   repo.getProductInfo.mockResolvedValue({ productName: "Coffee", isArchived: false });
   repo.getVariantPricingContext.mockResolvedValue(variants);
   repo.getRecipeDetails.mockResolvedValue([]);
   generatePriceSuggestions.mockResolvedValue(valid());
 });
 describe("AI pricing boundary", () => {
-  it.each([70, 100])("rejects prices outside the permitted band (%s)", price => {
-    const result = valid(); result.recommendations[0].recommended_price = price;
-    expect(() => normalizeRecommendations(result, variants)).toThrow("10% change limit");
+  it.each([null, { low: 80, high: 120 }])("accepts an unavailable or explicitly unverified estimate %j", market_estimate => {
+    const result = valid(); result.recommendations[0].market_estimate = market_estimate;
+    const row = normalizeRecommendations(result, variants)[0];
+    expect(row.policyVersion).toBe(3);
+    if (market_estimate) expect(row.pricingContext.marketEstimate).toMatchObject({ ...market_estimate, verified: false });
+    else expect(row.pricingContext.marketEstimate).toBeNull();
   });
-  it("rejects below-cost prices even within the change band", () => {
+  it.each([{ low: 120, high: 80 }, { low: -1, high: 80 }, { low: "80", high: 120 },
+    { low: 80, high: Infinity }, { low: 80, high: 120, competitor: "Invented cafe" }])("rejects invalid estimate %j", market_estimate => {
+    const result = valid(); result.recommendations[0].market_estimate = market_estimate;
+    expect(() => normalizeRecommendations(result, variants)).toThrow("invalid recommendations");
+  });
+  it.each([70, 100])("allows prices beyond the former percentage band (%s)", price => {
+    const result = valid(); result.recommendations[0].recommended_price = price;
+    expect(normalizeRecommendations(result, variants)[0].recommendedPrice).toBe(price);
+  });
+  it("rejects below-cost prices", () => {
     expect(() => normalizeRecommendations(valid(), [{ ...variants[0], cost_per_unit: 91 }])).toThrow("cost floor");
   });
   it("does not call providers when ingredient costs are missing", async () => {
     repo.getVariantPricingContext.mockResolvedValue([{ ...variants[0], missing_costs: 1 }]);
     await expect(service.generate("product")).rejects.toMatchObject({ code: "PRICING_COSTS_MISSING" });
     expect(generatePriceSuggestions).not.toHaveBeenCalled();
-    expect(getMarketContext).not.toHaveBeenCalled();
   });
   it("uses unknown forecasts rather than manufacturing stable demand", async () => {
     await service.generate("product");
     expect(generatePriceSuggestions.mock.calls[0][0].variants[0].forecast).toEqual({ status: "unavailable" });
-    expect(repo.saveSuggestions.mock.calls[0][0][0].competitorAvg).toBeNull();
+    expect(repo.saveSuggestions.mock.calls[0][0][0].pricingContext.marketEstimate.verified).toBe(false);
   });
   it("uses database identity and derives financial fields", async () => {
     const response = await service.generate("product");

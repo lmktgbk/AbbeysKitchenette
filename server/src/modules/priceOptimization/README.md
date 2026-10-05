@@ -1,72 +1,65 @@
 # Price optimization
 
-This module gathers product, cost, sales, forecast and public-menu evidence for
-Gemini. It publishes advisory suggestions; only an admin can apply or dismiss.
+The service sends product, recipe, sales and fresh forecast context to Gemini in
+one bounded request. Gemini also estimates a Lipa SME market range from learned
+knowledge. This is unverified guidance, not current internet research or quoted
+competitor prices. No website collector or menu cache remains in active code.
 
 ## Responsibilities
 
-- `repository`: parameterized SQL context, publication and atomic price writes.
-- `service`: context orchestration and transactional suggestion resolution.
-- `prompts`: cafe/product-aware Gemini guidance and bounded provider requests.
-- `output`: strict provider output, authoritative calculations and price guards.
-- `market`: bounded HTTPS retrieval, evidence checks, median and persistent cache.
-- `sources`: reviewed public Lipa entry points; API users cannot submit fetch URLs.
-- `controller`, `routes`, `validation`: HTTP response, authorization and input boundary.
+- Repository: scoped parameterized SQL and atomic publication/price updates.
+- Service: context orchestration, input snapshots and transaction resolution.
+- Prompts: cafe/product guidance, estimate instructions and provider timeout.
+- Output: strict response contract, ingredient floor and financial calculations.
+- Controller/routes/validation: HTTP handling and admin authorization.
 
-## Conditions
+## Context and conditions
 
-Ingredient costs use quantity-weighted historical restock costs in both the
-summary and recipe breakdown. Every variant requires a recipe and recorded costs.
-Missing values do not become zero. Explicit zero costs remain valid. This is an
-ingredient margin estimate, not net profit or the inventory FIFO valuation.
+Inputs include name, description, category/subcategory, variant size/preparation
+label and current price. Ingredient costs use recipe quantities and weighted
+historical restock unit costs consistently. Missing recipe/cost records block
+generation; explicit zero costs remain valid. Ingredient margin excludes labor,
+packaging, rent, utilities and unrecorded operating costs.
 
-Recommendations must cover every variant, remain within ±10% of observed price,
-and never fall below ingredient cost. When the cost floor cannot fit the band,
-manual pricing review is required. Approval rechecks price, recipe completeness,
-cost and the band in the update statement. Price/status/audit changes commit
-together; failures roll back the pending claim. Legacy policy-1 rows remain
-readable and dismissible but cannot be applied. Regeneration replaces pending
-rows only after validation; failed provider calls preserve prior suggestions.
+Demand uses completed-order sales over 30 Manila calendar days, excluding removed
+items. Forecasts must be completed, non-skipped, generated within seven days,
+within their job period and contain remaining dates. Missing/stale forecasts
+mean unavailable, not stable. Low sales alone do not establish excessive prices.
 
-Demand uses completed sales over 30 Manila calendar days and the latest completed,
-non-skipped forecast. Forecast context requires completion within seven days,
-an unexpired job period and remaining daily dates. Missing forecasts are unknown.
-No price elasticity, revenue uplift or guaranteed competitiveness is claimed.
+There is no percentage-change cap. Recommendations must cover every variant,
+remain at or above ingredient cost, and fit positive finite two-decimal database
+prices. An AI market estimate is either null or an ordered positive low/high
+range. It is not a price restriction. Invented competitor names and source claims
+are not part of the contract. Model confidence is not calibrated profit probability.
 
-## Public menu collection
+Market estimates are stored with generation date and verified:false, alongside
+product, cost, sales and forecast snapshots. Regeneration creates a new analysis;
+existing context is not silently refreshed. Generation does not change prices.
 
-Collection uses the fixed source list, public IPv4 DNS pinning, HTTPS, no redirects,
-bounded response size, timeouts, and no cookies/credentials. Image/iframe menus
-are skipped. Gemini extracts exact source quotes; the backend checks quote,
-item, portion, amount, variant identity and promotion exclusion. Semantic
-comparability is AI-assisted and is not independently guaranteed by quote checks.
+Admin approval rechecks observed price, recipe completeness and current cost.
+Price, status and audit commit together; stale/duplicate/failing actions roll back.
+Policy-3 suggestions use this contract. Earlier rows remain readable/dismissible
+but must be regenerated before application. Provider failures preserve old rows.
 
-Only equivalent explicitly stated portions qualify. At least three distinct
-competitors are required for a median/range. Sources are all labelled online-menu;
-they are not asserted to be dine-in menus. Delivery listings/promotions must not
-be added to this group. No hardcoded or model-invented competitor average is used.
-Collection time is not the publisher's menu update date. Evidence older than
-30 days is excluded. A seven-day database cache refreshes on the next Generate,
-not on every read or with a separate scheduled worker. Editing product context,
-variant identities/sizes or the source list invalidates that cache signature.
+## Retired code and migration
 
-Initial retrieval verified Cafe 1740 price text. Prism uses an embedded menu;
-Cafe de Lipa did not expose usable menu prices to the collector. Therefore the
-starting list does not establish three usable comparable competitors. Local
-market data may remain unavailable; cost/demand suggestions still work. This is
-not automatic competitor discovery, paid search grounding or a scraper bypass.
+The collector, fixed sources, three-competitor requirement, DNS/HTTPS scraping,
+menu cache and unused competitor-average column have been removed. Applied
+migration history is retained. A new migration drops only obsolete cache data
+and the unused column; product and recommendation history remain.
 
-## Local startup
+## Local run
 
-From `server/` run `npm.cmd run db:migrate:deploy`, then
-`npm.cmd run db:generate`, and restart `npm.cmd run dev`. This applies the additive
-pricing-evidence migration without resetting product data. No new API key or
-paid Gemini grounding is required. Start the client as usual.
+From server/:
 
-Open a product's Price Optimization and regenerate. The first run can take longer
-than cached runs due to menu retrieval and AI extraction. The pricing AI call has
-a 30-second deadline, extraction 20 seconds, menu DNS 3 seconds and HTTPS 8 seconds;
-the browser request is bounded to 90 seconds. Verify displayed evidence or the
-insufficient-data message, ingredient margins, legacy regeneration and explicit
-application. No public database migration or live Gemini run is performed by the
-automated regression suite.
+```bash
+npm.cmd run db:migrate:deploy
+npm.cmd run db:generate
+npm.cmd run dev
+```
+
+Restart the client and regenerate suggestions. Verify the labelled AI-estimated
+range or unavailable message, larger price changes and cost-floor enforcement.
+No new key or paid search is required. Gemini has a 30-second deadline; browser
+waiting is limited to 45 seconds. Live estimates and interactive behavior remain
+unverified by automated tests alone.

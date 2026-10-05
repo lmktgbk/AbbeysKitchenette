@@ -2,11 +2,18 @@ import { z } from "zod";
 import { integerId, money, LIMITS } from "../../utils/validation.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 
+export const PRICE_POLICY_VERSION = 3;
+// Market ranges describe uncertain model estimates, not sourced competitor quotes.
+const marketEstimate = z.object({
+  low: money(true), high: money(true),
+}).strict().refine(value => value.low <= value.high, "Market range is reversed");
+
 const recommendation = z.object({
   variant_id: integerId,
   recommended_price: money(true),
   confidence: z.number().finite().min(0).max(1),
   reasoning: z.string().trim().min(1).max(2000),
+  market_estimate: marketEstimate.nullable(),
 }).strict();
 const output = z.object({ recommendations: z.array(recommendation).min(1).max(LIMITS.variants) }).strict();
 const invalid = () => new AppError(502, "AI returned invalid recommendations. Existing suggestions were preserved", "INVALID_PRICE_RECOMMENDATIONS");
@@ -32,9 +39,9 @@ export function normalizeRecommendations(result, variants) {
     if (v.missing_costs > 0 || v.recipe_count === 0) {
       throw new AppError(409, "Complete recipe and ingredient cost records before optimizing prices", "PRICING_COSTS_MISSING");
     }
-    // The model cannot bypass the ingredient floor or the permitted change band.
-    if (r.recommended_price < cost || r.recommended_price < currentPrice * 0.9 || r.recommended_price > currentPrice * 1.1) {
-      throw new AppError(502, "Recommendation violates the ingredient cost floor or 10% change limit. Manual pricing review may be required", "UNSAFE_PRICE_RECOMMENDATION");
+    // Percentage changes are unrestricted; ingredient cost remains the hard floor.
+    if (r.recommended_price < cost) {
+      throw new AppError(502, "Recommendation violates the ingredient cost floor", "UNSAFE_PRICE_RECOMMENDATION");
     }
     // Derive financial metadata from the database snapshot, never from model arithmetic.
     const delta = (Math.round(r.recommended_price * 100) - Math.round(currentPrice * 100)) / 100;
@@ -47,7 +54,9 @@ export function normalizeRecommendations(result, variants) {
       marginBefore: round((currentPrice - cost) / currentPrice * 100),
       marginAfter: round((r.recommended_price - cost) / r.recommended_price * 100),
       status: "pending",
-      policyVersion: 2,
+      policyVersion: PRICE_POLICY_VERSION,
+      pricingContext: { marketEstimate: r.market_estimate ? { ...r.market_estimate,
+        label: "AI-estimated Lipa SME market range", verified: false, generatedAt: new Date().toISOString() } : null },
     };
   });
 }

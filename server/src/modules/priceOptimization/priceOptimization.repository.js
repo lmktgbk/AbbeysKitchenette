@@ -216,7 +216,6 @@ const priceOptimizationRepository = {
       UPDATE product_variants AS v SET price = ${String(price)}::numeric
       WHERE v.variant_id = ${variantId} AND v.price = ${String(currentPrice)}::numeric
         AND EXISTS (SELECT 1 FROM products AS p WHERE p.product_id = v.product_id AND p.is_archived = false)
-        AND ${String(price)}::numeric BETWEEN v.price * 0.9 AND v.price * 1.1
         AND EXISTS (
           SELECT 1 FROM recipes r LEFT JOIN (
             SELECT ingredient_id, SUM(quantity_added * cost_per_unit) / NULLIF(SUM(quantity_added), 0) AS cost

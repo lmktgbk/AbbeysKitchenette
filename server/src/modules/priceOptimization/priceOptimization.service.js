@@ -1,9 +1,8 @@
 import { recordEffects } from "../../infrastructure/effects/effects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import repo from "./priceOptimization.repository.js";
-import { normalizeRecommendations } from "./priceOptimization.output.js";
+import { normalizeRecommendations, PRICE_POLICY_VERSION } from "./priceOptimization.output.js";
 import { generatePriceSuggestions } from "./priceOptimization.prompts.js";
-import { getMarketContext } from "./priceOptimization.market.js";
 import prisma from "../../config/prisma.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 
@@ -16,18 +15,15 @@ async function resolveSuggestion(id, status, userId) {
     const claimed = await repo.claimPending(id, status, tx, updatedAt);
     if (!claimed.count) throw new AppError(409, "Suggestion was already resolved. Refresh before trying again", "PRICE_SUGGESTION_CONFLICT");
     if (status === "accepted") {
-      if (suggestion.policyVersion !== 2) throw new AppError(409, "This suggestion uses outdated pricing assumptions. Regenerate before applying", "PRICE_POLICY_OUTDATED");
+      if (suggestion.policyVersion !== PRICE_POLICY_VERSION) throw new AppError(409, "This suggestion uses outdated pricing assumptions. Regenerate before applying", "PRICE_POLICY_OUTDATED");
       const price = Number(suggestion.recommendedPrice);
       if (!Number.isFinite(price) || price <= 0 || price > 99999999.99 || Math.abs(price * 100 - Math.round(price * 100)) > 0.000001) {
         throw new AppError(400, "Recommended price must be positive and fit two decimal places", "INVALID_RECOMMENDED_PRICE");
       }
-      if (price < Number(suggestion.currentPrice) * 0.9 || price > Number(suggestion.currentPrice) * 1.1) {
-        throw new AppError(409, "Recommendation exceeds the 10% price change limit. Regenerate before applying", "UNSAFE_PRICE_RECOMMENDATION");
-      }
       // Compare the observed price and availability before writing. A stale
       // recommendation rolls back its status claim instead of replacing a newer price.
       const changed = await repo.updateVariantPrice(suggestion.variantId, suggestion.currentPrice, suggestion.recommendedPrice, tx);
-      if (changed !== 1) throw new AppError(409, "Product price or availability changed. Refresh and generate a new suggestion", "STALE_PRICE_SUGGESTION");
+      if (changed !== 1) throw new AppError(409, "Product price, availability or ingredient costs changed. Refresh and generate a new suggestion", "STALE_PRICE_SUGGESTION");
     }
     await recordEffects(tx, { audit: { userId,
       action: status === "accepted" ? ACTIONS.PRICE_APPLIED : ACTIONS.PRICE_DISMISSED,
@@ -65,18 +61,14 @@ const priceOptimizationService = {
       repo.getVariantPricingContext(productId), repo.getRecipeDetails(productId),
     ]);
     if (!variants.length || variants.length > 50) throw new AppError(409, "Product must have between 1 and 50 variants", "INVALID_PRICING_CONTEXT");
-    // Stop before menu/provider calls when the recipe cannot support a cost floor.
+    // Stop before provider calls when the recipe cannot support a cost floor.
     if (variants.some(v => v.missing_costs > 0 || v.recipe_count === 0)) {
       throw new AppError(409, "Complete recipe and ingredient cost records before optimizing prices", "PRICING_COSTS_MISSING");
-    }
-    if (variants.some(v => Number(v.cost_per_unit) > Number(v.price) * 1.1)) {
-      throw new AppError(409, "Ingredient cost exceeds the permitted 10% price change. Manual pricing review required", "PRICING_REVIEW_REQUIRED");
     }
     const productContext = { product_id: productId, product_name: product.productName,
       description: product.description || null,
       category_name: product.subcategory?.category?.categoryName || null,
       subcategory_name: product.subcategory?.subcategoryName || null };
-    const market = await getMarketContext(productContext, variants);
 
     // Step 2: Build sales summary string
     const salesLines = variants.map(
@@ -90,7 +82,6 @@ const priceOptimizationService = {
     // Step 3: Call Gemini
     const result = await generatePriceSuggestions({
       product: productContext,
-      market,
       variants: variants.map((v) => ({
         variant_id: v.variant_id,
         product_name: v.product_name,
@@ -121,9 +112,8 @@ const priceOptimizationService = {
     // substitute new forecasts/costs underneath an existing recommendation.
     const rows = normalizeRecommendations(result, variants).map(row => {
       const observed = observedVariants.get(row.variantId);
-      return { ...row, competitorAvg: null,
-        pricingContext: { product: productContext,
-          market: market.variants[String(row.variantId)], marketNote: market.note,
+      return { ...row,
+        pricingContext: { ...row.pricingContext, product: productContext,
           ingredientCost: Number(observed.cost_per_unit),
           sales: { units: Number(observed.total_units_sold || 0), revenue: Number(observed.total_revenue || 0), days: 30 },
           forecastAvailable: Boolean(observed.trend),

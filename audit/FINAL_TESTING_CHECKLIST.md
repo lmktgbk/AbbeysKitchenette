@@ -1298,3 +1298,25 @@ Prism/Cafe de Lipa did not expose usable prices. Three comparable competitors
 are **Not verified**, so market context may remain unavailable. Live Gemini output,
 semantic portion matching and interactive application remain **Not verified**.
 No migration was applied to public business data; no paid search is enabled.
+
+## AI-estimated pricing policy (2026-10-06; supersedes menu-collection trial)
+
+- [ ] Apply retire_pricing_menu_cache, generate Prisma, restart the backend and
+  regenerate suggestions. Policy-1/2 suggestions cannot be applied under policy 3.
+- [ ] Each variant displays an AI-estimated Lipa SME range with an unverified label,
+  or explicitly unavailable. No competitor average, source quotes or scraping UI.
+- [ ] Greater than ten-percent increases/decreases are allowed with reasoning.
+  Ingredient costs still enforce the price floor; missing costs are not zero.
+- [ ] Confirm sizes/hot-iced preparation influence estimates. Unclear portions
+  should have assumptions explained rather than being asserted as verified.
+- [ ] Admin approval still checks stale prices, current recipe costs, duplicate
+  resolution and atomic price/status/audit handling. Generation alone changes no price.
+- [ ] Provider failures and malformed/reversed market ranges preserve prior rows.
+  Estimates are not hard price ceilings, observed competitor quotes or net profit.
+
+Verification: 916 regression tests passed, 123 skipped; eight disposable PostgreSQL
+checks passed, including migration retirement and a cost-safe change exceeding
+10%. Client lint/build passed. Collector/source files and collector-specific tests
+were removed, with no active references left. Previous migrations and historical
+suggestion context remain intact. No public migration or live Gemini call occurred.
+Live estimates, local market accuracy and interactive UI remain **Not verified**.

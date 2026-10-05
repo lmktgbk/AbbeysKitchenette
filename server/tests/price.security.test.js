@@ -3,7 +3,7 @@ import express from "express";
 
 const h = vi.hoisted(() => ({ db: null, role: "admin" }));
 vi.mock("../src/config/prisma.js", () => ({ default: new Proxy({}, { get: (_target, key) => h.db[key] }) }));
-vi.mock("../src/modules/priceOptimization/priceOptimization.prompts.js", () => ({ generatePriceSuggestions: vi.fn(), getCompetitorAverage: vi.fn() }));
+vi.mock("../src/modules/priceOptimization/priceOptimization.prompts.js", () => ({ generatePriceSuggestions: vi.fn() }));
 vi.mock("../src/middleware/authenticate.middleware.js", () => ({ default: (req, _res, next) => {
   req.user = { id: "00000000-0000-4000-8000-000000000001", role: h.role };
   next();
@@ -26,7 +26,7 @@ afterAll(async () => { server.closeAllConnections(); await new Promise(resolve =
 
 beforeEach(() => {
   vi.clearAllMocks(); h.role = "admin";
-  const state = { suggestions: [{ id: 1, variantId: 7, policyVersion: 2, currentPrice: 85, recommendedPrice: 90, productName: "Fixture", status: "pending" }], variants: [{ variantId: 7, price: 85, archived: false }], priceWrites: 0, effects: [] };
+  const state = { suggestions: [{ id: 1, variantId: 7, policyVersion: 3, currentPrice: 85, recommendedPrice: 90, productName: "Fixture", status: "pending" }], variants: [{ variantId: 7, price: 85, archived: false }], priceWrites: 0, effects: [] };
   const db = h.db = { state };
   db.domainEffect = { async create({ data }) {
     if (db.failEffect) throw new Error("Injected effect failure");

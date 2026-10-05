@@ -223,23 +223,14 @@ export default function PriceOptimizationModal({ open, onOpenChange, product }) 
                     </span>
                   </div>
 
-                  {/* Margin + competitor info */}
+                  {/* Model estimates are explicitly separate from recorded ingredient margins. */}
                   <div className="space-y-1 text-xs text-muted-foreground">
                     <p>Ingredient margin: {Number(s.marginBefore).toFixed(1)}% → {Number(s.marginAfter).toFixed(1)}%</p>
-                    <p>{s.pricingContext?.market?.status === "available"
-                      ? `Local online-menu median: ₱${Number(s.pricingContext.market.median).toLocaleString()} (${s.pricingContext.market.count} competitors)`
-                      : "Local market data unavailable or insufficient"}</p>
-                    {s.pricingContext?.market?.range && (
-                      <p>Observed range: ₱{s.pricingContext.market.range[0]}–₱{s.pricingContext.market.range[1]}</p>
-                    )}
-                    {s.pricingContext?.market?.records?.map(record => (
-                      <p key={record.competitor}>
-                        <a href={record.url} target="_blank" rel="noopener noreferrer" className="underline">{record.competitor}</a>
-                        {` · ${record.item} (${record.portion}) · ₱${record.price} · collected ${new Date(record.collectedAt).toLocaleDateString()}`}
-                      </p>
-                    ))}
-                    <p className="text-xs">Online references may differ from dine-in prices. Ingredient margin excludes other operating costs.</p>
-                    {s.policyVersion !== 2 && <p className="text-destructive">Outdated pricing assumptions. Regenerate before applying.</p>}
+                    <p>{s.pricingContext?.marketEstimate
+                      ? `AI-estimated Lipa SME market range: ₱${s.pricingContext.marketEstimate.low}–₱${s.pricingContext.marketEstimate.high}`
+                      : "AI market estimate unavailable"}</p>
+                    <p>Market estimates are unverified. Ingredient margin excludes other operating costs.</p>
+                    {s.policyVersion !== 3 && <p className="text-destructive">Outdated pricing assumptions. Regenerate before applying.</p>}
                   </div>
 
                   {/* Reasoning */}
@@ -256,7 +247,7 @@ export default function PriceOptimizationModal({ open, onOpenChange, product }) 
                       variant="primary"
                       className="h-7 text-xs"
                       onClick={() => handleApply(s)}
-                      disabled={mutations.apply.isPending || isKeep || s.policyVersion !== 2}
+                      disabled={mutations.apply.isPending || isKeep || s.policyVersion !== 3}
                       title={isKeep ? "No price change recommended" : undefined}
                     >
                       Apply Price

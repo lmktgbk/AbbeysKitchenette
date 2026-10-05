@@ -126,9 +126,9 @@ export async function getPriceSuggestionsRequest(productId) {
 
 // POST /api/price-optimization/generate — generate suggestions for a product
 export async function generatePriceSuggestionsRequest(productId) {
-  // A cold run retrieves menus and makes two bounded AI calls before publishing.
-  // Keep browser waiting finite without cutting off normal source collection.
-  const res = await api.post("/price-optimization/generate", { productId }, { timeout: 90000 });
+  // Pricing makes one bounded AI call before publishing recommendations.
+  // Keep browser waiting finite without cutting off normal analysis.
+  const res = await api.post("/price-optimization/generate", { productId }, { timeout: 45000 });
   return res.data;
 }
 

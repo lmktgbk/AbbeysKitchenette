@@ -2,7 +2,7 @@ import { beforeAll, beforeEach, afterAll, describe, it, expect, vi } from "vites
 const h = vi.hoisted(() => ({ db: null }));
 vi.mock("../src/config/prisma.js", () => ({ default: new Proxy({}, { get: (_target, key) => typeof h.db[key] === "function" ? h.db[key].bind(h.db) : h.db[key] }) }));
 vi.mock("../src/config/env.js", () => ({ env: {} }));
-vi.mock("../src/modules/priceOptimization/priceOptimization.prompts.js", () => ({ generatePriceSuggestions: vi.fn(), getCompetitorAverage: () => 75 }));
+vi.mock("../src/modules/priceOptimization/priceOptimization.prompts.js", () => ({ generatePriceSuggestions: vi.fn() }));
 import { isolatedPostgres } from "./helpers/isolatedPostgres.js";
 import repo from "../src/modules/priceOptimization/priceOptimization.repository.js";
 import service from "../src/modules/priceOptimization/priceOptimization.service.js";
@@ -24,7 +24,7 @@ describe.skipIf(process.env.PRICE_DB_CHECK !== "1")("PostgreSQL recommendation p
     await db.restockBatch.create({ data: { ingredientId: ingredient.ingredientId, restockedById: user.id,
       quantityAdded: 10, quantityLeft: 10, costPerUnit: 30, totalCost: 300 } });
     await db.recipe.create({ data: { variantId: variant.variantId, ingredientId: ingredient.ingredientId, quantityNeeded: 1 } });
-    rows = normalizeRecommendations({ recommendations: [{ variant_id: variant.variantId, recommended_price: 90, confidence: 0.8, reasoning: "Fixture pricing" }] }, await repo.getVariantPricingContext(product.productId));
+    rows = normalizeRecommendations({ recommendations: [{ variant_id: variant.variantId, recommended_price: 90, confidence: 0.8, market_estimate: null, reasoning: "Fixture pricing" }] }, await repo.getVariantPricingContext(product.productId));
     await repo.saveSuggestions(rows, product.productId);
   });
   it("persists authoritative context through the actual SQL queries", async () => {
@@ -70,5 +70,14 @@ describe.skipIf(process.env.PRICE_DB_CHECK !== "1")("PostgreSQL recommendation p
     await expect(service.applyPrice(suggestion.id)).rejects.toMatchObject({ code: "STALE_PRICE_SUGGESTION" });
     expect(Number((await db.productVariant.findUnique({ where: { variantId: variant.variantId } })).price)).toBe(85);
     expect((await db.priceOptimization.findUnique({ where: { id: suggestion.id } })).status).toBe("pending");
+  });
+  it("generates and applies a change beyond ten percent above current ingredient cost", async () => {
+    await db.restockBatch.updateMany({ data: { costPerUnit: 115 } });
+    const recommendations = normalizeRecommendations({ recommendations: [{ variant_id: variant.variantId,
+      recommended_price: 120, confidence: 0.8, market_estimate: { low: 100, high: 150 }, reasoning: "Recorded costs require a larger increase." }] }, await repo.getVariantPricingContext(product.productId));
+    await repo.saveSuggestions(recommendations, product.productId);
+    const suggestion = await db.priceOptimization.findFirst({ where: { status: "pending" } });
+    await service.applyPrice(suggestion.id);
+    expect(Number((await db.productVariant.findUnique({ where: { variantId: variant.variantId } })).price)).toBe(120);
   });
 });
