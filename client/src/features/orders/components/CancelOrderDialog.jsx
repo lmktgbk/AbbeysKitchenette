@@ -35,7 +35,8 @@ const CANCEL_REASONS = [
  * CancelOrderDialog
  *
  * Horizontal 2-column dialog for cancelling orders with per-item loss support.
- * Shows ALL items (checked + unchecked) with status badges.
+ * Shows active prepared and unprepared items; already-removed items are excluded.
+ * Collects loss/refund intent only; the backend owns stock restoration and refund limits.
  */
 export default function CancelOrderDialog({
   open,
@@ -45,6 +46,7 @@ export default function CancelOrderDialog({
   loading,
 }) {
   const [lossOption, setLossOption] = useState("no_loss");
+  // Preparing orders without recorded consumption cannot safely guess historic batch allocations.
   const needsReconciliation = order?.consumption_history_available === false
     && order?.status === "preparing";
   const [refundOption, setRefundOption] = useState("full");
@@ -64,6 +66,7 @@ export default function CancelOrderDialog({
   const uncheckedItems = useMemo(() => activeItems.filter((i) => !i.is_prepared), [activeItems]);
   const showLossOptions = isPreparing;
 
+  /** Seeds prepared active items as lost when entering With Loss; leaving it clears loss intent. */
   function chooseLossOption(option) {
     if (option === lossOption) return;
     setLossOption(option);
@@ -93,6 +96,7 @@ export default function CancelOrderDialog({
 
   const totalAmount = Number(order?.total_amount || 0);
 
+  // Display estimate from the supplied recipe costs; it does not create an inventory adjustment.
   const totalLossCost = useMemo(() => {
     let cost = 0;
     for (const [itemId, losses] of Object.entries(itemLosses)) {
@@ -108,6 +112,7 @@ export default function CancelOrderDialog({
     return cost;
   }, [itemLosses, order?.items]);
 
+  // Displayed refund is capped by the order total; the API independently enforces settlement limits.
   const refundAmount = useMemo(() => {
     if (refundOption === "full") return totalAmount;
     if (refundOption === "none") return 0;
@@ -118,6 +123,7 @@ export default function CancelOrderDialog({
 
   if (!order) return null;
 
+  /** Changes only row expansion; it does not change declared loss quantities. */
   function toggleItemExpand(itemId) {
     setExpandedItems((prev) => {
       const next = new Set(prev);
@@ -127,6 +133,7 @@ export default function CancelOrderDialog({
     });
   }
 
+  /** Toggles one declared ingredient and tracks its manual selection independently per item. */
   function toggleIngredientLoss(itemId, ingredientId, quantityNeeded) {
     setItemLosses((prev) => {
       const itemLosses = { ...prev };
@@ -162,6 +169,7 @@ export default function CancelOrderDialog({
     });
   }
 
+  /** Stores a positive manual ingredient quantity; nonpositive/invalid input removes the loss entry. */
   function updateIngredientQty(itemId, ingredientId, qty) {
     if (qty === "") return;
     const val = parseFloat(qty);
@@ -189,6 +197,7 @@ export default function CancelOrderDialog({
     });
   }
 
+  /** Bounds lost item units and scales recipe quantities while retaining stored manual quantities. */
   function adjustLossQuantity(itemId, delta) {
     const item = allItems.find((i) => i.order_item_id === itemId);
     if (!item) return;
@@ -212,6 +221,7 @@ export default function CancelOrderDialog({
         const prevItemLoss = prev[itemId] || {};
         const itemLoss = {};
         for (const recipe of item.recipes || []) {
+          // Preserve a manual amount only while an entry exists; other ingredients follow the new unit count.
           if (itemManualOverrides.has(recipe.ingredient_id) && prevItemLoss[recipe.ingredient_id] !== undefined) {
             itemLoss[recipe.ingredient_id] = prevItemLoss[recipe.ingredient_id];
           } else {
@@ -223,6 +233,7 @@ export default function CancelOrderDialog({
     }
   }
 
+  /** Requires an audit reason and converts draft maps to the cancellation API’s per-item loss arrays. */
   function handleConfirm() {
     if (!reason) {
       setReasonError("Please select a reason");
@@ -268,6 +279,7 @@ export default function CancelOrderDialog({
     return { item, label, isExpanded, itemLoss, lossCount, isChecked };
   });
 
+  /** Discards reason, refund, expansion, and loss drafts on close so a later cancellation starts clean. */
   function handleDialogChange(isOpen) {
     if (!isOpen) {
       setLossOption("no_loss");

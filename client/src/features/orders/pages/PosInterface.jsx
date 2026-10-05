@@ -43,7 +43,7 @@ const CANCEL_REASONS = [
  * - Browser-only via useState: cart items, customer/table input, modals, fulfilling/accepting ids.
  */
 export default function PosInterface() {
-  // Live POS: pending feed + menu availability + drawer state, no polling.
+  // Subscribe to order, catalog, and drawer changes; individual query callers own any polling.
   useOrdersRealtime();
   useProductsRealtime();
   useShiftsRealtime();
@@ -79,6 +79,7 @@ export default function PosInterface() {
 
   // ── Handlers ────────────────────────
 
+  /** Merges repeated selections of the same variant into the local walk-in draft. */
   const handleAddItem = useCallback((item) => {
     setItems((prev) => {
       const existingIdx = prev.findIndex((i) => i.variant_id === item.variant_id);
@@ -94,6 +95,7 @@ export default function PosInterface() {
     });
   }, []);
 
+  /** Updates the selected draft row; no stock deduction occurs until server settlement. */
   const handleUpdateQuantity = useCallback((idx, qty) => {
     setItems((prev) => {
       const updated = [...prev];
@@ -102,17 +104,20 @@ export default function PosInterface() {
     });
   }, []);
 
+  /** Removes an unsaved cart row, not an item from an already-paid order. */
   const handleRemoveItem = useCallback((idx) => {
     setItems((prev) => prev.filter((_, i) => i !== idx));
   }, []);
 
   const subtotal = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
 
+  /** Opens tender collection only after the draft has items and customer/table references. */
   function handlePlaceOrder() {
     if (items.length === 0 || !customerName || !tableName) return;
     setShowPayment(true);
   }
 
+  /** Loads a guest order into the editable POS draft; loading alone does not accept or charge it. */
   async function handleAcceptOnlineOrder(order) {
     if (items.length > 0) {
       const yes = await confirm(
@@ -157,7 +162,9 @@ export default function PosInterface() {
     }
   }
 
+  /** Builds tender/discount intent, then creates a walk-in sale or fulfills the loaded guest order. */
   async function handlePaymentConfirm({ amount_paid, discount_type, promo_mode, promo_value, discount_id_no, senior_id_no, pwd_id_no, discount_label, item_discounts, payment_method, reference_no }) {
+    // Discount rows follow this draft’s item order; acceptance elsewhere uses stored item IDs instead.
     const payload = {
       customer_name: customerName,
       table_number: tableName,
@@ -199,8 +206,10 @@ export default function PosInterface() {
         toast.success("Order placed successfully");
       }
 
+      // Printing follows successful settlement and is not part of the database transaction.
       if (paidOrderId && shouldAutoPrint()) printReceipt(paidOrderId);
 
+      // Clear the draft only after success; ordinary failures leave its details available for retry.
       setItems([]);
       setCustomerName("");
       setTableName("");
@@ -217,6 +226,7 @@ export default function PosInterface() {
     }
   }
 
+  /** Sends a reason through the cancellation endpoint; the API determines permitted state and accounting. */
   async function handleRejectOnlineOrder(order) {
     await confirmWithReason({
       title: "Delete Order?",
@@ -231,6 +241,7 @@ export default function PosInterface() {
     });
   }
 
+  /** Opens the declared drawer through the shift API and retains the dialog on failure. */
   async function handleOpenShiftConfirm(data) {
     try {
       await shiftMutations.open.mutateAsync(data);
@@ -241,6 +252,7 @@ export default function PosInterface() {
     }
   }
 
+  /** Closes the selected shift and displays the variance returned by the server. */
   async function handleCloseShiftConfirm(data) {
     if (!closingShift) return;
     try {

@@ -271,3 +271,34 @@ This completes the scoped helper/query pass; larger page/component readability
 still needs review. It does not certify all 234 client source files as fully
 commented. Existing adequate comments were retained rather than adding redundant
 line-by-line narration.
+
+## Comment follow-up — order settlement, batches, and settings UI
+
+Added handler and decision comments in seven larger JSX files:
+PosInterface, OrdersPage, CancelOrderDialog, RemoveItemDialog, OrderDetailModal,
+BatchListModal, and SettingsPage. Kept all implementations and rendered markup.
+
+Comments explain unsaved cart versus persisted item operations, loading versus
+fulfilling guest orders, discount-to-line mapping, shift-required recovery,
+post-commit printing, cancellation/removal request contracts, original-consumption
+requirements, loss rescaling/manual quantities, refund estimate authority,
+expiry removal with null, page-derived FIFO indicators, and settings draft/save
+ownership. Corrected outdated descriptions of removal defaults, removed item
+visibility, guaranteed pre-print detail refresh, and read-only order details.
+
+Documented actual behavior rather than inferred improvements: missing manual loss
+entries are recipe-derived again during rescaling; a settings response resets the
+whole draft; clipboard feedback currently appears even on copying failure. No
+behavioral correction is included in this comment-only pass.
+
+Verification: normalized executable syntax trees match the pre-edit files for all
+seven. Production build and ESLint passed; 52 client-focused cases passed. Those
+cases protect shared safeguards, not browser-level coverage of every handler in
+these pages/dialogs. Live financial reconciliation, loss/default UX, settings
+multi-section draft behavior, expiry editing, and physical printing remain
+**Not verified**. No migration is needed. Existing Router.jsx, submission formatting,
+and server automation changes remain excluded from this commit.
+
+Remaining comment review includes the product/inventory pages, kitchen workflow,
+profile/account flows, forecasting UI, and other components with non-obvious state
+or calculations. This pass does not claim comprehensive comments for all files.

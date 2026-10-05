@@ -37,11 +37,11 @@ const REMOVED_REASONS = {
 /**
  * OrderDetailModal
  *
- * Read-only detail view for orders.
+ * Displays fetched order details and delegates available actions to the parent.
  * - Left: order info + items table (expandable rows) + total
  * - Right: timeline with status history
  *
- * Items are NOT clickable here (kitchen handles checking).
+ * Row expansion displays information; preparation checks are owned by the kitchen workflow.
  * Remove button available for accepted/preparing orders.
  * Click on prepared/removed items to expand detail rows.
  */
@@ -58,6 +58,7 @@ export default function OrderDetailModal({
   const [expandedItems, setExpandedItems] = useState(new Set());
   const [copiedId, setCopiedId] = useState(false);
 
+  /** Requests clipboard copying; current UI feedback is shown even if clipboard access fails. */
   async function handleCopyId() {
     if (!order?.order_id) return;
     try {
@@ -69,6 +70,7 @@ export default function OrderDetailModal({
     setTimeout(() => setCopiedId(false), 1500);
   }
 
+  /** Expands a stored item’s information without changing preparation or removal status. */
   const toggleItem = (id) => {
     setExpandedItems((prev) => {
       const next = new Set(prev);
@@ -83,6 +85,7 @@ export default function OrderDetailModal({
   const isAccepted = order?.status === "accepted";
   const isPreparing = order?.status === "preparing";
 
+  // These flags control displayed actions only; backend role and state checks authorize every mutation.
   const canCancel = isPending || isAccepted || isPreparing;
   const canAdvance = isPending || isAccepted;
   const canRemoveItem = isAccepted || isPreparing;

@@ -70,6 +70,7 @@ const DEFAULT_DINING_TABLES = {
   takeoutEnabled: true,
 };
 
+/** Supplies defaults only when dining configuration is absent; an existing empty table list stays empty. */
 function mergeDiningTables(saved) {
   if (!saved || typeof saved !== "object") return DEFAULT_DINING_TABLES;
   return {
@@ -78,6 +79,7 @@ function mergeDiningTables(saved) {
   };
 }
 
+/** Fills missing job fields from defaults while preserving each saved schedule. */
 function mergeAutomation(saved) {
   const merged = {};
   for (const { key } of AUTOMATION_JOBS) {
@@ -86,6 +88,7 @@ function mergeAutomation(saved) {
   return merged;
 }
 
+/** Owns editable settings drafts; query refreshes supply saved values and mutations own persistence. */
 export default function SettingsPage() {
   // Live settings: writes elsewhere refresh this form's source data.
   useSettingsRealtime();
@@ -110,6 +113,7 @@ export default function SettingsPage() {
     },
   });
 
+  // A new settings response resets the whole draft, including unsaved edits in other sections.
   useEffect(() => {
     if (settings) {
       reset({
@@ -132,6 +136,7 @@ export default function SettingsPage() {
   const accepted = useWatch({ control, name: "acceptedPayments" }) ?? [];
   const automation = useWatch({ control, name: "automation" }) ?? DEFAULT_AUTOMATION;
 
+  /** Marks the payment-method draft dirty and asks the resolver to validate the changed selection. */
   function togglePayment(value) {
     const current = getValues("acceptedPayments") ?? [];
     const next = current.includes(value)
@@ -140,6 +145,7 @@ export default function SettingsPage() {
     setValue("acceptedPayments", next, { shouldValidate: true, shouldDirty: true });
   }
 
+  /** Patches one job without discarding its other fields; weekly schedules receive a weekday default. */
   function updateAutomation(jobKey, field, value) {
     const current = getValues(`automation.${jobKey}`) ?? {};
     const next = { ...current, [field]: value };
@@ -150,11 +156,13 @@ export default function SettingsPage() {
     setValue(`automation.${jobKey}`, next, { shouldValidate: true, shouldDirty: true });
   }
 
+  /** Enables/disables a day while retaining its configured opening and closing times. */
   function toggleDay(dayKey) {
     const current = storeHours[dayKey];
     setValue(`storeHours.${dayKey}`, { ...current, enabled: !current.enabled }, { shouldValidate: true, shouldDirty: true });
   }
 
+  /** Changes one clock field in the day’s draft and revalidates the schedule. */
   function updateTime(dayKey, field, value) {
     const current = storeHours[dayKey];
     setValue(`storeHours.${dayKey}`, { ...current, [field]: value }, { shouldValidate: true, shouldDirty: true });
@@ -163,12 +171,14 @@ export default function SettingsPage() {
   const diningTables = useWatch({ control, name: "diningTables" }) ?? DEFAULT_DINING_TABLES;
   const diningRows = diningTables.tables ?? [];
 
+  /** Patches one table row without mutating the saved settings object. */
   function updateDiningTable(index, field, value) {
     const current = getValues("diningTables") ?? DEFAULT_DINING_TABLES;
     const tables = (current.tables ?? []).map((t, i) => (i === index ? { ...t, [field]: value } : t));
     setValue("diningTables", { ...current, tables }, { shouldValidate: true, shouldDirty: true });
   }
 
+  /** Appends a local table draft with a provisional ID; validation and saving follow separately. */
   function addDiningTable() {
     const current = getValues("diningTables") ?? DEFAULT_DINING_TABLES;
     const tables = [...(current.tables ?? [])];
@@ -176,25 +186,27 @@ export default function SettingsPage() {
     setValue("diningTables", { ...current, tables }, { shouldValidate: true, shouldDirty: true });
   }
 
+  /** Removes a configuration row from the draft, without rewriting historic order references. */
   function removeDiningTable(index) {
     const current = getValues("diningTables") ?? DEFAULT_DINING_TABLES;
     const tables = (current.tables ?? []).filter((_, i) => i !== index);
     setValue("diningTables", { ...current, tables }, { shouldValidate: true, shouldDirty: true });
   }
 
+  /** Toggles takeout availability while retaining configured dining-table rows. */
   function toggleTakeout() {
     const current = getValues("diningTables") ?? DEFAULT_DINING_TABLES;
     setValue("diningTables", { ...current, takeoutEnabled: !current.takeoutEnabled }, { shouldValidate: true, shouldDirty: true });
   }
 
+  /** Submits resolver-validated full-form values through the shared settings mutation. */
   function onSubmit(data) {
     updateMutation.mutate(data);
   }
 
   // ── Per-section save ───────────────────
-  // Each card persists only its own fields: an invalid phone number never
-  // blocks saving hours. The server PATCH is partial-safe; after each save
-  // the realtime refresh resets the form and clears dirty.
+  // Each card persists only its mapped fields. Validation targets that section;
+  // a subsequent settings response resets the whole form, not just that section.
   const SECTION_FIELDS = {
     info: ["storeName", "storeEmail", "storeAddress", "storePhone"],
     hours: ["storeHours"],
@@ -205,17 +217,18 @@ export default function SettingsPage() {
   };
   const [savingSection, setSavingSection] = useState(null);
 
+  /** Checks mapped fields against React Hook Form’s dirty tree for the section’s save button. */
   function isSectionDirty(key) {
     const fields = SECTION_FIELDS[key] ?? [];
     return fields.some((f) => dirtyFields?.[f] !== undefined);
   }
 
+  /** Validates only the section’s fields and sends a partial patch; errors leave the draft for correction. */
   function saveSection(key) {
     const fields = SECTION_FIELDS[key] ?? [];
     if (!fields.some((f) => dirtyFields?.[f] !== undefined)) return;
     setSavingSection(key);
-    // Validate ONLY this section: an invalid phone number must never block
-    // saving hours. handleSubmit would validate the whole form instead.
+    // trigger receives the section field paths; handleSubmit would validate the entire form.
     trigger(fields).then((valid) => {
       if (!valid) {
         setSavingSection(null);
@@ -230,6 +243,7 @@ export default function SettingsPage() {
     }).catch(() => setSavingSection(null));
   }
 
+  /** Derives save feedback from section dirty state and the shared mutation’s pending state. */
   function renderSectionSaveButton(sectionKey) {
     const dirty = isSectionDirty(sectionKey);
     const saving = savingSection === sectionKey || (updateMutation.isPending && dirty);

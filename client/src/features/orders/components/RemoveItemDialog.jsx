@@ -20,13 +20,9 @@ const CANCEL_REASONS = [
  *
  * Horizontal 2-column dialog for removing a single item from an order.
  *
- * UNCHECKED item (partially cooking, not served):
- * - Default: restore all ingredients (no loss)
- * - Optional: user can declare loss on specific ingredients
- *
- * CHECKED item (fully served):
- * - ALL ingredients are marked as loss by default
- * - User can un-mark specific ingredients
+ * Each selected item starts with No Loss and a full-refund request.
+ * Later order states expose explicit ingredient-loss controls; accepted items hide them.
+ * The dialog submits intent; the backend determines restoration and permitted refund amounts.
  */
 export default function RemoveItemDialog({
   open,
@@ -40,6 +36,7 @@ export default function RemoveItemDialog({
   const showLossOptions = !isAccepted;
   const recipes = useMemo(() => item?.recipes || [], [item?.recipes]);
   const itemSubtotal = Number(item?.subtotal || 0);
+  // Missing recorded consumption prevents reliable item-level restoration from current recipes alone.
   const needsReconciliation = item?.consumption_history_available === false;
 
   const [lossOption, setLossOption] = useState("no_loss");
@@ -55,6 +52,7 @@ export default function RemoveItemDialog({
 
   const prevItemId = item?.order_item_id;
   const [lastItemId, setLastItemId] = useState(null);
+  // Reset before rendering a different stored item so the previous item’s loss/refund draft cannot carry over.
   if (prevItemId !== lastItemId) {
     setLastItemId(prevItemId);
     setLossOption("no_loss");
@@ -69,6 +67,7 @@ export default function RemoveItemDialog({
     setManualOverrides(new Set());
   }
 
+  // Estimate only: the server uses original consumption records for actual inventory settlement.
   const totalLossCost = useMemo(() => {
     let cost = 0;
     for (const [ingId, qty] of Object.entries(ingredientLosses)) {
@@ -80,6 +79,7 @@ export default function RemoveItemDialog({
     return cost;
   }, [ingredientLosses, recipes]);
 
+  // The displayed cap uses the supplied item subtotal; backend settlement remains authoritative.
   const refundAmount = useMemo(() => {
     if (refundOption === "full") return itemSubtotal;
     if (refundOption === "none") return 0;
@@ -90,6 +90,7 @@ export default function RemoveItemDialog({
 
   if (!item) return null;
 
+  /** Toggles a loss entry and its manual-selection marker without modifying the supplied recipe. */
   function toggleIngredientLoss(ingredientId, quantityNeeded) {
     setIngredientLosses((prev) => {
       const next = { ...prev };
@@ -111,6 +112,7 @@ export default function RemoveItemDialog({
     });
   }
 
+  /** Records a positive manual quantity; empty input is ignored and nonpositive values remove the entry. */
   function updateIngredientQty(ingredientId, qty) {
     if (qty === "") return;
     const val = parseFloat(qty);
@@ -126,6 +128,7 @@ export default function RemoveItemDialog({
     setManualOverrides((prev) => new Set(prev).add(ingredientId));
   }
 
+  /** Bounds lost item units and rescales non-overridden ingredients; zero clears the loss draft. */
   function adjustLossQuantity(delta) {
     const max = item?.quantity || 1;
     setLossQuantity((prev) => {
@@ -137,6 +140,7 @@ export default function RemoveItemDialog({
         setIngredientLosses((prevLosses) => {
           const nextLosses = {};
           for (const recipe of recipes) {
+            // Only existing manual amounts survive rescaling; absent entries return to recipe-derived amounts.
             if (manualOverrides.has(recipe.ingredient_id) && prevLosses[recipe.ingredient_id] !== undefined) {
               nextLosses[recipe.ingredient_id] = prevLosses[recipe.ingredient_id];
             } else {
@@ -150,6 +154,7 @@ export default function RemoveItemDialog({
     });
   }
 
+  /** Builds a reasoned removal request; loss and refund options are separate settlement decisions. */
   function handleConfirm() {
     if (!reason) {
       setReasonError("Please select a reason");
@@ -186,6 +191,7 @@ export default function RemoveItemDialog({
 
   const lossCount = Object.keys(ingredientLosses).length;
 
+  /** Clears the local settlement draft on close without submitting or changing the order. */
   function handleDialogChange(isOpen) {
     if (!isOpen) {
       setLossOption("no_loss");

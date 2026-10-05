@@ -160,11 +160,13 @@ export default function OrdersPage({ embedded = false }) {
 
   // ── Handlers ───────────────────────
 
+  /** Selects a detail-query identity; the modal receives fetched data rather than the list summary. */
   function handleView(order) {
     setSelectedOrderId(order.order_id);
     setShowDetailModal(true);
   }
 
+  /** Routes pending acceptance to payment collection; other steps use the authorized status endpoint. */
   async function handleAdvance(orderOrId, targetStatus) {
     const orderId = typeof orderOrId === "string" ? orderOrId : orderOrId.order_id;
     const currentOrder = typeof orderOrId === "string" ? null : orderOrId;
@@ -208,6 +210,7 @@ export default function OrdersPage({ embedded = false }) {
     if (ok) toast.success("Order updated");
   }
 
+  /** Opens a drawer after SHIFT_REQUIRED; the user must then retry the intended acceptance. */
   async function handleOpenShiftConfirm(data) {
     try {
       await shiftMutations.open.mutateAsync(data);
@@ -218,6 +221,7 @@ export default function OrdersPage({ embedded = false }) {
     }
   }
 
+  /** Chooses the reason-only or detailed loss/refund flow from the displayed order state. */
   async function handleCancelClick(order) {
     const isPending = order.status === "pending";
     const isAccepted = order.status === "accepted";
@@ -265,6 +269,7 @@ export default function OrdersPage({ embedded = false }) {
     setCancellingOrderId(order.order_id);
   }
 
+  /** Submits cancellation intent; backend accounting uses persisted consumption and payment records. */
   async function handleCancelConfirm({ loss_option, refund_option, refund_amount, reason, custom_reason, item_losses }) {
     if (!cancellingOrderId) return;
     try {
@@ -279,6 +284,7 @@ export default function OrdersPage({ embedded = false }) {
     }
   }
 
+  /** Accepted items request full restoration; later states collect explicit loss/refund intent. */
   async function handleRemoveItemClick(order, item) {
     if (order.status === "accepted") {
       const label = item.size_name
@@ -310,6 +316,7 @@ export default function OrdersPage({ embedded = false }) {
     setRemovingItem({ orderId: order.order_id, orderStatus: order.status, item });
   }
 
+  /** Settles one stored item; the API may cancel the order when its final active item is removed. */
   async function handleRemoveItemConfirm({ reason, custom_reason, loss_option, refund_option, refund_amount, ingredient_losses }) {
     if (!removingItem) return;
     try {
@@ -328,6 +335,7 @@ export default function OrdersPage({ embedded = false }) {
     }
   }
 
+  /** Maps tender and discounts to fetched stored item IDs before the pending-to-accepted transaction. */
   async function handleAcceptPaymentConfirm({ amount_paid, discount_type, promo_mode, promo_value, discount_id_no, senior_id_no, pwd_id_no, discount_label, item_discounts, payment_method, reference_no }) {
     if (!acceptingOrder) return;
     // Defense in depth: never settle discounts against unloaded lines —
@@ -375,8 +383,8 @@ export default function OrdersPage({ embedded = false }) {
         },
       });
       toast.success(`Order ${orderNumberLabel(acceptingOrder.order_number)} accepted`);
-      // Settle the cached detail before printing so on-screen state matches
-      // the fresh DB snapshot the receipt fetches.
+      // Attempt a detail refresh after acceptance; refresh failure is tolerated before printing.
+      // The print flow fetches its own receipt rather than using this cached detail.
       await queryClient.refetchQueries({ queryKey: orderKeys.detail(acceptingOrder.order_id) }).catch(() => {});
       if (shouldAutoPrint()) printReceipt(acceptingOrder.order_id);
       setAcceptingOrder(null);
@@ -422,6 +430,7 @@ export default function OrdersPage({ embedded = false }) {
 
   // KPI status drill-down: picking a card jumps to All scope with that
   // status (lookup action); toggling off stays in All unfiltered.
+  /** Treats a KPI click as a history lookup, switching to All scope and resetting pagination. */
   function handleStatusClick(status) {
     setStatusFilter(status);
     // Also clear the modal filter so they don't conflict
@@ -430,6 +439,7 @@ export default function OrdersPage({ embedded = false }) {
     setPage(1);
   }
 
+  /** Applies toolbar sort/filter intent and restarts paging for the new result set. */
   function handleFilterApply(sort, filters) {
     setActiveSort(sort);
     setActiveFilters(filters);

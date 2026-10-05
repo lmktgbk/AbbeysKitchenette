@@ -71,6 +71,7 @@ const HISTORY_FILTER_OPTIONS = [
   },
 ];
 
+/** Coordinates tab-scoped paginated queries and mutations; inventory allocation remains server-owned. */
 export default function BatchListModal({ open, onOpenChange, ingredient }) {
   const mutations = useIngredientMutations();
   const [activeTab, setActiveTab] = useState("batches");
@@ -137,6 +138,7 @@ export default function BatchListModal({ open, onOpenChange, ingredient }) {
     { enabled: open && !!ingredient?.ingredient_id && activeTab === "history" },
   );
 
+  // These wrappers add dialog feedback; the query module owns successful-write cache invalidation.
   const priorityMutation = {
     mutate: ({ batchId, isPriority }) =>
       mutations.togglePriority.mutate(
@@ -163,7 +165,7 @@ export default function BatchListModal({ open, onOpenChange, ingredient }) {
   const totalBatches = batchesData?.data?.totalItems ?? 0;
   const fifoLeaderBatchId = batchesData?.data?.fifoLeaderBatchId ?? null;
 
-  // Derive FIFO vs manual mode: FIFO mode when priority batch IS the FIFO leader
+  // Derive the indicator from priority rows on the current page and the server’s FIFO leader ID.
   const priorityBatch = batches.find((b) => b.is_priority);
   const isFifoMode = priorityBatch
     ? priorityBatch.batch_id === fifoLeaderBatchId
@@ -315,6 +317,7 @@ export default function BatchListModal({ open, onOpenChange, ingredient }) {
 
 /* ── Batches Tab ───────────────────── */
 
+/** Renders one fetched batch page, delegating priority changes to the parent. */
 function BatchesTab({ batches, isLoading, ingredient, onTogglePriority, isPriorityLoading }) {
 
   if (isLoading) {
@@ -380,6 +383,7 @@ function BatchesTab({ batches, isLoading, ingredient, onTogglePriority, isPriori
 
 /* ── Batch Row ─────────────────────── */
 
+/** Displays stored batch balances/costs and its priority action; it does not calculate stock allocation. */
 function BatchRow({ batch, ingredient, onTogglePriority, isPriorityLoading }) {
   const unit = ingredient.unit;
   const remaining = batch.quantity_left;
@@ -471,6 +475,7 @@ function BatchRow({ batch, ingredient, onTogglePriority, isPriorityLoading }) {
 
 /* ── Batch Expiry Cell (BR-05) ───────── */
 
+/** Owns one batch’s editable expiry draft; query invalidation refreshes persisted values after save. */
 function BatchExpiryCell({ batch, ingredientId }) {
   const mutations = useIngredientMutations();
   const [editing, setEditing] = useState(false);
@@ -484,6 +489,7 @@ function BatchExpiryCell({ batch, ingredientId }) {
     setDraft(batch.expiry_date ?? "");
   }
 
+  /** Uses null to remove expiry tracking; a failed save retains the editor and its draft. */
   async function handleSave() {
     try {
       await mutations.updateExpiry.mutateAsync({
@@ -554,6 +560,7 @@ function BatchExpiryCell({ batch, ingredientId }) {
 
 /* ── History Tab ───────────────────── */
 
+/** Displays the fetched adjustment-history page without reconstructing inventory totals. */
 function HistoryTab({ history, isLoading, unit }) {
   if (isLoading) {
     return (
@@ -612,6 +619,7 @@ const TYPE_CONFIG = {
   },
 };
 
+/** Formats one persisted adjustment with the ingredient’s measurement unit. */
 function HistoryRow({ entry, unit }) {
   const config = TYPE_CONFIG[entry.adjustment_type] || TYPE_CONFIG.manual;
   const isPositive = entry.quantity_changed > 0;
