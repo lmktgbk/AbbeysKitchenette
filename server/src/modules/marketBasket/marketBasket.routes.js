@@ -19,11 +19,12 @@ const router = Router();
  * the server auto-assigns the system-owned Bundles/Bundle subcategory.
  */
 
+/** Read an ML resource through the shared authenticated transport and API envelope. */
 function proxyGet(res, path, fallbackCode) {
   return proxyMl(res, path, { serviceLabel: "MBA", fallbackCode, okMessage: "Success" });
 }
 
-/** Map validated API query names to the Python contract for both synchronous and queued analysis. */
+/** Map validated API query names to the Python queued-analysis contract. */
 function analysisPath(query) {
   const { minSupport, minConfidence, topN } = query || {};
   let path = "/mba/analyze?";
@@ -61,7 +62,7 @@ router.get(
 );
 
 // GET /api/market-basket/jobs/:id — get job with rules (arms the
-// server-side job watcher while running, so clients stop polling).
+// server-side job watcher while running; clients retain a polling fallback).
 router.get(
   "/jobs/:id",
   authenticate,
@@ -79,7 +80,8 @@ router.get(
   },
 );
 
-// GET /api/market-basket/analyze (sync) — backward-compatible synchronous analysis
+// Legacy GET forwarding is incompatible with Python's POST-only analysis route.
+// Current callers must use POST above; this legacy path returns upstream 405.
 router.get(
   "/analyze",
   authenticate,

@@ -1106,3 +1106,17 @@ Fourteen isolated MBA cases plus 28 existing ML cases passed on 2026-10-05.
 Seeded detail/pricing comparisons and SELECT/parameter comparison also passed.
 Live cases above and real PostgreSQL query execution remain **NOT RUN** for this
 batch; no schema migration was introduced.
+# Final ML integration review (2026-10-05)
+
+- Automated baseline: 854 Vitest tests passed, 119 skipped; client build/lint,
+  source-layout check, 42 Python regressions and 22 ML source compilations passed.
+- Isolated PostgreSQL ML reliability checks passed using a disposable schema;
+  no public business rows were modified. Hosted behavior remains **Not verified**.
+- [ ] Verify the current POST market-basket analysis flow in the browser, including
+  refresh/reconnection, completion and failed-job recovery.
+- [ ] Resolve the legacy GET `/api/market-basket/analyze` contract before relying
+  on it: its upstream Python route accepts POST only. Current UI uses POST.
+- [ ] Review the maintained holiday inputs against actual operating days and
+  official dates; calendar completeness and model accuracy are **Not verified**.
+- [ ] Repair/recreate the local ML virtual environment before using its launcher;
+  automated checks used compatible bundled Python with existing packages.

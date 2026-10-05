@@ -185,3 +185,43 @@ recovery remain **Not verified** for this batch. Verification continues to use t
 compatible Python runtime plus existing packages; the old venv launcher is not
 repaired. Remaining work is a final ML integration/documentation review and broader
 regression, followed by the consolidated manual acceptance.
+
+## Final integration review — 2026-10-05
+
+The holiday module now documents its actual coverage and host-year boundary,
+without changing dates or model behavior. Its executable AST matches the prior
+version. Calendar completeness and current official holiday dates remain **Not
+verified**. Route comments now describe fallback polling and failed history jobs
+accurately; no endpoint behavior changed in this documentation pass.
+
+Broader verification passed: 854 Vitest tests (119 skipped), client production
+build and ESLint, shared-source deployment layout, all 42 Python regressions,
+and compilation of 22 ML source modules. Skipped tests are not passing evidence.
+The existing virtual-environment launcher remains broken; Python checks used the
+compatible bundled Python 3.12 runtime with the existing installed packages.
+
+The isolated PostgreSQL reliability script also passed: legacy UUID migration,
+20 concurrent admissions across two pools, expired-owner recovery, MBA rollback
+and publication, stale-owner protection, atomic forecast metrics/status, and
+empty/failing forecast pipeline handling. Only its randomly named disposable
+schema was modified, then removed. This does not verify hosted operation or every
+database-dependent test skipped by the ordinary suite.
+
+The seven opt-in backend/Python PostgreSQL integration tests also passed, covering
+report, reorder, waste and automation transaction behavior plus the cross-language
+durable effect contract. Their fixture creates and removes a separate disposable
+schema; this run does not replace the other 112 skipped database tests.
+
+An existing integration mismatch remains: authenticated admin GET
+`/api/market-basket/analyze` forwards GET to `/mba/analyze`, but Python exposes
+only POST there. Expected upstream response is 405; that live HTTP response is
+**Not verified** in this pass. The current frontend uses POST through its queued,
+durably audited mutation flow. Do not change the legacy GET into an unaudited
+job-starting action merely to suppress the error. Deprecate it with an explicit
+405/Allow response, or define and test a deliberate compatibility contract in a
+separate functional change.
+
+Live browser workflows, provider delivery, hosted/Linux worker recovery, load
+limits and model accuracy remain manual/deployment acceptance work. The final
+checklist is the source for those pending cases; these results do not establish
+production readiness or zero regressions.

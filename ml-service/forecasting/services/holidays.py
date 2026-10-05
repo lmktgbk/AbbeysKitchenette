@@ -1,8 +1,8 @@
-"""Philippine holidays for Prophet so dips don't bend the trend.
+"""Maintained calendar inputs for Prophet's learned holiday effects.
 
-Regular holidays close shops (demand drops); special non-working days
-dip partially. Prophet learns the effect instead of shifting trend.
-Years are explicit — extend the list as new proclamations come out.
+These dates do not establish store closures or the direction of demand changes.
+The explicit list is not an automatically updated official holiday calendar;
+review proclamations before extending or relying on coverage for a new year.
 """
 
 import pandas as pd
@@ -34,7 +34,12 @@ MOVABLE = [
 
 
 def philippine_holidays(years_ahead: int = 1) -> pd.DataFrame | None:
-    """Build Prophet holidays frame spanning data years + forecast tail."""
+    """Expand fixed dates from 2024 through host year plus the requested tail.
+
+    All explicitly listed movable dates are included, even beyond that tail.
+    Duplicate dates keep their first label; the returned frame is date-sorted.
+    This calendar's host-year boundary is separate from sales' Manila dates.
+    """
     import datetime
 
     this_year = datetime.date.today().year

@@ -18,6 +18,7 @@ const router = Router();
  * The Python service handles its own DB queries via asyncpg.
  */
 
+/** Read an ML resource through the shared authenticated transport and API envelope. */
 function proxyGet(res, path, fallbackCode) {
   return proxyMl(res, path, { serviceLabel: "Forecast", fallbackCode, okMessage: "Forecast retrieved" });
 }
@@ -36,7 +37,7 @@ router.post(
 );
 
 // GET /api/forecasting/demand/status — poll progress (arms the server-side
-// job watcher while running, so clients stop polling in Phase 3).
+// job watcher while running; clients retain polling as a delivery fallback).
 router.get(
   "/demand/status",
   authenticate,
@@ -67,7 +68,7 @@ router.get(
   },
 );
 
-// GET /api/forecasting/demand/history — get last 2 completed jobs
+// GET /api/forecasting/demand/history — recent terminal jobs, including failures
 router.get(
   "/demand/history",
   authenticate,
