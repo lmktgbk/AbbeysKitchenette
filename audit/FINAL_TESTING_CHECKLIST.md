@@ -1211,3 +1211,30 @@ HTTP tests use in-memory fixtures; no production database or email was used.
   official dates; calendar completeness and model accuracy are **Not verified**.
 - [ ] Repair/recreate the local ML virtual environment before using its launcher;
   automated checks used compatible bundled Python with existing packages.
+
+## Product image automatic resizing (2026-10-06)
+
+Static JPG/PNG/WebP images larger than 1000 pixels per side are resized in the
+browser with their proportions preserved. No permanent square crop is applied.
+The original selection must remain within 5 MB, 8192 pixels per side and 32
+megapixels. Animated GIF/WebP/APNG bytes are preserved; oversized animations
+require external resizing rather than silently losing frames. The backend
+continues to decode, sanitize and enforce its independent processing limits.
+
+- [ ] Select a large static image: preparation finishes, a resize notice appears,
+  and the saved product displays the image. Cards crop the display only.
+- [ ] While preparation is running, saving (including Enter) cannot submit the
+  unfinished selection. Remove/close does not restore a late decoded image.
+- [ ] Small static images and permitted animations retain their original bytes
+  during browser preparation. Animation remains present after saving.
+- [ ] Corrupt images show a decoding/content error. Direct oversized API uploads
+  return IMAGE_DIMENSIONS_EXCEEDED rather than reporting corruption.
+- [ ] Invalid replacements preserve the previous draft/saved image; successful
+  replacements continue using the existing durable old-asset cleanup workflow.
+
+Verification: 896 automated tests passed, 121 skipped; client lint and production
+build passed. The supplied 5062 x 4824 PNG was processed in a real browser into
+1000 x 953 pixels (129777 bytes) and accepted by the actual backend sanitizer
+(96415 sanitized bytes) through an isolated local harness. No database or
+Cloudinary writes occurred. Full live product saving/provider cleanup remains
+**Not verified** by this harness.

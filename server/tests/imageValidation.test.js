@@ -25,7 +25,11 @@ describe("decoded image boundary", () => {
     await expect(sanitizeImage(await image("jpeg"), file("png"))).rejects.toMatchObject({ code: "INVALID_IMAGE" });
   });
   it("rejects dimensions outside the processing budget", async () => {
-    await expect(sanitizeImage(await image("png", 4097), file("png"))).rejects.toMatchObject({ code: "INVALID_IMAGE" });
+    await expect(sanitizeImage(await image("png", 4097), file("png"))).rejects.toMatchObject({ code: "IMAGE_DIMENSIONS_EXCEEDED" });
+  });
+  it("distinguishes native pixel-budget rejection from corrupt bytes", async () => {
+    const oversized = await sharp({ create: { width: 4097, height: 4097, channels: 3, background: "red" } }).png().toBuffer();
+    await expect(sanitizeImage(oversized, file("png"))).rejects.toMatchObject({ code: "IMAGE_DIMENSIONS_EXCEEDED" });
   });
   it("removes metadata and trailing script bytes by fully re-encoding", async () => {
     const source = await sharp(await image("jpeg")).withExif({ IFD0: { Copyright: "private-fixture" } }).jpeg().toBuffer();

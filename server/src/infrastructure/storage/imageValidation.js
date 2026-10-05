@@ -32,8 +32,11 @@ export async function sanitizeImage(buffer, file, { allowed = IMAGE_POLICIES.pro
     const meta = await image.metadata();
     // Include all animation frames in the pixel budget to bound decompression memory.
     const height = meta.pageHeight || meta.height;
-    if (meta.format !== format || !meta.width || !height || meta.width > 4096 || height > 4096 || (meta.pages || 1) > 50 || meta.width * height * (meta.pages || 1) > 16777216) {
-      throw new AppError(400, "Invalid image content or dimensions", "INVALID_IMAGE");
+    if (meta.format !== format || !meta.width || !height) {
+      throw new AppError(400, "Invalid image content", "INVALID_IMAGE");
+    }
+    if (meta.width > 4096 || height > 4096 || (meta.pages || 1) > 50 || meta.width * height * (meta.pages || 1) > 16777216) {
+      throw new AppError(400, "Image exceeds processing limits. Use at most 4096 pixels per side and fewer animation frames.", "IMAGE_DIMENSIONS_EXCEEDED");
     }
     // Preserve animations and alpha; Sharp omits source metadata unless explicitly requested.
     if ((meta.pages || 1) === 1) image.autoOrient();
@@ -42,6 +45,11 @@ export async function sanitizeImage(buffer, file, { allowed = IMAGE_POLICIES.pro
     return clean;
   } catch (error) {
     if (error instanceof AppError) throw error;
+    // Sharp checks the pixel budget before returning metadata. Preserve that
+    // reason without exposing native decoder details or weakening the cap.
+    if (error.message === "Input image exceeds pixel limit") {
+      throw new AppError(400, "Image exceeds the pixel limit. Resize it to at most 4096 pixels per side or reduce animation frames.", "IMAGE_DIMENSIONS_EXCEEDED");
+    }
     throw new AppError(400, "Image could not be decoded", "INVALID_IMAGE");
   } finally {
     // Release capacity on every exit, including decode failures and size rejection.

@@ -57,6 +57,7 @@ export default function ProductFormModal({
   const [imageFile, setImageFile] = useResettableState(null, [open, isEdit, product]);
   const [imagePreview, setImagePreview] = useResettableState(product?.image_url || null, [open, isEdit, product]);
   const imageGuidelinesId = useId();
+  const [imageProcessing, setImageProcessing] = useResettableState(false, [open, isEdit, product]);
 
   const {
     register,
@@ -96,7 +97,8 @@ export default function ProductFormModal({
 
   /** Sends metadata and file intent together; remote asset replacement/cleanup belongs to the API. */
   async function handleFormSubmit(data) {
-    if (ingredientsLoading || ingredientsError) return;
+    // Enter-key submissions must also wait for the replacement image bytes.
+    if (imageProcessing || ingredientsLoading || ingredientsError) return;
     let imageUrl = data.image_url || null;
 
     // An explicit removal clears the saved URL; choosing a replacement instead sends its file.
@@ -214,6 +216,7 @@ export default function ProductFormModal({
                     }}
                     previewUrl={imagePreview}
                     describedBy={imageGuidelinesId}
+                    onProcessingChange={setImageProcessing}
                   />
                   {/* Let expanded guidance grow naturally rather than clipping it
                       to the description's height or introducing another scrollbar. */}
@@ -226,7 +229,7 @@ export default function ProductFormModal({
                     <p>Recommended: square 1000 × 1000 px</p>
                     <details>
                       <summary className="w-fit cursor-pointer rounded focus-visible:outline-2 focus-visible:outline-primary">More details</summary>
-                      <p className="mt-1">Maximum 4096 pixels per side. Non-square images are cropped to fit product cards.</p>
+                      <p className="mt-1">Static images are resized automatically to fit 1000 pixels per side, preserving proportions. Source limit: 8192 pixels per side and 32 megapixels. Animated images are preserved and must fit the server's 4096-pixel and frame limits. Product cards crop the display only.</p>
                     </details>
                   </aside>
                 </div>
@@ -290,7 +293,7 @@ export default function ProductFormModal({
               <Button type="button" variant="outline" onClick={handleClose}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isLoading || ingredientsLoading || ingredientsError}>
+              <Button type="submit" disabled={isLoading || imageProcessing || ingredientsLoading || ingredientsError}>
                 {isLoading
                     ? isEdit
                       ? "Saving..."
