@@ -71,3 +71,27 @@ analytics tables or downloads. Live analytics filtering, pagination, and Excel/P
 exports remain **Not verified** for this batch. No server/API/schema change or
 migration is required. Existing Router.jsx and automation repository edits were
 preserved outside this commit.
+
+
+## Batch 3 — session and realtime responsibilities
+
+- Documented the browser-local session epoch and stale-401 protection, cache
+  clearing for new operators, and same-operator credential rotation.
+- Clarified logout success/already-unauthorized behavior versus failed revocation,
+  AuthProvider restore-error behavior, and HttpOnly credential ownership.
+- Explained connection-instance guards, timer shutdown, retained subscriptions,
+  rejoin acknowledgements, jittered reconnect, and final-handler unsubscribe.
+- Corrected claims that realtime disables all polling, that VITE_REALTIME=off
+  automatically restores polling, and that auth state contains a token.
+- Corrected the server emitter path and inventory subscription scope: ingredient
+  queries are refreshed, while separately keyed advisory lists are not included.
+- Updated order/query-default comments to describe actual caller polling overrides.
+
+Verification: final normalized syntax trees match HEAD for all 12 modified source
+files. Production build and ESLint passed; all 52 client-focused tests passed,
+including session-switch/late-401 and socket reconnect/shutdown cases. The final
+two header edits also passed the syntax-tree comparison. No functions, timings,
+cache keys, access decisions, or fallback behavior changed. Live multi-tab session
+rotation, hosted cookies/WebSockets, and browser acceptance remain **Not verified**.
+Existing Router.jsx and server automation formatting edits remain outside this
+commit. No migration is required.

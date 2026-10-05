@@ -1,21 +1,9 @@
 /**
- * Realtime Socket — shared WebSocket singleton (native `ws` protocol).
- *
- * WHY it exists: one persistent connection per device replaces every client
- * poll timer. Sockets carry INVALIDATIONS only ({ topic, entity, id, at });
- * subscribers refetch through existing REST + TanStack Query, so the DB
- * stays source of truth and dropped/duplicated messages are harmless.
- *
- * Resilience: exponential-backoff reconnect (1s → 30s cap), client heartbeat
- * (ping every 20s, 5s pong timeout), auto-resubscribe on reconnect, and a
- * connection-status feed for the Live-dot. Set VITE_REALTIME=off to keep
- * today's polling behavior byte-for-byte (per-phase kill-switch).
- *
- * Usage:
- *   import { subscribeRealtime, realtimeStatus } from "@/realtime/socket";
- *   useEffect(() => subscribeRealtime("orders", () => {
- *     queryClient.invalidateQueries({ queryKey: ["orders"] });
- *   }), []);
+ * One WebSocket per browser module context carries topic invalidations, not
+ * authoritative business records. Subscribers refetch through REST after events
+ * and subscription acknowledgements, including when reconnecting after an outage.
+ * Reconnect uses capped backoff/jitter and a heartbeat. VITE_REALTIME=off disables
+ * this transport; it does not add polling to queries that have no polling policy.
  */
 
 import { useSyncExternalStore } from "react";
@@ -25,6 +13,7 @@ const MAX_BACKOFF_MS = 30000;
 const PING_MS = 20000;
 const PONG_TIMEOUT_MS = 5000;
 
+/** Use an explicit socket URL or derive /ws from the API origin for separately hosted frontend/backend deployments. */
 function wsUrl() {
   if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL;
   // A separately hosted SPA must connect to its API, not the Vercel frontend host.
@@ -49,6 +38,7 @@ export function realtimeStatus() {
   return status;
 }
 
+/** Subscribe React views to connection status without placing sockets or timers in component state. */
 export function useRealtimeStatus() {
   return useSyncExternalStore(
     (fn) => {
@@ -82,12 +72,14 @@ function send(obj) {
   return false;
 }
 
+/** Rejoin every locally registered topic on a new connection; server acknowledgements trigger data reconciliation. */
 function flushSubscriptions() {
   for (const topic of subscriptions.keys()) {
     send({ type: "subscribe", topic });
   }
 }
 
+/** Replace heartbeat timers; a missing pong closes the connection so the close handler can schedule recovery. */
 function armHeartbeat() {
   clearInterval(pingTimer);
   clearTimeout(pongTimer);
@@ -104,6 +96,7 @@ function armHeartbeat() {
   }, PING_MS);
 }
 
+/** Maintain one pending reconnect with jitter, capped at thirty seconds; stopRealtime cancels admission. */
 function scheduleReconnect() {
   clearTimeout(reconnectTimer);
   setStatus("reconnecting");
@@ -114,6 +107,7 @@ function scheduleReconnect() {
   }, Math.min(MAX_BACKOFF_MS, backoffMs * (0.8 + Math.random() * 0.4)));
 }
 
+/** Bind callbacks to this connection instance so events from a replaced session socket are ignored. */
 function connect() {
   if (!ENABLED || typeof WebSocket === "undefined") return;
   let current;
@@ -181,6 +175,7 @@ function connect() {
   };
 }
 
+/** Idempotently start the enabled transport; subscriptions can request startup independently of the status indicator. */
 export function startRealtime() {
   if (started || !ENABLED) return;
   started = true;
@@ -188,12 +183,15 @@ export function startRealtime() {
   connect();
 }
 
+/** Stop timers and detach the active connection; retain topic registrations for a later credential refresh. */
 export function stopRealtime() {
   started = false;
   clearTimeout(reconnectTimer);
   clearInterval(pingTimer);
   clearTimeout(pongTimer);
   const previous = socket;
+  // Detach before closing: the previous socket's asynchronous callbacks must
+  // not schedule a reconnect or deliver events after a session switch.
   socket = null;
   try {
     previous?.close();
@@ -204,7 +202,8 @@ export function stopRealtime() {
 
 /**
  * Subscribe to a topic. Returns an unsubscribe function.
- * Auto-connects on first use; resubscribes automatically on reconnect.
+ * Multiple handlers share one server subscription. The final unsubscribe
+ * removes the topic; stopping the connection alone retains these handlers.
  */
 export function subscribeRealtime(topic, handler) {
   startRealtime();

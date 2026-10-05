@@ -1,8 +1,9 @@
 /**
- * AuthProvider — session restore via TanStack Query (Rule of Thumb: /auth/me is API data).
- * WHY Query instead of a raw fetch in useEffect: dedupes StrictMode double-mount,
- * caches ["auth","me"] for Devtools, and keeps retry/stale semantics in one place.
- * Syncs into Zustand authStore (global UI: user/loading) for ProtectedRoute/PublicRoute guards.
+ * Restore the public user profile through the auth query and mirror it into
+ * Zustand for route rendering. The browser sends the HttpOnly cookie; this
+ * provider neither reads credentials nor establishes backend permission.
+ * Auth results stay fresh until explicitly invalidated or replaced by session
+ * helpers. Every restore error currently publishes signed-out UI state.
  */
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";

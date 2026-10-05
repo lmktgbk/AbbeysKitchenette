@@ -2,6 +2,7 @@ import { toast } from "sonner";
 import { logoutRequest } from "./api";
 import { clearSession } from "./session";
 
+/** Clear local identity after successful logout or an already-unauthorized response; return false on other failures. */
 export async function logoutSession() {
   try {
     await logoutRequest();
@@ -16,6 +17,7 @@ export async function logoutSession() {
   return true;
 }
 
+/** Expose the shared logout operation to navigation components without duplicating its failure policy. */
 export default function useLogout() {
   return logoutSession;
 }

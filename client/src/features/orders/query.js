@@ -1,7 +1,8 @@
 /**
- * Orders Queries — owns POS / kitchen / guest order hooks + all order mutations.
- * WHY: single place for live order updates and cross-feature invalidation (orders + shifts). Keys: ["orders", ...] (list(params), stats, detail(id), kitchen batches, kitchen list) refreshed by server-pushed invalidations (realtime/subscriptions); guest order still polls 15s until Phase 2; mutations invalidate ["orders"] (+ shiftKeys.all on sales-affecting writes).
- * State: TanStack Query hooks + local checked-items Map in useKitchenDisplay; invalidation via useQueryClient.
+ * Order queries own POS, kitchen, and guest cache access and mutations. Screen
+ * subscriptions invalidate these keys after server events; the guest menu may
+ * additionally use a caller-supplied polling interval. Kitchen checkmarks are
+ * local UI state. Financial mutations also refresh related shift queries.
  */
 
 import { useState, useMemo, useCallback } from "react";

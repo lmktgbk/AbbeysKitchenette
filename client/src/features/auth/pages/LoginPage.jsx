@@ -3,7 +3,8 @@
  * WHY it exists: dedicated staff entry point with forgot-password self-service.
  * Query keys consumed: none (auth uses direct API + EmailForm mutation).
  * Guards: public route with authenticated-redirect.
- * State: Query [] | local [] | Zustand [user/token via useAuthStore inside EmailForm].
+ * Session state is published by EmailForm after server confirmation; credentials
+ * remain in HttpOnly cookies rather than Zustand.
  */
 import { Link } from "react-router-dom";
 import AuthBranding from "../components/AuthBranding";

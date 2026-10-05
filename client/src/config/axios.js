@@ -14,6 +14,8 @@ const api = axios.create({
   },
 });
 
+// Capture identity generation at dispatch. A delayed failure from a previous
+// operator must not clear the next operator's successfully established session.
 api.interceptors.request.use(config => {
   config.sessionEpoch = getSessionEpoch();
   return config;
@@ -26,6 +28,8 @@ api.interceptors.response.use(
     if (error.response?.status === 401 &&
         ["UNAUTHORIZED", "TOKEN_EXPIRED"].includes(error.response.data?.error) &&
         error.config?.sessionEpoch === getSessionEpoch() && useAuthStore.getState().user) {
+      // Only the server's session-expiry codes trigger global cleanup. Other
+      // 401 errors (for example a rejected recovery action) stay with their caller.
       void clearSession();
     }
     return Promise.reject(error);

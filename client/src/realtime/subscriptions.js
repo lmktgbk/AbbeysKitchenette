@@ -1,33 +1,8 @@
 /**
- * Realtime Subscriptions — topic-to-query mappings (Phase 1).
- *
- * WHY it exists: one place declaring which screens listen to which
- * server topics. Events carry invalidations only; each handler refetches
- * through the existing TanStack Query keys, so UI logic never changes and
- * the DB stays source of truth. Mount the hook for the screen you render:
- *
- *   OrdersPage .......... useOrdersRealtime + useLedgerRealtime
- *   KitchenDisplay ...... useKitchenRealtime
- *   NotificationBell .... useNotificationsRealtime (admin bell)
- *   InventoryPage ....... useInventoryRealtime
- *   PosInterface ........ useOrdersRealtime (pending feed) + useProductsRealtime (menu)
- *   ProductGrid ......... useProductsRealtime
- *   ShiftBanner ......... useShiftsRealtime
- *   TransactionsView .... useLedgerRealtime
- *
- * Server emit points mirror this file (server/src/realtime/events.js,
- * auditLogService.logAction, anomaly scans).
- * Guest menu stays mount-fresh (no public availability topic).
- *
- * Phase 2 mounts:
- *   DashboardPage ....... useDashboardRealtime
- *   AnomalyPage ......... useAnomalyRealtime
- *   StaffPage ........... useStaffRealtime
- *   AuditLogsPage ....... useAuditRealtime
- *   SettingsPage ........ useSettingsRealtime
- *   ShiftsView .......... useShiftsRealtime
- *   ShiftDetailDrawer ... useShiftsRealtime + useOrdersRealtime
- *   TrackingPage ........ useGuestRealtime(token)
+ * Screen-scoped topic subscriptions map server invalidations to existing query
+ * prefixes. Mounting a hook registers handlers; unmounting removes only those
+ * handlers. The server authorizes each subscription, and REST authorizes refetches.
+ * Server emitters live in server/src/infrastructure/realtime/events.js.
  */
 
 import { useEffect } from "react";
@@ -35,6 +10,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { subscribeRealtime } from "./socket";
 import { invalidateTopicQueries, productRefreshKeys } from "./queryInvalidation";
 
+/** Subscribe static screen mappings once per query client; callers must not pass changing filter-dependent arrays. */
 function useTopics(topics, keys) {
   const queryClient = useQueryClient();
   useEffect(() => {
@@ -64,7 +40,7 @@ export function useNotificationsRealtime() {
   useTopics(["notifications:all"], [["notifications"]]);
 }
 
-/** Stock screens, batches, reorder/waste lists. */
+/** Refresh ingredient-prefixed stock queries; advisory lists use separate keys and are not included here. */
 export function useInventoryRealtime() {
   useTopics(["inventory"], [["ingredients"]]);
 }
@@ -111,7 +87,8 @@ export function useSettingsRealtime() {
 
 /**
  * Guest order tracking (public, token-gated — possession authorizes).
- * Replaces the 15s useGuestOrder poll.
+ * Refetches guest-prefixed queries on tracking events and rejoin acknowledgements;
+ * changing the token removes the previous topic handler before subscribing again.
  */
 export function useGuestRealtime(token) {
   const queryClient = useQueryClient();

@@ -1,7 +1,8 @@
 /**
- * QueryClient — owns global TanStack Query defaults.
- * WHY: single place for global staleTime 5m + retry 1 + refetchOnWindowFocus false; per-query overrides (e.g. 30s KPIs, 15s/5s live feeds, 2s job polling) live in feature query modules and take precedence.
- * State: TanStack Query client shared via QueryClientProvider in App.jsx.
+ * Shared query defaults: five-minute freshness, one retry, and no window-focus
+ * refetch. Feature hooks override these policies where needed. Realtime events
+ * invalidate matching query prefixes; disabling realtime does not create a
+ * polling fallback through this configuration.
  */
 import { QueryClient } from "@tanstack/react-query";
 

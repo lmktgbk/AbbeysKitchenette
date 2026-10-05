@@ -17,7 +17,8 @@ import {
 /**
  * Profile mutations hook.
  * Returns mutations for updating profile, changing password, and uploading image.
- * All mutations invalidate auth queries and update the Zustand store on success.
+ * Profile/image saves refresh the auth query; password/email confirmation
+ * restores the returned session profile and reconnects with the rotated cookie.
  */
 export function useProfileMutations() {
   const queryClient = useQueryClient();
@@ -50,6 +51,8 @@ export function useProfileMutations() {
   const changePassword = useMutation({
     mutationFn: changePasswordRequest,
     onSuccess: (res) => {
+      // The same operator receives renewed credentials. Keep feature data,
+      // but replace the auth cache and the socket's server-side identity.
       restoreSession(res.data.user);
       toast.success("Password changed");
     },

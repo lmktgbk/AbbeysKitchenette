@@ -1,9 +1,8 @@
 /**
  * AdminLoginPage — standalone admin login (email + password + OTP).
- * WHY it exists: separate from staff login; only entry with forgot-password link, reached
- * directly via /admin-login. Query keys consumed: none (direct auth API via EmailForm).
- * Guards: public admin-only route; no BR-02 shift gate.
- * State: Query [] | local [] | Zustand [user/token via useAuthStore inside EmailForm].
+ * Reached through /admin-login with direct auth requests via EmailForm.
+ * PublicRoute redirects existing sessions; the backend enforces admin login
+ * permission and OTP verification. Credentials remain in HttpOnly cookies.
  */
 import { Link } from "react-router-dom";
 import AuthBranding from "../components/AuthBranding";
