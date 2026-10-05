@@ -7,6 +7,8 @@ import Icon from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import gcashLogo from "@/assets/gcash-logo.png";
 import mayaLogo from "@/assets/maya_logo.png";
+import PosDiscountLine from "./PosDiscountLine";
+import { SegButton, MethodCard } from "./PosPaymentControls";
 
 /**
  * Tender chips — Exact first, then common bills, then Clear.
@@ -23,36 +25,28 @@ const DISCOUNT_OPTIONS = [
   { value: "promo", label: "Promo" },
 ];
 
-// Per-item picker — compact labels to fit inside each order-line card.
-const ITEM_DISCOUNT_OPTIONS = [
-  { value: "none", label: "None" },
-  { value: "senior", label: "SNR 20%" },
-  { value: "pwd", label: "PWD 20%" },
-  { value: "promo", label: "Promo" },
-];
-
 const PAYMENT_METHODS = [
   { value: "cash", label: "Cash", hint: "Bills & coins", icon: "banknote" },
   { value: "gcash", label: "GCash", hint: "E-wallet", logo: gcashLogo },
   { value: "maya", label: "Maya", hint: "E-wallet", logo: mayaLogo },
 ];
 
+/** Rounds display and tender amounts to cents; the API recomputes authoritative totals. */
 function roundMoney(n) {
   return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 }
 
-function hideBrokenImage(e) {
-  e.currentTarget.style.display = "none";
-}
-
+/** Creates independent discount intent for a line when the dialog opens or gains items. */
 function blankLineState() {
   return { type: "none", promoMode: "percent", promoValue: "", promoLabel: "" };
 }
 
+/** Quotes the undiscounted line from its displayed price and quantity. */
 function lineSubtotalOf(item) {
   return roundMoney(Number(item.unit_price) * item.quantity);
 }
 
+/** Quotes one exclusive discount, capping promo values to the line’s subtotal. */
 function lineDiscountOf(lineSubtotal, line) {
   if (line.type === "senior" || line.type === "pwd") {
     const amt = roundMoney((lineSubtotal * 20) / 100);
@@ -70,69 +64,12 @@ function lineDiscountOf(lineSubtotal, line) {
 }
 
 /**
- * SegButton — one option inside a segmented control.
- * Active option is unmistakable: solid primary + semibold.
- */
-function SegButton({ active, onClick, className, children }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "cursor-pointer rounded-lg px-2 text-xs transition-colors",
-        active
-          ? "bg-primary font-semibold text-primary-foreground shadow-sm"
-          : "font-medium text-muted-foreground hover:bg-background hover:text-foreground",
-        className,
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-/**
- * MethodCard — one payment method in the 3-across row.
- * Logo/icon on top, label below, check badge when selected.
- */
-function MethodCard({ active, onClick, method }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "relative cursor-pointer rounded-lg border px-2 py-2 text-center transition-colors",
-        active
-          ? "border-primary bg-primary/5"
-          : "border-border hover:border-muted-foreground/40 hover:bg-muted/50",
-      )}
-    >
-      {active && (
-        <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
-          <Icon name="check" size={10} />
-        </span>
-      )}
-      <span className="flex h-6 items-center justify-center">
-        {method.logo ? (
-          <img src={method.logo} alt={method.label} onError={hideBrokenImage} className="h-5 w-auto object-contain" />
-        ) : (
-          <Icon name={method.icon} size={18} className="text-muted-foreground" />
-        )}
-      </span>
-      <span className={cn("mt-1 block text-xs", active ? "font-semibold" : "font-medium text-muted-foreground")}>
-        {method.label}
-      </span>
-    </button>
-  );
-}
-
-/**
  * PosPaymentModal — cashier tender screen.
  *
  * Per-item discounts: each order line carries at most ONE discount
  * (None / Senior 20% / PWD 20% / manual Promo % or ₱). Different lines may
  * carry different types (e.g. pwd lines + regular lines in one order), but a
- * line that already has one discount locks out the other two for that line.
+ * changing a line’s type replaces its discount rather than stacking discounts.
  * Senior/PWD are fixed 20% of their own line; promo is manual per line.
  * Order total = Σ net lines. Server re-prices and re-computes everything —
  * this modal only collects intent.
@@ -224,6 +161,7 @@ export default function PosPaymentModal({
     setExpandedIdx(null);
   }
 
+  /** Patches one line without changing the other lines’ discount selections. */
   function setLineField(idx, patch) {
     setLineDiscounts((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
   }
@@ -297,6 +235,7 @@ export default function PosPaymentModal({
     paymentMethod === "cash" ? tenderOk && total >= 0 : referenceNo.trim().length > 0;
   const isValid = discountValid && paymentValid && total >= 0;
 
+  /** Sends discount and tender intent to the caller, which owns submission and retries. */
   function handleConfirm() {
     if (!isValid || linesLoading || linesError) return;
     if (hasLines) {
@@ -383,103 +322,12 @@ export default function PosPaymentModal({
                     const badge =
                       line.type === "senior" ? "SNR 20%" : line.type === "pwd" ? "PWD 20%" : line.type === "promo" ? "Promo" : null;
                     return (
-                      <div
+                      <PosDiscountLine
                         key={`${item.order_item_id ?? item.variant_id ?? idx}-${idx}`}
-                        className="border-b border-border/50 px-3 py-2 last:border-0"
-                      >
-                        <div className="flex items-center justify-between gap-2 text-xs">
-                          <span className="min-w-0 truncate font-medium">
-                            {item.product_name}
-                            {item.size_name && <span className="text-muted-foreground"> ({item.size_name})</span>}
-                            <span className="text-muted-foreground"> ×{item.quantity}</span>
-                          </span>
-                          <span className="flex shrink-0 items-center gap-1.5 font-semibold">
-                            {!expanded && badge && (
-                              <span className="rounded-full bg-green-600/10 px-1.5 py-0.5 type-caption font-semibold text-green-600 dark:text-green-400">
-                                {badge} −₱{calc.amount.toLocaleString()}
-                              </span>
-                            )}
-                            <span>
-                              ₱{calc.base.toLocaleString()}
-                              {(expanded || !badge) && calc.amount > 0 && (
-                                <span className="ml-1 font-medium text-green-600 dark:text-green-400">
-                                  −₱{calc.amount.toLocaleString()}
-                                </span>
-                              )}
-                            </span>
-                            <button
-                              type="button"
-                              aria-expanded={expanded}
-                              aria-label={expanded ? `Hide discount options for ${item.product_name}` : `Add discount for ${item.product_name}`}
-                              onClick={() => setExpandedIdx(expanded ? null : idx)}
-                              className={cn(
-                                "flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-                                expanded && "bg-muted text-foreground",
-                              )}
-                            >
-                              <Icon name="chevronDown" size={14} className={cn("transition-transform", expanded && "rotate-180")} />
-                            </button>
-                          </span>
-                        </div>
-                        {expanded && (
-                          <>
-                        <div className="mt-1.5 grid grid-cols-4 gap-1 rounded-lg bg-muted p-1">
-                          {ITEM_DISCOUNT_OPTIONS.map((opt) => (
-                            <SegButton
-                              key={opt.value}
-                              active={line.type === opt.value}
-                              onClick={() => {
-                                setLineField(idx, { type: opt.value });
-                                if (opt.value === "none") setExpandedIdx(null);
-                              }}
-                              className="h-7 whitespace-nowrap px-1 type-small"
-                            >
-                              {opt.label}
-                            </SegButton>
-                          ))}
-                        </div>
-                        {line.type === "senior" || line.type === "pwd" ? (
-                          <p className="mt-1 type-small text-muted-foreground">
-                            {line.type === "senior" ? "Senior" : "PWD"} 20% on this item only — locked for this line.
-                          </p>
-                        ) : null}
-                        {line.type === "promo" && (
-                          <div className="mt-1.5 space-y-1.5">
-                            <div className="flex gap-1 rounded-lg bg-muted p-1">
-                              <SegButton
-                                active={line.promoMode === "percent"}
-                                onClick={() => setLineField(idx, { promoMode: "percent" })}
-                                className="h-6 type-small"
-                              >
-                                % off
-                              </SegButton>
-                              <SegButton
-                                active={line.promoMode === "amount"}
-                                onClick={() => setLineField(idx, { promoMode: "amount" })}
-                                className="h-6 type-small"
-                              >
-                                ₱ off
-                              </SegButton>
-                            </div>
-                            <Input
-                              type="number"
-                              min="0"
-                              value={line.promoValue}
-                              onChange={(e) => setLineField(idx, { promoValue: e.target.value })}
-                              placeholder={line.promoMode === "percent" ? "Percent (0–100)" : `Peso amount (max ₱${calc.base.toLocaleString()})`}
-                              className="h-8 text-xs"
-                            />
-                            <Input
-                              value={line.promoLabel}
-                              onChange={(e) => setLineField(idx, { promoLabel: e.target.value })}
-                              placeholder="Promo label (optional)"
-                              className="h-8 text-xs"
-                            />
-                          </div>
-                        )}
-                        </>
-                        )}
-                      </div>
+                        item={item} idx={idx} line={line} calc={calc}
+                        expanded={expanded} badge={badge}
+                        setExpandedIdx={setExpandedIdx} setLineField={setLineField}
+                      />
                     );
                   })}
                 </div>

@@ -117,3 +117,29 @@ cart recovery, checkout, retry, and confirmation browser acceptance remain
 **Not verified** for this batch; use the consolidated FINAL_TESTING_CHECKLIST.md.
 Existing Router.jsx and server automation repository changes are excluded.
 No API, database, or migration change is required.
+
+## Batch 5a — POS payment presentation boundaries
+
+- Extracted PosDiscountLine for the existing per-item discount editor and
+  PosPaymentControls for the existing segmented buttons and method cards.
+- Kept all payment/discount state, render-time resets, line alignment, rounding,
+  totals, validation, and confirmation payload assembly in PosPaymentModal.
+  The modal now has 584 lines instead of 736.
+- Kept GCash/Maya as manual payment records. No gateway behavior was introduced.
+- Added professional function comments explaining state ownership, quote versus
+  authoritative totals, and submission ownership. Corrected a comment implying
+  discount types cannot be switched; switching replaces the current type.
+- Preserved the legacy whole-order fallback because it remains part of the
+  current contract. No generic form framework, custom hook, or duplicate picker
+  implementation was added. Broader form cleanup is still outstanding.
+
+Verification: final structural comparison confirms original function logic is
+unchanged when the extracted component is substituted back into the parent.
+The extracted line markup matches after accounting for uniform indentation and
+moving the list key to the component boundary. Final production build and ESLint
+passed; all 52 existing client-focused regression cases passed. These tests do
+not provide browser-level POS payment/discount coverage. Manual cash/GCash/Maya,
+line discounts, loading/error gates, modal reopen, and receipt reconciliation
+remain **Not verified**; use FLOW-02, FLOW-04, and FLOW-05 in the consolidated
+FINAL_TESTING_CHECKLIST.md. No API/schema/migration change is required.
+Existing Router.jsx and server automation repository edits are excluded.
