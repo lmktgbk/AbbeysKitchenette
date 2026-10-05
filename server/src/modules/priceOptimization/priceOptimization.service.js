@@ -6,6 +6,7 @@ import { generatePriceSuggestions, getCompetitorAverage } from "./priceOptimizat
 import prisma from "../../config/prisma.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 
+/** Resolve once; accepting also updates the observed variant price and saves its audit in the same commit. */
 async function resolveSuggestion(id, status, userId) {
   return prisma.$transaction(async tx => {
     const suggestion = await repo.findById(id, tx);
@@ -18,6 +19,8 @@ async function resolveSuggestion(id, status, userId) {
       if (!Number.isFinite(price) || price <= 0 || price > 99999999.99 || Math.abs(price * 100 - Math.round(price * 100)) > 0.000001) {
         throw new AppError(400, "Recommended price must be positive and fit two decimal places", "INVALID_RECOMMENDED_PRICE");
       }
+      // Compare the observed price and availability before writing. A stale
+      // recommendation rolls back its status claim instead of replacing a newer price.
       const changed = await repo.updateVariantPrice(suggestion.variantId, suggestion.currentPrice, suggestion.recommendedPrice, tx);
       if (changed !== 1) throw new AppError(409, "Product price or availability changed. Refresh and generate a new suggestion", "STALE_PRICE_SUGGESTION");
     }

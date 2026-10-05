@@ -57,13 +57,14 @@ export const anomalyService = {
       const rule = { ...definition, config: { ...definition.config } };
       if (!rule.enabled) continue;
       if (ruleIds && !ruleIds.includes(rule.id)) continue;
-      // Cash drawer is policeman (per-shift) — no 15-min cooldown so back-
-      // to-back closes each flag. Other hook rules keep the throttle.
+      // Each closed shift has its own finding. Do not throttle consecutive
+      // shift closes; other triggered rules retain the in-process cooldown.
+      // The transaction below provides cross-instance duplicate protection.
       if (ruleIds && rule.id !== "shift_variance_spike") {
         const last = this._lastFired.get(rule.id) || 0;
         if (now - last < COOLDOWN_MS) continue;
       }
-      // Policeman path: flag the exact shift(s), one card per shift.
+      // Evaluate the supplied shift or the bounded sweep, with one card per shift.
       if (rule.id === "shift_variance_spike") {
         try {
           const flagged = await this._runShiftVariancePoliceman(rule, context);
@@ -95,6 +96,8 @@ export const anomalyService = {
       }
     }
 
+    // Durable triggers retry an incomplete evaluation rather than acknowledge
+    // partial results. Manual scans retain their existing best-effort behavior.
     if (trigger && evaluationFailed) throw Error("ANOMALY_EVALUATION_FAILED");
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     const saved = [];
@@ -144,8 +147,7 @@ export const anomalyService = {
     return { anomaliesFound: saved.length, elapsedSeconds: Number(elapsed) };
   },
 
-  // Policeman runner for cash drawer: hook context flags one shift,
-  // manual/cron fans out over today's unalarmed mismatched closes (max 5).
+  /** Evaluate the exact closed shift, or at most five unreported mismatched closes from today. */
   async _runShiftVariancePoliceman(rule, context) {
     const out = [];
     const evaluateOne = async (shift) => {

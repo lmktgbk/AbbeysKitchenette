@@ -124,6 +124,8 @@ export const wasteReductionRepository = {
   /**
    * Clear old pending insights and save new ones.
    */
+  // Generation finishes before this method. Replace only pending rows; resolved
+  // history survives. A failed insert or lost scheduler lease rolls back replacement.
   async saveInsights(insights, automation, userId) {
     await prisma.$transaction(async (tx) => {
       // Serialize replacement even when the pending set is empty.

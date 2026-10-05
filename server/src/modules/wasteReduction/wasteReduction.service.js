@@ -80,7 +80,9 @@ export const wasteReductionService = {
       );
     }
 
-    // Step 5: Validate and fix numbers ourselves (don't trust AI math)
+    // Match recommendations to known inventory before recomputing exposure.
+    // Stock and cost come from the database; weekly usage retains the existing
+    // provider fallback when the database context has no usage value.
     const stockMap = new Map(stockVsForecast.map((s) => [s.ingredient_id, s]));
     const costMap = new Map((ingredientCosts || []).map((c) => [c.ingredient_id, Number(c.cost_per_unit) || 0]));
     const validIngredientIds = new Set(stockMap.keys());

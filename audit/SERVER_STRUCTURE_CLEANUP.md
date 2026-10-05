@@ -189,3 +189,22 @@ automation/audit rollback and Python-backend durable effect compatibility.
 Queries, lease durations, retry budgets, admission responses, and APIs are unchanged.
 Hosted workers, live ML admission/timeouts, provider delivery, and production
 concurrency/load remain **Not verified** for this cleanup.
+
+
+## Batch 10 — anomaly and recommendation readability
+
+- Combined identical reorder quantity-rounding branches without changing increments.
+- Explained provider calls outside transactions, database-derived waste exposure,
+  provider fallbacks, conditional accept/reject claims, and stale-price rollback.
+- Documented pending-only replacement, preserved resolved history, and atomic
+  scheduler completion. Retained separate pricing resolution because it writes prices.
+- Replaced confusing anomaly comments with exact-shift, cooldown, cross-instance
+  deduplication, and durable-trigger failure semantics. No rule thresholds changed.
+- Added no new abstraction, feature file, schema change, or API change.
+
+Verification: 838 ordinary tests passed; 119 opt-in cases were skipped in that run.
+All 17 selected PostgreSQL cases passed across anomaly recovery, recommendation
+publication, and report/ML recovery in disposable schemas. Live Gemini delivery,
+hosted workers, and production load remain **Not verified**. These checks do not
+establish comprehensive provider-output validation or zero regressions.
+An existing formatting change in automation.repository.js was left outside this commit.

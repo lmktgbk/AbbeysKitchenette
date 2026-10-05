@@ -11,8 +11,8 @@ import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 function roundToNiceQty(qty, unit) {
   if (!qty || qty <= 0) return qty;
   const u = (unit || "").toLowerCase();
-  if (u === "ml" || u === "l") return Math.ceil(qty / 50) * 50;
-  if (u === "g" || u === "kg") return Math.ceil(qty / 50) * 50;
+  // Preserve the configured increments in the ingredient's stored unit; this is not unit conversion.
+  if (["ml", "l", "g", "kg"].includes(u)) return Math.ceil(qty / 50) * 50;
   if (u === "pcs" || u === "pieces") return Math.ceil(qty / 10) * 10;
   return Math.ceil(qty / 5) * 5;
 }
@@ -21,7 +21,7 @@ function roundToNiceQty(qty, unit) {
  * Reorder Suggestions Service
  *
  * Advisory restock quantities from Gemini (stock + forecast + usage +
- * suppliers). Like pricing, suggestions never order anything by themselves —
+ * suppliers). Suggestions never order anything by themselves —
  * accept/reject only flips a status row; purchasing happens outside the
  * system. Expiry-aware: FEFO buckets keep soon-to-expire stock out of the
  * suggested quantities.
@@ -59,7 +59,8 @@ export const reorderSuggestionsService = {
       supplierInfo,
     });
 
-    // Step 3: Call Gemini
+    // Provider latency stays outside the publication transaction so no database
+    // lock is held during generation. The worker can cancel through signal.
     let response;
     try {
       response = await ai.models.generateContent({
@@ -107,7 +108,8 @@ export const reorderSuggestionsService = {
       return true;
     });
 
-    // Step 5b: Deterministic safety net — ensure no ingredient with a deficit is missed
+    // Supplement ingredients omitted by the provider using the existing deficit
+    // policy. Provider-selected quantities remain advisory and are not overwritten.
     const LEAD_TIME_DAYS = 2;
 
     const costMap = new Map(

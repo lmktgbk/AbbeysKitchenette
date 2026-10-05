@@ -6,6 +6,8 @@ import { recordEffects } from "../infrastructure/effects/domainEffects.js";
 export function resolveAdvisory(model, id, status, userId, action) {
   return prisma.$transaction(async tx => {
     const claimed = await tx[model].updateMany({ where: { id, status: "pending" }, data: { status } });
+    // Read after the conditional claim to distinguish a missing ID (404) from
+    // a competing accept/reject action (409), without an unguarded status write.
     const row = await tx[model].findUnique({ where: { id }, include: { ingredient: { select: { ingredientName: true } } } });
     if (!row) throw new AppError(404, "Suggestion not found", "SUGGESTION_NOT_FOUND");
     if (!claimed.count) throw new AppError(409, "Suggestion already resolved. Refresh before trying again", "SUGGESTION_CONFLICT");

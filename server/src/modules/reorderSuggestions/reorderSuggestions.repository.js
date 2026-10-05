@@ -156,6 +156,8 @@ export const reorderSuggestionsRepository = {
    * Clear old pending suggestions and save new ones.
    * Uses a transaction to delete old + insert new atomically.
    */
+  // Generation finishes before this method. Replace only pending rows; resolved
+  // history survives. A failed insert or lost scheduler lease rolls back replacement.
   async saveSuggestions(suggestions, automation, userId) {
     await prisma.$transaction(async (tx) => {
       // Serialize replacement even when the pending set is empty.
