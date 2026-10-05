@@ -207,7 +207,6 @@ export default function ProductFormModal({
                       setImagePreview(file ? URL.createObjectURL(file) : null);
                     }}
                     previewUrl={imagePreview}
-                    className="h-[calc(100%-1.75rem)]"
                   />
                 </div>
               </div>

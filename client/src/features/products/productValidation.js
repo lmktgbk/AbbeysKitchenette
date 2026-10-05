@@ -100,3 +100,21 @@ export const editCategorySchema = z.object({
     .optional()
     .or(z.literal("")),
 });
+
+// Browser preflight mirrors the product upload policy. It improves feedback;
+// only the backend can establish that the file bytes are a valid, safe image.
+export const PRODUCT_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const productImageTypes = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+  ".png": "image/png", ".webp": "image/webp", ".gif": "image/gif" };
+export const PRODUCT_IMAGE_ACCEPT = Object.keys(productImageTypes).join(",");
+
+/** Reject obvious type/size errors before replacing the user's current image draft. */
+export function productImageError(file) {
+  const extension = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+  if (!Object.hasOwn(productImageTypes, extension) || file.type !== productImageTypes[extension]) {
+    return "Choose a JPG, PNG, WebP or GIF image.";
+  }
+  if (file.size > PRODUCT_IMAGE_MAX_BYTES) return "Image must be 5 MB or smaller.";
+  if (file.size === 0) return "The selected image is empty. Choose another file.";
+  return "";
+}

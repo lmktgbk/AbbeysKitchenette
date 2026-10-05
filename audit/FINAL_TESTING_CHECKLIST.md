@@ -1106,6 +1106,27 @@ Fourteen isolated MBA cases plus 28 existing ML cases passed on 2026-10-05.
 Seeded detail/pricing comparisons and SELECT/parameter comparison also passed.
 Live cases above and real PostgreSQL query execution remain **NOT RUN** for this
 batch; no schema migration was introduced.
+## Product image guidance and preview regression (2026-10-05)
+
+- [ ] Product form explains JPG/JPEG, PNG, WebP and GIF, maximum 5 MB,
+  recommended square 1000 × 1000 px, maximum 4096 pixels per side and card cropping.
+- [ ] Select portrait/landscape/square images: the preview stays in a square frame,
+  bounded to 240 px, and matches product cards' cover cropping. Check mobile too.
+- [ ] A file over 5 MB, empty file, unsupported extension or mismatched MIME type
+  shows an inline error without replacing the existing saved/draft image.
+- [ ] Select the same rejected file again: the input can report the error again.
+  Picker cancellation preserves the current image.
+- [ ] Upload/replace/remove controls work with keyboard and touch; removal does
+  not reopen the picker. Saving and old-image cleanup follow the existing workflow.
+- [ ] Backend still rejects corrupt bytes, disguised file content and oversized
+  decoded dimensions even if browser preflight is bypassed.
+
+Verification: 34 focused frontend image-policy/transport and backend decoded-image
+and upload integration tests passed. Browser checks do not prove authentic content;
+decoded validation remains server-owned. Client lint/build passed. Visual cropping,
+mobile layout and live Cloudinary replacement/deletion remain **Not verified** in
+this batch. No backend policy, database schema or provider workflow was changed.
+
 ## Product bulk visibility regression (2026-10-05)
 
 The retained policy is stock-checked activation: individual activation rejects
