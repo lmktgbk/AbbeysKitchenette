@@ -1,5 +1,8 @@
+"""Read current basket/catalog inputs; no stock reservation or product creation occurs here."""
 import pandas as pd
 from database import get_pool
+
+BUNDLE_DISCOUNT_PERCENT = 15.0
 
 
 async def load_order_baskets(min_date: str | None = None) -> pd.DataFrame:
@@ -7,6 +10,7 @@ async def load_order_baskets(min_date: str | None = None) -> pd.DataFrame:
     variant_id, variant_label, product_name, size_name). order_date drives the
     80/20 temporal stability split (oldest 80% mined, newest 20% verified)."""
     pool = await get_pool()
+    # Only a fixed SQL clause is selected here; the date itself remains a bound parameter.
     where = "AND o.order_date >= $1" if min_date else ""
     params = [min_date] if min_date else []
 
@@ -39,7 +43,11 @@ async def load_order_baskets(min_date: str | None = None) -> pd.DataFrame:
 
 
 async def load_product_details() -> pd.DataFrame:
-    """Load product + variant + recipe + ingredient details for combo creation."""
+    """Read current active recipes and quantity-weighted historical batch costs for suggestions.
+
+    Inner joins omit variants without recipes. Cost weighting uses all batch
+    quantities added, not only remaining or unexpired stock.
+    """
     pool = await get_pool()
     rows = await pool.fetch("""
         SELECT
@@ -82,4 +90,4 @@ async def load_product_details() -> pd.DataFrame:
 
 async def load_combo_discount() -> float:
     """Promotion discount is fixed at 15% — no system_settings column exists."""
-    return 15.0
+    return BUNDLE_DISCOUNT_PERCENT

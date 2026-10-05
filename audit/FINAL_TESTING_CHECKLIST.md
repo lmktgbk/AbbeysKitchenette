@@ -1093,3 +1093,16 @@ remain **NOT RUN**. No schema migration was introduced.
 Forecast cleanup: nine new isolated regression cases and 19 existing ML cases
 passed; 60 seeded response comparisons matched the earlier implementation.
 The live acceptance cases above remain **NOT RUN**.
+
+### Market-basket cleanup regression
+
+- [ ] Run a fresh analysis and verify product/size identities, recipe quantities, ingredient units, costs, support/confidence/lift and stability display.
+- [ ] Check a fixture with recipe cost 31 and menu prices 15+15: minimum price 32, suggested price 35. Normal cost-2 and prices-10+20 suggestions remain 25 at 15% discount.
+- [ ] Verify a new recommendation uses the corrected floor; old saved analysis/product prices remain unchanged until an explicit new analysis/edit.
+- [ ] Confirm running jobs do not expose unpublished rules, missing IDs return the expected error, and database outages surface an error rather than an empty successful result.
+- [ ] Create an isolated combo and verify its association/audit capture. Product save and association remain separate requests; check partial failure recovery.
+
+Fourteen isolated MBA cases plus 28 existing ML cases passed on 2026-10-05.
+Seeded detail/pricing comparisons and SELECT/parameter comparison also passed.
+Live cases above and real PostgreSQL query execution remain **NOT RUN** for this
+batch; no schema migration was introduced.

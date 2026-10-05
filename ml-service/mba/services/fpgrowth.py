@@ -1,19 +1,16 @@
+"""Mine variant-label pairs in a child worker, evaluate recent support, and build priced recipe suggestions."""
 import json
+import math
 import pandas as pd
 from mlxtend.frequent_patterns import fpgrowth, association_rules
-from mba.services.data_loader import load_order_baskets, load_product_details, load_combo_discount
+from mba.services.data_loader import load_order_baskets, load_product_details, load_combo_discount, BUNDLE_DISCOUNT_PERCENT
 from jobs import job_connection
 
-# Acceptance baseline (paper §evaluation), calibrated empirically 2026-09:
-# a threshold sweep proved confidence >= 30% yields zero rules at 210-variant
-# grain (max observed ~10%), so bars sit where the data lives — support >=
-# 0.5% (>= ~60 baskets), confidence >= 8%, lift > 1.1 (above independence
-# noise). Conviction >= 1.2 reported. Bundle discount is a named constant.
+# Application defaults; request parameters may override support/confidence/top-N.
+# Lift is a strict acceptance threshold; conviction is reported, not used as a filter.
 MIN_SUPPORT = 0.005
 MIN_CONFIDENCE = 0.08
 MIN_LIFT = 1.1
-MIN_CONVICTION = 1.2
-BUNDLE_DISCOUNT_PERCENT = 15.0
 TOP_N = 20
 
 # Temporal stability: mined on the older 80% of trading days, re-verified on
@@ -24,7 +21,7 @@ STABILITY_CONF_FRAC = 0.5
 
 
 def _build_baskets(df: pd.DataFrame) -> pd.DataFrame:
-    """Convert order items to one-hot encoded basket matrix using variant labels."""
+    """Build one boolean row per order: repeated lines count as presence, not sales quantity."""
     if df.empty:
         return pd.DataFrame()
 
@@ -45,9 +42,8 @@ def _compute_rules(basket: pd.DataFrame, min_support: float = MIN_SUPPORT,
                    min_confidence: float = MIN_CONFIDENCE) -> pd.DataFrame:
     """Run FP-Growth and generate 1->1 association rules.
 
-    Acceptance bars: support >= MIN_SUPPORT, confidence >= MIN_CONFIDENCE,
-    lift > MIN_LIFT (beats independence). Conviction is carried for the
-    paper (implication strength, free from mlxtend). Mirror duplicates
+    Acceptance uses requested support/confidence and fixed lift > MIN_LIFT.
+    Conviction is reported but does not filter acceptance. Mirror duplicates
     (A->B and B->A) collapse to the stronger direction by score.
     """
     if basket.empty or basket.shape[1] < 2:
@@ -116,14 +112,11 @@ def _is_stable(recent: dict, min_support: float, min_confidence: float) -> bool:
             and recent["confidence"] >= min_confidence * STABILITY_CONF_FRAC
             and recent["lift"] > MIN_LIFT)
 
-    return rules[["variant_a", "variant_b", "support", "confidence", "lift",
-                  "conviction", "score"]].reset_index(drop=True)
 
-
-async def _get_variant_details(variant_label: str, product_details: pd.DataFrame) -> dict:
-    """Get variant details including recipes for a given variant label."""
-    variant_rows = product_details[product_details["product_name"] + " " + product_details["size_name"] == variant_label]
-    if variant_rows.empty:
+def _get_variant_details(variant_label: str, details_by_label: dict) -> dict:
+    """Translate one pre-indexed recipe group into variant metadata and rounded cost lines."""
+    variant_rows = details_by_label.get(variant_label)
+    if variant_rows is None or variant_rows.empty:
         return {}
 
     first_row = variant_rows.iloc[0]
@@ -151,9 +144,14 @@ async def _get_variant_details(variant_label: str, product_details: pd.DataFrame
 
 
 def _merge_recipes(details_a: dict, details_b: dict) -> list[dict]:
-    """Merge ingredients from two variants, deduplicating and summing quantities."""
+    """Sum shared ingredient quantities, retain A's unit/cost metadata, and sort by name.
+
+    Units are not converted; source recipes must already use the ingredient's
+    canonical unit. Neither input recipe is mutated.
+    """
     merged = {}
 
+    # Each source recipe is unique by ingredient ID. Shared ingredients retain A's metadata/cost.
     for ing in details_a.get("ingredients", []):
         key = ing["ingredient_id"]
         merged[key] = {
@@ -190,9 +188,9 @@ def _compute_combo_price(merged_ingredients: list[dict], price_a: float, price_b
                          discount_percent: float = BUNDLE_DISCOUNT_PERCENT) -> dict:
     """Combo price from the bundle discount off TOTAL price.
 
-    Guards: break-even floor (total_cogs + 1, from real recipe costs) and
-    round-to-5. No margin metric is produced — no margin-floor policy exists
-    to give it decision basis; cost and floor are retained as real inputs.
+    Preserve nearest-five pricing, then raise any rounded value below the
+    recipe-cost-plus-one floor to the next multiple of five. Recipe costs
+    exclude overhead; this floor does not guarantee overall profitability.
     """
     total_cogs = sum(ing["line_cost"] for ing in merged_ingredients)
 
@@ -210,6 +208,9 @@ def _compute_combo_price(merged_ingredients: list[dict], price_a: float, price_b
     suggested_price = round(suggested_price / 5) * 5
     if suggested_price < 5:
         suggested_price = 5
+    # Nearest-five rounding can cross below the cost floor; enforce it after rounding.
+    if suggested_price < min_price:
+        suggested_price = math.ceil(min_price / 5) * 5
 
     return {
         "price_a": round(price_a, 2),
@@ -290,7 +291,7 @@ async def run_market_basket_analysis(
     Rules are mined at variant level (exact sizes feed combo pricing and
     recipes). Temporal split is by trading day, oldest 80% vs newest 20%.
     """
-    # Load config from settings (discount only, no margin floor)
+    # The loader supplies the fixed bundle discount; this is not a system-settings read.
     discount_percent = await load_combo_discount()
 
     # Step 1: Load order baskets (variant level)
@@ -309,7 +310,7 @@ async def run_market_basket_analysis(
         }
 
     # Step 2: Temporal split by trading day — oldest 80% mined, newest 20%
-    # verifies. A rule that only existed in one good week is not promotable.
+    # verifies. Stability is reported on every returned rule, not used to filter the list.
     days = sorted(baskets_df["order_date"].dt.date.unique())
     cut = days[int(len(days) * 0.8)]
     cut_ts = pd.Timestamp(cut)
@@ -348,6 +349,10 @@ async def run_market_basket_analysis(
 
     # Step 7: Load product details for recipe merging
     product_details = await load_product_details()
+    # Index the existing name/size labels once, preserving the original row order per recipe.
+    # Label collisions remain an existing identity limitation; this does not change mining keys.
+    labels = product_details["product_name"] + " " + product_details["size_name"]
+    details_by_label = {label: group for label, group in product_details.groupby(labels, sort=False)}
 
     # Step 8: Build rules list with stability verdict + pricing for ALL rules
     rules_list = []
@@ -359,13 +364,12 @@ async def run_market_basket_analysis(
         lift = float(row["lift"])
         support = float(row["support"])
         raw_conv = float(row["conviction"])
-        # Conviction is inf at confidence 1.0 — unserializable, so cap it.
-        import math
+        # Map nonfinite conviction to null so response/persistence JSON stays serializable.
         conviction = round(raw_conv, 2) if math.isfinite(raw_conv) else None
 
         # Get variant details
-        details_a = await _get_variant_details(variant_a, product_details)
-        details_b = await _get_variant_details(variant_b, product_details)
+        details_a = _get_variant_details(variant_a, details_by_label)
+        details_b = _get_variant_details(variant_b, details_by_label)
 
         # Merge recipes and compute pricing for ALL rules
         merged_ingredients = _merge_recipes(details_a, details_b)
@@ -378,7 +382,7 @@ async def run_market_basket_analysis(
                                  {"support": 0.0, "confidence": 0.0, "lift": 0.0})
         stable = _is_stable(recent, min_support, min_confidence)
 
-        # Score for ranking: confidence * lift (how good the promotion is)
+        # Ranking score combines conditional co-purchase frequency and lift; it is not predicted profit.
         score = round(confidence * lift, 4)
         rule_entry = {
             "id": idx + 1,
@@ -409,6 +413,7 @@ async def run_market_basket_analysis(
 
     # Rank by score (confidence * lift) — best promotions first
     rules_list.sort(key=lambda x: x["score"], reverse=True)
+    # These IDs are temporary ranks; persistence generates the actual stored rule IDs.
     for i, r in enumerate(rules_list):
         r["id"] = i + 1
 

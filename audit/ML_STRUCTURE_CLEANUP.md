@@ -122,3 +122,66 @@ Verification on 2026-10-05:
 Tests use the compatible bundled Python 3.12 plus existing venv packages as in the
 first batch; the broken local venv launcher remains unchanged. Next review is the
 MBA pipeline and endpoints. The full ML cleanup remains unfinished.
+
+## Third batch: market-basket calculations and endpoints
+
+Three existing production modules changed, with no new production layer/file.
+Removed an unreachable return after _is_stable and unused MIN_CONVICTION (the
+pipeline reports conviction but never filters by that constant). The fixed 15%
+bundle discount now has one definition in its existing loader module. Catalog
+recipe groups are indexed once by the existing name/size label instead of scanning
+the full DataFrame twice per rule; pure detail conversion is now synchronous.
+
+Consolidated duplicate extended/legacy rule SELECTs into one local helper using
+fixed column strings and a bound job ID. Compatibility fallback catches only
+asyncpg UndefinedColumnError; outages, missing tables, and other failures propagate
+without a misleading second query. Both SQL selections and parameters match the
+previous queries after whitespace normalization. Persistence, lease checks,
+publication transactions, authentication, and ordered pair association are intact.
+
+### Confirmed pricing bug fixed
+
+With recipe cost 31, min_price is 32. Combined menu prices 15+15 at 15% discount
+produce 25.50; the old max-then-nearest-five calculation rounded 32 down to 30.
+The updated code raises such a result to the next multiple of five (35), enforcing
+the recipe-cost-plus-one floor after rounding. Normal nearest-five suggestions,
+input costs/prices, and discount formula remain unchanged. This affects new
+suggestions only: historical results and saved product prices are not rewritten.
+The recipe floor excludes overhead and does not guarantee profitability or
+restrict manually edited product prices.
+
+Professional comments explain presence rather than quantities in basket matrices,
+requested thresholds, mirror-pair deduplication, fixed discount behavior, current
+recipes and historical weighted costs, recipe units/first-cost metadata, reported
+stability, nonfinite conviction, temporary rank IDs, JSON decoding, completed-only
+reads, missing-column fallback and transactional combo audit capture.
+
+Existing boundaries remain explicit: variant identity in mining/detail lookup is
+a product-name/size label and can collide; created-pair tracking uses an ordered
+product-name pair rather than unordered variant identity. Catalog inner joins omit
+variants without recipes, and costs use historical quantities added rather than
+only current/usable stock. Stability is reported for all retained rules and does
+not filter the list. Those behaviors were documented, not silently changed.
+
+Verification on 2026-10-05:
+
+- Fourteen new isolated MBA regressions passed: floor/rounding boundaries, normal
+  pricing, recipe quantities/costs, basket presence, real FP-Growth metrics/mirror
+  deduplication, missing recent items, indexed detail UUIDs/rounding, missing-column
+  fallback, no outage/missing-table retry, unpublished/missing jobs, completed JSON
+  responses, empty loaders and the shared discount constant.
+- Eight auth/pool/admission, nine forecast response, and eleven worker reliability
+  tests passed: 42 tests total, including spawned synthetic Prophet and FP-Growth.
+- One-off seeded baseline comparisons: 360 variant lookups matched exactly; 1,200
+  price cases retained all other fields and unchanged suggestions wherever the old
+  suggestion already met the floor. Both extended and legacy SQL/parameters and
+  empty completed responses matched baseline.
+- All 22 ML source modules and the new regressions compile; diff whitespace checks
+  passed. No business database connected/written, no migration/dependency change.
+
+Real PostgreSQL execution of the consolidated SELECTs, live suggestion/browser
+flows, large-catalog memory/latency, production model accuracy and hosted/Linux
+recovery remain **Not verified** for this batch. Verification continues to use the
+compatible Python runtime plus existing packages; the old venv launcher is not
+repaired. Remaining work is a final ML integration/documentation review and broader
+regression, followed by the consolidated manual acceptance.
