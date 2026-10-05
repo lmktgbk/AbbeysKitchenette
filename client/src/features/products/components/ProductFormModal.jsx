@@ -142,8 +142,8 @@ export default function ProductFormModal({
                 Product Information
               </h3>
 
-              {/* Independent columns prevent the image and guidance from creating
-                  empty grid rows beneath the shorter text fields. */}
+              {/* Independent columns keep the image and its compact guidance beside
+                  the text fields without creating extra full-width grid rows. */}
               <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-[minmax(0,1fr)_180px]">
                 <div className="min-w-0 space-y-4">
                   {/* Product Name */}
@@ -215,21 +215,22 @@ export default function ProductFormModal({
                     previewUrl={imagePreview}
                     describedBy={imageGuidelinesId}
                   />
+                  {/* Let expanded guidance grow naturally rather than clipping it
+                      to the description's height or introducing another scrollbar. */}
+                  <aside id={imageGuidelinesId} aria-label="Image guidelines"
+                    className="mt-2 max-w-[180px] space-y-0.5 rounded-lg border border-border bg-muted/30 p-2 text-xs text-muted-foreground sm:text-[10px] sm:leading-3">
+                    <p className="flex items-center gap-1.5 font-medium text-foreground">
+                      <Icon name="info" size={12} className="shrink-0" /> Image guidelines
+                    </p>
+                    <p>JPG, PNG, WebP, GIF · Max 5 MB</p>
+                    <p>Recommended: square 1000 × 1000 px</p>
+                    <details>
+                      <summary className="w-fit cursor-pointer rounded focus-visible:outline-2 focus-visible:outline-primary">More details</summary>
+                      <p className="mt-1">Maximum 4096 pixels per side. Non-square images are cropped to fit product cards.</p>
+                    </details>
+                  </aside>
                 </div>
               </div>
-              <aside id={imageGuidelinesId} aria-label="Image guidelines"
-                className="mt-3 flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground">
-                <Icon name="info" size={16} className="mt-0.5 shrink-0" />
-                <div className="min-w-0 space-y-1">
-                  <p className="font-medium text-foreground">Image guidelines</p>
-                  <p>JPG, PNG, WebP or GIF · Up to 5 MB</p>
-                  <p>Recommended: square, 1000 × 1000 px.</p>
-                  <details>
-                    <summary className="w-fit cursor-pointer rounded focus-visible:outline-2 focus-visible:outline-primary">More details</summary>
-                    <p className="mt-1">Maximum 4096 pixels per side. Non-square images are cropped to fit product cards.</p>
-                  </details>
-                </div>
-              </aside>
             </section>
 
             {/* ── Variants ─────────────────────── */}

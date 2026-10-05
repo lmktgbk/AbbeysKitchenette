@@ -1117,6 +1117,12 @@ screen layout. Image-selection policy and upload/cleanup workflow are unchanged.
 Fourteen focused image policy/transport tests passed; client lint/build passed.
 Actual browser/mobile appearance remains **Not verified** in this follow-up.
 
+Placement refinement (2026-10-06): the note now sits directly below the upload
+preview in its 180 px column, using compact desktop typography and normal mobile
+helper text. Collapsed guidance is intended to end near the description; expanded
+details grow naturally. Recheck actual alignment, browser zoom and keyboard
+expansion. Upload policy and data flow remain unchanged.
+
 - [ ] Product form explains JPG/JPEG, PNG, WebP and GIF, maximum 5 MB,
   recommended square 1000 × 1000 px, maximum 4096 pixels per side and card cropping.
 - [ ] Select portrait/landscape/square images: the preview stays in a square frame,
