@@ -2,8 +2,8 @@
  * KitchenDisplay — kitchen/branch prep board with batch sidebar + ready-confirm flow.
  * WHY it exists: live prep queue split by role with per-order/item spinners for concurrent
  * actions. Query keys consumed: ["orders","list",{kitchen:true}] via useKitchenDisplay,
- * ["orders","kitchen","batches"] via useKitchenBatchGroups. Guards: role guard
- * cashier→Beverages, kitchen→Food, admin→all; no BR-02 shift gate.
+ * ["orders","kitchen","batches"] via useKitchenBatchGroups. Category presentation:
+ * cashier→Beverages, kitchen→Food, admin→all; backend permissions authorize actions.
  * State: Query [preparing, accepted, completedToday, batches] | local [activeTab, pendingAction, animatingOut, sidebarOpen, preparingIds, togglingIds, readyIds] | Zustand [user via useAuthStore].
  */
 import { useState, useMemo } from "react";
@@ -52,10 +52,12 @@ export default function KitchenDisplay({ embedded = false }) {
   const [togglingIds, setTogglingIds] = useState(() => new Set());
   const [readyIds, setReadyIds] = useState(() => new Set());
 
+  /** Adds an action identity immutably so independent orders/items retain their own pending indicator. */
   function addId(setter, id) {
     setter((prev) => new Set(prev).add(id));
   }
 
+  /** Releases only the completed action’s indicator without clearing other active actions. */
   function deleteId(setter, id) {
     setter((prev) => {
       const next = new Set(prev);
@@ -64,8 +66,8 @@ export default function KitchenDisplay({ embedded = false }) {
     });
   }
 
-  // Role-based filtering: cashier sees beverages, kitchen sees food, admin sees all
-  // Items are NOT filtered out — they're passed to OrderCard which greys out non-checkable ones
+  // Category scope guides OrderCard presentation. This page retains all order items and adds total counts;
+  // it does not authorize preparation actions or remove other categories from the fetched data.
   const categoryFilter = user?.role === "cashier" ? "Beverages" : user?.role === "kitchen" ? "Food" : null;
 
   const allOrders = useMemo(() => [...preparing, ...accepted, ...completedToday], [preparing, accepted, completedToday]);
@@ -79,6 +81,7 @@ export default function KitchenDisplay({ embedded = false }) {
     }));
   }, [allOrders, categoryFilter]);
 
+  // All means active accepted/preparing work; completed orders appear only in their explicit tab.
   const displayOrders = useMemo(() => {
     const active = roleFiltered.filter((o) => o.status === "preparing" || o.status === "accepted");
     if (activeTab === "all") return active;
@@ -87,6 +90,7 @@ export default function KitchenDisplay({ embedded = false }) {
 
   const batches = batchData?.data?.batches ?? [];
 
+  /** Preparation calls the API immediately; completion first opens its confirmation dialog. */
   async function handleAction(orderId, action) {
     if (action === "prepare") {
       try {
@@ -103,6 +107,7 @@ export default function KitchenDisplay({ embedded = false }) {
     }
   }
 
+  /** Sends the desired prepared state; the backend rejects stale/unauthorized changes and query hooks reconcile data. */
   async function handleToggleItem(orderId, itemId, isPrepared) {
     try {
       addId(setTogglingIds, itemId);
@@ -114,6 +119,7 @@ export default function KitchenDisplay({ embedded = false }) {
     }
   }
 
+  /** Completes the selected order while animating; failures leave the confirmation available for another attempt. */
   async function handleConfirmReady() {
     if (!pendingAction) return;
     const orderId = pendingAction.orderId;

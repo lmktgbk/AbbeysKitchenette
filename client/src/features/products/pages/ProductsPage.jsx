@@ -52,6 +52,7 @@ export default function ProductsPage() {
 
   // ── Categories & ingredients (via query hooks) ──
   const { data: categoriesData } = useCategoryList();
+  // Load the complete recipe picker catalog only while a product form needs it.
   const ingredientOptions = useIngredientOptions(showFormModal);
   const ingredientsData = ingredientOptions.data;
 
@@ -80,6 +81,7 @@ export default function ProductsPage() {
     isPending: mutations.create.isPending,
   };
 
+  // Editing uses two requests: metadata/image first, variants second. A variant failure does not undo the first save.
   const updateMutation = {
     mutate: ({ id, data }) => {
       const { variants, ...productInfo } = data;
@@ -111,6 +113,7 @@ export default function ProductsPage() {
 
   // ── Handlers ────────────────────────
 
+  /** Starts a new creation scope; the incremented key remounts the product form with an empty draft. */
   function handleAdd() {
     setSelectedProduct(null);
     setIsEditMode(false);
@@ -118,12 +121,14 @@ export default function ProductsPage() {
     setShowFormModal(true);
   }
 
+  /** Opens list data immediately, then lets the detail query supply full variants and recipes. */
   function handleViewDetail(product) {
     setDetailPreview(product); // list-level data (shows instantly)
     setShowDetailModal(true);
     setDetailProductId(product.product_id); // triggers useProductDetail
   }
 
+  /** Selects explicit edit mode before detail arrives so loading never chooses the creation schema. */
   function handleEdit(product) {
     setSelectedProduct(product);   // list data (has product_id, product_name, etc.)
     setIsEditMode(true);
@@ -131,11 +136,13 @@ export default function ProductsPage() {
     setEditProductId(product.product_id);  // triggers useProductDetail
   }
 
+  /** Selects the product identity for advisory pricing; opening does not apply a price change. */
   function handleOptimizePrice(product) {
     setPriceModalProduct(product);
     setShowPriceModal(true);
   }
 
+  /** Confirms product deactivation; the server owns cascading variant visibility changes. */
   async function handleDeactivate(product) {
     const ok = await confirm({
       title: "Deactivate Product?",
@@ -149,8 +156,10 @@ export default function ProductsPage() {
     if (ok) toast.success("Product deactivated");
   }
 
+  // Retain the activation response across the confirmation callback to report skipped variants accurately.
   const activateResultRef = useRef(null);
 
+  /** Uses the server’s activation summary rather than assuming every variant became available. */
   async function handleActivate(product) {
     activateResultRef.current = null;
     const ok = await confirm({
@@ -176,6 +185,7 @@ export default function ProductsPage() {
     }
   }
 
+  /** Requests permanent deletion after confirmation; backend references/history determine whether it is allowed. */
   async function handleDelete(product) {
     const ok = await confirm({
       title: "Delete Permanently?",
@@ -189,6 +199,7 @@ export default function ProductsPage() {
     if (ok) toast.success("Product deleted permanently");
   }
 
+  /** Requests activation for the selected stored variant under its owning product. */
   async function handleActivateVariant(product, variant) {
     const ok = await confirm({
       title: "Activate Variant?",
@@ -201,6 +212,7 @@ export default function ProductsPage() {
     if (ok) toast.success(`"${variant.size_name}" activated`);
   }
 
+  /** Changes one variant’s visibility through the API rather than modifying cached product data locally. */
   async function handleDeactivateVariant(product, variant) {
     const ok = await confirm({
       title: "Deactivate Variant?",
@@ -214,6 +226,7 @@ export default function ProductsPage() {
     if (ok) toast.success(`"${variant.size_name}" deactivated`);
   }
 
+  /** Routes validated form data to creation or the selected product’s two-step edit flow. */
   function handleFormSubmit(data) {
     const target = fullEditProduct ?? selectedProduct;
     if (isEditMode && target) {

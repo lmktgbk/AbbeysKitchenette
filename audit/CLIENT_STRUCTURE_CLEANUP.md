@@ -302,3 +302,31 @@ and server automation changes remain excluded from this commit.
 Remaining comment review includes the product/inventory pages, kitchen workflow,
 profile/account flows, forecasting UI, and other components with non-obvious state
 or calculations. This pass does not claim comprehensive comments for all files.
+
+## Comment follow-up — catalog, kitchen, profile, and inventory forms
+
+Added professional handler/decision comments to ten files: ProductsPage,
+InventoryPage, KitchenDisplay, ProfileForm, ProfileModal, ChangePasswordForm,
+ProfileMenu, RestockModal, LossModal, and CountModal. Explained scope/remount
+behavior, preview versus fetched detail, product activation summaries, suggestion
+restock drafts, kitchen action indicators, email challenge confirmation, immediate
+avatar uploads, renewed-session ownership, and estimate versus settlement data.
+
+Corrected misleading descriptions of kitchen role filtering and restock expiry
+hints. Documented actual boundaries: product metadata/image and variants save in
+two requests; suggestion acceptance follows restock separately and is not awaited;
+loss options load only the first 100 batches and use an ignore-stale-response guard;
+restock expiry hints use device-local midnight. These comments do not implement
+atomicity, fetch-all behavior, transport cancellation, or timezone corrections.
+
+Verification: normalized executable syntax trees are unchanged for all ten files.
+Production build and ESLint passed; 52 client-focused cases passed. They do not
+constitute browser tests for these pages/forms. Live profile/email/avatar flows,
+partial-failure product edits, suggestion acceptance failure, kitchen races, and
+stock/cost reconciliation remain **Not verified** for this pass. No migration or
+server/API change is included. Existing Router.jsx, submission formatting, and
+server automation edits remain excluded.
+
+Remaining review includes forecasting/market-basket UI, staff/shift/transaction
+components, and shared UI behavior where comments would clarify non-obvious logic.
+The broader client comment review remains unfinished.

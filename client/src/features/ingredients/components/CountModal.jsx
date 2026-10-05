@@ -67,6 +67,7 @@ export default function CountModal({
     if (open) reset({ physical_quantity: "", reason: "spillage", notes: "" });
   }
 
+  // Snapshot-based display only; the server compares the submitted physical count to current stock.
   const systemStock = Number(ingredient?.stock_quantity ?? 0);
   const rawPhysical = useWatch({ control, name: "physical_quantity" });
   const physical = rawPhysical === "" || rawPhysical == null ? null : Number(rawPhysical);
@@ -79,6 +80,7 @@ export default function CountModal({
       ? null
       : variance < 0 ? "short" : "over";
 
+  /** Clears the physical-count draft before returning control to the inventory page. */
   function handleClose() {
     reset();
     onOpenChange(false);

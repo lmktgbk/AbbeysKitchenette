@@ -20,12 +20,13 @@ const TABS = [
  * ProfileModal
  *
  * Modal with 2 tabs: Profile (name, email, avatar) and Password (change password).
- * Triggered from AvatarDropdown.
+ * Opened by account menus; each tab mounts its own form and unmounting discards that form’s draft.
  */
 export default function ProfileModal({ open, onOpenChange }) {
   const [activeTab, setActiveTab] = useState("profile");
   const mutation = useProfileMutations();
 
+  /** Returns the next modal opening to the profile tab; parent visibility controls the dialog lifecycle. */
   function handleClose() {
     setActiveTab("profile");
     onOpenChange(false);

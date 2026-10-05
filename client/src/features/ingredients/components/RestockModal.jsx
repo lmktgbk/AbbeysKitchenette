@@ -57,10 +57,11 @@ export default function RestockModal({
   const quantityAdded = useWatch({ control, name: "quantity_added" }) || 0;
   const totalCost = useWatch({ control, name: "total_cost" }) || 0;
   const expiryDate = useWatch({ control, name: "expiry_date" }) || "";
+  // This rounded value is display-only; submission below computes the unrounded per-unit amount.
   const costPerUnit =
     quantityAdded > 0 ? (totalCost / quantityAdded).toFixed(4) : "0.0000";
 
-  // BR-05: live expiry hint (date-only compare, same math as the server)
+  // Advisory expiry hint uses the device’s local midnight; server-side business-date validation is authoritative.
   const expiryHint = (() => {
     if (!expiryDate) return null;
     const today = new Date();
@@ -73,6 +74,7 @@ export default function RestockModal({
     return null;
   })();
 
+  // Reopening or changing the suggested quantity replaces the restock draft, including cost and supplier fields.
   useEffect(() => {
     if (open) {
       reset({
@@ -85,14 +87,17 @@ export default function RestockModal({
     }
   }, [open, reset, initialQuantity]);
 
+  /** Discards unsaved batch-entry fields; closing does not create a stock movement. */
   function handleClose() {
     reset();
     onOpenChange(false);
   }
 
+  /** Converts validated quantity/total cost to the API’s per-unit cost contract, retaining optional expiry metadata. */
   function handleFormSubmit(data) {
     // Compute cost_per_unit from total_cost / quantity_added
-    const costPerUnit = data.total_cost / data.quantity_added;
+    // This rounded value is display-only; submission below computes the unrounded per-unit amount.
+  const costPerUnit = data.total_cost / data.quantity_added;
     const rest = { ...data };
     delete rest.total_cost;
     onSubmit({ ...rest, cost_per_unit: costPerUnit });

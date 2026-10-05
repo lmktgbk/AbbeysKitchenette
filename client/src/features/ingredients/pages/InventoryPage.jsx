@@ -67,6 +67,7 @@ export default function InventoryPage() {
     isPending: mutations.update.isPending,
   };
 
+  // Record stock first; suggestion acceptance is a separate follow-up request, not part of the restock transaction.
   const restockMutation = {
     mutate: ({ id, data }) =>
       mutations.restock.mutate({ id, data }, {
@@ -75,7 +76,7 @@ export default function InventoryPage() {
           setShowRestockModal(false);
           setSelectedIngredient(null);
           setRestockDraftQuantity(null);
-          // If this restock came from accepting a suggestion, mark it as accepted
+          // Attempt suggestion resolution only after the restock succeeds; this callback does not await that request.
           if (acceptedSuggestionId) {
             mutations.acceptReorder.mutate(acceptedSuggestionId);
             setAcceptedSuggestionId(null);
@@ -125,23 +126,27 @@ export default function InventoryPage() {
 
   // ── Handlers ────────────────────────
 
+  /** Opens an empty ingredient draft without changing inventory balances. */
   function handleAdd() {
     setSelectedIngredient(null);
     setIsEditMode(false);
     setShowFormModal(true);
   }
 
+  /** Selects saved ingredient metadata for editing; stock movements use separate forms. */
   function handleEdit(ingredient) {
     setSelectedIngredient(ingredient);
     setIsEditMode(true);
     setShowFormModal(true);
   }
 
+  /** Selects the ingredient for a new batch; this action alone does not add stock. */
   function handleRestock(ingredient) {
     setSelectedIngredient(ingredient);
     setShowRestockModal(true);
   }
 
+  /** Prefills a restock draft and remembers the suggestion; acceptance waits for a successful restock. */
   function handleAcceptSuggestion(suggestion) {
     // Pre-fill restock modal with AI suggestion data
     setSelectedIngredient({
@@ -155,6 +160,7 @@ export default function InventoryPage() {
     setShowRestockModal(true);
   }
 
+  /** Clears suggestion-linked draft metadata when the restock dialog closes. */
   function handleRestockModalClose(open) {
     setShowRestockModal(open);
     if (!open) {
@@ -163,22 +169,26 @@ export default function InventoryPage() {
     }
   }
 
+  /** Opens an explicit loss declaration, keeping the actual deduction in the backend mutation. */
   function handleLoss(ingredient) {
     setSelectedIngredient(ingredient);
     setShowLossModal(true);
   }
 
+  /** Starts physical-count entry; the API determines variance against current stock on submission. */
   function handleCount(ingredient) {
     setSelectedIngredient(ingredient);
     setShowCountModal(true);
   }
 
+  /** Keeps the batch/history selection separate from the ingredient used by mutation forms. */
   function handleBatches(ingredient) {
     setBatchModalIngredient(ingredient);
     setShowBatchModal(true);
   }
 
   // BR-05: one-click expired-stock write-off from the alerts panel.
+  /** Confirms one batch write-off; displayed cost is an estimate and the server settles its remaining stock. */
   async function handleDeclareExpiredLoss({ ingredient_id, ingredient_name, unit, batch_id, quantity, cost_per_unit }) {
     const estCost = quantity * (cost_per_unit || 0);
     const ok = await confirm({
@@ -193,6 +203,7 @@ export default function InventoryPage() {
     if (ok) toast.success("Expired stock written off");
   }
 
+  /** Requests reversible visibility removal; archive rules remain backend-enforced. */
   async function handleArchive(ingredient) {
     const ok = await confirm({
       title: "Archive Ingredient?",
@@ -206,6 +217,7 @@ export default function InventoryPage() {
     if (ok) toast.success("Ingredient archived");
   }
 
+  /** Restores the archived ingredient through its stored identity and refreshes inventory caches. */
   async function handleRestore(ingredient) {
     const ok = await confirm({
       title: "Restore Ingredient?",
@@ -219,6 +231,7 @@ export default function InventoryPage() {
     if (ok) toast.success("Ingredient restored");
   }
 
+  /** Requests permanent removal after confirmation; the API enforces historical/reference constraints. */
   async function handleDelete(ingredient) {
     const ok = await confirm({
       title: "Delete Permanently?",
@@ -232,6 +245,7 @@ export default function InventoryPage() {
     if (ok) toast.success("Ingredient deleted permanently");
   }
 
+  /** Routes resolver-validated metadata to the selected ingredient update or a new ingredient creation. */
   function handleFormSubmit(data) {
     if (isEditMode && selectedIngredient) {
       updateMutation.mutate({ id: selectedIngredient.ingredient_id, data });

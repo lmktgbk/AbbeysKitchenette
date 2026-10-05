@@ -10,11 +10,13 @@ import { updateProfileSchema } from "../validation";
 /**
  * ProfileForm
  *
- * Edit name + email with avatar upload.
+ * Edits self-profile fields; email changes enter a separate challenge-confirmation phase.
+ * The mutation hook updates session/profile state; the API verifies password, code, and file contents.
  * Avatar: circular image or initials fallback, click to upload.
  */
 export default function ProfileForm({ mutation }) {
   const fileInputRef = useRef(null);
+  // Challenge metadata belongs to this mounted form; it is not proof that the new address is active.
   const [pendingEmail, setPendingEmail] = useState(null);
   const [code, setCode] = useState("");
   const [passwordError, setPasswordError] = useState("");
@@ -35,7 +37,9 @@ export default function ProfileForm({ mutation }) {
   });
 
   const emailChanged = useWatch({ control, name: "email" }) !== user?.email;
+  /** Confirms an existing challenge or submits profile edits; changing email requires current-password input. */
   function handleFormSubmit(data) {
+    // Confirm only the issued challenge and code; name/email editing stays disabled until this phase ends.
     if (pendingEmail) {
       mutation.confirmEmailChange.mutate({ id: pendingEmail.id, code }, {
         onSuccess: (res) => {
@@ -58,6 +62,7 @@ export default function ProfileForm({ mutation }) {
     });
   }
 
+  /** Uploads the selected avatar immediately, independently of the profile form’s Save Changes action. */
   function handleImageChange(e) {
     const file = e.target.files?.[0];
     if (file) {

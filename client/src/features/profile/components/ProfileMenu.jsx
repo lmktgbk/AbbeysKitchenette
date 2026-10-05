@@ -25,6 +25,7 @@ export default function ProfileMenu({ user, showSettings = false, onSettingsClic
   const isDark = theme === "dark";
 
   useEffect(() => {
+    /** Closes this menu on outside pointer interaction; the effect removes its listener on unmount. */
     function handleClick(e) {
       if (ref.current && !ref.current.contains(e.target)) {
         setOpen(false);
@@ -34,6 +35,7 @@ export default function ProfileMenu({ user, showSettings = false, onSettingsClic
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  /** Navigates only after the shared logout helper reports success/already-revoked credentials. */
   async function handleLogout() {
     const ok = await confirm({
       title: "Sign out?",

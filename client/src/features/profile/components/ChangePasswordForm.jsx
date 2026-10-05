@@ -24,6 +24,7 @@ export default function ChangePasswordForm({ mutation }) {
     },
   });
 
+  /** Sends only current/new passwords; confirmation is local validation and the mutation hook restores the renewed session. */
   function handleFormSubmit(data) {
     mutation.changePassword.mutate(
       {

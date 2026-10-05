@@ -65,9 +65,10 @@ export default function LossModal({
   const quantityLost = useWatch({ control, name: "quantity_lost" }) || 0;
   const selectedBatchId = useWatch({ control, name: "batch_id" });
 
-  // Fetch active batches when modal opens
+  // Fetch the first 100 batches, then keep those with remaining stock; this is not a fetch-all catalog.
   useEffect(() => {
     if (!open || !ingredient) return;
+    // Cleanup invalidates this response owner; it ignores stale replies rather than cancelling the HTTP request.
     let active = true;
     getIngredientBatchesRequest(ingredient.ingredient_id, { page: 1, limit: 100 })
       .then((data) => {
@@ -93,7 +94,7 @@ export default function LossModal({
     restockedAt: b.restocked_at ?? b.restockedAt,
   }));
 
-  // Compute estimated cost based on selected batch or weighted avg
+  // Estimate using the fetched batch subset; server settlement chooses actual batches and authoritative cost.
   const qty = Number(quantityLost);
   let estimatedCost = null;
   let costSource = "";
@@ -134,11 +135,13 @@ export default function LossModal({
     }
   }, [open, reset]);
 
+  /** Closes and resets the loss draft without submitting a deduction. */
   function handleClose() {
     reset();
     onOpenChange(false);
   }
 
+  /** Removes empty optional fields and forwards validated loss intent after loading/submission gates. */
   function handleFormSubmit(data) {
     if (batchesLoading || isLoading) return;
     // Clean optional fields
