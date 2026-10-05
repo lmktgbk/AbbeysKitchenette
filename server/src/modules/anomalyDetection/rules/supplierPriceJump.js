@@ -8,6 +8,7 @@ export const supplierPriceJump = {
   // Disabled per owner cut — low signal. Re-enable to restore.
   enabled: false,
   config: { lookbackDays: 90, zScoreThresholds: { medium: 2.0, high: 2.5, critical: 3.0 } },
+  /** Compare latest unit cost with the 90-day batch average and keep only the largest jump of at least 30%. */
   async dataFetcher() {
     const rows = await prisma.$queryRawUnsafe(`
       SELECT i."ingredient_id", i."ingredient_name" AS name, i."unit",
@@ -26,10 +27,12 @@ export const supplierPriceJump = {
     // Manila business date label (see config/time.js).
     return { shouldDetect: true, worst, todayStr: toManilaDateString() };
   },
+  /** Leave the ordinary scorer inactive; evaluateOverride owns the percentage-based supplier rule. */
   condition() {
     const { worst } = this._lastData || {};
     return { triggered: false };
   },
+  /** Use fixed percentage severity bands instead of the shared historical deviation score. */
   async evaluateOverride(computeZScore, classifySeverity) {
     const data = await this.dataFetcher();
     if (!data.shouldDetect) return null;

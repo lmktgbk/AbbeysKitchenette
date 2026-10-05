@@ -2,6 +2,7 @@ import proxyaddr from "proxy-addr";
 import { ipKeyGenerator } from "express-rate-limit";
 import { env } from "../config/env.js";
 
+/** Resolve process-local socket budgets while reserving database capacity for HTTP transactions. */
 export function realtimeLimits(config = env) {
   return {
     connections: config.WS_MAX_CONNECTIONS ?? 256,
@@ -17,11 +18,13 @@ export function realtimeLimits(config = env) {
   };
 }
 
+/** Derive the client IP using the same trusted proxy-hop policy as Express. */
 export function upgradeClientKey(req, config = env) {
   // HTTP and upgrade requests must select the same client behind the verified ingress.
   return ipKeyGenerator(proxyaddr(req, (_, hop) => hop < (config.TRUST_PROXY_HOPS ?? 0)));
 }
 
+/** Limit upgrade attempts and live sockets; reserve returns an idempotent release callback or null. */
 export function createAdmission(limits, now = Date.now) {
   const clients = new Map();
   let active = 0, globalWindow = 0, globalAttempts = 0;
@@ -40,6 +43,8 @@ export function createAdmission(limits, now = Date.now) {
         bucket = { active: 0, attempts: 0, resetAt: time + 60000 }; clients.set(key, bucket);
       }
       if (time >= bucket.resetAt) { bucket.attempts = 0; bucket.resetAt = time + 60000; }
+      // Rejected attempts still consume the rate budget. Connection capacity
+      // is consumed only by admitted sockets and released once on close/failure.
       if (++bucket.attempts > limits.upgradesPerMinute || active >= limits.connections || bucket.active >= limits.perIp) return null;
       active++; bucket.active++;
       let released = false;
@@ -68,6 +73,7 @@ export function closeOverloaded(socket, code = 4408, reason = "realtime limit ex
   socket.close(code, reason);
 }
 
+/** Send an already-serialized payload only within the socket buffer budget; false means refetch/reconnect. */
 export function sendBounded(socket, payload) {
   if (socket.readyState !== 1 || socket.__closing) return false;
   if ((socket.bufferedAmount ?? 0) + Buffer.byteLength(payload) > (socket.__maxBuffered ?? 65536)) {

@@ -21,6 +21,7 @@ export function buildSheetRow(order, kind = "paid") {
     order.paymentMethod || "", order.acceptedByUser?.name || order.creator?.name || ""];
 }
 
+/** Save one immutable delivery snapshot in the caller's business transaction; disabled Sheets is a no-op. */
 export async function recordSheetEvent(tx, orderId, kind, itemId) {
   if (!sheetsConfigured()) return;
   if (!["paid", "adjusted", "cancelled"].includes(kind) || (kind === "adjusted" && !Number.isInteger(itemId))) throw new Error("Invalid sheet event identity");
@@ -36,6 +37,8 @@ export async function recordSheetEvent(tx, orderId, kind, itemId) {
   });
   if (!order) throw new Error("Sheet event order is missing");
   const eventId = randomUUID();
+  // Business event identity, not the random delivery UUID, prevents duplicate
+  // intent. Each item adjustment has its own key; retries reuse the saved snapshot.
   await tx.sheetSyncLog.createMany({
     data: { orderId, kind, eventId, eventKey: `${kind}:${orderId}${kind === "adjusted" ? `:${itemId}` : ""}`,
       spreadsheetId: env.SHEETS_ORDERS_ID, payload: { version: 1, values: [...buildSheetRow(order, kind), eventId] } },

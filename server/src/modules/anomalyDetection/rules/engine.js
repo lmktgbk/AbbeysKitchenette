@@ -1,8 +1,10 @@
 import { ai, GEMINI_MODEL } from "../../../config/gemini.js";
 
 /**
- * Z-Score calculation using Median Absolute Deviation (MAD).
- * More robust than standard Z-score for small datasets.
+ * Existing deviation score: median-centered differences divided by 1.4826
+ * times the average absolute distance from that median. Despite the variable
+ * name mad, this is not the standard median absolute deviation statistic.
+ * Keep the scoring policy unchanged when updating its explanation.
  */
 function computeZScore(values, current) {
   if (values.length < 3) return { zScore: 0, mean: 0, mad: 0 };
@@ -20,6 +22,7 @@ function computeZScore(values, current) {
   return { zScore, mean, mad };
 }
 
+/** Classify either-direction deviations using each rule's configured absolute-score boundaries. */
 function classifySeverity(zScore, thresholds) {
   const abs = Math.abs(zScore);
   if (abs >= (thresholds.critical || 3.0)) return "critical";
@@ -50,6 +53,7 @@ export const engine = {
   computeZScore,
   classifySeverity,
 
+  /** Evaluate an eligible rule and attach optional AI advice; insight failure does not discard a finding. */
   async evaluate(rule) {
     if (typeof rule.evaluateOverride === "function") {
       const data = await rule.dataFetcher();

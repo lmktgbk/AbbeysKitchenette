@@ -3,6 +3,8 @@ export function createShutdown({ readiness, getServer, getRealtime, workers, dis
   let flight;
   return function shutdown() {
     if (flight) return flight;
+    // Stop new work before draining. Keep database access available until
+    // admitted HTTP requests and worker operations have finished.
     readiness.beginShutdown();
     const server = getServer();
     const realtime = getRealtime();

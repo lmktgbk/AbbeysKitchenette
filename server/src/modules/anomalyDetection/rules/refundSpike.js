@@ -7,6 +7,7 @@ export const refundSpike = {
   category: "refund",
   enabled: true,
   config: { lookbackDays: 30, zScoreThresholds: { medium: 2.0, high: 2.5, critical: 3.0 } },
+  /** Aggregate recorded refund amounts per Manila date; dates without refund records are not filled with zero. */
   async dataFetcher() {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 30);
@@ -25,6 +26,7 @@ export const refundSpike = {
     const historical = rows.filter((r) => !find(r)).map((r) => Number(r.total));
     return { shouldDetect: true, todayTotal, todayCount, historical, todayStr };
   },
+  /** Classify nonzero refund totals against observed refund dates; no payment-provider operation is performed. */
   condition(data, computeZScore, classifySeverity) {
     const { todayTotal, todayCount, historical } = data;
     const { zScore, mean, mad } = computeZScore(historical, todayTotal);
@@ -40,6 +42,7 @@ export const refundSpike = {
       actualValue: todayTotal, expectedValue: mean, expectedMin: min, expectedMax: max, confidence,
     };
   },
+  /** Summarize recorded refund count/value for quality and void-process advice, without initiating any refund. */
   geminiPrompt(data) {
     return `Café Abbey's Kitchenette refund anomaly: today ${data.todayCount} refunds ₱${data.todayTotal}, usual ₱${Math.round(data.historical.reduce((a,b)=>a+b,0)/Math.max(1,data.historical.length))}. Give 2-3 short actions to check quality and void process. Under 100 words, numbered list.`;
   },

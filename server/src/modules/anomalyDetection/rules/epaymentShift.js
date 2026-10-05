@@ -8,6 +8,7 @@ export const epaymentShift = {
   // Disabled per owner cut — low signal. Re-enable to restore.
   enabled: false,
   config: { lookbackDays: 30, zScoreThresholds: { medium: 2.0, high: 2.5, critical: 3.0 } },
+  /** Measure the share of completed orders manually recorded as GCash or Maya; no gateway status is queried. */
   async dataFetcher() {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 30);
@@ -27,10 +28,12 @@ export const epaymentShift = {
     const historical = rows.filter((r) => !find(r)).map((r) => Number(r.share));
     return { shouldDetect: true, todayTotal, historical, todayStr };
   },
+  /** Score recorded payment share in either direction and cap this informational rule at high severity. */
   condition(data, computeZScore, classifySeverity) {
     const { todayTotal } = data;
     const { zScore, mean, mad } = computeZScore(data.historical, todayTotal);
     let severity = classifySeverity(zScore, this.config.zScoreThresholds);
+    // Payment mix changes are informational rather than confirmed financial loss.
     if (severity === "critical") severity = "high";
     if (severity === "high" && Math.abs(zScore) < 2.5) severity = "medium";
     const triggered = Math.abs(zScore) >= this.config.zScoreThresholds.medium;
@@ -44,6 +47,7 @@ export const epaymentShift = {
       confidence,
     };
   },
+  /** Request payment-mix handling checks for manually recorded methods; this does not verify gateway settlement. */
   geminiPrompt() {
     return `E-payment share shifted today. Give 2 short info checks for terminal and cash handling. Under 60 words.`;
   },

@@ -7,6 +7,8 @@ import { anomalyQuerySchema, activeAnomalyQuerySchema, anomalyIdParamSchema } fr
 
 const router = Router();
 
+// Findings, manual scans, and acknowledgements share the admin boundary.
+// Validation protects list filters and individual finding IDs separately.
 router.use(authenticate);
 router.use(authorize("admin"));
 

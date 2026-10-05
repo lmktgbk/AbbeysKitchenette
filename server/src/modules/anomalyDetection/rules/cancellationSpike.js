@@ -12,6 +12,7 @@ export const cancellationSpike = {
     zScoreThresholds: { medium: 2.0, high: 2.5, critical: 3.0 },
   },
 
+  /** Build daily cancellation percentages from orders and cancellation records; separate today from prior active days. */
   async dataFetcher() {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 30);
@@ -65,9 +66,11 @@ export const cancellationSpike = {
     };
   },
 
+  /** Require at least five orders today before classifying cancellation-rate deviation. */
   condition(data, computeZScore, classifySeverity) {
     const { todayRate, todayTotal, todayCancelled, historicalRates } = data;
 
+    // One cancellation can dominate a very small sample; preserve the minimum-volume gate.
     if (todayTotal < 5) {
       return { triggered: false };
     }
@@ -95,6 +98,7 @@ export const cancellationSpike = {
     };
   },
 
+  /** Describe cancellation volume/rate and request operational checks for accuracy, staffing, and availability. */
   geminiPrompt(data) {
     const { todayRate, todayCancelled, todayTotal, mean } = data;
     return `You are an AI advisor for a café called Abbey's Kitchenette.

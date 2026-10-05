@@ -1,7 +1,9 @@
+/** Bound session lookups and queued callers; request timeout does not cancel an already-running lookup. */
 export function createAuthQueue(lookup, { capacity, queued = 64, timeoutMs }) {
   const waiting = [];
   let active = 0, stopped = false;
   const unavailable = code => Object.assign(Error("Authentication temporarily unavailable"), { statusCode: 503, code });
+  /** Admit queued tasks only while their sockets are active and query capacity remains. */
   function pump() {
     while (!stopped && active < capacity && waiting.length) {
       const task = waiting.shift();
@@ -14,6 +16,7 @@ export function createAuthQueue(lookup, { capacity, queued = 64, timeoutMs }) {
     }
   }
   return {
+    /** Resolve one token within the caller deadline, or reject when stopped or the waiting queue is full. */
     resolve(token, isActive = () => true) {
       if (stopped || waiting.length >= queued) return Promise.reject(unavailable("AUTH_BUSY"));
       return new Promise((resolve, reject) => {
@@ -29,6 +32,8 @@ export function createAuthQueue(lookup, { capacity, queued = 64, timeoutMs }) {
       });
     },
     stats: () => ({ authQueries: active, authWaiting: waiting.length }),
+    // Reject waiting callers during shutdown; running queries keep their slots
+    // until their actual completion and cannot admit more work afterward.
     stop() { stopped = true; for (const task of [...waiting]) task.finish(unavailable("AUTH_UNAVAILABLE")); },
   };
 }

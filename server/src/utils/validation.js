@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+// Shared bounds align request validation with database precision and bounded
+// query/write sizes. Feature schemas choose the relevant limit, not a new copy.
 export const LIMITS = Object.freeze({ page: 1000, pageSize: 100, orderLines: 100, orderQuantity: 1000,
   variants: 50, recipeLines: 100, money: 99999999.99, stock: 9999999.999, unitCost: 999999.9999 });
 
@@ -14,16 +16,20 @@ export const categoryQuery = z.string().max(15).regex(/^(root|sub):\d+$/, "Categ
   .refine(value => Number(value.split(":")[1]) >= 1 && Number(value.split(":")[1]) <= 2147483647, "Invalid category ID");
 export const searchQuery = z.string().trim().max(200).optional();
 export const clockTime = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Time must be HH:mm (00:00–23:59)");
+// Round-trip through UTC to reject calendar overflow such as February 30;
+// formatting alone would accept a date that JavaScript silently normalizes.
 export const calendarDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD")
   .refine(value => value.slice(0, 4) !== "0000" && Number.isFinite(Date.parse(`${value}T00:00:00Z`)) &&
     new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value, "Invalid calendar date");
 
+/** Attach an inclusive date-order check to a schema whose endpoints are validated YYYY-MM-DD strings. */
 export function withDateRange(schema, from = "date_from", to = "date_to") {
   return schema.refine(data => !data[from] || !data[to] || data[from] <= data[to], {
     message: "Start date must not be after end date", path: [to],
   });
 }
 
+/** Reject excess decimal precision without rounding user input; allow only ordinary binary float noise. */
 function decimal(max, scale, positive) {
   return z.number().finite().min(positive ? 10 ** -scale : 0).max(max)
     .refine(value => {

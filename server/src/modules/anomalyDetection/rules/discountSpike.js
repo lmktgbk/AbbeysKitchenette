@@ -7,6 +7,7 @@ export const discountSpike = {
   category: "discount",
   enabled: true,
   config: { lookbackDays: 30, zScoreThresholds: { medium: 2.0, high: 2.5, critical: 3.0 } },
+  /** Aggregate completed-order discounts as a percentage of subtotal per Manila date. */
   async dataFetcher() {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 30);
@@ -27,6 +28,7 @@ export const discountSpike = {
     const historical = rows.filter((r) => !find(r)).map(rate);
     return { shouldDetect: true, todayRate, todayTotal, historical, todayStr };
   },
+  /** Classify nonzero discount share against prior observed dates without changing percentage thresholds. */
   condition(data, computeZScore, classifySeverity) {
     const { todayRate, todayTotal } = data;
     const { zScore, mean, mad } = computeZScore(data.historical, todayRate);
@@ -42,6 +44,7 @@ export const discountSpike = {
       confidence,
     };
   },
+  /** Request checks of recorded discount use; the historical-score decision has already been made. */
   geminiPrompt(data) {
     return `Café discount anomaly: today ${data.todayRate.toFixed(1)}% discount, usual ${data.todayStr} average. Give 2-3 short checks for senior/pwd/promo misuse. Under 100 words, numbered.`;
   },

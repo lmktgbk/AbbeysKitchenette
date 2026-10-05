@@ -34,6 +34,8 @@ export function productUploadBody(req, _res, next) {
     if (typeof req.body?.data !== "string") throw new Error("Missing metadata");
     const data = JSON.parse(req.body.data);
     if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("Invalid metadata");
+    // Trust the URL returned by the upload adapter over any URL in submitted
+    // metadata; subsequent feature validation still validates the merged body.
     req.body = { ...data, ...(req.file ? { image_url: req.file.path } : {}) };
     next();
   } catch {

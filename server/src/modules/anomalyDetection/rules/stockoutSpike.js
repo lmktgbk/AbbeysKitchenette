@@ -8,6 +8,7 @@ export const stockoutSpike = {
   // Disabled per owner cut — low signal. Re-enable to restore.
   enabled: false,
   config: { lookbackDays: 30, zScoreThresholds: { medium: 2.0, high: 2.5, critical: 3.0 } },
+  /** Count distinct ingredients with low/out-of-stock alerts each day, avoiding repeated-alert inflation. */
   async dataFetcher() {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 30);
@@ -26,6 +27,7 @@ export const stockoutSpike = {
     const historical = rows.filter((r) => !find(r)).map((r) => Number(r.cnt));
     return { shouldDetect: true, todayTotal, historical, todayStr };
   },
+  /** Score nonzero daily alerted-ingredient counts against observed alert dates; the rule remains disabled. */
   condition(data, computeZScore, classifySeverity) {
     const { todayTotal } = data;
     const { zScore, mean, mad } = computeZScore(data.historical, todayTotal);
@@ -41,6 +43,7 @@ export const stockoutSpike = {
       confidence,
     };
   },
+  /** Request supplier/ordering checks for the distinct low-or-out ingredient count. */
   geminiPrompt(data) {
     return `Many items out of stock today (${data.todayTotal}). Give 2-3 short checks for supplier and ordering. Under 100 words, numbered.`;
   },

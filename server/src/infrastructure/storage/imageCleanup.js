@@ -9,6 +9,8 @@ export function extractPublicId(imageUrl) {
     if (url.protocol !== "https:" || url.hostname !== "res.cloudinary.com" || url.username || url.password || url.search || url.hash) return null;
     const prefix = `/${env.CLOUDINARY_CLOUD_NAME}/image/upload/`;
     if (!env.CLOUDINARY_CLOUD_NAME || !url.pathname.startsWith(prefix)) return null;
+    // Accept only the application's original upload URLs. Transformation URLs
+    // and unexpected folders cannot be used to schedule arbitrary asset deletion.
     const path = url.pathname.slice(prefix.length).replace(/^v\d+\//, "");
     if (!/^abbseys-kitchenette\/(products|avatars)\/[A-Za-z0-9_-]+\.(jpg|jpeg|png|gif|webp)$/.test(path)) return null;
     return path.replace(/\.[^.]+$/, "");

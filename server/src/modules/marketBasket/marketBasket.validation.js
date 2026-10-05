@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { coercedInteger } from "../../utils/validation.js";
 
+// Accept decimal probability query strings or numeric bodies within [0, 1].
+// Restrict string syntax before conversion so arrays and exponent notation do not slip through.
 const probabilityQuery = z.union([
   z.string().max(20).regex(/^(?:0(?:\.\d+)?|1(?:\.0+)?)$/),
   z.number().finite().min(0).max(1),

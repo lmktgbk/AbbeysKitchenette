@@ -7,6 +7,7 @@ const leaseKey = () => `sheets:${createHash("sha256").update(env.GOOGLE_SERVICE_
 
 /** Database-clock leases serialize replicas without keeping a transaction open during Google calls. */
 export const sheetsRepository = {
+  /** Exclude the sender while an explicitly requested destination reset is in progress. */
   async maintenanceLease() {
     const owner = randomUUID(), key = leaseKey();
     const rows = await prisma.$queryRaw`INSERT INTO background_leases (key, owner, expires_at)
@@ -17,6 +18,7 @@ export const sheetsRepository = {
     if (!rows.length) throw new Error("SHEETS_SENDER_BUSY_RETRY_LATER");
     return { owner, key };
   },
+  /** Reset coordinates only after the transport confirmed empty data and no event is processing. */
   async resetEmptyDestination(spreadsheetId, lease) {
     return prisma.$transaction(async tx => {
       const owned = await tx.$queryRaw`SELECT key FROM background_leases WHERE key = ${lease.key}
@@ -38,6 +40,7 @@ export const sheetsRepository = {
       WHERE status = 'blocked' AND last_error = 'SHEETS_EVENT_COLUMN_OCCUPIED'
         AND payload IS NOT NULL AND payload <> 'null'::jsonb`;
   },
+  /** Claim one event plus the account-wide sending gate; expired processing events reuse their snapshot. */
   async claim() {
     const owner = randomUUID(), key = leaseKey();
     return prisma.$transaction(async tx => {
@@ -70,6 +73,7 @@ export const sheetsRepository = {
   async initialize(spreadsheetId, nextRow) {
     await prisma.sheetSyncDestination.createMany({ data: { spreadsheetId, nextRow }, skipDuplicates: true });
   },
+  /** Allocate a row once under current ownership; retries return the previously persisted coordinate. */
   async reserve(event) {
     return prisma.$transaction(async tx => {
       const owned = await tx.$queryRaw`SELECT sheet_row FROM sheet_sync_log WHERE id = ${event.id}
@@ -84,11 +88,13 @@ export const sheetsRepository = {
       return rows[0].row;
     }, { timeout: 5000 });
   },
+  /** Recheck unexpired ownership immediately before the external write. */
   async owns(event) {
     const rows = await prisma.$queryRaw`SELECT id FROM sheet_sync_log WHERE id = ${event.id}
       AND lease_owner = ${event.owner}::uuid AND lease_expires_at > clock_timestamp() AND status = 'processing'`;
     return rows.length === 1;
   },
+  /** Save acknowledgement/retry state only for the current lease; zero updated rows means ownership was lost. */
   async finish(event, { status, code = null, delayMs = 0 }) {
     return prisma.$executeRaw`UPDATE sheet_sync_log SET status = ${status}, last_error = ${code},
       synced_at = CASE WHEN ${status} = 'synced' THEN clock_timestamp() ELSE synced_at END,
@@ -97,6 +103,7 @@ export const sheetsRepository = {
       WHERE id = ${event.id} AND lease_owner = ${event.owner}::uuid
         AND lease_expires_at > clock_timestamp() AND status = 'processing'`;
   },
+  /** Release the sending gate with a minimum pacing gap; the event retry deadline is stored separately. */
   async release(event, delayMs = SHEETS_GAP_MS) {
     await prisma.$executeRaw`UPDATE background_leases SET owner = NULL, expires_at = NULL,
       next_run_at = clock_timestamp() + ${Math.max(SHEETS_GAP_MS, delayMs)} * interval '1 millisecond'

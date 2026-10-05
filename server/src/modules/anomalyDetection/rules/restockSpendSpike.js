@@ -8,6 +8,7 @@ export const restockSpendSpike = {
   // Disabled per owner replan — restock spend is no longer a kept signal.
   enabled: false,
   config: { lookbackDays: 30, zScoreThresholds: { medium: 2.0, high: 2.5, critical: 3.0 } },
+  /** Sum each restock batch's purchased quantity times its unit cost per Manila date. */
   async dataFetcher() {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 30);
@@ -25,6 +26,7 @@ export const restockSpendSpike = {
     const historical = rows.filter((r) => !find(r)).map((r) => Number(r.total));
     return { shouldDetect: true, todayTotal, historical, todayStr };
   },
+  /** Classify nonzero restock spending against observed restock dates; the rule remains disabled. */
   condition(data, computeZScore, classifySeverity) {
     const { todayTotal } = data;
     const { zScore, mean, mad } = computeZScore(data.historical, todayTotal);
@@ -40,6 +42,7 @@ export const restockSpendSpike = {
       confidence,
     };
   },
+  /** Request over-ordering checks based on the observed restock purchase spend. */
   geminiPrompt(data) {
     return `Restock spend high today ₱${data.todayTotal}. Give 2-3 short checks for over-ordering. Under 100 words, numbered.`;
   },

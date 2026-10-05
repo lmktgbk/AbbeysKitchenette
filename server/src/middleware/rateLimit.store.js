@@ -3,10 +3,13 @@ import prisma from "../config/prisma.js";
 import { env } from "../config/env.js";
 import { AppError } from "./errorHandler.middleware.js";
 
+/** Shared fixed-window counters for Express rate limiting; database failure rejects protected requests. */
 export class PostgresRateLimitStore {
   localKeys = false;
   constructor(prefix, database = prisma) { this.prefix = prefix; this.database = database; }
   init({ windowMs }) { this.windowMs = windowMs; }
+  // Hash the route namespace with the client key so buckets do not store raw
+  // identifiers and different limiters do not consume each other's budgets.
   key(value) { return createHash("sha256").update(`${this.prefix}:${value}`).digest("hex"); }
   async increment(value) {
     try {
@@ -23,6 +26,7 @@ export class PostgresRateLimitStore {
       throw new AppError(503, "Request protection is temporarily unavailable. Please retry shortly.", "RATE_LIMIT_STORAGE_UNAVAILABLE");
     }
   }
+  /** Refund a hit only in the active window; a late response must not reduce an expired budget. */
   async decrement(value) {
     await this.database.$executeRaw`UPDATE rate_limit_buckets SET hits = GREATEST(0, hits - 1)
       WHERE bucket_key = ${this.key(value)} AND reset_at > clock_timestamp()`;
@@ -32,6 +36,7 @@ export class PostgresRateLimitStore {
   }
 }
 
+/** Undefined selects the limiter's default memory store; PostgreSQL shares budgets across replicas. */
 export function sharedRateLimitStore(prefix) {
   return env.RATE_LIMIT_STORE === "postgres" ? new PostgresRateLimitStore(prefix) : undefined;
 }

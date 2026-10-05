@@ -2,12 +2,15 @@ import { sheetsConfigured, buildSheetRow } from "./sheets.outbox.js";
 import { sheetsRepository, SHEETS_GAP_MS } from "./sheets.repository.js";
 import { createSheetsTransport, SheetsError } from "./sheets.transport.js";
 
+/** Exponential retry delay capped at five minutes plus jitter to stagger recovering workers. */
 export function sheetRetryDelay(attempts) {
   return Math.min(300000, 2000 * 2 ** Math.min(attempts - 1, 8)) + Math.floor(Math.random() * 1000);
 }
 
+/** Deliver saved snapshots to reserved rows; external calls run outside database transactions. */
 export function createSheetsWorker({ repository = sheetsRepository, transport = createSheetsTransport(), configured = sheetsConfigured } = {}) {
   let running = false, timer, inFlight = null, startup = null, controller = new AbortController();
+  /** Claim, reserve, and deliver one event; preserve its row when acknowledgement or network delivery fails. */
   async function deliverNext() {
     if (!configured()) return { ran: false, reason: "not-configured" };
     const event = await repository.claim();
@@ -25,6 +28,8 @@ export function createSheetsWorker({ repository = sheetsRepository, transport = 
       return { ran: true, synced: finished === 1, eventId: event.eventId };
     } catch (error) {
       const code = error instanceof SheetsError ? error.code : "SHEETS_STORAGE_OR_LEASE_FAILURE";
+      // Permanent layout/payload errors and exhausted retries need review.
+      // Rate-limit failures also extend the account-wide sender cooldown.
       const blocked = (error instanceof SheetsError && !error.retryable) || event.attempts >= 8;
       cooldown = code === "SHEETS_HTTP_429" ? 60000 : sheetRetryDelay(event.attempts);
       await repository.finish(event, { status: blocked ? "blocked" : "pending", code, delayMs: cooldown });
@@ -39,6 +44,7 @@ export function createSheetsWorker({ repository = sheetsRepository, transport = 
     isConfigured: configured,
     buildRow: order => buildSheetRow(order),
     buildAdjustmentRow: (order, kind) => buildSheetRow(order, kind),
+    /** Share one in-flight delivery between callers rather than create concurrent local senders. */
     processOne() {
       if (inFlight) return inFlight;
       inFlight = deliverNext().finally(() => { inFlight = null; });
@@ -58,6 +64,7 @@ export function createSheetsWorker({ repository = sheetsRepository, transport = 
         if (running) await tick();
       })().finally(() => { startup = null; });
     },
+    /** Abort provider work and await startup/delivery settlement before shutdown closes database access. */
     async stop() {
       running = false; clearTimeout(timer); controller.abort();
       await startup?.catch(() => {});

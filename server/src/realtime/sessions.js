@@ -3,6 +3,7 @@ import { closeOverloaded } from "./limits.js";
 
 const sessions = new Map();
 
+/** Attach an open socket to one local user session group, removing any previous registration first. */
 export function registerSessionSocket(socket, userId) {
   if (socket.readyState !== 1 || socket.__closing) return;
   unregisterSessionSocket(socket);
@@ -12,6 +13,7 @@ export function registerSessionSocket(socket, userId) {
   socket.__sessionUserId = userId;
 }
 
+/** Remove the socket and discard empty user groups so disconnected sessions do not retain memory. */
 export function unregisterSessionSocket(socket) {
   const id = socket.__sessionUserId;
   const sockets = sessions.get(id);
@@ -20,6 +22,7 @@ export function unregisterSessionSocket(socket) {
   delete socket.__sessionUserId;
 }
 
+/** Detach subscriptions and cached credentials before closing an invalidated session. */
 export function closeSessionSocket(socket) {
   detachSocket(socket);
   unregisterSessionSocket(socket);

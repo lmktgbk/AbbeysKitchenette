@@ -8,6 +8,7 @@ export const deadHours = {
   // Disabled per owner cut — low signal. Re-enable to restore.
   enabled: false,
   config: { lookbackDays: 30, zScoreThresholds: { medium: 2.0, high: 2.5, critical: 3.0 } },
+  /** Count unused hourly slots in the fixed 08:00–20:00 window on days with completed orders. */
   async dataFetcher() {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 30);
@@ -37,6 +38,7 @@ export const deadHours = {
     const historical = rows.filter((r) => !find(r)).map((r) => Number(r.dead));
     return { shouldDetect: true, todayTotal, historical, todayStr };
   },
+  /** Score the daily dead-slot count against observed trading days; this disabled rule retains its fixed window. */
   condition(data, computeZScore, classifySeverity) {
     const { todayTotal } = data;
     const { zScore, mean, mad } = computeZScore(data.historical, todayTotal);
@@ -52,6 +54,7 @@ export const deadHours = {
       confidence,
     };
   },
+  /** Request staffing/outage checks for the observed quiet-hour count without changing the fixed trading window. */
   geminiPrompt(data) {
     return `Dead hours today ${data.todayTotal}. Give 2 short checks for staffing and outages. Under 60 words.`;
   },

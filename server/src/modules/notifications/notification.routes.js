@@ -7,6 +7,8 @@ import { notificationQuerySchema, cleanupSchema, notificationIdParamSchema } fro
 
 const router = Router();
 
+// Notification read state is a shared admin stream. Register read-all before
+// parameterized actions so it is not interpreted as a notification identifier.
 router.use(authenticate);
 router.use(authorize("admin"));
 

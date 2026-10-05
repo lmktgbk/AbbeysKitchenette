@@ -13,6 +13,7 @@ export const lossSpike = {
     zScoreThresholds: { medium: 2.0, high: 2.5, critical: 3.0 },
   },
 
+  /** Aggregate cancellation-loss peso exposure and record count, excluding other loss categories. */
   async dataFetcher() {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 30);
@@ -53,6 +54,7 @@ export const lossSpike = {
     };
   },
 
+  /** Score cancellation-loss cost; the count describes records and is not a separate quantity-based trigger. */
   condition(data, computeZScore, classifySeverity) {
     const { todayCost, todayCount, historicalCosts } = data;
     const { zScore, mean, mad } = computeZScore(historicalCosts, todayCost);
@@ -63,6 +65,7 @@ export const lossSpike = {
 
     const min = Math.max(0, mean - 2 * mad * 1.4826);
     const max = mean + 2 * mad * 1.4826;
+    // This is the rule's bounded display score, not a calibrated probability.
     const confidence = Math.min(0.99, 0.5 + Math.abs(zScore) * 0.15);
 
     return {
@@ -79,6 +82,7 @@ export const lossSpike = {
     };
   },
 
+  /** Explain cancellation-loss exposure and request waste-reduction advice for declared item removals. */
   geminiPrompt(data) {
     const { todayCost, todayCount, mean } = data;
     return `You are an AI advisor for a café called Abbey's Kitchenette.

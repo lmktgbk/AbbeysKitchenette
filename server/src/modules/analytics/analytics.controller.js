@@ -115,6 +115,7 @@ export const analyticsController = {
     }
   },
 
+  /** Render the selected shared report payload as PDF or Excel; filename dates come from validated query fields. */
   async exportExcel(req, res) {
     try {
       const { date_from, date_to, type, format } = req.validatedQuery;
@@ -149,6 +150,8 @@ export const analyticsController = {
       const workbook = buildExcelWorkbook(ExcelJS, payload);
       res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
       res.setHeader("Content-Disposition", `attachment; filename="${baseName}.xlsx"`);
+      // Complete the binary stream before ending the response; this route
+      // cannot send a second JSON response after headers/body have been written.
       await workbook.xlsx.write(res);
       res.end();
     } catch (error) {

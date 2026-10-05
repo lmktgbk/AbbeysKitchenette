@@ -12,6 +12,7 @@ function handleError(res, error, fallbackCode) {
 }
 
 export const auditLogController = {
+  /** Read bounded, validated audit filters after the explicit admin check; never infer permission from UI. */
   async getLogs(req, res) {
     try {
       if (req.user.role !== "admin") {

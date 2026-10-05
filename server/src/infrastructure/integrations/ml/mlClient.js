@@ -6,6 +6,8 @@ export async function fetchMl(path, { method = "GET", body, signal, timeoutMs = 
     throw new Error("ML service credential is not configured");
   }
   const base = new URL(env.FORECAST_URL ?? "http://127.0.0.1:8000");
+  // Only feature-supplied paths on the configured origin may receive the
+  // service credential; absolute URLs and protocol-relative paths are rejected.
   const url = new URL(path, base);
   if (!path.startsWith("/") || path.startsWith("//") || url.origin !== base.origin) {
     throw new Error("Invalid ML service path");

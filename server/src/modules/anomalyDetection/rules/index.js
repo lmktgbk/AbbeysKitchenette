@@ -11,6 +11,8 @@ import { supplierPriceJump } from "./supplierPriceJump.js";
 import { epaymentShift } from "./epaymentShift.js";
 import { deadHours } from "./deadHours.js";
 
+// Keep disabled rules registered so saved/configured rule IDs remain discoverable.
+// The service consults each enabled flag; registry membership does not activate a rule.
 export const RULE_REGISTRY = [
   revenueAnomaly,
   lossSpike,

@@ -12,6 +12,7 @@ const output = z.object({ recommendations: z.array(recommendation).min(1).max(LI
 const invalid = () => new AppError(502, "AI returned invalid recommendations. Existing suggestions were preserved", "INVALID_PRICE_RECOMMENDATIONS");
 const round = value => Math.round(value * 100) / 100;
 
+/** Validate provider output and bind each unique variant to observed pricing before publication. */
 export function normalizeRecommendations(result, variants) {
   const parsed = output.safeParse(result);
   if (!parsed.success) throw invalid();
@@ -19,6 +20,8 @@ export function normalizeRecommendations(result, variants) {
   const seen = new Set();
   return parsed.data.recommendations.map(r => {
     const v = allowed.get(r.variant_id);
+    // Reject the entire response on a foreign or repeated variant; partial
+    // replacement could otherwise hide valid existing pending recommendations.
     if (!v || seen.has(r.variant_id)) throw invalid();
     seen.add(r.variant_id);
     const currentPrice = Number(v.price);

@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { env } from "../../config/env.js";
 
+/** Stable failure codes distinguish retryable provider errors from layout/configuration problems. */
 export class SheetsError extends Error {
   constructor(code, retryable = true) { super(code); this.code = code; this.retryable = retryable; }
 }
@@ -26,6 +27,7 @@ async function readResponse(response) {
   } finally { reader.releaseLock(); }
 }
 
+/** Google transport owns token/layout caches; the repository owns row allocation and delivery leases. */
 export function createSheetsTransport({ fetchImpl = fetch, config = env, timeoutMs = 10000 } = {}) {
   let token, expiresAt = 0, tokenRequest;
   const grids = new Map();
@@ -39,6 +41,7 @@ export function createSheetsTransport({ fetchImpl = fetch, config = env, timeout
       throw new SheetsError(signal?.aborted ? "SHEETS_INTERRUPTED" : "SHEETS_NETWORK_OR_TIMEOUT");
     }
   };
+  /** Share token refresh work and expire the cached token one minute before Google does. */
   async function accessToken(signal) {
     if (token && Date.now() < expiresAt) return token;
     if (tokenRequest) return tokenRequest;
@@ -59,6 +62,7 @@ export function createSheetsTransport({ fetchImpl = fetch, config = env, timeout
     })();
     try { return await tokenRequest; } finally { tokenRequest = null; }
   }
+  /** Retry a rejected credential once with a fresh token; other failures return to the durable worker. */
   async function google(spreadsheetId, suffix, options = {}, signal) {
     if (!/^[A-Za-z0-9_-]{1,200}$/.test(spreadsheetId)) throw new SheetsError("SHEETS_INVALID_DESTINATION", false);
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -84,6 +88,7 @@ export function createSheetsTransport({ fetchImpl = fetch, config = env, timeout
     if (grids.size >= 20) grids.delete(grids.keys().next().value);
     grids.set(spreadsheetId, result); return result;
   }
+  /** Locate the event-ID column without taking over a workbook's existing cashier/adjustment columns. */
   async function layout(spreadsheetId, signal) {
     const properties = await grid(spreadsheetId, signal);
     if (properties.layout) return properties.layout;
@@ -114,6 +119,7 @@ export function createSheetsTransport({ fetchImpl = fetch, config = env, timeout
     }
   }
   return {
+    /** Inspect occupied rows and establish headers; requireEmpty is reserved for explicit reset requests. */
     async initialize(spreadsheetId, signal, { requireEmpty = false } = {}) {
       const properties = await grid(spreadsheetId, signal);
       const format = await layout(spreadsheetId, signal);
@@ -135,6 +141,7 @@ export function createSheetsTransport({ fetchImpl = fetch, config = env, timeout
       }
       return nextRow;
     },
+    /** Write a valid immutable snapshot only to its reserved row; refuse another event's occupied row. */
     async deliver(event, signal) {
       const values = event.payload?.values;
       if (event.payload?.version !== 1 || !Array.isArray(values) || values.length !== 12 || values[11] !== event.eventId || !Number.isInteger(event.sheetRow) || event.sheetRow < 2 || values.some(value => !["string", "number"].includes(typeof value) || (typeof value === "number" && !Number.isFinite(value)))) throw new SheetsError("SHEETS_INVALID_SNAPSHOT", false);

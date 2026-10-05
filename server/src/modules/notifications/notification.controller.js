@@ -1,12 +1,14 @@
 import { notificationService } from "./notification.service.js";
 import { successResponse, controllerError } from "../../utils/response.js";
 
+/** HTTP adapters for the shared admin notification stream; read state is global, not per-user. */
 export const notificationController = {
+  /** Convert validated pagination and deduplicated type filters into the bell-list request. */
   async getNotifications(req, res) {
     try {
       const { page, limit, type } = req.validatedQuery || {};
       // Comma-separated types (e.g. order_new,order_completed) for group chips.
-      // Unknown tokens are dropped so a typo narrows instead of emptying the list.
+      // Keep recognized tokens; if none remain, preserve the existing unfiltered-list behavior.
       const KNOWN_TYPES = new Set([
         "order_new",
         "order_accepted",
@@ -54,6 +56,7 @@ export const notificationController = {
     }
   },
 
+  /** Mark the shared stream read; the router restricts this action to authenticated admins. */
   async markAllAsRead(req, res) {
     try {
       await notificationService.markAllAsRead();
@@ -72,6 +75,7 @@ export const notificationController = {
     }
   },
 
+  /** Pass the validated retention period to cleanup, retaining the existing 30-day default. */
   async cleanup(req, res) {
     try {
       const { days } = req.body || {};

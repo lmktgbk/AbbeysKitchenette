@@ -12,6 +12,7 @@ export const revenueAnomaly = {
     zScoreThresholds: { medium: 2.0, high: 2.5, critical: 3.0 },
   },
 
+  /** Separate today's completed-order revenue from prior observed dates; absent historical dates are not zero-filled. */
   async dataFetcher() {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 30);
@@ -49,6 +50,7 @@ export const revenueAnomaly = {
     };
   },
 
+  /** Score completed-order revenue in either direction and derive the display weekday from the business date. */
   condition(data, computeZScore, classifySeverity) {
     const { todayRevenue, historical, todayStr } = data;
     const { zScore, mean, mad } = computeZScore(historical, todayRevenue);
@@ -57,6 +59,8 @@ export const revenueAnomaly = {
     const severity = classifySeverity(zScore, config.zScoreThresholds);
     const triggered = Math.abs(zScore) >= config.zScoreThresholds.medium;
 
+    // Display bands use the arithmetic mean returned by the engine; scoring
+    // itself is centered on a median. Keep these existing policies distinct.
     const min = Math.max(0, mean - 2 * mad * 1.4826);
     const max = mean + 2 * mad * 1.4826;
     const confidence = Math.min(0.99, 0.5 + Math.abs(zScore) * 0.15);
@@ -81,6 +85,7 @@ export const revenueAnomaly = {
     };
   },
 
+  /** Provide business-date, revenue expectation, and recent trend context for optional owner advice. */
   geminiPrompt(data) {
     const { todayRevenue, mean, dayName, trend } = data;
     const trendStr = trend.map((v) => `₱${Math.round(v)}`).join(", ");

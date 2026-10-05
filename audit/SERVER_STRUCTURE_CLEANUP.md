@@ -255,3 +255,37 @@ formatting remains outside the commit.
 Next stage: inspect client feature ownership, imports, and duplicated UI/data
 flows before selecting a bounded React cleanup batch. Server structural checks
 are not a substitute for the final manual acceptance checklist.
+
+
+## Batch 12 — broader server comment review
+
+The earlier completion statement covered structure changes but overstated completion
+of comment review. This pass inventories handwritten server sources and addresses
+49 files with missing explanations or inaccurate existing comments. Comment counts
+were used to locate candidates, not as proof that documentation is adequate.
+
+- Documented auth repository projections, lockout accounting, version/hash guards,
+  single-use recovery tokens, logout replay behavior, and image replacement checks.
+- Explained anomaly metric definitions, sample gates, disabled-rule registration,
+  percentage severity overrides, and each rule's advisory prompt purpose.
+- Corrected the anomaly engine's statistical description: its mad variable is an
+  average absolute distance around a median, not the standard median absolute
+  deviation. The calculation and thresholds were intentionally preserved.
+- Explained Sheets event identity, immutable snapshots, row allocation, ownership
+  checks, rate-limit cooldowns, permanent failures, token refresh, and reset boundaries.
+- Documented bounded worker sweeps, coalesced wakeups, uncertain deletion outcomes,
+  readiness degradation, session queues, socket admission, and buffer limits.
+- Explained validation precision/date checks and selected route authorization
+  boundaries. Corrected notification comments describing nonexistent searched SQL,
+  unfiltered fallback behavior, and direct creation's lack of durable retry guarantees.
+
+Verification: normalized JavaScript syntax trees match HEAD for all 49 modified
+source files (positions/comments excluded). 838 ordinary tests passed, with 119
+opt-in cases skipped. No executable statement, SQL, API, threshold, transaction,
+or provider retry policy changed. No migration is needed. Database suites were
+not repeated for comment-only edits; live/manual acceptance remains outstanding.
+The existing automation repository formatting was preserved outside this commit.
+
+Documentation is not a blanket claim that every complex line throughout the
+server has now been exhaustively reviewed. Further concrete gaps should be fixed
+where found; do not treat file headers or raw comment totals as completion criteria.

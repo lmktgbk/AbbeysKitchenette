@@ -9,6 +9,7 @@ export function createReadiness({ checkDatabase, checkMl, timeoutMs = 3000, cach
   let expires = 0;
   let flight;
   const pending = new Map();
+  /** Bound the response wait without pretending the underlying dependency operation has been cancelled. */
   const probe = async (key, check) => {
     // Keep the underlying operation shared even after the response deadline.
     // A stalled dependency must not accumulate work on every health request.
@@ -27,9 +28,12 @@ export function createReadiness({ checkDatabase, checkMl, timeoutMs = 3000, cach
   return {
     beginShutdown() { draining = true; },
     isShuttingDown() { return draining; },
+    /** Database failure prevents admission; ML failure reports degradation while POS remains available. */
     async check() {
       if (draining) return { ready: false, draining: true };
       if (!cached || Date.now() >= expires) {
+        // Cache the combined result briefly and share refreshes so concurrent
+        // platform probes do not create a separate dependency check each.
         flight ??= Promise.all([probe("db", checkDatabase), probe("ml", checkMl)])
           .then(([db, ml]) => {
             cached = { ready: db, checks: { database: db, mlService: ml }, degraded: !ml };

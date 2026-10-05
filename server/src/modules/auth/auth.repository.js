@@ -13,6 +13,7 @@ import { lockAccount } from "./auth.accountLock.js";
  * profiles use explicit projections and never include revocation state.
  */
 export const authRepository = {
+  /** Internal login projection includes the password hash and lockout state; never return it as a profile. */
   async findByEmailWithCredentials(email) {
     return prisma.user.findUnique({
       where: { email },
@@ -32,6 +33,7 @@ export const authRepository = {
     });
   },
 
+  /** Read account identity/revocation state for recovery workflows without loading the password hash. */
   async findByEmail(email) {
     return prisma.user.findUnique({
       where: { email },
@@ -39,12 +41,14 @@ export const authRepository = {
     });
   },
 
+  /** Read session validation state and account lock expiry; this projection is internal authentication data. */
   async findSecurityState(id) {
     return prisma.user.findUnique({
       where: { id }, select: { ...SESSION_USER_SELECT, lockedUntil: true },
     });
   },
 
+  /** Return the public profile projection, excluding credentials and session-revocation counters. */
   async findById(id) {
     return prisma.user.findUnique({
       where: { id },
@@ -66,6 +70,7 @@ export const authRepository = {
     return existing && existing.id !== userId;
   },
 
+  /** Serialize failure accounting and reset an elapsed lockout before applying the five-attempt threshold. */
   async incrementFailedLoginAttempts(userId, lockoutMinutes) {
     return prisma.$transaction(async (tx) => {
       await lockAccount(tx, userId);
@@ -91,6 +96,7 @@ export const authRepository = {
     });
   },
 
+  /** Replace only the verified password state, revoke sessions/recovery material, and audit in one commit. */
   async updatePassword(userId, passwordHash, expectedHash) {
     return prisma.$transaction(async (tx) => {
       const changed = await tx.user.updateMany({
@@ -105,6 +111,7 @@ export const authRepository = {
     }, { timeout: 5000 });
   },
 
+  /** Revoke only the observed session version; repeated stale logout requests do not increment it again. */
   async revokeSessions(userId, expectedVersion) {
     return prisma.$transaction(async (tx) => {
       const revoked = await tx.user.updateMany({
@@ -120,6 +127,7 @@ export const authRepository = {
     }, { timeout: 5000 });
   },
 
+  /** Save validated profile fields for an active account, optionally guarding the observed session version. */
   async updateProfile(userId, data, expectedVersion) {
     return prisma.$transaction(async tx => {
       const user = await tx.user.update({
@@ -135,6 +143,7 @@ export const authRepository = {
     }, { timeout: 5000 });
   },
 
+  /** Replace only the observed image on an active account; a concurrent replacement must not be overwritten. */
   async updateImageUrl(userId, imageUrl, expectedImage, expectedVersion) {
     return prisma.$transaction(async tx => {
       const user = await tx.user.update({
@@ -162,6 +171,7 @@ export const authRepository = {
   },
 
   // Issuance and consumption use the same account lock to serialize recovery changes.
+  /** Invalidate prior unused links and persist only the new token hash after checking the locked account version. */
   async issueResetToken(userId, token, expiresAt, expectedVersion, actorId = userId, context = "password-reset") {
     return prisma.$transaction(async (tx) => {
       await lockAccount(tx, userId);
@@ -179,6 +189,7 @@ export const authRepository = {
     }, { timeout: 5000 });
   },
 
+  /** Remove only this unused issuance after failed delivery; do not invalidate a newer reset link. */
   async discardResetToken(userId, token) {
     return prisma.passwordResetToken.deleteMany({ where: { userId, tokenHash: this.hashResetToken(token), usedAt: null } });
   },
@@ -189,6 +200,7 @@ export const authRepository = {
     });
   },
 
+  /** Consume an unexpired token once and update the matching active account version atomically. */
   async resetPassword(token, userId, version, passwordHash) {
     return prisma.$transaction(async (tx) => {
       await lockAccount(tx, userId);
@@ -198,6 +210,8 @@ export const authRepository = {
         data: { usedAt: now },
       });
       if (claimed.count !== 1) throw new AppError(401, "Invalid or expired reset token", "INVALID_TOKEN");
+      // Account rejection also rolls back the token claim, avoiding a consumed
+      // link without the matching password change and audit.
       const changed = await tx.user.updateMany({
         where: { id: userId, isActive: true, sessionVersion: version },
         data: { passwordHash, sessionVersion: { increment: 1 }, failedLoginAttempts: 0, lockedUntil: null },

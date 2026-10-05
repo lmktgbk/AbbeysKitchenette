@@ -7,6 +7,8 @@ import { getAnalyticsQuerySchema, getTrendQuerySchema, getExportQuerySchema, get
 
 const router = Router();
 
+// Apply admin authorization to every financial view/export before its
+// validated query is mapped by the controller.
 router.use(authenticate);
 router.use(authorize("admin"));
 

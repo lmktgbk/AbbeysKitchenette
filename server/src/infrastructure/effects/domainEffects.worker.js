@@ -4,6 +4,7 @@ import { broadcast } from "../../realtime/hub.js";
 /** Recover saved effects in bounded sweeps; stop waits for the current sweep before shutdown. */
 export function createEffectsWorker({ repository = effectsRepository, emit = broadcast, intervalMs = 5000 } = {}) {
   let running = false, timer, flight, lastPrune = 0;
+  /** Deliver up to twenty intents, then repair availability and periodically prune delivered history. */
   async function sweep() {
     for (let i = 0; i < 20 && running; i++) {
       const result = await repository.deliverOne();
@@ -20,6 +21,7 @@ export function createEffectsWorker({ repository = effectsRepository, emit = bro
     }
     if (running && Date.now() - lastPrune > 3600000) { await repository.prune(); lastPrune = Date.now(); }
   }
+  /** Start one sweep per process; the next timer is armed only after it settles. */
   function wake() {
     if (!running || flight) return;
     clearTimeout(timer);

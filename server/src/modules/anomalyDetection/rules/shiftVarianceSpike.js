@@ -6,7 +6,7 @@ export const shiftVarianceSpike = {
   name: "Cash Drawer Variance Detection",
   category: "cash",
   enabled: true,
-  // Policeman mode: every closed shift with variance != 0 flags immediately.
+  // Every closed shift with nonzero variance is eligible without historical scoring.
   // Severity by absolute peso size so notify behavior matches other rules
   // (only high/critical push a bell; medium stays as a card).
   config: { mediumMax: 50, highMax: 199 },

@@ -44,6 +44,7 @@ export async function sanitizeImage(buffer, file, { allowed = IMAGE_POLICIES.pro
     if (error instanceof AppError) throw error;
     throw new AppError(400, "Image could not be decoded", "INVALID_IMAGE");
   } finally {
+    // Release capacity on every exit, including decode failures and size rejection.
     processing--;
   }
 }

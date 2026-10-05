@@ -12,6 +12,7 @@ export const fulfillmentOutlier = {
     zScoreThresholds: { medium: 2.0, high: 2.5, critical: 3.0 },
   },
 
+  /** Use daily median fulfillment minutes only for dates with at least three measured completed orders. */
   async dataFetcher() {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 30);
@@ -38,6 +39,7 @@ export const fulfillmentOutlier = {
     const todayRow = rows.find((r) => toDayKey(r.day) === todayStr);
 
     const todayMedian = todayRow ? Number(todayRow.median_minutes) : null;
+    // A day with too few measured completions has no comparable median.
     if (todayMedian === null) return { shouldDetect: false };
 
     const historical = rows.filter((r) => {
@@ -53,6 +55,7 @@ export const fulfillmentOutlier = {
     };
   },
 
+  /** Score today's median only when present; report either faster or slower deviations against history. */
   condition(data, computeZScore, classifySeverity) {
     const { todayMedian, historical } = data;
     const { zScore, mean, mad } = computeZScore(historical, todayMedian);
@@ -78,6 +81,7 @@ export const fulfillmentOutlier = {
     };
   },
 
+  /** Describe faster/slower fulfillment and request checks for staffing, complexity, and kitchen workflow. */
   geminiPrompt(data) {
     const { todayMedian, mean } = data;
     const direction = todayMedian > mean ? "slower" : "faster";

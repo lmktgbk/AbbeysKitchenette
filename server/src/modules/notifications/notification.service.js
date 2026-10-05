@@ -4,14 +4,14 @@ import { broadcast } from "../../realtime/hub.js";
 /**
  * Notification Service (admin-only readers — enforced in routes + header)
  *
- * Centralized creation for the bell stream. Producers never await create():
- * a dead notifications table must not fail an order or a login, so failures
- * are logged with the type here and swallowed by design.
+ * Direct creation is best-effort and logs failures without rethrowing. Business
+ * mutations needing durable delivery use recordEffects inside their transaction;
+ * the effects worker publishes saved notification intent after that commit.
  */
 export const notificationService = {
   /**
-   * Create a notification. Fire-and-forget — failures are logged with the
-   * type (never thrown, never silent).
+   * Create directly and return the row on success, or undefined after a logged
+   * failure. Awaiting this helper does not provide durable retry guarantees.
    * @param {object} params
    * @param {string} params.type - notification type (order_new, stock_low, etc.)
    * @param {string} params.title - short title
