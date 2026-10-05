@@ -34,6 +34,8 @@ function parseValue(value) {
 
 export default function TimePicker({ value, onChange, placeholder = "Select time" }) {
   const [open, setOpen] = useState(false);
+  // Resolve the portal boundary when opening, rather than reading a DOM ref during render.
+  const [portalTarget, setPortalTarget] = useState(null);
   const { hour: initH, minute: initM } = parseValue(value);
   const [selectedHour, setSelectedHour] = useResettableState(initH, [value, open]);
   const [selectedMinute, setSelectedMinute] = useResettableState(initM, [value, open]);
@@ -123,7 +125,11 @@ export default function TimePicker({ value, onChange, placeholder = "Select time
     <div ref={ref} className="relative">
       <button
         type="button"
-        onClick={() => { setGen((g) => g + 1); setOpen((prev) => !prev); }}
+        onClick={(event) => {
+          setPortalTarget(event.currentTarget.closest('[role="dialog"]'));
+          setGen((g) => g + 1);
+          setOpen((prev) => !prev);
+        }}
         className={cn(
           "flex h-10 w-full items-center gap-2 rounded-lg border border-input bg-card px-3 text-sm transition-colors",
           "focus:outline-none focus:border-primary hover:border-muted-foreground/50",
@@ -151,7 +157,7 @@ export default function TimePicker({ value, onChange, placeholder = "Select time
         )}
       </button>
 
-      {/* Panel — body portal so ancestor overflow can't clip it */}
+      {/* Panel — portal outside the trigger card, within its enclosing modal when present */}
       {open && pos.gen === gen && createPortal(
         <div
           ref={panelRef}
@@ -241,7 +247,8 @@ export default function TimePicker({ value, onChange, placeholder = "Select time
             </button>
           </div>
         </div>,
-        document.body
+        // Stay inside the enclosing modal focus boundary; ordinary page filters still use body.
+        portalTarget ?? document.body
       )}
     </div>
   );

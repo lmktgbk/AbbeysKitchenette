@@ -10,6 +10,11 @@ function escapeHtml(value) {
     })[character]);
 }
 
+/** Keep confirmations launched by a modal inside its focus and pointer boundary. */
+function dialogTarget() {
+    return document.activeElement?.closest?.('[role="dialog"]') ?? document.body;
+}
+
 const VARIANTS = {
     danger: { confirmColor: "var(--destructive)", icon: "warning" },
     warning: { confirmColor: "var(--warning)", icon: "warning" },
@@ -49,6 +54,7 @@ export async function confirm({ title, message, note, confirmLabel = "Confirm", 
         : undefined;
 
     const result = await Swal.fire({
+        target: dialogTarget(),
         titleText: title,
         html,
         text: hasNote ? undefined : message,
@@ -130,6 +136,7 @@ export async function confirmWithReason({ title, message, reasons = DEFAULT_REAS
     document.head.appendChild(styleTag);
 
     const result = await Swal.fire({
+        target: dialogTarget(),
         titleText: title,
         html: htmlContent,
         icon: "warning",
@@ -255,6 +262,7 @@ export async function confirmWithLossOption({ orderNumber }) {
     document.head.appendChild(styleTag);
 
     const result = await Swal.fire({
+        target: dialogTarget(),
         title: "Cancel Order?",
         html: htmlContent,
         icon: "warning",

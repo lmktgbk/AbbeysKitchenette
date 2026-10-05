@@ -50,6 +50,14 @@ describe("confirmation dialogs treat caller content as text", () => {
     expect(await confirmWithLossOption({ orderNumber: hostile })).toEqual({ confirmed: false, loss_option: null });
     expect(fire.mock.calls[0][0].html).toContain('<strong>' + encoded + '</strong>');
   });
+  it("targets an enclosing modal when opened by a focused modal control", async () => {
+    const modal = {};
+    const closest = vi.fn().mockReturnValue(modal);
+    document.activeElement = { closest };
+    await confirm({ title: "Confirm", message: "Continue?" });
+    expect(closest).toHaveBeenCalledWith('[role="dialog"]');
+    expect(fire.mock.calls[0][0].target).toBe(modal);
+  });
   it("retains the confirmation result contract", async () => {
     fire.mockResolvedValueOnce({ isConfirmed: true });
     expect(await confirm({ title: "Confirm", message: "Continue?" })).toBe(true);

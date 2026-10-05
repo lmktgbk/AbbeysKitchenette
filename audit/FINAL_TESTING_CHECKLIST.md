@@ -1057,3 +1057,16 @@ or deactivation. Never use production business records for these fixtures.
 
 Automated renderer-contract regressions: six passed on 2026-10-05. Live cases
 above remain **NOT RUN**; record the tested commit and browser.
+
+## Calendar and modal lifecycle regression
+
+- [ ] On Manila and overseas devices, select dates and all presets; verify request dateFrom/dateTo match visible calendar labels across month/year/leap-day boundaries.
+- [ ] In profile, staff, inventory, category, pricing, and filter dialogs, check initial focus, Tab/Shift+Tab containment, Escape/backdrop dismissal, and restoration to the opener.
+- [ ] Open a nested dialog, close it, and verify the parent still blocks background scrolling and remains interactive.
+- [ ] Use time filters inside FilterModal; open category/pricing confirmations inside their dialogs. Verify child controls remain clickable and the parent stays open.
+- [ ] On a small viewport, verify long forms remain scrollable with top/bottom spacing and profile header/tabs remain visible.
+
+Isolated browser controls passed on 2026-10-05: focus loop/restoration, Escape,
+backdrop, nested modal scroll lock, time/date picker use, and literal confirmation
+text. Five automated timezone serialization cases passed. Full application and
+mobile cases above remain **NOT RUN**.

@@ -97,3 +97,10 @@ export function manilaTodayLocal() {
   const { y, m, d } = manilaParts();
   return new Date(y, m - 1, d);
 }
+
+/** Serialize a calendar cell by its local fields, without converting it into another timezone.
+ * Unlike toLocalDate (an instant formatter), this preserves the day selected in a calendar.
+ */
+export function calendarDate(date) {
+  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
+}

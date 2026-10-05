@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import Icon from "@/components/ui/icon";
-import { toLocalDate, manilaTodayLocal } from "@/lib/date";
+import { calendarDate, toLocalDate, manilaTodayLocal } from "@/lib/date";
 import usePopoverAlign from "./usePopoverAlign";
 
 /**
@@ -15,6 +15,8 @@ import usePopoverAlign from "./usePopoverAlign";
  */
 export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
   const [open, setOpen] = useState(false);
+  // Resolve the portal boundary when opening, rather than reading a DOM ref during render.
+  const [portalTarget, setPortalTarget] = useState(null);
   const [startDate, setStartDate] = useState(dateFrom);
   const [endDate, setEndDate] = useState(dateTo);
   const [viewMonth, setViewMonth] = useState(() => manilaTodayLocal().getMonth());
@@ -77,10 +79,9 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
 
   // ── Helpers ──────────────────────────
 
-  // Format the Date instant in Manila for the API date-only contract.
-  // Grid cells are device-local midnights, so other device timezones can shift the emitted day.
+  // Calendar cells represent dates, not instants; preserve their fields on devices abroad.
   function toISO(date) {
-    return toLocalDate(date);
+    return calendarDate(date);
   }
 
   // Build device-local calendar cells from date-only strings, avoiding UTC string parsing.
@@ -360,7 +361,11 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
       {/* Trigger */}
       <button
         type="button"
-        onClick={() => { setGen((g) => g + 1); setOpen((prev) => !prev); }}
+        onClick={(event) => {
+          setPortalTarget(event.currentTarget.closest('[role="dialog"]'));
+          setGen((g) => g + 1);
+          setOpen((prev) => !prev);
+        }}
         className={cn(
           "flex items-center gap-2 h-8 px-3 rounded-md border text-xs font-medium transition-colors",
           isActive
@@ -378,7 +383,7 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
         />
       </button>
 
-      {/* Panel — body portal so ancestor overflow (table cards) can't clip it.
+      {/* Panel — portal outside the trigger card, within its enclosing modal when present.
           Flips above the trigger when space below is short. */}
       {open && pos.gen === gen && createPortal(
         <div
@@ -492,7 +497,8 @@ export default function DateRangeFilter({ dateFrom, dateTo, onDateChange }) {
             </button>
           </div>
         </div>,
-        document.body
+        // Stay inside the enclosing modal focus boundary; ordinary page filters still use body.
+        portalTarget ?? document.body
       )}
     </div>
   );

@@ -1,67 +1,51 @@
-import { useEffect, useCallback } from "react";
-import { createPortal } from "react-dom";
+import { useRef } from "react";
+import { Dialog as DialogPrimitive } from "radix-ui";
 import { cn } from "@/lib/utils";
 import Icon from "@/components/ui/icon";
 
-/** Dialog — portal modal with backdrop/Esc/X close. WHY it exists: single overlay + scroll-lock + close handling shared by FilterModal, BatchListModal, ProfileModal; consumed via open/onOpenChange. State: none (caller-owned open; local Escape listener). */
-
-/** Caller-controlled portal overlay. Closing unmounts its contents.
- * Escape and backdrop dismissal are provided here; focus trapping/restoration are not implemented.
+/** Caller-controlled modal. Radix owns focus trapping, Escape/outside dismissal,
+ * screen-reader title/description links, and nested scroll-lock cleanup.
  */
 function Dialog({ open, onOpenChange, children }) {
-  // Close on Escape key
-  const handleKeyDown = useCallback(
-    (e) => {
-      if (e.key === "Escape") onOpenChange(false);
-    },
-    [onOpenChange],
-  );
-
-  useEffect(() => {
-    if (open) {
-      document.addEventListener("keydown", handleKeyDown);
-      // This scroll lock assumes one active overlay; cleanup does not restore a previous lock.
-      document.body.style.overflow = "hidden";
-    }
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "";
-    };
-  }, [open, handleKeyDown]);
-
-  if (!open) return null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/50 animate-in fade-in-0 duration-200"
-        onClick={() => onOpenChange(false)}
-      />
-      {/* Content — click outside closes */}
-      <div
-        className="relative z-50 w-full flex justify-center px-4"
-        onClick={() => onOpenChange(false)}
-      >
-        {children}
-      </div>
-    </div>,
-    document.body,
-  );
+  return <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>{children}</DialogPrimitive.Root>;
 }
 
-function DialogContent({ className, children, ...props }) {
+/** Keep the existing layout/API while delegating modal lifecycle to the installed primitive. */
+function DialogContent({ className, children, onOpenAutoFocus, onCloseAutoFocus, ...props }) {
+  const opener = useRef(null);
+
+  function handleOpenAutoFocus(event) {
+    // Callers open these dialogs without a Radix Trigger, so retain the actual focused opener.
+    opener.current = document.activeElement;
+    onOpenAutoFocus?.(event);
+  }
+
+  function handleCloseAutoFocus(event) {
+    onCloseAutoFocus?.(event);
+    if (!event.defaultPrevented && opener.current?.isConnected) {
+      event.preventDefault();
+      opener.current.focus();
+    }
+  }
+
   return (
-    <div
-      className={cn(
-        "w-full max-w-lg relative border border-border bg-card text-card-foreground rounded-xl p-6 animate-in fade-in-0 zoom-in-95 duration-200",
-        className,
-      )}
-      onClick={(e) => e.stopPropagation()}
-      {...props}
-    >
-      {children}
-    </div>
+    <DialogPrimitive.Portal>
+      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 animate-in fade-in-0 duration-200" />
+      <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center px-4 py-4">
+        <DialogPrimitive.Content
+          aria-modal="true"
+          className={cn(
+            "pointer-events-auto w-full max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto relative border border-border bg-card text-card-foreground rounded-xl p-6 animate-in fade-in-0 zoom-in-95 duration-200",
+            className,
+          )}
+          onOpenAutoFocus={handleOpenAutoFocus}
+          onCloseAutoFocus={handleCloseAutoFocus}
+          {...props}
+        >
+          {children}
+        </DialogPrimitive.Content>
+      </div>
+    </DialogPrimitive.Portal>
   );
 }
 
@@ -76,7 +60,7 @@ function DialogHeader({ className, ...props }) {
 
 function DialogTitle({ className, ...props }) {
   return (
-    <h2
+    <DialogPrimitive.Title
       className={cn("text-lg font-semibold text-foreground", className)}
       {...props}
     />
@@ -85,7 +69,7 @@ function DialogTitle({ className, ...props }) {
 
 function DialogDescription({ className, ...props }) {
   return (
-    <p
+    <DialogPrimitive.Description
       className={cn("text-sm text-muted-foreground", className)}
       {...props}
     />
@@ -108,6 +92,7 @@ function DialogClose({ onClick, className, ...props }) {
   return (
     <button
       type="button"
+      aria-label="Close dialog"
       onClick={onClick}
       className={cn(
         "absolute right-4 top-4 rounded-md p-1 text-muted-foreground hover:bg-muted",

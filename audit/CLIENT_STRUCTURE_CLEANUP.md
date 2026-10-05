@@ -379,3 +379,40 @@ plain-message rendering, and confirmation results. All 58 client-focused tests,
 production build, and ESLint passed. These tests mock the renderer and do not
 prove browser DOM behavior; live dialog verification remains **Not verified**.
 Existing Router, submission formatting, and automation edits are excluded.
+
+## Functional follow-up — calendar dates and modal lifecycle
+
+DateRangeFilter now serializes calendar cells using their local year/month/day
+fields, while instant formatting and Manila business-today detection retain their
+existing timezone contract. This fixes one-day shifts when selected calendar
+midnights are converted from zones ahead of Manila. One documented calendarDate
+helper was added to the existing date utility; no new production file was added.
+
+Shared Dialog delegates modality to the already-installed Radix primitive:
+focus containment/looping, linked titles/descriptions, Escape/outside dismissal,
+and nested scroll locks. The wrapper captures the actual opener because callers
+do not use Radix Trigger, respects custom focus callbacks, and skips disconnected
+openers. Existing exported components, close handlers, and page-specific sizing
+remain; default content now has viewport bounds and scrolling. Time/date picker
+portals and SweetAlert confirmations opened from modal controls stay inside that
+modal boundary. Portal targets are resolved in click handlers, avoiding DOM ref
+reads during React render. No dependency was installed.
+
+Verification: 68 client-focused tests passed (five isolated-process timezone
+cases, four wrapper lifecycle cases, seven confirmation cases, and the existing
+52 cases). Production build and ESLint passed. The shared dialog build chunk is
+38.88 kB / 13.20 kB gzip; the main entry remains 407.51 kB / 129.62 kB gzip.
+
+An isolated browser harness using the real shared components verified forward
+and backward focus wrapping, initial focus, title/modality attributes, Escape
+and backdrop close, focus restoration, nested modal focus and retained parent
+scroll lock, preservation of preexisting body overflow, date preset application,
+time changes inside a modal, and nested confirmation literal HTML/no injected
+content elements. No browser warnings/errors were captured. The temporary
+harness was removed; no API requests/business writes were involved.
+
+Limits: full role-based pages, all modal forms, mobile layouts, screen-reader
+behavior, and browsers/devices in other timezones remain **Not verified**.
+Automated timezone cases verify serialization, not full UI in those device zones.
+These changes do not alter backend authorization, transactions, or migrations.
+Existing Router, submission formatting, and automation edits remain excluded.
