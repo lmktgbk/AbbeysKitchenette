@@ -30,10 +30,11 @@ function button(label) {
   return h.buttons.find(props => React.Children.toArray(props.children).some(child => child === label));
 }
 describe("bulk product visibility and confirmation lifecycle", () => {
-  it("shows the assigned category path and safely renders multiline descriptions", () => {
+  it("shows the assigned subcategory and safely renders multiline descriptions", () => {
     const detail = { ...product, category_name: "Beverages", subcategory_name: "Coffee", description: "Fresh coffee\n<script>unsafe()</script>" };
     const markup = renderToStaticMarkup(<ProductDetailModal product={detail} detail={detail} open onOpenChange={() => {}} />);
-    expect(markup).toContain("Beverages › Coffee");
+    expect(markup).toContain("Coffee");
+    expect(markup).not.toContain("Beverages");
     expect(markup).toContain("Fresh coffee\n&lt;script&gt;unsafe()&lt;/script&gt;");
     expect(markup).not.toContain("<script>");
     expect(markup).toContain("whitespace-pre-wrap");

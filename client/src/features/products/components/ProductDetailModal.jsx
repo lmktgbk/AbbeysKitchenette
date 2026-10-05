@@ -133,9 +133,9 @@ export default function ProductDetailModal({
               <div className="flex flex-1 flex-col gap-1.5">
                 {(data.category_name || data.subcategory_name) && (
                   <Badge variant="outline" className="w-fit max-w-full whitespace-normal break-words text-xs">
-                    {/* Show the assigned subcategory with its parent; missing relations
-                        must not leave a dangling separator in the category path. */}
-                    {[data.category_name, data.subcategory_name].filter(Boolean).join(" › ")}
+                    {/* Prefer the assigned subcategory; retain parent context only
+                        when the product has no subcategory label. */}
+                    {data.subcategory_name || data.category_name}
                   </Badge>
                 )}
 

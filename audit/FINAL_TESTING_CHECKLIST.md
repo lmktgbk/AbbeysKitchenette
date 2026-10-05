@@ -1257,10 +1257,10 @@ Edit then Add with cached details deliberately retained; Add's preview was empty
 while Edit still loaded its saved image. Interactive browser save-to-Add flow
 remains **Not verified** by these component tests.
 
-## Product detail description and category path (2026-10-06)
+## Product detail description and category label (2026-10-06)
 
-- [ ] Open product details: the badge shows parent category > assigned subcategory;
-  missing relations do not leave a dangling separator.
+- [ ] Open product details: the badge shows the assigned subcategory only, falls
+  back to the parent category when missing, and hides when both are missing.
 - [ ] The Description section appears before Variants. Empty/whitespace-only
   descriptions show "No description provided".
 - [ ] Multiline and long descriptions wrap inside the modal; mobile scrolling
