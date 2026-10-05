@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 import { useResettableState } from "@/hooks/useResettableState";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -56,6 +56,7 @@ export default function ProductFormModal({
   // The selected file is upload intent; the preview is a browser URL or the saved remote URL.
   const [imageFile, setImageFile] = useResettableState(null, [open, isEdit, product]);
   const [imagePreview, setImagePreview] = useResettableState(product?.image_url || null, [open, isEdit, product]);
+  const imageGuidelinesId = useId();
 
   const {
     register,
@@ -141,63 +142,68 @@ export default function ProductFormModal({
                 Product Information
               </h3>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_220px]">
-                {/* Product Name */}
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-foreground">
-                    Product Name
-                  </label>
-                  <Input
-                    placeholder="e.g. Caramel Latte"
-                    error={errors.product_name?.message}
-                    {...register("product_name")}
-                  />
-                </div>
+              {/* Independent columns prevent the image and guidance from creating
+                  empty grid rows beneath the shorter text fields. */}
+              <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-[minmax(0,1fr)_180px]">
+                <div className="min-w-0 space-y-4">
+                  {/* Product Name */}
+                  <div>
+                    <label className="mb-1.5 block text-sm font-semibold text-foreground">
+                      Product Name
+                    </label>
+                    <Input
+                      placeholder="e.g. Caramel Latte"
+                      error={errors.product_name?.message}
+                      {...register("product_name")}
+                    />
+                  </div>
 
-                {/* Category */}
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-foreground">
-                    Category
-                  </label>
-                  <Controller
-                    name="subcategory_id"
-                    control={control}
-                    render={({ field }) => (
-                      <DropDown
-                        value={field.value ? String(field.value) : ""}
-                        onChange={(val) => field.onChange(val ? Number(val) : undefined)}
-                        placeholder="Select category..."
-                        options={categories.flatMap((cat) =>
-                          (cat.subcategories || []).map((sub) => ({
-                            value: String(sub.subcategory_id),
-                            label: sub.subcategory_name,
-                          }))
-                        )}
-                      />
+                  {/* Category */}
+                  <div>
+                    <label className="mb-1.5 block text-sm font-semibold text-foreground">
+                      Category
+                    </label>
+                    <Controller
+                      name="subcategory_id"
+                      control={control}
+                      render={({ field }) => (
+                        <DropDown
+                          value={field.value ? String(field.value) : ""}
+                          onChange={(val) => field.onChange(val ? Number(val) : undefined)}
+                          placeholder="Select category..."
+                          options={categories.flatMap((cat) =>
+                            (cat.subcategories || []).map((sub) => ({
+                              value: String(sub.subcategory_id),
+                              label: sub.subcategory_name,
+                            }))
+                          )}
+                        />
+                      )}
+                    />
+                    {errors.subcategory_id && (
+                      <p className="mt-1.5 text-xs text-destructive">
+                        {errors.subcategory_id.message}
+                      </p>
                     )}
-                  />
-                  {errors.subcategory_id && (
-                    <p className="mt-1.5 text-xs text-destructive">
-                      {errors.subcategory_id.message}
-                    </p>
-                  )}
-                </div>
+                  </div>
 
-                {/* Description */}
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-foreground">
-                    Description
-                  </label>
-                  <textarea
-                    placeholder="Optional product description..."
-                    rows={3}
-                    className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
-                    {...register("description")}
-                  />
+                  {/* Description */}
+                  <div>
+                    <label className="mb-1.5 block text-sm font-semibold text-foreground">
+                      Description
+                    </label>
+                    <textarea
+                      placeholder="Optional product description..."
+                      rows={3}
+                      className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+                      {...register("description")}
+                    />
+                  </div>
+
                 </div>
 
                 {/* Image */}
-                <div className="sm:row-span-3">
+                <div>
                   <label className="mb-1.5 block text-sm font-semibold text-foreground">
                     Image
                   </label>
@@ -207,9 +213,23 @@ export default function ProductFormModal({
                       setImagePreview(file ? URL.createObjectURL(file) : null);
                     }}
                     previewUrl={imagePreview}
+                    describedBy={imageGuidelinesId}
                   />
                 </div>
               </div>
+              <aside id={imageGuidelinesId} aria-label="Image guidelines"
+                className="mt-3 flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground">
+                <Icon name="info" size={16} className="mt-0.5 shrink-0" />
+                <div className="min-w-0 space-y-1">
+                  <p className="font-medium text-foreground">Image guidelines</p>
+                  <p>JPG, PNG, WebP or GIF · Up to 5 MB</p>
+                  <p>Recommended: square, 1000 × 1000 px.</p>
+                  <details>
+                    <summary className="w-fit cursor-pointer rounded focus-visible:outline-2 focus-visible:outline-primary">More details</summary>
+                    <p className="mt-1">Maximum 4096 pixels per side. Non-square images are cropped to fit product cards.</p>
+                  </details>
+                </div>
+              </aside>
             </section>
 
             {/* ── Variants ─────────────────────── */}

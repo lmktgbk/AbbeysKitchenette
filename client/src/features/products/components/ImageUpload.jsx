@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Icon from "@/components/ui/icon";
 import { PRODUCT_IMAGE_ACCEPT, productImageError } from "../productValidation";
 
@@ -12,10 +12,10 @@ import { PRODUCT_IMAGE_ACCEPT, productImageError } from "../productValidation";
  * - onChange: (file: File | null) => void
  * - previewUrl: string | null (saved remote URL or parent-owned browser blob URL)
  * - className: string (additional classes for the container)
+ * - describedBy: string — ID of the form's shared image-guidelines note
  */
-export default function ImageUpload({ onChange, previewUrl, className }) {
+export default function ImageUpload({ onChange, previewUrl, className, describedBy }) {
   const inputRef = useRef(null);
-  const hintId = useId();
   const [error, setError] = useState("");
 
   /** Opens the hidden file input; this component does not upload files. */
@@ -47,13 +47,13 @@ export default function ImageUpload({ onChange, previewUrl, className }) {
 
   return (
     <div className={className}>
-      <div className="relative aspect-square w-full max-w-[240px] overflow-hidden rounded-lg border border-dashed border-border bg-muted/30">
+      <div className="relative aspect-square w-full max-w-[180px] overflow-hidden rounded-lg border border-dashed border-border bg-muted/30">
         {/* Match the product card's square cover frame; image height cannot grow the form. */}
         <button
           type="button"
           onClick={handleClick}
           aria-label={previewUrl ? "Replace product image" : "Upload product image"}
-          aria-describedby={hintId}
+          aria-describedby={describedBy}
           className="absolute inset-0 flex w-full flex-col items-center justify-center gap-2 hover:bg-muted/20 focus-visible:outline-2 focus-visible:outline-primary"
         >
           {previewUrl ? (
@@ -88,10 +88,6 @@ export default function ImageUpload({ onChange, previewUrl, className }) {
           className="hidden"
         />
       </div>
-      <p id={hintId} className="mt-2 text-xs text-muted-foreground">
-        JPG, PNG, WebP or GIF · Max 5 MB. Recommended: square, 1000 × 1000 px.
-        Maximum 4096 × 4096 px. Non-square images are cropped in product cards.
-      </p>
       {error && <p role="alert" className="mt-1 text-xs text-destructive">{error}</p>}
     </div>
   );

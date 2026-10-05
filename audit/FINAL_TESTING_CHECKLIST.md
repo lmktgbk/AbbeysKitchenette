@@ -1108,10 +1108,19 @@ Live cases above and real PostgreSQL query execution remain **NOT RUN** for this
 batch; no schema migration was introduced.
 ## Product image guidance and preview regression (2026-10-05)
 
+Layout follow-up (2026-10-06): product name/category/description now share the
+left column; the square image preview is bounded to 180 px in the right column.
+Image guidelines appear in a full-width note below both columns, with maximum
+dimensions/cropping inside native expandable More details. Mobile stacks columns.
+Recheck keyboard upload/remove, expandable details, long field errors and narrow
+screen layout. Image-selection policy and upload/cleanup workflow are unchanged.
+Fourteen focused image policy/transport tests passed; client lint/build passed.
+Actual browser/mobile appearance remains **Not verified** in this follow-up.
+
 - [ ] Product form explains JPG/JPEG, PNG, WebP and GIF, maximum 5 MB,
   recommended square 1000 × 1000 px, maximum 4096 pixels per side and card cropping.
 - [ ] Select portrait/landscape/square images: the preview stays in a square frame,
-  bounded to 240 px, and matches product cards' cover cropping. Check mobile too.
+  bounded to 180 px, and matches product cards' cover cropping. Check mobile too.
 - [ ] A file over 5 MB, empty file, unsupported extension or mismatched MIME type
   shows an inline error without replacing the existing saved/draft image.
 - [ ] Select the same rejected file again: the input can report the error again.
