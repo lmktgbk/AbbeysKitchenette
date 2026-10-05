@@ -1,3 +1,4 @@
+"""Public forecast response contracts; retain legacy field names for existing backend/client consumers."""
 from __future__ import annotations
 
 from pydantic import BaseModel
@@ -16,6 +17,7 @@ class DailyForecast(BaseModel):
 class JobSummary(BaseModel):
     id: int
     status: str
+    # Legacy name: the current product-level pipeline reports a product-group count.
     total_variants: int | None
     completed: int
     failed: int
@@ -29,6 +31,7 @@ class JobSummary(BaseModel):
 class JobStatusResponse(BaseModel):
     job_id: int
     status: str
+    # Legacy name: the current product-level pipeline reports a product-group count.
     total_variants: int | None
     completed: int
     failed: int
@@ -50,12 +53,12 @@ class WeekScore(BaseModel):
 
 
 class ProductScore(BaseModel):
-    """Paper metrics scored at product level (dense series, rolling 3-origin
+    """Paper metrics scored at product level (dense series, configurable rolling-origin
     7-day holdouts).
 
     Daily fields pool all origin pairs; w_ fields average the per-origin
     week totals; weeks/n_weeks carry the per-origin pairs the menu headline
-    pools over (headline + range). All defaulted so older jobs validate.
+    pools over (headline + range). Extended fields default for older score records.
     """
     product_id: str | int
     product_name: str

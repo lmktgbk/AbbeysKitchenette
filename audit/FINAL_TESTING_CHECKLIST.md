@@ -1082,3 +1082,14 @@ First cleanup batch: eight isolated auth/pool/admission tests and eleven worker
 reliability tests passed on 2026-10-05, including synthetic spawned model work.
 Deployment, real database regressions for this pass, and live acceptance above
 remain **NOT RUN**. No schema migration was introduced.
+
+### Forecast response assembly regression
+
+- [ ] Reconcile each ingredient's displayed daily need with forecast variant units multiplied by its current recipe; verify per-day rounding, total, current stock, coverage and critical/warning/ok status.
+- [ ] In an isolated fixture, change a recipe after a forecast and verify that its ingredient view uses the current recipe rather than a historical recipe snapshot.
+- [ ] Verify missing recipes/stock, empty jobs, skipped products, and missing job IDs are handled without phantom ingredient quantities.
+- [ ] Verify history and selected results agree on timestamps, period, status and product counters; total_variants remains a legacy product-group count.
+
+Forecast cleanup: nine new isolated regression cases and 19 existing ML cases
+passed; 60 seeded response comparisons matched the earlier implementation.
+The live acceptance cases above remain **NOT RUN**.

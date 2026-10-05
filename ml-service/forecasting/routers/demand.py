@@ -1,3 +1,4 @@
+"""Expose private forecast reads and translate stored forecasts into current recipe/stock needs."""
 import json
 from collections import defaultdict
 
@@ -24,8 +25,20 @@ router = APIRouter(prefix="/forecast", tags=["forecast"])
 DEFAULT_PERIOD = 7
 
 
+def _job_summary(row, product_scores=None):
+    """Select the public job fields and format timestamps without exposing lease ownership."""
+    return JobSummary(
+        id=row["id"], status=row["status"], total_variants=row["total_variants"],
+        completed=row["completed"], failed=row["failed"], period=row["period"],
+        started_at=row["started_at"].isoformat() if row["started_at"] else None,
+        completed_at=row["completed_at"].isoformat() if row["completed_at"] else None,
+        product_scores=product_scores,
+    )
+
+
 @router.post("/demand/run", response_model=RunStartedResponse | RunBusyResponse)
 async def start_demand_forecast():
+    """Attach to an admitted running job or launch its new owner; model work stays off the API loop."""
     job_id, owner = await admit_job("forecast")
     if owner is None:
         return RunBusyResponse(message="A forecast job is already running. Attached to it.", job_id=job_id)
@@ -35,6 +48,7 @@ async def start_demand_forecast():
 
 @router.get("/demand/status", response_model=JobStatusResponse)
 async def demand_status(job_id: int = Query(...)):
+    """Report stored progress; legacy total_variants/completed/failed fields count products in this pipeline."""
     pool = await get_pool()
     row = await pool.fetchrow(
         "SELECT * FROM forecast_jobs WHERE id = $1", job_id,
@@ -62,6 +76,7 @@ async def demand_status(job_id: int = Query(...)):
 
 @router.get("/demand/results", response_model=ForecastResultsResponse)
 async def demand_results(job_id: int = Query(...)):
+    """Partition persisted variant rows and attach product-level evaluation scores; fitting is not performed here."""
     pool = await get_pool()
     job = await pool.fetchrow(
         "SELECT * FROM forecast_jobs WHERE id = $1", job_id,
@@ -77,6 +92,7 @@ async def demand_results(job_id: int = Query(...)):
             skipped=[],
         )
 
+    # Running jobs can have partial variant rows; the returned job status tells callers whether publication finished.
     rows = await pool.fetch(
         "SELECT * FROM forecast_results WHERE job_id = $1 ORDER BY total_units DESC",
         job_id,
@@ -125,17 +141,7 @@ async def demand_results(job_id: int = Query(...)):
         except Exception:
             product_scores = None
 
-    job_summary = JobSummary(
-        id=job["id"],
-        status=job["status"],
-        total_variants=job["total_variants"],
-        completed=job["completed"],
-        failed=job["failed"],
-        period=job["period"],
-        started_at=job["started_at"].isoformat() if job["started_at"] else None,
-        completed_at=job["completed_at"].isoformat() if job["completed_at"] else None,
-        product_scores=product_scores,
-    )
+    job_summary = _job_summary(job, product_scores)
 
     return ForecastResultsResponse(
         job=job_summary,
@@ -146,29 +152,19 @@ async def demand_results(job_id: int = Query(...)):
 
 @router.get("/demand/history", response_model=HistoryResponse)
 async def demand_history():
+    """Return the latest two terminal jobs using the same summary contract as the results endpoint."""
     pool = await get_pool()
     rows = await pool.fetch(
         "SELECT id, status, total_variants, completed, failed, period, started_at, completed_at "
         "FROM forecast_jobs WHERE status IN ('completed', 'failed') ORDER BY started_at DESC LIMIT 2"
     )
-    jobs = [
-        JobSummary(
-            id=r["id"],
-            status=r["status"],
-            total_variants=r["total_variants"],
-            completed=r["completed"],
-            failed=r["failed"],
-            period=r["period"],
-            started_at=r["started_at"].isoformat() if r["started_at"] else None,
-            completed_at=r["completed_at"].isoformat() if r["completed_at"] else None,
-        )
-        for r in rows
-    ]
+    jobs = [_job_summary(row) for row in rows]
     return HistoryResponse(jobs=jobs)
 
 
 @router.get("/demand/ingredients", response_model=IngredientsResponse)
 async def demand_ingredients(job_id: int = Query(...)):
+    """Multiply saved variant-day units by current recipes and compare demand with current batch stock."""
     pool = await get_pool()
     result_rows = await pool.fetch(
         "SELECT variant_id, daily_data, skipped FROM forecast_results WHERE job_id = $1 AND skipped = FALSE",
@@ -177,12 +173,20 @@ async def demand_ingredients(job_id: int = Query(...)):
     if not result_rows:
         return IngredientsResponse(ingredients=[])
 
+    # Use current recipes and stock, not a historical inventory snapshot of the selected job.
     recipe_df = await load_recipe_map()
     stock_df = await load_current_stock()
 
     if recipe_df.empty:
         return IngredientsResponse(ingredients=[])
 
+    # Index once per response, instead of scanning the full recipe and stock frames repeatedly.
+    # Preserve recipe order and the first stock row, matching the original lookup behavior.
+    recipes_by_variant = {vid: group for vid, group in recipe_df.groupby("variant_id", sort=False)}
+    stock_by_ingredient = (
+        stock_df.drop_duplicates("ingredient_id").set_index("ingredient_id")["current_stock"].to_dict()
+        if not stock_df.empty else {}
+    )
     daily_needs = defaultdict(lambda: defaultdict(float))
 
     for r in result_rows:
@@ -191,7 +195,9 @@ async def demand_ingredients(job_id: int = Query(...)):
             daily = json.loads(daily)
         vid = r["variant_id"]
 
-        variant_recipes = recipe_df[recipe_df["variant_id"] == vid]
+        variant_recipes = recipes_by_variant.get(vid)
+        if variant_recipes is None:
+            continue
         for _, rec in variant_recipes.iterrows():
             ing_id = rec["ingredient_id"]
             ing_name = rec["ingredient_name"]
@@ -205,12 +211,9 @@ async def demand_ingredients(job_id: int = Query(...)):
     ingredients = []
     for (ing_id, ing_name, unit), dates in daily_needs.items():
         date_list = sorted(dates.keys())
-        current_stock = 0
-        if not stock_df.empty:
-            match = stock_df[stock_df["ingredient_id"] == ing_id]
-            if not match.empty:
-                current_stock = float(match.iloc[0]["current_stock"])
+        current_stock = float(stock_by_ingredient.get(ing_id, 0))
 
+        # Round each day before summing, preserving the API's existing quantity contract.
         daily_values = [
             IngredientDailyValue(date=d, quantity=round(dates[d], 2))
             for d in date_list

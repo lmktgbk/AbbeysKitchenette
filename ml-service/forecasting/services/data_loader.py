@@ -1,12 +1,11 @@
+"""Read forecast inputs in grouped queries; no fitting or inventory mutation occurs here."""
 import pandas as pd
 from database import get_pool
 
 
 async def load_variant_daily_sales() -> pd.DataFrame:
-    # One grouped scan over all completed orders (no date cutoff: paper
-    # uses the full history). Zero-sales days are NOT rows here — the
-    # caller expands each variant to a full calendar with 0 fill, because
-    # zeros are true demand and dropping them inflates R2.
+    """Read completed, nonremoved sales for currently active variants across the available history."""
+    # Missing dates are omitted here; the pipeline decides how to fill the training calendar.
     pool = await get_pool()
     rows = await pool.fetch("""
         SELECT
@@ -43,6 +42,7 @@ async def load_variant_daily_sales() -> pd.DataFrame:
 
 
 async def load_recipe_map() -> pd.DataFrame:
+    """Read current recipe quantities for nonarchived ingredients; this is not a forecast-time snapshot."""
     pool = await get_pool()
     rows = await pool.fetch("""
         SELECT
@@ -63,6 +63,7 @@ async def load_recipe_map() -> pd.DataFrame:
 
 
 async def load_current_stock() -> pd.DataFrame:
+    """Sum remaining batch quantities for nonarchived ingredients, including batches without an expiry filter."""
     pool = await get_pool()
     rows = await pool.fetch("""
         SELECT

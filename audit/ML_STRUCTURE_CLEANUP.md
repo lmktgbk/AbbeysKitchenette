@@ -73,3 +73,52 @@ assembly and ingredient calculations; then MBA mining, recipe merging, pricing a
 result endpoints. Consolidate only demonstrated overlap, retain useful feature
 boundaries, document complex decisions, and verify every batch. This first pass
 does not claim the entire ML service is refactored or production verified.
+
+## Second batch: forecasting reads and response assembly
+
+Four existing production files changed; no new production file or architectural
+layer was introduced. Added a local _job_summary converter for results/history
+instead of maintaining two copies of timestamp and public-field assembly.
+Ingredient needs now index recipe groups and first stock rows once per request,
+rather than repeatedly filtering whole DataFrames. Variant persistence now uses
+its enumeration index to read the aligned share_list instead of searching IDs
+again for every variant. SQL statements and transaction boundaries did not change.
+
+Added professional documentation for loader filters and empty-frame contracts,
+product counters under the legacy total_variants name, current-recipe/current-stock
+semantics, per-day rounding before totaling, missing-stock behavior, live-owner
+writes, skip replacement, retention, holdout fitting, square-root transforms,
+calendar filling, and result publication. Corrected comments implying that gap
+padding normally caps zero history or that rolling origins are a mandated third-
+party procedure. Forecasting still zero-fills through today's Manila date and
+then predicts future days using the existing model code.
+
+Existing boundaries are explicit: absent sales dates are treated as zero demand;
+this does not distinguish store closures or missing data. Ingredient reads use
+current recipes/stock, can see partial rows while a job is running, and stock sums
+have no expiry filter. These behaviors were documented, not changed. Response
+field names, model settings, fitting/transforms, allocation arithmetic, holdout
+metrics, quantity rounding, statuses, UUID identity and lease fencing remain.
+
+Verification on 2026-10-05:
+
+- Nine new isolated regression cases in ml_forecasting_regression.py passed:
+  shared recipes, daily rounding, output order, duplicate stock first-row behavior,
+  empty stock, missing recipes/variants, no-result short circuit, job summary field
+  boundaries, matching history/results, not-found responses, empty loader columns,
+  date conversion and UUID identity.
+- Sixty seeded ingredient datasets matched the pre-cleanup router response exactly
+  in a one-off comparison using mocked reads; no real database was connected.
+- Eight existing ML auth/pool/admission and eleven worker reliability tests passed,
+  including synthetic spawned Prophet and FP-Growth work: 28 tests in total.
+- All 22 ML source modules compile. Loader/schema executable ASTs are unchanged;
+  pipeline AST differs only in the intended share indexing optimization. Router
+  changes are covered by response regressions and the baseline comparisons.
+- No schema migration, dependency change, business-data write, or active model run.
+  Representative performance/load, live UI/data reconciliation, expired-stock
+  business policy, Linux/hosted behavior, and production accuracy are **Not verified**.
+  Repeated scans are removed, but no production latency improvement is claimed.
+
+Tests use the compatible bundled Python 3.12 plus existing venv packages as in the
+first batch; the broken local venv launcher remains unchanged. Next review is the
+MBA pipeline and endpoints. The full ML cleanup remains unfinished.

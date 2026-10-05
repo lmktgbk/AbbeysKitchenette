@@ -1,3 +1,4 @@
+"""Fit product demand in a child worker, split it to variants, and persist through lease-fenced writes."""
 import json
 import traceback
 from datetime import datetime, timezone, date, timedelta
@@ -34,6 +35,7 @@ MAX_PAD_DAYS = 30
 # ── Job management ────────────────────────────────────────────
 
 async def update_job_progress(job_id: int, completed: int, failed: int):
+    """Commit product counters only while this worker still owns a live job lease."""
     async with job_connection("forecast", job_id) as pool:
         await pool.execute(
             "UPDATE forecast_jobs SET completed = $1, failed = $2 WHERE id = $3",
@@ -42,6 +44,7 @@ async def update_job_progress(job_id: int, completed: int, failed: int):
 
 
 async def complete_job(job_id: int, total: int, completed: int, failed: int, failed_skips: list, scores=None):
+    """Publish terminal counters and product scores together, releasing ownership in the same transaction."""
     async with job_connection("forecast", job_id) as pool:
         await pool.execute(
             """UPDATE forecast_jobs
@@ -54,10 +57,12 @@ async def complete_job(job_id: int, total: int, completed: int, failed: int, fai
 
 
 async def fail_job(job_id: int, message: str):
+    """Delegate conditional failure and partial-result cleanup using this worker's owner token."""
     await fail_owned_job("forecast", job_id, WORKER_OWNER.get(), message)
 
 
 async def cleanup_old_jobs():
+    """Retain the latest two terminal jobs; running jobs are excluded from deletion."""
     pool = await get_pool()
     await pool.execute("""
         DELETE FROM forecast_jobs
@@ -75,6 +80,7 @@ async def cleanup_old_jobs():
 async def save_result(job_id, variant_id, product_id, product_name, size_name, price,
                       category_id, daily_data, total_units, total_revenue,
                       days_of_data, share):
+    """Upsert one variant result inside its live-owner transaction; model fitting is already finished."""
     async with job_connection("forecast", job_id) as pool:
         await pool.execute("""
             INSERT INTO forecast_results
@@ -95,6 +101,7 @@ async def save_result(job_id, variant_id, product_id, product_name, size_name, p
 
 async def save_skipped(job_id, variant_id, product_name, size_name, price,
                        category_id, days_of_data, reason, product_id=None):
+    """Replace a variant forecast with a zero-valued skip record while preserving product identity."""
     async with job_connection("forecast", job_id) as pool:
         await pool.execute("""
             INSERT INTO forecast_results
@@ -111,10 +118,11 @@ async def save_skipped(job_id, variant_id, product_name, size_name, price,
 
 # ── Prophet factory ───────────────────────────────────────────
 
-_HOLIDAYS = None  # built once per process; spans data years + forecast tail
+_HOLIDAYS = None  # Cache a successful calendar; failed/empty construction is retried on the next model.
 
 
 def build_prophet(n_days: int) -> Prophet:
+    """Create a fresh model for each fit using shared settings and the cached holiday calendar."""
     global _HOLIDAYS
     if _HOLIDAYS is None:
         try:
@@ -138,18 +146,19 @@ def build_prophet(n_days: int) -> Prophet:
 FORECAST_PERIOD = 7
 
 
-# ── Variance stabilization (E-test winner, now the default) ───────
-# Spiky count data behaves better in square-root space, so the model fits
-# sqrt(units) and predictions are squared back before scoring/splitting.
+# ── Variance stabilization ─────────────────────────────────────
+# Fit sqrt(units), then square nonnegative predictions before scoring/splitting.
 # Scoring always happens in original units, so metrics stay comparable.
 
 def _to_fit(df):
+    """Copy the series and transform nonnegative counts; do not mutate the original training data."""
     out = df.copy()
     out["y"] = np.sqrt(out["y"].clip(lower=0))
     return out
 
 
 def _from_fit(values):
+    """Restore nonnegative demand units from model-space predictions."""
     return np.square(np.maximum(values, 0.0))
 
 
@@ -157,6 +166,7 @@ def _from_fit(values):
 
 def size_shares(vdf: pd.DataFrame, product_total: float) -> dict:
     """Trailing-window share per variant; falls back to all history, then even split."""
+    # Anchor the mix window to the latest recorded sale, not today; unsold recent variants receive zero share.
     window = vdf[vdf["ds"] >= vdf["ds"].max() - pd.Timedelta(days=SHARE_WINDOW_DAYS)]
     if window["units"].sum() == 0:
         window = vdf
@@ -175,6 +185,7 @@ def size_shares(vdf: pd.DataFrame, product_total: float) -> dict:
 # Revenue uses real variant prices; ingredients use real variant recipes.
 
 async def run_demand_forecast(job_id: int) -> dict:
+    """Fit/evaluate each product, split daily units to variants, and persist through short owned transactions."""
     period = FORECAST_PERIOD
 
     try:
@@ -200,8 +211,8 @@ async def run_demand_forecast(job_id: int) -> dict:
 
                 daily = pdf.groupby("ds")["units"].sum().reset_index()
 
-                # Full calendar with zeros: missing days are true zero demand,
-                # dropping them inflates R2 while real prep error gets worse.
+                # Treat absent sales dates as zero demand through the current Manila day.
+                # This is a modelling assumption; the loader cannot distinguish closure from no sales.
                 all_dates = pd.date_range(start=pdf["ds"].min(), end=business_today(), freq="D")
                 daily = (
                     pd.DataFrame({"ds": all_dates})
@@ -230,8 +241,8 @@ async def run_demand_forecast(job_id: int) -> dict:
 
                 train = daily[["ds", "units"]].rename(columns={"units": "y"})
 
-                # Pad to today so the forecast starts today, not at the last
-                # order date. Cap the gap so dead products don't train on zeros.
+                # The calendar above already reaches today. This guard handles a day rollover
+                # between clock reads; it does not normally limit zero-filled history.
                 today = pd.Timestamp(business_today())
                 if train["ds"].max() < today:
                     if (today - train["ds"].max()).days > MAX_PAD_DAYS:
@@ -240,14 +251,12 @@ async def run_demand_forecast(job_id: int) -> dict:
                     pad = pd.DataFrame({"ds": pad_dates, "y": [0] * len(pad_dates)})
                     train = pd.concat([train, pad], ignore_index=True)
 
-                # Rolling-origin scoring (Prophet's recommended 3-cutoff
-                # procedure): non-overlapping hidden weeks (offsets 0/7/14d
+                # Rolling-origin scoring uses non-overlapping hidden weeks (offsets 0/7/14d
                 # at EVAL_ORIGINS=3; just offset 0 at =1 for fast routine
                 # runs), each trained only on data before its window.
                 # Daily metrics pool all pairs; weekly totals stay per-origin
                 # for menu-level pooling + range. None when too short.
-                # R2 is floored per product so one freak bulk week can't
-                # sink the menu mean.
+                # Daily product R2 uses the existing reporting floor; weekly totals remain raw.
                 ORIGIN_OFFSETS = tuple(7 * i for i in range(EVAL_ORIGINS))
                 metrics = None
                 week_list = []
@@ -274,8 +283,7 @@ async def run_demand_forecast(job_id: int) -> dict:
                             "w_pred": wm["w_pred"], "w_actual": wm["w_actual"],
                             "w_mae": wm["mae"], "w_mse": wm["mse"],
                         })
-                        # Same hidden window, zero fitting cost — the
-                        # comparator the paper needs for Prophet-vs-naive.
+                        # Compare the same held-out dates with a no-fit same-weekday baseline.
                         nm = naive_baseline(train.iloc[:end], HOLDOUT_DAYS)
                         n_daily_list.append({k: nm[k] for k in ("mae", "mse", "rmse", "r_squared")})
                         n_week_list.append({
@@ -333,7 +341,8 @@ async def run_demand_forecast(job_id: int) -> dict:
                             "revenue": round(units * price, 2),
                         })
 
-                for v in variants:
+                # Variant order matches share_list; direct indexing avoids a repeated linear ID search.
+                for variant_index, v in enumerate(variants):
                     vid = int(v["variant_id"])
                     days = v.pop("__days", [])
                     total_units = sum(d["units"] for d in days)
@@ -342,7 +351,7 @@ async def run_demand_forecast(job_id: int) -> dict:
                         job_id, vid, str(product_id), product_name, v["size_name"],
                         float(v["price"]), int(v["category_id"]), days,
                         total_units, total_revenue, days_of_data,
-                        round(share_list[vids.index(vid)], 4),
+                        round(share_list[variant_index], 4),
                     )
 
                 if metrics:
@@ -350,6 +359,7 @@ async def run_demand_forecast(job_id: int) -> dict:
                     # `weeks`/`n_weeks` carry the per-origin pairs the menu
                     # headline pools over (headline + range need them).
                     def _mean(rows, key):
+                        """Average available origin values for legacy scalar fields, preserving four-decimal rounding."""
                         vals = [r[key] for r in rows if r.get(key) is not None]
                         return round(sum(vals) / len(vals), 4) if vals else 0.0
 
@@ -377,6 +387,8 @@ async def run_demand_forecast(job_id: int) -> dict:
                 completed_count += 1
 
             except Exception as e:
+                # Replace this product's partial forecasts with skip records before counting the failure.
+                # Lost ownership still rejects these writes through job_connection.
                 tb = traceback.format_exc()
                 first = pdf.iloc[0]
                 reason = f"{type(e).__name__}: {str(e)[:150]}"
@@ -406,6 +418,7 @@ async def run_demand_forecast(job_id: int) -> dict:
 
 
 async def pool_update_total(job_id: int, total: int):
+    """Store the number of product groups in the legacy total_variants column."""
     async with job_connection("forecast", job_id) as pool:
         await pool.execute(
             "UPDATE forecast_jobs SET total_variants = $1 WHERE id = $2",
