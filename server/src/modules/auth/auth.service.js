@@ -15,7 +15,7 @@ import {
   generateOtpEmail,
 } from "../../utils/email.js";
 import { env } from "../../config/env.js";
-import { deleteImage } from "../../utils/cloudinary.js";
+import { deleteImage } from "../../infrastructure/storage/imageCleanup.js";
 
 // Brute-force budget: 5 strikes per account, then a 15-minute lockout.
 // Mirrored by the route-level accountLimiter (10/15m) as the outer net.

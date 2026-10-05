@@ -6,7 +6,7 @@ vi.mock("../src/config/prisma.js", () => ({ default: new Proxy({}, { get: (_t, k
 vi.mock("../src/config/env.js", () => ({ env: { JWT_SECRET: "fixture-secret-at-least-thirty-two-characters", JWT_EXPIRES_IN: "8h", CLIENT_URL: "https://fixture.invalid" } }));
 vi.mock("../src/utils/email.js", () => ({ sendEmail: async message => { if (h.failMail) throw Error("Fixture mail unavailable"); h.mail.push(message); }, generateOtpEmail: code => code, generateResetPasswordEmail: url => url, generateStaffInviteEmail: url => url }));
 vi.mock("../src/utils/ipCheck.js", () => ({ isStoreIP: async () => true }));
-vi.mock("../src/utils/cloudinary.js", () => ({ deleteImage: vi.fn().mockResolvedValue() }));
+vi.mock("../src/infrastructure/storage/imageCleanup.js", () => ({ deleteImage: vi.fn().mockResolvedValue() }));
 vi.mock("../src/realtime/sessions.js", () => ({ revokeLocalSessions: vi.fn() }));
 import { isolatedPostgres } from "./helpers/isolatedPostgres.js";
 import { authRepository as repo } from "../src/modules/auth/auth.repository.js";

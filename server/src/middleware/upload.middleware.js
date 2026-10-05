@@ -1,7 +1,7 @@
 import multer from "multer";
 import { cloudinaryStorage } from "../infrastructure/storage/cloudinaryStorage.js";
 import { IMAGE_POLICIES, checkImageType } from "../infrastructure/storage/imageValidation.js";
-import { deleteImage } from "../utils/cloudinary.js";
+import { deleteImage } from "../infrastructure/storage/imageCleanup.js";
 import { AppError } from "../middleware/errorHandler.middleware.js";
 
 /** Enforce per-feature multipart limits and defer rejected-image deletion to durable cleanup. */

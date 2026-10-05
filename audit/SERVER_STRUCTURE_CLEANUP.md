@@ -208,3 +208,50 @@ publication, and report/ML recovery in disposable schemas. Live Gemini delivery,
 hosted workers, and production load remain **Not verified**. These checks do not
 establish comprehensive provider-output validation or zero regressions.
 An existing formatting change in automation.repository.js was left outside this commit.
+
+
+## Batch 11 — remaining server dependency boundaries
+
+- Reviewed relative imports across 181 non-generated JavaScript source files.
+  No missing relative imports or controller imports outside route files were found.
+- Removed the error-handler/response-helper import cycle. AppError now lives in
+  response.js; the middleware re-exports the same class to preserve callers and
+  instanceof checks. Error mapping and serialization are unchanged.
+- Moved utils/cloudinary.js to infrastructure/storage/imageCleanup.js and updated
+  production imports and test mocks. Scheduling, URL ownership checks, and deletion
+  policy are unchanged. The source-file count remains 181.
+- Corrected the transaction ledger comment: page rows and totals use the same
+  filters but separate reads can observe concurrent changes.
+
+Verification: 838 ordinary tests passed, with 119 opt-in cases skipped. Source
+layout checks passed; the updated static relative-import graph has no detected
+cycles or missing targets. No SQL or business mutation changed, so database suites
+were not repeated for this import/comment batch. Dynamic runtime dependencies,
+package vulnerability status, live storage delivery, and hosted startup remain
+**Not verified** by this structural check. The unrelated automation repository
+formatting remains outside the commit.
+
+### Structure to maintain
+
+- modules/<feature>: routes declare endpoint middleware; validation declares
+  input contracts; controllers translate HTTP; services own business workflows
+  and transaction boundaries; repositories implement persistence.
+- Add feature-named policy, pricing, output, or lifecycle files only when they
+  isolate a substantial responsibility. Do not require every feature to have
+  the same number of files or introduce pass-through layers.
+- infrastructure: provider/storage adapters, durable effects, operational workers,
+  and process health. Features call these mechanisms without moving business
+  decisions into them.
+- utils: broadly reused response/validation helpers and existing shared helpers.
+  services/advisoryEffects.js remains the narrowly shared recommendation resolver;
+  pricing stays separate because acceptance also changes a variant price.
+- config: environment and client initialization; realtime: socket transport;
+  middleware: Express request handling. Root shared source retains its documented
+  deployment contract.
+- Keep short comments on purpose and contracts; explain locks, failure outcomes,
+  precision, and non-obvious calculations where implemented. Avoid narrating
+  straightforward assignments or replacing actual safeguards with comments.
+
+Next stage: inspect client feature ownership, imports, and duplicated UI/data
+flows before selecting a bounded React cleanup batch. Server structural checks
+are not a substitute for the final manual acceptance checklist.

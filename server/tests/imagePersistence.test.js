@@ -2,14 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const h = vi.hoisted(() => ({ db: null }));
 vi.mock("../src/config/prisma.js", () => ({ default: new Proxy({}, { get: (_target, key) => h.db[key] }) }));
 vi.mock("../src/config/env.js", () => ({ env: { NODE_ENV: "test", JWT_SECRET: "fixture-secret-at-least-thirty-two-characters" } }));
-vi.mock("../src/utils/cloudinary.js", () => ({ deleteImage: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("../src/infrastructure/storage/imageCleanup.js", () => ({ deleteImage: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("../src/utils/email.js", () => ({ sendEmail: vi.fn(), generateOtpEmail: vi.fn(), generateResetPasswordEmail: vi.fn() }));
 vi.mock("../src/modules/auditLogs/auditLog.service.js", () => ({ auditLogService: { logAction: vi.fn().mockResolvedValue({}) } }));
 import { productService } from "../src/modules/products/product.service.js";
 import { productRepository } from "../src/modules/products/product.repository.js";
 import { authService } from "../src/modules/auth/auth.service.js";
 import { authRepository } from "../src/modules/auth/auth.repository.js";
-import { deleteImage } from "../src/utils/cloudinary.js";
+import { deleteImage } from "../src/infrastructure/storage/imageCleanup.js";
 beforeEach(() => {
   vi.restoreAllMocks(); vi.clearAllMocks();
   h.db = { $queryRaw: async () => [], domainEffect: { create: vi.fn().mockResolvedValue({}) } };

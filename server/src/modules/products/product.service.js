@@ -2,7 +2,7 @@ import { productRepository } from "./product.repository.js";
 import { categoryService } from "../categories/category.service.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import prisma from "../../config/prisma.js";
-import { deleteImage } from "../../utils/cloudinary.js";
+import { deleteImage } from "../../infrastructure/storage/imageCleanup.js";
 import { recordEffects, recordMutation } from "../../infrastructure/effects/domainEffects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 

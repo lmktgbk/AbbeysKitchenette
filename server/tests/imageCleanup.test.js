@@ -3,7 +3,7 @@ const fixture = vi.hoisted(() => ({ schedule: vi.fn(), wake: vi.fn() }));
 vi.mock("../src/infrastructure/storage/storageAssets.repository.js", () => ({ storageRepository: { schedule: fixture.schedule } }));
 vi.mock("../src/infrastructure/storage/storageAssets.worker.js", () => ({ storageWorker: { wake: fixture.wake } }));
 vi.mock("../src/config/env.js", () => ({ env: { CLOUDINARY_CLOUD_NAME: "fixture" } }));
-import { deleteImage, extractPublicId } from "../src/utils/cloudinary.js";
+import { deleteImage, extractPublicId } from "../src/infrastructure/storage/imageCleanup.js";
 import { mapPrismaError } from "../src/utils/response.js";
 const url = "https://res.cloudinary.com/fixture/image/upload/v1/abbseys-kitchenette/products/asset.png";
 beforeEach(() => {

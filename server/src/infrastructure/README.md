@@ -7,7 +7,7 @@ or retry policy.
 | Folder | Responsibility |
 | --- | --- |
 | `effects` | Record audit/notification intent inside the business transaction and deliver it durably. |
-| `storage` | Validate uploaded images, track asset ownership, and retry safe provider cleanup. |
+| `storage` | Validate uploaded images, track asset ownership, and schedule/retry safe provider cleanup through `imageCleanup.js`. |
 | `integrations/ml` | Bound external ML requests and record admission outcomes without replaying uncertain requests. |
 | `operations` | Readiness, redacted telemetry, and graceful process shutdown. |
 | `rateLimit` | Maintain persisted rate-limit records. |

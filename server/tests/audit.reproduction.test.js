@@ -16,7 +16,7 @@ vi.mock("../src/config/env.js", () => ({ env: {
   JWT_EXPIRES_IN: "8h", NODE_ENV: "test", CLIENT_URL: "http://localhost:5173",
 } }));
 vi.mock("../src/utils/email.js", () => ({ sendEmail: vi.fn().mockResolvedValue({}), generateOtpEmail: vi.fn(), generateResetPasswordEmail: vi.fn() }));
-vi.mock("../src/utils/cloudinary.js", () => ({ deleteImage: vi.fn() }));
+vi.mock("../src/infrastructure/storage/imageCleanup.js", () => ({ deleteImage: vi.fn() }));
 vi.mock("../src/utils/ipCheck.js", () => ({ isStoreIP: vi.fn().mockResolvedValue(true) }));
 vi.mock("../src/modules/auditLogs/auditLog.service.js", () => ({ auditLogService: { logAction: vi.fn().mockResolvedValue({}) } }));
 vi.mock("../src/modules/notifications/notification.service.js", () => ({ notificationService: { create: vi.fn().mockResolvedValue({}) } }));

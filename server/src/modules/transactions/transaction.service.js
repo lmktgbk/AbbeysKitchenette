@@ -4,8 +4,8 @@ import { transactionRepository } from "./transaction.repository.js";
  * Transaction Service (BR-03)
  *
  * Read-only money ledger for admins. Nothing here writes — every figure
- * derives from orders, refunds, and shift snapshots, so the ledger can
- * never disagree with the underlying books; it only re-presents them.
+ * derives from orders, refunds, and shift snapshots. Rows and totals are
+ * separate reads and can observe different moments during concurrent writes.
  * Page rows and footer totals use the SAME filters, otherwise the totals
  * row describes a different dataset than the visible page.
  */

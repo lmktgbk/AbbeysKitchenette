@@ -15,7 +15,7 @@ vi.mock("../src/utils/email.js", () => ({ generateOtpEmail: code => code, genera
 }));
 vi.mock("../src/realtime/sessions.js", () => ({ revokeLocalSessions: id => h.revoked.push(id) }));
 vi.mock("../src/utils/ipCheck.js", () => ({ isStoreIP: async () => true }));
-vi.mock("../src/utils/cloudinary.js", () => ({ deleteImage: vi.fn() }));
+vi.mock("../src/infrastructure/storage/imageCleanup.js", () => ({ deleteImage: vi.fn() }));
 vi.mock("../src/middleware/upload.middleware.js", () => ({ uploadAvatar: (_, __, next) => next() }));
 vi.mock("../src/modules/auditLogs/auditLog.service.js", () => ({ auditLogService: { logAction: vi.fn().mockResolvedValue({}) } }));
 import authRoutes from "../src/modules/auth/auth.routes.js";

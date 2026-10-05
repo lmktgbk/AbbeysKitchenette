@@ -1,22 +1,8 @@
 import crypto from "crypto";
-import { mapRequestError, mapPrismaError, mapUploadError } from "../utils/response.js";
+import { AppError, mapRequestError, mapPrismaError, mapUploadError } from "../utils/response.js";
 
-/**
- * Custom Error Class for Expected Errors
- *
- * Services throw AppError intentionally (e.g. "Product not found").
- * The error handler catches it and returns a structured JSON response.
- * Native Error instances (crashes) get hidden behind "Something went wrong".
- */
-
-export class AppError extends Error {
-  constructor(statusCode, message, code) {
-    super(message);
-    this.name = "AppError";
-    this.statusCode = statusCode;
-    this.code = code;
-  }
-}
+// Keep the established import path while the class lives with shared response helpers.
+export { AppError } from "../utils/response.js";
 
 /**
  * Global Express Error Handler

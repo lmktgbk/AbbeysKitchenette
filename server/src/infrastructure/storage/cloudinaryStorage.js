@@ -3,7 +3,7 @@ import cloudinary from "../../config/cloudinary.js";
 import { IMAGE_POLICIES, sanitizeImage } from "./imageValidation.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { storageRepository } from "./storageAssets.repository.js";
-import { extractPublicId } from "../../utils/cloudinary.js";
+import { extractPublicId } from "./imageCleanup.js";
 
 let activeUploads = 0;
 

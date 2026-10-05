@@ -3,7 +3,7 @@ const h = vi.hoisted(() => ({ db: null }));
 vi.mock("../src/config/prisma.js", () => ({ default: new Proxy({}, { get: (_t, key) => typeof h.db[key] === "function" ? h.db[key].bind(h.db) : h.db[key] }) }));
 vi.mock("../src/config/env.js", () => ({ env: { JWT_SECRET: "fixture-key-only", CLIENT_URL: "https://fixture.invalid" } }));
 vi.mock("../src/utils/email.js", () => ({ sendEmail: vi.fn().mockRejectedValue(Error("Fixture mail offline")), generateStaffInviteEmail: () => "fixture" }));
-vi.mock("../src/utils/cloudinary.js", () => ({ deleteImage: vi.fn().mockResolvedValue() }));
+vi.mock("../src/infrastructure/storage/imageCleanup.js", () => ({ deleteImage: vi.fn().mockResolvedValue() }));
 vi.mock("../src/modules/auditLogs/auditLog.service.js", () => ({ auditLogService: { logAction: vi.fn().mockResolvedValue() } }));
 vi.mock("../src/realtime/sessions.js", () => ({ revokeLocalSessions: vi.fn() }));
 import { isolatedPostgres } from "./helpers/isolatedPostgres.js";
@@ -13,7 +13,7 @@ import { staffService as staff } from "../src/modules/staff/staff.service.js";
 import { settingsService as settings } from "../src/modules/settings/settings.service.js";
 import { revokeLocalSessions } from "../src/realtime/sessions.js";
 import { sendEmail } from "../src/utils/email.js";
-import { deleteImage } from "../src/utils/cloudinary.js";
+import { deleteImage } from "../src/infrastructure/storage/imageCleanup.js";
 import { createEffectsRepository } from "../src/infrastructure/effects/domainEffects.repository.js";
 let fixture, db, actor, target, root, sub, product, variant;
 describe.skipIf(process.env.ADMIN_DB_CHECK !== "1")("PostgreSQL administrative mutation recovery", () => {

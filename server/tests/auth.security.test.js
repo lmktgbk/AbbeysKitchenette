@@ -14,7 +14,7 @@ vi.mock("../src/config/env.js", () => ({ env: {
   JWT_EXPIRES_IN: "8h", WS_HEARTBEAT_MS: 80,
 } }));
 vi.mock("../src/utils/ipCheck.js", () => ({ isStoreIP: async () => h.storeAllowed }));
-vi.mock("../src/utils/cloudinary.js", () => ({ deleteImage: vi.fn() }));
+vi.mock("../src/infrastructure/storage/imageCleanup.js", () => ({ deleteImage: vi.fn() }));
 vi.mock("../src/utils/email.js", () => ({
   sendEmail: async message => {
     if (h.mailFailure) throw new Error("Injected mail failure");
