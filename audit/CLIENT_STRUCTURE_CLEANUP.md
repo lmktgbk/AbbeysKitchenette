@@ -168,3 +168,45 @@ is included. Actual product/ingredient dialog interaction and stored-image
 replacement/removal remain **Not verified** for this batch; use the consolidated
 FINAL_TESTING_CHECKLIST.md. Existing Router.jsx and automation edits are excluded.
 No migration is required. Broader cleanup and final regression remain outstanding.
+
+## Batch 6 — confirmed unused client code and final automated checks
+
+Removed 18 unused files (2,285 lines) after tracing literal imports/re-exports and
+lazy route imports from the sole HTML entry, src/main.jsx. No computed dynamic
+imports, CommonJS loaders, or import.meta.glob loaders were found. Repository
+reference searches found no test/script callers of the removed components;
+references between unused components were removed together. Current dashboard,
+forecasting, order-detail and staff pages were checked for their actual imports.
+
+Removed files, relative to client/src:
+
+- components/filters: LoadMore.jsx, SingleDatePicker.jsx
+- components/ui: tooltip.jsx
+- features/dashboard/components: DashboardKpis.jsx, IngredientCostChart.jsx,
+  IngredientOverview.jsx, MostRestockedTable.jsx, StaffPerformanceChart.jsx,
+  TableUtilizationChart.jsx, TopProductsTable.jsx
+- features/forecasting/components: DemandTable.jsx, ForecastChart.jsx,
+  ForecastHistory.jsx, ForecastServiceError.jsx, ForecastSidebar.jsx,
+  IngredientNeeds.jsx
+- features/orders/components: OrderTimeline.jsx
+- features/staff/components: ResetPinModal.jsx
+
+Kept active routes/pages, hooks, transport contracts, backend endpoints, and
+package dependencies. Updated two comments that named removed components;
+retained JSX executable syntax trees and CSS rules are unchanged. Removed code
+remains recoverable in Git history. Tailwind may drop styles discovered only in
+unused files; this is not a measured runtime performance improvement.
+
+Verification: final AST graph has 234/234 reachable JS/JSX source files (252 before
+this batch), no missing relative/alias imports, and no dependency cycles. Final
+production build and ESLint passed. Full ordinary Vitest suite: 48 files passed,
+13 skipped; 838 tests passed, 119 skipped. The 52 client-focused cases are included.
+Skipped tests and live browser/hosting behavior remain **Not verified**. No live
+business database test, migration, or deployment was performed. Generated HTTP
+results were restored; existing Router.jsx and automation repository edits remain
+excluded. Follow the final client acceptance section in FINAL_TESTING_CHECKLIST.md.
+
+The six planned client structural cleanup stages now have local automated
+verification recorded. This is not a full audit of every client line, a guarantee
+of no regressions, or completed manual acceptance. Next scope: ML service structure
+and comments; browser acceptance and deployment verification remain outstanding.

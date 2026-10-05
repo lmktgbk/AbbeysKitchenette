@@ -186,7 +186,7 @@
 }
 
 /* ── Type scale: sanctioned tiny sizes (admin) ──
-   micro   (9px)  — KDS card meta only (OrderCard, OrderTimeline)
+   micro   (9px)  — KDS card metadata (OrderCard)
    caption (10px) — labels, pills, badges, tiny meta
    small   (11px) — secondary copy, sub-lines
    Use these instead of text-[9/10/11px] one-offs. */

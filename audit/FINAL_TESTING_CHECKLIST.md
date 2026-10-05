@@ -1028,3 +1028,19 @@ Live integrations, anomaly trigger recovery/concurrency, process-kill behavior a
 Local frontend build and backend import/missing-folder checks passed. Hosted
 builder detection, deployment triggers, and artifact startup remain **Not verified**.
 See [shared-source deployment settings](SHARED_SOURCE_DEPLOYMENT.md).
+
+## Client structural cleanup — final browser acceptance
+
+- [ ] Open every role-accessible route; refresh a deep link and use browser back/forward.
+- [ ] Check dashboard KPIs/charts/date filters/exports and forecasting job selection, chart selection, product demand and ingredient ordering tabs.
+- [ ] Switch operators, logout, reconnect realtime and reopen another tab; verify access and displayed data belong to the current operator.
+- [ ] Recover a guest cart after refresh; change menu prices/availability; submit with a lost response and retry the same order; check confirmation/tracking.
+- [ ] Test POS cash tender/change, manual GCash/Maya references, per-line senior/PWD/promo discounts, modal reopen, and unavailable/loading order lines; reconcile receipts.
+- [ ] Add/edit ingredients; close/reopen drafts; test empty, zero, negative and fractional thresholds and saved unit restrictions.
+- [ ] Add/edit a product with variants/recipes; replace/remove its image, cancel a draft, switch products and verify old stored assets are cleaned up only after successful saves.
+- [ ] Check mobile/desktop layouts, modal overflow, keyboard interaction, loading/error/empty states and browser console errors after unused-component removal.
+
+Local cleanup checks on 2026-10-05: production build and lint passed; 234 source
+files reachable with no missing relative/alias imports or cycles; 838 tests passed,
+119 skipped, including 52 passing client-focused cases. The checks above remain
+**NOT RUN** for this structural cleanup. Record results with the commit tested.

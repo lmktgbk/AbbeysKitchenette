@@ -11,7 +11,7 @@ import Icon from "./icon";
  * from body; no per-value tabular-nums needed.
  *
  * Roles:
- * - StatCard  — full icon-right KPI card (DashboardKpis, AnalyticsKpis shape)
+ * - StatCard  — full icon-right KPI card used by AnalyticsKpis
  * - StatLabel — caption label (type-caption, uppercase, muted)
  * - StatValue — value (text-lg bold; size="hero" → text-2xl for Waste/Fulfillment)
  * - StatSub   — sub-line (type-small, muted)
