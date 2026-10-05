@@ -15,6 +15,7 @@ _tasks = set()
 
 
 def _terminate_tree(pid):
+    """Stop the worker and native model subprocesses using the platform process-tree mechanism."""
     if os.name == "nt":
         subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True,
                        timeout=5, creationflags=subprocess.CREATE_NO_WINDOW)
@@ -23,6 +24,7 @@ def _terminate_tree(pid):
 
 
 def _worker_main(kind, job_id, owner, params):
+    """Create an isolated event loop/pool and bind lease ownership before running the selected pipeline."""
     if os.name != "nt":
         os.setsid()
     parent = multiprocessing.parent_process()
@@ -56,12 +58,14 @@ def _worker_main(kind, job_id, owner, params):
 
 
 def _new_process(kind, job_id, owner, params):
+    """Spawn without inheriting an active API event loop or database pool."""
     return multiprocessing.get_context("spawn").Process(
         target=_worker_main, args=(kind, job_id, owner, params), daemon=True,
     )
 
 
 async def _stop_process(process):
+    """Attempt tree shutdown, join off the API loop, then kill a surviving worker and release its handle."""
     if process.is_alive():
         # Prophet starts native subprocesses; stop the worker's tree as well as Python.
         if os.name == "nt":
@@ -82,6 +86,7 @@ async def _stop_process(process):
 
 
 async def _supervise(kind, job_id, owner, params):
+    """Renew ownership until completion, timeout, or lease loss; stop computation before conditional failure cleanup."""
     process = None
     started = False
     message = "ML worker stopped before publishing results"
@@ -123,6 +128,7 @@ async def _supervise(kind, job_id, owner, params):
 
 
 def launch_job(kind, job_id, owner, params=None):
+    """Retain the supervisor for shutdown; its task represents supervision, not the model result."""
     task = asyncio.create_task(_supervise(kind, job_id, owner, params or {}))
     _tasks.add(task)
     task.add_done_callback(_tasks.discard)
@@ -130,6 +136,7 @@ def launch_job(kind, job_id, owner, params=None):
 
 
 def start_recovery():
+    """Schedule expired-lease cleanup; database failure defers recovery to the next cycle."""
     async def reap():
         while True:
             await asyncio.sleep(HEARTBEAT_SECONDS)
@@ -143,6 +150,7 @@ def start_recovery():
 
 
 async def stop_workers():
+    """Cancel and await tracked tasks so child shutdown finishes before the API pool closes."""
     tasks = list(_tasks)
     for task in tasks:
         task.cancel()

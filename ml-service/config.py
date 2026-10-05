@@ -1,3 +1,4 @@
+"""Load private service configuration and fixed model settings; browser configuration belongs elsewhere."""
 import os
 from dotenv import load_dotenv
 from pathlib import Path
@@ -11,17 +12,14 @@ if not 60 <= ML_JOB_TIMEOUT_SECONDS <= 7200:
     raise ValueError("ML_JOB_TIMEOUT_SECONDS must be between 60 and 7200")
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-CLIENT_URL = os.getenv("CLIENT_URL", "http://localhost:5173")
 FORECAST_PORT = int(os.getenv("PORT", os.getenv("FORECAST_PORT", "8000")))
 if not 1 <= FORECAST_PORT <= 65535:
     raise ValueError("PORT/FORECAST_PORT must be between 1 and 65535")
-FORECASTER_URL = os.getenv("FORECASTER_URL", "http://localhost:5000")
 
-# Prophet — one config for every product. Additive because a weekend bump
-# adds units (+5), not multiplies (x2), so zero-sales days stay stable.
-# Stiff trend/seasonality (A/B/C comparison winner): the model tracks the
-# level instead of chasing single-day spikes, which predicts week-totals
-# better on intermittent series.
+# Shared Prophet settings: additive seasonality expresses seasonal effects in units,
+# rather than multiplying the current trend level.
+# Conservative priors reduce responsiveness to isolated spikes.
+# These shared settings do not guarantee forecast accuracy.
 PROPHET_CONFIG = {
     "changepoint_prior_scale": 0.02,
     "seasonality_mode": "additive",
@@ -32,27 +30,18 @@ PROPHET_CONFIG = {
     "holidays_prior_scale": 10.0,
 }
 
-# Yearly waves are under-identified below ~730 days of history (Prophet's own
-# guidance; D-test confirmed removing them lifts pooled R2 4.4% -> 28.4%).
+# Enable yearly seasonality only after two years of calendar history.
 YEARLY_MIN_DAYS = 730
-
-
 
 # Scoring tail hidden from training. 7 days = the same horizon we deploy,
 # so the paper grade matches what the kitchen actually gets.
 HOLDOUT_DAYS = 7
 
-# Rolling evaluation origins (Prophet's recommended 3-cutoff procedure).
-# 3 = paper/certification runs (~10 min); 1 = fast routine runs (~3 min).
+# Rolling evaluation origins used by this application's holdout procedure.
+# More origins require additional fitting; runtime depends on data and hosting capacity.
 # Same code path, same hidden-week design — only the origin count changes.
 EVAL_ORIGINS = max(1, int(os.getenv("FORECAST_EVAL_ORIGINS", "3")))
 
 # Size-share window: trailing days used to split a product forecast into
 # sizes. Recent mix beats lifetime mix; falls back to all history.
 SHARE_WINDOW_DAYS = 30
-
-# Restock config
-LEAD_TIME_DAYS = 7
-SAFETY_BUFFER = 1.20  # 20% buffer
-CRITICAL_THRESHOLD_DAYS = 3
-WARNING_THRESHOLD_DAYS = 7

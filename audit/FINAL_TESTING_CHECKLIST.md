@@ -1070,3 +1070,15 @@ Isolated browser controls passed on 2026-10-05: focus loop/restoration, Escape,
 backdrop, nested modal scroll lock, time/date picker use, and literal confirmation
 text. Five automated timezone serialization cases passed. Full application and
 mobile cases above remain **NOT RUN**.
+
+## ML-service cleanup acceptance
+
+- [ ] Verify the deployment/local Python environment can import pinned requirements and start the service; the local existing venv launcher currently points to a missing interpreter.
+- [ ] Submit an admin forecast and MBA analysis; repeat while running and verify both clients attach to the same job.
+- [ ] Verify job progress, completion/failure state, forecast UUID grouping, variant quantities, ingredient needs, and MBA recipe/pricing output.
+- [ ] Check expired-owner recovery and shutdown on staging fixtures; confirm stale workers cannot publish and partial failures do not leave completed results.
+
+First cleanup batch: eight isolated auth/pool/admission tests and eleven worker
+reliability tests passed on 2026-10-05, including synthetic spawned model work.
+Deployment, real database regressions for this pass, and live acceptance above
+remain **NOT RUN**. No schema migration was introduced.

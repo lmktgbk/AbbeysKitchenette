@@ -1,3 +1,4 @@
+"""Compose private routes and coordinate recovery, worker shutdown, and pool cleanup."""
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends
 from config import FORECAST_PORT, FORECAST_HOST
@@ -9,6 +10,7 @@ from mba.routers import association
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Validate credentials before recovery writes; stop supervised tasks before closing the API pool."""
     from jobs import recover_expired_jobs
     from workers import stop_workers, start_recovery
     validate_service_key()
@@ -39,6 +41,7 @@ app.include_router(association.router, dependencies=[Depends(require_service_key
 
 @app.get("/health", dependencies=[Depends(require_service_key)])
 async def health():
+    """Authenticated process health only; this does not test database or model readiness."""
     return {"status": "ok", "service": "ml-service"}
 
 
@@ -46,6 +49,7 @@ async def health():
 # exposes process liveness only; business routes and /health remain private.
 @app.get("/livez")
 async def liveness():
+    """Expose minimal process liveness to hosting probes without a service credential."""
     return {"status": "ok"}
 
 

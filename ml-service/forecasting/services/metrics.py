@@ -1,8 +1,7 @@
 """Shared demand-forecast metrics: RMSE, MAE, MSE, R2 only.
 
-Always scored on a holdout tail the model never trained on, over the
-full calendar including zero-sales days. Dropping zeros inflates R2
-while the real 7-day prep error gets worse.
+Callers supply held-out predictions and the full calendar, including zero-sales
+days. These functions calculate scores; they do not enforce the training/holdout split.
 """
 
 import numpy as np
@@ -14,9 +13,11 @@ def compute_metrics(pred_df, actual_df) -> dict:
     pred_df:   DataFrame with [ds, yhat]
     actual_df: DataFrame with [ds, y] or [ds, units]
     """
+    # Only matching dates are scored; calendar coverage is the caller's responsibility.
     actual_col = "y" if "y" in actual_df.columns else "units"
     merged = pred_df.merge(actual_df.rename(columns={actual_col: "y"}), on="ds", how="inner")
 
+    # Preserve the legacy zero sentinel for too few observations; this does not mean a perfect fit.
     if len(merged) < 3:
         return {"rmse": 0.0, "mae": 0.0, "mse": 0.0, "r_squared": 0.0}
 
@@ -39,11 +40,11 @@ def compute_metrics(pred_df, actual_df) -> dict:
     }
 
 
-R2_FLOOR = -1.0  # one freak bulk week scores -1, not -15
+R2_FLOOR = -1.0  # Reporting policy for daily per-product R2; predictions remain unchanged.
 
 
 def bound_r2(r_squared: float) -> float:
-    """Floor per-product R2 so a single outlier week can't sink the menu mean."""
+    """Apply the daily R2 reporting floor without changing forecasts or other error metrics."""
     return max(R2_FLOOR, float(r_squared))
 
 
@@ -52,8 +53,8 @@ def weekly_metrics(eval_pred_df, holdout_df) -> dict:
 
     Same hidden week, zeros included — daily noise cancels in totals, which
     is what prep actually uses. Reuses the daily eval forecast, no refit.
-    w_pred/w_actual feed the whole-menu pooled R2 (volume-weighted, immune
-    to single-product -15 outliers).
+    w_pred/w_actual feed client pooled R2 across product-week points.
+    That pooling formula has no explicit volume weights or outlier protection.
     """
     pred_total = float(eval_pred_df["yhat"].sum())
     actual_col = "y" if "y" in holdout_df.columns else "units"

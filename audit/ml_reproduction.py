@@ -11,8 +11,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "ml-service"))
 config = types.ModuleType("config")
 config.DATABASE_URL = "postgresql://audit:fake@127.0.0.1/audit_not_connected"
-config.CLIENT_URL = "http://127.0.0.1:5189"
-config.FORECASTER_URL = "http://127.0.0.1:5000"
 config.FORECAST_PORT = 8000
 config.FORECAST_HOST = "127.0.0.1"
 config.ML_SERVICE_KEY = "a" * 64
