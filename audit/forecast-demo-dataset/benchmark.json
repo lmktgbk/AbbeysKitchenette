@@ -1,0 +1,540 @@
+{
+  "protocol": {
+    "dataset_sha256": "ace70f444209f809cc68fe70ae8f31402e247dc41b54bcf1d862813ebebbaa1f",
+    "tuning_cutoff": "2026-06-28",
+    "holdout_cutoff": "2026-08-23",
+    "target": "Unrounded variant-week totals",
+    "selection": "Lowest June variant-week MAE, RMSE tie-breaker",
+    "classification": "Controlled synthetic weekly basket quotas; not actual future accuracy",
+    "databaseTouched": false
+  },
+  "selected_model": "flat_full",
+  "tuning": {
+    "current": {
+      "product_daily": {
+        "observations": 2604,
+        "mae": 0.5463917806594346,
+        "mse": 0.5802423507980515,
+        "rmse": 0.761736405062835,
+        "r2": 0.3598851302213735,
+        "actual_total": 1565.0,
+        "predicted_total": 1553.3886041064657,
+        "bias": -0.004459061403047024
+      },
+      "product_weekly": {
+        "observations": 372,
+        "mae": 0.7535901323987386,
+        "mse": 0.9730505972856698,
+        "rmse": 0.9864332705691093,
+        "r2": 0.9438368735858953,
+        "actual_total": 1565.0,
+        "predicted_total": 1553.3886041064657,
+        "bias": -0.031213429821329165
+      },
+      "variant_daily": {
+        "observations": 4410,
+        "mae": 0.41015482302373485,
+        "mse": 0.34499597833646983,
+        "rmse": 0.587363582746215,
+        "r2": 0.23377477792021684,
+        "actual_total": 1565.0,
+        "predicted_total": 1553.3886041064657,
+        "bias": -0.002632969590370625
+      },
+      "variant_weekly": {
+        "observations": 630,
+        "mae": 0.6133412920544671,
+        "mse": 0.5643284483544408,
+        "rmse": 0.751217976591642,
+        "r2": 0.9047187333582003,
+        "actual_total": 1565.0,
+        "predicted_total": 1553.3886041064657,
+        "bias": -0.01843078713259437
+      }
+    },
+    "flat_full": {
+      "product_daily": {
+        "observations": 2604,
+        "mae": 0.5482030223106553,
+        "mse": 0.5774824330010623,
+        "rmse": 0.7599226493539077,
+        "r2": 0.36292983114468536,
+        "actual_total": 1565.0,
+        "predicted_total": 1580.412608467106,
+        "bias": 0.0059188204558779075
+      },
+      "product_weekly": {
+        "observations": 372,
+        "mae": 0.7306748397607423,
+        "mse": 0.9074818271580594,
+        "rmse": 0.9526184058467795,
+        "r2": 0.9476214117545855,
+        "actual_total": 1565.0,
+        "predicted_total": 1580.412608467106,
+        "bias": 0.041431743191145315
+      },
+      "variant_daily": {
+        "observations": 4410,
+        "mae": 0.41151204577276934,
+        "mse": 0.3441506071352214,
+        "rmse": 0.586643509411995,
+        "r2": 0.23565232078184617,
+        "actual_total": 1565.0,
+        "predicted_total": 1580.412608467106,
+        "bias": 0.0034949225548993354
+      },
+      "variant_weekly": {
+        "observations": 630,
+        "mae": 0.5931361684142877,
+        "mse": 0.5346115251266373,
+        "rmse": 0.7311713377359901,
+        "r2": 0.9097361413837901,
+        "actual_total": 1565.0,
+        "predicted_total": 1580.412608467106,
+        "bias": 0.02446445788429532
+      }
+    },
+    "previous_week": {
+      "product_daily": {
+        "observations": 2604,
+        "mae": 0.6463133640552995,
+        "mse": 1.1432411674347158,
+        "rmse": 1.0692245636136104,
+        "r2": -0.2612069250228459,
+        "actual_total": 1565.0,
+        "predicted_total": 1576.0,
+        "bias": 0.004224270353302612
+      },
+      "product_weekly": {
+        "observations": 372,
+        "mae": 0.9650537634408602,
+        "mse": 1.9650537634408602,
+        "rmse": 1.401803753540723,
+        "r2": 0.8865798312703358,
+        "actual_total": 1565.0,
+        "predicted_total": 1576.0,
+        "bias": 0.02956989247311828
+      },
+      "variant_daily": {
+        "observations": 4410,
+        "mae": 0.4528344671201814,
+        "mse": 0.6768707482993197,
+        "rmse": 0.8227215496748093,
+        "r2": -0.5033086528595336,
+        "actual_total": 1565.0,
+        "predicted_total": 1576.0,
+        "bias": 0.002494331065759637
+      },
+      "variant_weekly": {
+        "observations": 630,
+        "mae": 0.7380952380952381,
+        "mse": 1.0936507936507935,
+        "rmse": 1.0457776023853225,
+        "r2": 0.8153479003464859,
+        "actual_total": 1565.0,
+        "predicted_total": 1576.0,
+        "bias": 0.01746031746031746
+      }
+    }
+  },
+  "holdout": {
+    "current": {
+      "product_daily": {
+        "observations": 2604,
+        "mae": 0.5289062838627872,
+        "mse": 0.5221487109705284,
+        "rmse": 0.7225985821813715,
+        "r2": 0.3848045590269844,
+        "actual_total": 1535.0,
+        "predicted_total": 1549.845221713943,
+        "bias": 0.005700929997673898
+      },
+      "product_weekly": {
+        "observations": 372,
+        "mae": 0.8589581555753065,
+        "mse": 1.268250192224601,
+        "rmse": 1.1261661476996194,
+        "r2": 0.9257149301506145,
+        "actual_total": 1535.0,
+        "predicted_total": 1549.845221713943,
+        "bias": 0.03990650998371724
+      },
+      "variant_daily": {
+        "observations": 4410,
+        "mae": 0.39450163354790074,
+        "mse": 0.3032034215993741,
+        "rmse": 0.5506391028608248,
+        "r2": 0.25990993963581344,
+        "actual_total": 1535.0,
+        "predicted_total": 1549.845221713943,
+        "bias": 0.0033662634271979207
+      },
+      "variant_weekly": {
+        "observations": 630,
+        "mae": 0.6628648828086108,
+        "mse": 0.7298952643923512,
+        "rmse": 0.8543390804547988,
+        "r2": 0.8755510270585958,
+        "actual_total": 1535.0,
+        "predicted_total": 1549.845221713943,
+        "bias": 0.023563843990385427
+      }
+    },
+    "flat_full": {
+      "product_daily": {
+        "observations": 2604,
+        "mae": 0.5308868967321579,
+        "mse": 0.5181789944360274,
+        "rmse": 0.7198465075528445,
+        "r2": 0.3894816777532586,
+        "actual_total": 1535.0,
+        "predicted_total": 1579.7614577570043,
+        "bias": 0.017189499906683708
+      },
+      "product_weekly": {
+        "observations": 372,
+        "mae": 0.8160977116585774,
+        "mse": 1.187796437133292,
+        "rmse": 1.0898607420828095,
+        "r2": 0.930427338517074,
+        "actual_total": 1535.0,
+        "predicted_total": 1579.7614577570043,
+        "bias": 0.12032649934678596
+      },
+      "variant_daily": {
+        "observations": 4410,
+        "mae": 0.3958186097905003,
+        "mse": 0.3009560439443828,
+        "rmse": 0.5485946080161405,
+        "r2": 0.2653955698954261,
+        "actual_total": 1535.0,
+        "predicted_total": 1579.7614577570043,
+        "bias": 0.010149990421089428
+      },
+      "variant_weekly": {
+        "observations": 630,
+        "mae": 0.6336340480301368,
+        "mse": 0.6739963820934072,
+        "rmse": 0.820972826647391,
+        "r2": 0.885081926668511,
+        "actual_total": 1535.0,
+        "predicted_total": 1579.7614577570043,
+        "bias": 0.07104993294762602
+      }
+    },
+    "previous_week": {
+      "product_daily": {
+        "observations": 2604,
+        "mae": 0.630184331797235,
+        "mse": 1.0295698924731183,
+        "rmse": 1.0146772356139258,
+        "r2": -0.213038911530111,
+        "actual_total": 1535.0,
+        "predicted_total": 1556.0,
+        "bias": 0.008064516129032258
+      },
+      "product_weekly": {
+        "observations": 372,
+        "mae": 1.196236559139785,
+        "mse": 2.760752688172043,
+        "rmse": 1.6615512896603712,
+        "r2": 0.8382947564013299,
+        "actual_total": 1535.0,
+        "predicted_total": 1556.0,
+        "bias": 0.056451612903225805
+      },
+      "variant_daily": {
+        "observations": 4410,
+        "mae": 0.44285714285714284,
+        "mse": 0.6002267573696145,
+        "rmse": 0.7747430266673038,
+        "r2": -0.4650951323393475,
+        "actual_total": 1535.0,
+        "predicted_total": 1556.0,
+        "bias": 0.004761904761904762
+      },
+      "variant_weekly": {
+        "observations": 630,
+        "mae": 0.8587301587301587,
+        "mse": 1.4682539682539681,
+        "rmse": 1.2117152999999496,
+        "r2": 0.7496590164638665,
+        "actual_total": 1535.0,
+        "predicted_total": 1556.0,
+        "bias": 0.03333333333333333
+      }
+    }
+  },
+  "mba": {
+    "training_orders": 15569,
+    "recent_orders": 3840,
+    "training_through": "2026-05-29",
+    "recent_from": "2026-05-30",
+    "min_support": 0.005,
+    "min_confidence": 0.08,
+    "rules": 126,
+    "stable_rules": 126,
+    "examples": [
+      {
+        "a": "Americano Cold 22oz",
+        "b": "French Vanilla Hot 16oz",
+        "support": 0.008992228145674096,
+        "confidence": 0.782122905027933,
+        "lift": 56.37440513138838,
+        "recent": {
+          "support": 0.0089,
+          "confidence": 0.7556,
+          "lift": 59.21
+        },
+        "stable": true
+      },
+      {
+        "a": "Choco Salted Cream Cheese Frappe 22oz",
+        "b": "Caramel Latte & Vanilla Cream Cold 22oz",
+        "support": 0.007386473119660865,
+        "confidence": 0.6084656084656084,
+        "lift": 40.65751527124917,
+        "recent": {
+          "support": 0.0078,
+          "confidence": 0.625,
+          "lift": 41.38
+        },
+        "stable": true
+      },
+      {
+        "a": "Cheeseburger Regular",
+        "b": "Honey Milk Foam Cold 16oz",
+        "support": 0.008028775130066158,
+        "confidence": 0.6038647342995169,
+        "lift": 40.3500860442454,
+        "recent": {
+          "support": 0.0068,
+          "confidence": 0.52,
+          "lift": 37.68
+        },
+        "stable": true
+      },
+      {
+        "a": "Dirty Matcha 16oz",
+        "b": "Matcha Blueberry Latte 22oz",
+        "support": 0.009441839552957802,
+        "confidence": 0.7777777777777779,
+        "lift": 29.038902211564086,
+        "recent": {
+          "support": 0.0094,
+          "confidence": 0.75,
+          "lift": 29.09
+        },
+        "stable": true
+      },
+      {
+        "a": "Americano Cold 22oz",
+        "b": "Abbey's Signature Tapsilog Regular",
+        "support": 0.008992228145674096,
+        "confidence": 0.782122905027933,
+        "lift": 21.14040192427064,
+        "recent": {
+          "support": 0.0089,
+          "confidence": 0.7556,
+          "lift": 20.43
+        },
+        "stable": true
+      },
+      {
+        "a": "Vanilla Latte Cold 22oz",
+        "b": "White Chocolate Hot 16oz",
+        "support": 0.005523797289485516,
+        "confidence": 0.6991869918699187,
+        "lift": 23.160941013665457,
+        "recent": {
+          "support": 0.0047,
+          "confidence": 0.7826,
+          "lift": 26.83
+        },
+        "stable": true
+      },
+      {
+        "a": "Orange Chicken Regular",
+        "b": "Salted Caramel Frappe 22oz",
+        "support": 0.008799537542552508,
+        "confidence": 0.7784090909090908,
+        "lift": 19.932649895334926,
+        "recent": {
+          "support": 0.0086,
+          "confidence": 0.8049,
+          "lift": 21.03
+        },
+        "stable": true
+      },
+      {
+        "a": "Vanilla Latte Cold 22oz",
+        "b": "Caesar Salad Regular",
+        "support": 0.005523797289485516,
+        "confidence": 0.6991869918699187,
+        "lift": 20.538947691363706,
+        "recent": {
+          "support": 0.0047,
+          "confidence": 0.7826,
+          "lift": 23.3
+        },
+        "stable": true
+      },
+      {
+        "a": "Strawberry Fruit Tea 22oz",
+        "b": "Mini Donuts Choco",
+        "support": 0.007514933521741923,
+        "confidence": 0.612565445026178,
+        "lift": 21.675071394574015,
+        "recent": {
+          "support": 0.0068,
+          "confidence": 0.5778,
+          "lift": 21.13
+        },
+        "stable": true
+      },
+      {
+        "a": "Dirty Matcha 16oz",
+        "b": "Chicken Ala King Regular",
+        "support": 0.009441839552957802,
+        "confidence": 0.7777777777777779,
+        "lift": 16.497577959430824,
+        "recent": {
+          "support": 0.0094,
+          "confidence": 0.75,
+          "lift": 16.55
+        },
+        "stable": true
+      },
+      {
+        "a": "Abbey's Signature Fried Chicken Regular",
+        "b": "Matcha Strawberry Latte 16oz",
+        "support": 0.005716487892607104,
+        "confidence": 0.5144508670520231,
+        "lift": 24.87417872401537,
+        "recent": {
+          "support": 0.0052,
+          "confidence": 0.5405,
+          "lift": 28.83
+        },
+        "stable": true
+      },
+      {
+        "a": "Choco Hazelnut Hot 16oz",
+        "b": "Creamy Carbonara Regular",
+        "support": 0.009441839552957802,
+        "confidence": 0.6562500000000001,
+        "lift": 19.061858675373138,
+        "recent": {
+          "support": 0.0094,
+          "confidence": 0.7347,
+          "lift": 21.21
+        },
+        "stable": true
+      },
+      {
+        "a": "Toyomansi Porkchop Regular",
+        "b": "Pork Butterfly Steak Solo",
+        "support": 0.007900314727985098,
+        "confidence": 0.458955223880597,
+        "lift": 25.795934586992832,
+        "recent": {
+          "support": 0.007,
+          "confidence": 0.4091,
+          "lift": 23.8
+        },
+        "stable": true
+      },
+      {
+        "a": "Extra Rice Regular",
+        "b": "Crispy Pork Sinigang Solo",
+        "support": 0.007964544929025628,
+        "confidence": 0.4575645756457564,
+        "lift": 25.442224565102794,
+        "recent": {
+          "support": 0.0076,
+          "confidence": 0.4203,
+          "lift": 24.45
+        },
+        "stable": true
+      },
+      {
+        "a": "French Vanilla Hot 16oz",
+        "b": "Abbey's Signature Tapsilog Regular",
+        "support": 0.008992228145674096,
+        "confidence": 0.6481481481481481,
+        "lift": 17.519129372427983,
+        "recent": {
+          "support": 0.0089,
+          "confidence": 0.6939,
+          "lift": 18.76
+        },
+        "stable": true
+      },
+      {
+        "a": "Cappuccino Hot 16oz",
+        "b": "French Fries BBQ",
+        "support": 0.005716487892607104,
+        "confidence": 0.45408163265306123,
+        "lift": 24.980907910867526,
+        "recent": {
+          "support": 0.0052,
+          "confidence": 0.4167,
+          "lift": 23.19
+        },
+        "stable": true
+      },
+      {
+        "a": "Beef Salpicao Regular",
+        "b": "Choco Frappe 22oz",
+        "support": 0.005523797289485516,
+        "confidence": 0.5276073619631901,
+        "lift": 20.182602010822865,
+        "recent": {
+          "support": 0.0055,
+          "confidence": 0.5122,
+          "lift": 19.47
+        },
+        "stable": true
+      },
+      {
+        "a": "Matcha Frappe 16oz",
+        "b": "Mocha Frappe 16oz",
+        "support": 0.007643393923822982,
+        "confidence": 0.4559386973180076,
+        "lift": 23.35036045573704,
+        "recent": {
+          "support": 0.0078,
+          "confidence": 0.4348,
+          "lift": 21.68
+        },
+        "stable": true
+      },
+      {
+        "a": "Grilled Liempo (Platter) Regular",
+        "b": "Matcha Frappe 22oz",
+        "support": 0.009377609351917272,
+        "confidence": 0.660633484162896,
+        "lift": 15.607591373189877,
+        "recent": {
+          "support": 0.0096,
+          "confidence": 0.6066,
+          "lift": 14.38
+        },
+        "stable": true
+      },
+      {
+        "a": "Cheeseburger Regular",
+        "b": "Spanish Latte Hot 16oz",
+        "support": 0.008028775130066158,
+        "confidence": 0.6038647342995169,
+        "lift": 17.031829797661555,
+        "recent": {
+          "support": 0.0068,
+          "confidence": 0.52,
+          "lift": 15.36
+        },
+        "stable": true
+      }
+    ]
+  }
+}

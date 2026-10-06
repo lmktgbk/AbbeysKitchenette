@@ -116,3 +116,12 @@ on unseen baskets where supported. Report the date range, synthetic proportions 
 receipt-informed sampling. Receipt examples influenced the generator, so they are
 not an independent real-world test set. No R² target is promised or built into the
 generator, and mixed synthetic/receipt results cannot establish live cafe accuracy.
+
+
+## Separate 30-order forecasting preview
+
+`npm run seed:demo:preview -- --through=2026-10-05` exports a controlled synthetic
+profile without opening a database connection. It does not change `seed:demo`.
+Its fixed weekly basket quotas intentionally reduce noise for teaching; see
+`../../../audit/forecast-demo-dataset/README.md` for assumptions and benchmarks.
+Do not use the destructive original seed command to import this preview profile.

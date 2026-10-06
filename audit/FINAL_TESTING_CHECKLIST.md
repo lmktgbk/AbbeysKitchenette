@@ -1418,3 +1418,12 @@ Instructions and assumptions: `server/prisma/demo/README.md`.
 - [ ] Expected revenue uses expected units times the saved variant price; ingredient needs use current recipes. Neither calculation changes actual stock.
 - [ ] Evaluation includes zeros and reports daily and weekly errors separately; undefined R² stays N/A and negative R² stays negative.
 - [ ] Compare new metrics with their matched baseline. No accuracy threshold or 80% R² is guaranteed by this correction.
+
+
+## Separate 30-order demo preview
+
+- [ ] Review `audit/forecast-demo-dataset/README.md` and its synthetic-data classification.
+- [ ] Preview exports average 30.13 synthetic orders/day, 37 original receipts, 124 products and 210 variants.
+- [ ] Run `node audit/check_demo_dataset.mjs` to reconcile payments, recipes, purchases and simulated closing batches.
+- [ ] Keep August benchmark metrics separate from the next application's October evaluation.
+- [ ] After separately approving/importing the new dataset and model setting, verify the full forecasting and MBA pages manually. Neither has been applied by the preview command.

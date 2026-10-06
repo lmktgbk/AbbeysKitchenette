@@ -1,0 +1,9 @@
+{
+  "dataset_sha256": "ace70f444209f809cc68fe70ae8f31402e247dc41b54bcf1d862813ebebbaa1f",
+  "tuning_cutoff": "2026-06-28",
+  "holdout_cutoff": "2026-08-23",
+  "target": "Unrounded variant-week totals",
+  "selection": "Lowest June variant-week MAE, RMSE tie-breaker",
+  "classification": "Controlled synthetic weekly basket quotas; not actual future accuracy",
+  "databaseTouched": false
+}
