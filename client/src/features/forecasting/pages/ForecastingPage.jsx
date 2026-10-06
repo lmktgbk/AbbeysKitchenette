@@ -1,3 +1,4 @@
+import { formatPeso } from "@/lib/money";
 import { formatDemand } from "../formatDemand";
 import { useState, useMemo, useCallback } from "react";
 import { useDemandHistory, useDemandResults, useDemandIngredients, forecastKeys } from "../query";
@@ -261,8 +262,8 @@ export default function ForecastingPage() {
           </div>
           <div className="min-w-0 rounded-xl border border-border bg-card p-5">
             <StatLabel>Expected Sales</StatLabel>
-            <StatValue size="hero" className="mt-1">₱{periodTotals.revenue.toLocaleString()}</StatValue>
-            <StatSub>Total for 7 days · avg ₱{Math.round(periodTotals.revenue/7).toLocaleString()}/day</StatSub>
+            <StatValue size="hero" className="mt-1">{formatPeso(periodTotals.revenue, 2)}</StatValue>
+            <StatSub>Total for 7 days · avg {formatPeso(periodTotals.revenue / 7, 2)}/day</StatSub>
           </div>
           <div className={`min-w-0 rounded-xl border p-5 ${lowIngredients.length ? "border-amber-200 bg-amber-50/50 dark:border-amber-900/40 dark:bg-amber-950/10" : "border-border bg-card"}`}>
             <StatLabel>What to Order</StatLabel>

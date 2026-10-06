@@ -11,7 +11,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import Icon from "@/components/ui/icon";
 import { useSettings, useUpdateSettings } from "../query";
 import { useSettingsRealtime } from "@/realtime/subscriptions";
@@ -115,6 +114,9 @@ export default function SettingsPage() {
     },
   });
 
+  const [ipDraft, setIpDraft] = useState("");
+  const [ipError, setIpError] = useState("");
+
   // A new settings response resets the whole draft, including unsaved edits in other sections.
   useEffect(() => {
     if (settings) {
@@ -134,6 +136,33 @@ export default function SettingsPage() {
 
   const storeHours = useWatch({ control, name: "storeHours" });
   const whitelist = useWatch({ control, name: "storeIpWhitelist" });
+  const allowedIps = [...new Set((whitelist || "").split(",").map(ip => ip.trim()).filter(Boolean))];
+
+  /** Keep the existing API format while letting administrators add one validated address at a time. */
+  function addAllowedIp() {
+    const address = ipDraft.trim();
+    if (!address || address.includes(",") || !settingsSchema.shape.storeIpWhitelist.safeParse(address).success) {
+      setIpError("Enter one valid IPv4 address, such as 203.0.113.10.");
+      return;
+    }
+    if (allowedIps.includes(address)) {
+      setIpError("This address is already in the list.");
+      return;
+    }
+    const next = [...allowedIps, address].join(",");
+    if (!settingsSchema.shape.storeIpWhitelist.safeParse(next).success) {
+      setIpError("The address list is full. Remove an address before adding another.");
+      return;
+    }
+    setValue("storeIpWhitelist", next, { shouldValidate: true, shouldDirty: true });
+    setIpDraft("");
+    setIpError("");
+  }
+
+  /** Removing the final address restores the existing unrestricted-network policy when saved. */
+  function removeAllowedIp(address) {
+    setValue("storeIpWhitelist", allowedIps.filter(ip => ip !== address).join(","), { shouldValidate: true, shouldDirty: true });
+  }
   const openMode = !whitelist || whitelist.trim() === "";
   const accepted = useWatch({ control, name: "acceptedPayments" }) ?? [];
   const automation = useWatch({ control, name: "automation" }) ?? DEFAULT_AUTOMATION;
@@ -593,15 +622,29 @@ export default function SettingsPage() {
               <div className="min-w-0">
                 <label htmlFor="store-ip-whitelist" className="mb-1.5 block text-sm font-semibold text-foreground">Allowed IP addresses</label>
                 <p id="store-ip-help" className="mb-3 text-xs leading-relaxed text-muted-foreground">
-                  Enter your store's public IPv4 addresses, separated by commas.
+                  Add your store's public IPv4 addresses one at a time, then save your changes.
                 </p>
-                <Textarea id="store-ip-whitelist" placeholder="203.0.113.10, 198.51.100.20" rows={3}
-                  className="resize-y bg-background font-mono text-xs leading-relaxed"
-                  aria-describedby="store-ip-help store-ip-open"
-                  aria-invalid={Boolean(errors.storeIpWhitelist)}
-                  error={errors.storeIpWhitelist?.message} {...register("storeIpWhitelist")} />
+                <div className="flex items-start gap-2">
+                  <Input id="store-ip-whitelist" placeholder="e.g. 203.0.113.10" value={ipDraft}
+                    className="bg-background font-mono text-xs" autoComplete="off"
+                    aria-describedby="store-ip-help store-ip-open" aria-invalid={Boolean(ipError)}
+                    error={ipError}
+                    onChange={event => { setIpDraft(event.target.value); setIpError(""); }}
+                    onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); addAllowedIp(); } }} />
+                  <Button type="button" onClick={addAllowedIp} className="shrink-0"><Icon name="plus" size={16} />Add</Button>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2" aria-label="Allowed IP address list">
+                  {allowedIps.map(address => (
+                    <span key={address} className="inline-flex max-w-full items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 py-1 pl-2.5 pr-1 text-xs">
+                      <span className="break-all font-mono">{address}</span>
+                      <button type="button" onClick={() => removeAllowedIp(address)} aria-label={`Remove ${address}`}
+                        className="shrink-0 rounded p-1 text-muted-foreground hover:bg-primary/10 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"><Icon name="x" size={14} /></button>
+                    </span>
+                  ))}
+                </div>
+                {errors.storeIpWhitelist && <p className="mt-2 text-xs text-destructive">{errors.storeIpWhitelist.message}</p>}
                 <p id="store-ip-open" className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                  Leave blank to allow access from any network.
+                  {allowedIps.length ? "Only these networks will be allowed after saving." : "No restrictions — any network is allowed after saving."}
                 </p>
               </div>
               {/* Explain the submission boundary beside the field without implying that browsing is restricted. */}

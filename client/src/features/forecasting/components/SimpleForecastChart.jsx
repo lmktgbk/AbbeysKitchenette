@@ -1,3 +1,4 @@
+import { formatPeso } from "@/lib/money";
 import { formatDemand } from "../formatDemand";
 import { useMemo } from "react";
 import {
@@ -85,13 +86,13 @@ export default function SimpleForecastChart({ results, selectedVariant, selected
               yAxisId="right"
               orientation="right"
               tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
-              tickFormatter={(v) => `₱${v.toLocaleString()}`}
+              tickFormatter={(v) => formatPeso(v, 2)}
             />
             <Tooltip
               contentStyle={{ backgroundColor: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: "8px", fontSize: "12px" }}
               formatter={(value, name) => {
                 if (name === "Expected Demand") return [`${formatDemand(value)} expected units`, "Expected Demand"];
-                return [`₱${Number(value).toLocaleString()}`, "Expected Sales"];
+                return [formatPeso(value, 2), "Expected Sales"];
               }}
               labelFormatter={formatDayLabel}
             />
@@ -101,7 +102,7 @@ export default function SimpleForecastChart({ results, selectedVariant, selected
           </ComposedChart>
         </ResponsiveContainer>
         <p className="mt-2 text-xs text-muted-foreground text-center">
-          Total selected 7 days: {formatDemand(totals.units)} items · ₱{totals.revenue.toLocaleString()} sales
+          Total selected 7 days: {formatDemand(totals.units)} items · {formatPeso(totals.revenue, 2)} sales
         </p>
       </div>
     </div>

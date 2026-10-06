@@ -1,3 +1,4 @@
+import { formatPeso } from "@/lib/money";
 import { formatDemand } from "../formatDemand";
 import { useResettableState } from "@/hooks/useResettableState";
 import React, { useState, useMemo } from "react";
@@ -243,7 +244,7 @@ export default function ProductDemandTab({
                       </div>
                     </td>
                     <NumCell strong align="center" className="whitespace-nowrap py-2.5">{formatDemand(p.units)}</NumCell>
-                    <MoneyCell strong align="center" className="whitespace-nowrap py-2.5 text-emerald-600 dark:text-emerald-400">₱{p.revenue.toLocaleString()}</MoneyCell>
+                    <MoneyCell strong align="center" className="whitespace-nowrap py-2.5 text-emerald-600 dark:text-emerald-400">{formatPeso(p.revenue, 2)}</MoneyCell>
                   </tr>
                   {isOpen && p.variants.map((v) => {
                     const isSelected = String(selectedVariant) === String(v.variant_id);
@@ -261,7 +262,7 @@ export default function ProductDemandTab({
                           </p>
                         </td>
                         <NumCell align="center" className="whitespace-nowrap py-2">{formatDemand(v.units)}</NumCell>
-                        <MoneyCell align="center" className="whitespace-nowrap py-2 text-emerald-600 dark:text-emerald-400">₱{v.revenue.toLocaleString()}</MoneyCell>
+                        <MoneyCell align="center" className="whitespace-nowrap py-2 text-emerald-600 dark:text-emerald-400">{formatPeso(v.revenue, 2)}</MoneyCell>
                       </tr>
                     );
                   })}

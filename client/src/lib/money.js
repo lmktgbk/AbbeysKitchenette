@@ -6,8 +6,12 @@
 /**
  * Format a peso amount: ₱1,050
  */
-export function formatPeso(n) {
-  return `₱${Number(n ?? 0).toLocaleString()}`;
+export function formatPeso(n, fractionDigits) {
+  // Fixed decimals are a display choice; callers retain the original numeric amount.
+  const options = fractionDigits == null ? undefined : {
+    minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits,
+  };
+  return `₱${Number(n ?? 0).toLocaleString("en-PH", options)}`;
 }
 
 /**
