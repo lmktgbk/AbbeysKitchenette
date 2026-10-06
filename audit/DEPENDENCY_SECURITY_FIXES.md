@@ -22,6 +22,16 @@ Raw before/after reports are in [dependency-remediation](dependency-remediation/
 
 **Mitigation and follow-up:** Keep Prisma configuration and CLI inputs trusted and deployment access restricted. Recheck the advisory at every release and move to an upstream patched compatible Prisma release when available. Do not blindly force the suggested major downgrade or override a major merger API without compatibility verification. This is a documented residual risk, not a permanent security waiver or production-readiness certification.
 
+## October 6, 2026 release dependency update
+
+- `proxy-addr` 2.0.7 → 2.0.8, shared by the direct dependency and Express. Tests reject forged forwarded IPs through incorrectly specified IPv4-mapped IPv6 trust subnets while preserving correctly specified private proxy subnets. [Advisory](https://github.com/advisories/GHSA-jqcg-44mw-7w3h).
+- `source-map-js` 1.2.1 → 1.2.2 in both npm lockfiles. [Advisory](https://github.com/advisories/GHSA-68fv-2mgg-jv7q).
+- Prisma CLI/client stay on 7.10.0. A narrow `@prisma/config` override selects `deepmerge-ts` 8.0.2 because config 7.10.0 still pins 7.1.5. The patched library preserves the `deepmerge` export used by Prisma's local configuration loader; actual `prisma validate` and `prisma generate` pass. No database migrations, seed changes or schema writes were run. [Advisory](https://github.com/advisories/GHSA-ggr8-5vv4-36mx).
+- This is a deliberate transitive major-version override, not an upstream Prisma compatibility guarantee. Retest configuration loading/generation on Prisma upgrades, and remove the override once the chosen Prisma release itself depends on a patched version.
+- Verification: server/client npm audits each report zero vulnerabilities; 957 backend tests pass with 133 opt-in tests skipped; frontend strict lint/build and source-layout checks pass. Linux CI execution and hosted acceptance remain unverified at this point.
+
+The earlier verification and residual-risk notes below are historical evidence, superseded for npm advisories by this dated update.
+
 ## Verification
 
 - Backend: 468 tests in 14 files pass, including 11 new integration tests. Actual loopback HTTP multipart requests exercise both upload contracts, size limits, forbidden extensions, provider/stream errors, malformed provider responses and callback completion. Cloudinary is mocked; no external uploads occur.

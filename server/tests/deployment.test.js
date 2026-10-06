@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, describe, it, expect, vi } from "vitest";
 import express from "express";
 import http from "node:http";
+import proxyaddr from "proxy-addr";
 vi.mock("../src/config/env.js", () => ({ env: { NODE_ENV: "test" } }));
 import { parseEnvironment } from "../src/config/env.schema.js";
 import { sessionCookieOptions } from "../src/config/cookies.js";
@@ -12,6 +13,24 @@ const production = {
   DIRECT_URL: "postgresql://fixture:fixture@db.example.com/db?sslmode=verify-full",
   GMAIL_USER: "mailer@example.com", GMAIL_APP_PASS: "fixture", EMAIL_FROM: "mailer@example.com",
 };
+
+describe("proxy trust subnet security", () => {
+  // Incorrect mapped prefixes must never turn an arbitrary visitor into a trusted proxy.
+  it.each(["::ffff:10.0.0.0/8", "::/1"])("does not trust public IPv4 through %s", subnet => {
+    const trust = proxyaddr.compile(subnet);
+    expect(trust("203.0.113.42", 0)).toBe(false);
+    expect(proxyaddr({ socket: { remoteAddress: "203.0.113.42" }, headers: {
+      "x-forwarded-for": "198.51.100.10",
+    } }, trust)).toBe("203.0.113.42");
+  });
+  it("preserves correctly specified private IPv4 proxy subnets", () => {
+    for (const subnet of ["10.0.0.0/8", "::ffff:10.0.0.0/104"]) {
+      const trust = proxyaddr.compile(subnet);
+      expect(trust("10.1.2.3", 0)).toBe(true);
+      expect(trust("203.0.113.42", 0)).toBe(false);
+    }
+  });
+});
 describe("production configuration", () => {
   it("keeps local defaults and normalizes origins", () => {
     const config = parseEnvironment({ ...production, NODE_ENV: "development", CLIENT_URL: "http://localhost:5173/", COOKIE_SAME_SITE: "strict", TRUST_PROXY_HOPS: undefined, RATE_LIMIT_STORE: undefined });

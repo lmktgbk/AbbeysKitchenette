@@ -1,5 +1,7 @@
 # Current remediation status — 2026-10-04
 
+**October 6 dependency update:** Both npm audits report zero vulnerabilities after patching proxy-addr/source-map-js and applying a scoped @prisma/config → deepmerge-ts 8.0.2 override. Prisma remains 7.10.0; validation/generation, 957 backend tests, frontend lint/build and proxy-spoofing regressions pass. This supersedes the residual npm advisory descriptions below. Hosted CI, staging and production acceptance remain separate checks. See [dependency security evidence](DEPENDENCY_SECURITY_FIXES.md).
+
 This is the current implementation ledger. REPORT.md and findings.json preserve the original audit evidence; their historical unresolved labels are not the current count. **Implemented** means the identified code behavior was changed and selected regression checks passed, not that deployment or every live acceptance case is verified.
 
 The original audit contains **42 findings: 35 implemented, zero open, seven partially addressed**. Therefore **7 original findings remain outstanding** as verification, operations or dependency gates after the final implementation batch. Additional rollout constraints and final acceptance are listed separately rather than counted as new original findings.

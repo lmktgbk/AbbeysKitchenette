@@ -71,8 +71,7 @@ jobs:
       - run: npm --prefix server test -- --maxWorkers=2
       - run: python audit/ml_reproduction.py
       - run: python audit/ml_worker_reliability.py
-      # The residual Prisma advisory remains visible and blocks a clean security
-      # gate until reviewed upstream remediation is available.
+      # Scan the exact lockfiles on every release; keep transitive advisories visible.
       - name: Dependency release gate
         run: |
           npm audit --prefix client --audit-level=high

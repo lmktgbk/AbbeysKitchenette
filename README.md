@@ -14,7 +14,7 @@ Start the backend using `npm run dev` from server, Python using `python main.py`
 
 ## Verification and release
 
-Run backend `npm test`, frontend `npm run lint -- --max-warnings 0` and `npm run build`. Database suites require explicit opt-in and use disposable schemas. The GitHub workflow provisions its own PostgreSQL database; it never receives production credentials. Its dependency security gate currently reports the documented Prisma advisory and is expected to remain blocked until that risk is resolved.
+Run backend `npm test`, frontend `npm run lint -- --max-warnings 0` and `npm run build`. Database suites require explicit opt-in and use disposable schemas. The GitHub workflow provisions its own PostgreSQL database; it never receives production credentials. Both npm audits are clean as of October 6, 2026; the strict dependency gate remains enabled. See the dependency security record for the scoped Prisma configuration override and its verification.
 
 Use [the consolidated acceptance checklist](audit/FINAL_TESTING_CHECKLIST.md) for browser and live tests, [current audit status](audit/CURRENT_STATUS.md) for remaining findings, and [operations/release instructions](audit/OPERATIONS_RUNBOOK.md) for deployment and incidents.
 
