@@ -8,7 +8,8 @@ from pydantic import BaseModel
 
 class DailyForecast(BaseModel):
     date: str
-    units: int
+    # Fractional units represent expected sales, not a preparation instruction.
+    units: float
     revenue: float
 
 
@@ -117,7 +118,7 @@ class VariantResult(BaseModel):
     price: float
     category_id: int
     daily_data: list[DailyForecast]
-    total_units: int
+    total_units: float
     total_revenue: float
     days_of_data: int
     skipped: bool

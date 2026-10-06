@@ -225,12 +225,12 @@ async def demand_ingredients(job_id: int = Query(...)):
         date_list = sorted(dates.keys())
         current_stock = float(stock_by_ingredient.get(ing_id, 0))
 
-        # Display rounded days, but round the total once to retain small recipe quantities.
+        # Retain expected consumption precision; display rounding belongs to the client.
         daily_values = [
-            IngredientDailyValue(date=d, quantity=round(dates[d], 2))
+            IngredientDailyValue(date=d, quantity=dates[d])
             for d in date_list
         ]
-        total_needed = round(sum(dates.values()), 2)
+        total_needed = sum(dates.values())
 
         avg_daily = total_needed / len(date_list) if date_list else 0
         coverage = current_stock / avg_daily if avg_daily > 0 else None

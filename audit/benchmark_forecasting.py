@@ -22,7 +22,7 @@ from dotenv import dotenv_values
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "ml-service"))
 from forecasting.services import data_loader
-from forecasting.services.allocation import preparation_plan
+from legacy_forecast_allocation import preparation_plan
 from forecasting.services.demand_forecast import build_prophet, MIN_DATA_DAYS
 SHARE_WINDOW_DAYS = 30  # Historical allocation comparator; not used by production forecasting.
 
@@ -191,8 +191,8 @@ async def verify_pipeline(sales, cutoff):
         _, _, _, _, _, price, _, days, units, revenue, _, share = call.args
         assert share is None and len(days) == 7
         assert units == sum(day["units"] for day in days)
-        assert all(isinstance(day["units"], int) and day["units"] >= 0 for day in days)
-        assert revenue == round(sum(round(day["units"] * price, 2) for day in days), 2)
+        assert all(isinstance(day["units"], float) and day["units"] >= 0 for day in days)
+        assert abs(revenue - sum(day["units"] * price for day in days)) < 1e-8
     aggregate = {}
     for target, rows in [("product_weekly", scores),
                          ("variant_weekly", [v for p in scores for v in p["variant_scores"]])]:

@@ -18,7 +18,7 @@ from config import HOLDOUT_DAYS
 from benchmark_forecasting import SHARE_WINDOW_DAYS, _to_fit, _from_fit, size_shares
 from forecasting.services.data_loader import load_variant_daily_sales
 from forecasting.services.demand_forecast import build_prophet, business_today, MIN_DATA_DAYS
-from forecasting.services.allocation import preparation_plan
+from legacy_forecast_allocation import preparation_plan
 from forecasting.services.metrics import compute_metrics
 
 

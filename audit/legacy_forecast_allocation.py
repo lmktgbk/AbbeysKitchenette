@@ -1,3 +1,4 @@
+"""Historical allocation for audit reproduction; excluded from production forecasting."""
 """Convert expected demand to preparation counts without losing weekly totals."""
 import math
 

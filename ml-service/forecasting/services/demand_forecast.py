@@ -17,7 +17,6 @@ from config import (
 from forecasting.services.data_loader import load_variant_daily_sales
 from forecasting.services.metrics import compute_metrics, weekly_metrics
 from forecasting.services.holidays import philippine_holidays
-from forecasting.services.allocation import preparation_plan
 
 # Business timezone — the whole web app follows the Asia/Manila calendar day.
 BUSINESS_TZ = ZoneInfo("Asia/Manila")
@@ -72,7 +71,7 @@ async def cleanup_old_jobs():
 
 
 # ── Result storage ────────────────────────────────────────────
-# Variant rows carry independent forecasts (units/revenue for prep + ingredients).
+# Variant rows carry independent forecasts (expected units/revenue and ingredient demand).
 # Product-level RMSE/MAE/MSE/R2 live on the job as product_scores JSON.
 # Each write verifies the live execution lease before touching forecast data.
 
@@ -160,19 +159,23 @@ def training_reason(train):
 
 
 def predict_units(train, period=FORECAST_PERIOD):
-    """Fit raw counts and round the weekly total once, distributing whole units across days.
+    """Fit unit counts and retain fractional expected demand for each future day.
 
     An unlearnable historical series receives a zero fallback for matched backtests;
     production marks it skipped instead. Negative Prophet point estimates are clipped.
     No database transaction is held while fitting or predicting.
     """
     if training_reason(train):
-        return [0] * period
+        return [0.0] * period
     model = build_prophet(len(train))
     model.fit(train)
     future = pd.DataFrame({"ds": pd.date_range(train.ds.max() + pd.Timedelta(days=1), periods=period)})
     values = np.maximum(model.predict(future).yhat.to_numpy(), 0)
-    return [day[0] for day in preparation_plan(values, [1])]
+    # Expected demand is a statistical average, not a whole-item preparation plan.
+    # Reject non-finite model output before it can reach JSON or stored totals.
+    if not np.isfinite(values).all():
+        raise ValueError("Prophet returned non-finite expected demand")
+    return values.astype(float).tolist()
 
 
 def sales_coverage(sales, cutoff):
@@ -194,7 +197,7 @@ def week_pair(prediction, actual):
 
 
 def evaluate_product(calendar):
-    """Backtest variant plans on matched hidden weeks, then sum them for product scores.
+    """Backtest expected variant demand on matched hidden weeks, then sum them for product scores.
 
     Every model sees only the history before its holdout. Zero-history/short-history
     variants use zero fallback estimates in evaluation, including their actual errors.
@@ -241,7 +244,7 @@ def evaluate_product(calendar):
 
     def weekly_fields(rows, prefix=""):
         """Keep legacy mean fields while preserving all origin pairs for correct pooled metrics."""
-        return {prefix + key: round(sum(row[key] for row in rows) / len(rows), 4)
+        return {prefix + key: sum(row[key] for row in rows) / len(rows)
                 for key in ("w_pred", "w_actual", "w_mae", "w_mse")}
 
     return {**daily_score(product_predictions, product_actuals), **weekly_fields(weeks),
@@ -290,18 +293,18 @@ async def run_demand_forecast(job_id: int) -> dict:
                         continue
                     units = predict_units(train)
                     price = float(variant["price"])
-                    days = [{"date": day.date().isoformat(), "units": count, "revenue": round(count * price, 2)}
+                    days = [{"date": day.date().isoformat(), "units": count, "revenue": count * price}
                             for day, count in zip(pd.date_range(pd.Timestamp(cutoff) + pd.Timedelta(days=1), periods=FORECAST_PERIOD), units)]
                     # share=NULL distinguishes independent forecasts from legacy mix allocations.
                     await save_result(job_id, vid, str(product_id), product_name, variant["size_name"], price,
                                       int(variant["category_id"]), days, sum(units),
-                                      round(sum(day["revenue"] for day in days), 2), days_of_data, None)
+                                      sum(day["revenue"] for day in days), days_of_data, None)
                     product_saved = True
                 score = evaluate_product(calendar) if calendar.to_numpy().sum() > 0 else None
                 if score:
                     product_scores.append({"product_id": str(product_id), "product_name": product_name,
                                            "variants": len(variants), "training_cutoff": cutoff.isoformat(),
-                                           "evaluation_version": 3, "forecast_method": "variant_prophet_raw",
+                                           "evaluation_version": 4, "forecast_method": "variant_prophet_expected",
                                            "coverage": coverage, **score})
                 if product_saved:
                     completed_count += 1

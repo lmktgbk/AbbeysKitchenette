@@ -23,7 +23,7 @@ sys.path.insert(0, str(ROOT / 'ml-service'))
 sys.path.insert(0, str(ROOT / 'audit'))
 from benchmark_forecasting import read_snapshot, errors
 from forecasting.services.demand_forecast import build_prophet, training_reason
-from forecasting.services.allocation import preparation_plan
+from legacy_forecast_allocation import preparation_plan
 
 OUT = ROOT / 'audit' / 'forecasting-investigation'
 METHODS = ['current', 'flat_full', 'flat_26w', 'previous_week', 'weekday_8w', 'weekday_26w']
@@ -35,7 +35,7 @@ SELECTED = ['Spanish Latte', 'Caramel Macchiato', 'French Fries', 'Mini Donuts',
 
 
 def forecast(train, method):
-    """Return expected units and the application's rounded whole-unit preparation plan."""
+    """Return expected units and the historical rounded whole-unit preparation plan."""
     future = pd.date_range(train.ds.max() + pd.Timedelta(days=1), periods=7)
     if training_reason(train):
         return np.zeros(7), np.zeros(7)

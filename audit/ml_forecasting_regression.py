@@ -31,7 +31,7 @@ class ForecastResponses(unittest.IsolatedAsyncioTestCase):
             self.addCleanup(context.stop)
         return pool
 
-    async def test_shared_recipes_rounding_order_and_first_stock_row(self):
+    async def test_shared_recipes_precision_order_and_first_stock_row(self):
         self.fixture([
             {"variant_id": 1, "daily_data": '[{"date":"2026-10-06","units":1},{"date":"2026-10-05","units":3}]'},
             {"variant_id": 2, "daily_data": [{"date": "2026-10-05", "units": 2}]},
@@ -47,8 +47,8 @@ class ForecastResponses(unittest.IsolatedAsyncioTestCase):
         result = await demand.demand_ingredients(10)
         self.assertEqual([i.status for i in result.ingredients], ["critical", "warning", "ok"])
         shared = next(i for i in result.ingredients if i.ingredient_id == str(A))
-        self.assertEqual([(d.date, d.quantity) for d in shared.daily_values], [("2026-10-05", 3.5), ("2026-10-06", .33)])
-        self.assertEqual(shared.total_needed, 3.83)
+        self.assertEqual([(d.date, d.quantity) for d in shared.daily_values], [("2026-10-05", 3.499), ("2026-10-06", .333)])
+        self.assertAlmostEqual(shared.total_needed, 3.832)
         self.assertEqual(shared.current_stock, 11.49)
         self.assertEqual(shared.days_covered, 6.0)
         zero = next(i for i in result.ingredients if i.ingredient_id == str(C))

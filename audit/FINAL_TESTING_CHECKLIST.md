@@ -1407,3 +1407,14 @@ Instructions and assumptions: `server/prisma/demo/README.md`.
 - [ ] Confirm each ingredient has one positive remaining batch and historical deductions/losses reconcile to batch quantities.
 - [ ] Before defense, preview/apply extension through the last completed Manila day. Verify existing manual orders remain and repeating the extension adds no duplicates.
 - [ ] Generate forecasting and MBA only after operational checks. Record held-out metrics and matched baselines, and disclose synthetic-data assumptions. Full-history model results remain Not verified until evaluated.
+
+
+## Expected demand correction (October 6)
+
+- [ ] Restart backend and ML service, then generate a new forecast. The fractional-demand migration has been deployed; Prisma Client has been regenerated.
+- [ ] New run explains fractional expected units; old history runs show the legacy rounded notice.
+- [ ] Expanded variant weekly demand adds up to product demand (allow display rounding differences of 0.01).
+- [ ] Product totals add up to the menu KPI and chart; selecting a variant shows its seven daily expectations.
+- [ ] Expected revenue uses expected units times the saved variant price; ingredient needs use current recipes. Neither calculation changes actual stock.
+- [ ] Evaluation includes zeros and reports daily and weekly errors separately; undefined R² stays N/A and negative R² stays negative.
+- [ ] Compare new metrics with their matched baseline. No accuracy threshold or 80% R² is guaranteed by this correction.

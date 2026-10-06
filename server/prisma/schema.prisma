@@ -543,7 +543,7 @@ model ForecastResult {
   price       Decimal @db.Decimal(10, 2)
   categoryId  Int     @map("category_id")
   dailyData   Json    @map("daily_data")
-  totalUnits  Int     @default(0) @map("total_units")
+  totalUnits  Float     @default(0) @map("total_units")
   totalRevenue Float  @default(0) @map("total_revenue")
   trend       String  @default("stable") @db.VarChar(20)
   daysOfData  Int     @default(0) @map("days_of_data")

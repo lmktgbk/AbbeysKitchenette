@@ -1,7 +1,7 @@
 # Demand forecasting
 
 The pipeline fits an independent Prophet model to each variant's daily completed
-sales, using raw unit counts. Product forecasts are sums of variant plans, not
+sales, using raw unit counts. Product forecasts are sums of expected variant demand, not
 separate fitted models. Existing historical-share runs remain readable.
 
 ## Responsibilities
@@ -9,8 +9,6 @@ separate fitted models. Existing historical-share runs remain readable.
 - `services/data_loader.py`: grouped completed-sales, current recipe and stock reads.
 - `services/demand_forecast.py`: cutoff, calendars, variant models, rolling holdouts,
   coverage metadata and short lease-fenced persistence transactions.
-- `services/allocation.py`: largest-remainder integer preparation planning. A variant's
-  rounded weekly total is preserved when distributed across its seven daily points.
 - `services/metrics.py`: daily/weekly errors; negative R² is never clipped.
 - `routers/demand.py`: private job endpoints, current availability and ingredient assembly.
 - `models/demand.py`: backward-compatible response contracts and coverage/evaluation metadata.
@@ -37,7 +35,7 @@ backtests those cases receive a zero fallback and their errors remain included.
 
 | Parameter | Value | Purpose |
 | --- | --- | --- |
-| Forecast horizon | 7 days | Whole-unit daily and weekly preparation plan |
+| Forecast horizon | 7 days | Fractional daily and weekly expected demand |
 | Minimum history | 7 calendar days since first sale | Skip unlearnable/new variants |
 | Target | Raw daily units | No square-root transformation or historical mix split |
 | Seasonality mode | additive | Seasonal effects add unit quantities |
@@ -60,12 +58,13 @@ Yearly-seasonality eligibility uses calendar span, not positive-sales-day count.
 
 ## Output calculations
 
-Clip negative point estimates to zero. Round each variant's seven-day sum once
-(half up), then use largest remainders to distribute that whole-unit total across
-days. Product/day and menu totals sum these same variant counts.
+Clip negative point estimates to zero and reject non-finite output. Preserve fractional
+expected units through storage and calculation. Product/day and menu totals sum
+the same variant expectations; display formatting alone limits decimal places.
+For example, 0.49 expected units/day totals 3.43/week, not a three-item preparation plan.
 
 Expected revenue is units × the variant price captured when loading the run,
-rounded to cents. It is not guaranteed realized revenue: future promotions,
+with full intermediate precision and currency rounding at presentation. It is not guaranteed realized revenue: future promotions,
 price changes and operating costs are excluded. Ingredient need uses predicted
 variant units × current recipe quantities. Recipes and stock are current reads,
 not historical job snapshots. Missing recipes require review, including legitimate
@@ -74,7 +73,7 @@ resale items. These calculations do not reserve stock or create purchase orders.
 ## Evaluation and data coverage
 
 Each hidden week is excluded from training. Fit each variant only before that
-week; score the integer plans that the kitchen would receive. Sum variant plans
+week; score the same fractional expectations used in production. Sum variant expectations
 for product metrics. Store daily errors and weekly total pairs for both levels.
 The baseline repeats the previous week's same weekdays on identical observations.
 
@@ -90,9 +89,9 @@ empty dates. It does not confirm closure, full recording or zero customer demand
 Without daily completeness information, those distinctions remain unknown.
 Coverage/cutoff metadata is available on newly scored runs; old runs remain unchanged.
 
-The existing dataset is predominantly receipt-informed synthetic history. Its
-explicit simulation boundary is September 28, 2026. Keep that date for the fixed
-historical comparison; normal forecasting still uses yesterday. Do not fill gaps
+The existing dataset is predominantly receipt-informed synthetic history. The fresh demonstration seed now spans January 2025 through October 5, 2026;
+historical September 28 benchmark artifacts retain their original boundary.
+Normal forecasting still uses yesterday. Do not fill gaps
 with invented real sales or reseed to improve evaluation scores. A demo extension
 belongs in a separately identified test dataset. Real-world future accuracy and
 recording completeness remain unverified. Reserve untouched complete real-sales
@@ -100,8 +99,10 @@ periods for final evaluation.
 
 ## Operations and verification
 
-No schema migration or new dependency is required. New jobs use
-`forecast_method=variant_prophet_raw` and `evaluation_version=3`. The legacy
+Apply migration `20261006120000_expected_demand` and regenerate Prisma Client before
+starting the updated worker. It converts `forecast_results.total_units` from integer
+to double precision without deleting historical rows. New jobs use
+`forecast_method=variant_prophet_expected` and `evaluation_version=4`. The legacy
 `share` column is NULL for direct forecasts. Job progress counters still count
 product groups for API compatibility; skipped rows and reasons identify variants.
 Model fitting occurs in the existing child worker, outside database transactions.
@@ -111,6 +112,7 @@ runtime depends on catalog size, history and CPU. Historical jobs are not recomp
 From the repository root with the virtual environment activated:
 
 ```bash
+python audit/ml_expected_demand.py
 python audit/ml_forecast_accuracy.py
 python audit/ml_forecasting_regression.py
 python audit/ml_forecast_pipeline.py
@@ -123,3 +125,9 @@ mocked. It validates unit/revenue consistency, matched baselines and runtime.
 The five-method historical comparator remains in `audit/benchmark_forecasting.py`
 without `--verify-pipeline`; its old transform and mix helpers are audit-only.
 Benchmark metrics on seeded history must not be presented as verified real accuracy.
+
+The old allocator lives only in `audit/legacy_forecast_allocation.py` to reproduce
+historical benchmark comparisons. Production has no preparation allocation step.
+Restart the backend and ML service after migration, generate a new run, and check
+that product/chart totals, variant sums, revenue and ingredient needs agree.
+Older runs remain readable and visibly labelled as rounded forecasts.

@@ -63,8 +63,8 @@ class Pipeline(unittest.IsolatedAsyncioTestCase):
                                 predict=lambda future: pd.DataFrame({"yhat": [-1, .4, .4, .4, .4, .4, .4]}))
         with patch.object(forecast, "build_prophet", return_value=model):
             plan = forecast.predict_units(train)
-        self.assertEqual(sum(plan), 2)
-        self.assertTrue(all(isinstance(value, int) and value >= 0 for value in plan))
+        self.assertAlmostEqual(sum(plan), 2.4)
+        self.assertTrue(all(isinstance(value, float) and value >= 0 for value in plan))
         self.assertEqual(plan[0], 0)
 
     async def test_evaluation_failure_replaces_partial_forecast_with_skips(self):
@@ -140,17 +140,17 @@ class Pipeline(unittest.IsolatedAsyncioTestCase):
             _, vid, _, _, _, price, _, daily, units, revenue, _, share = call.args
             self.assertEqual([day["date"] for day in daily], [day.strftime("%Y-%m-%d") for day in pd.date_range("2026-10-06", periods=7)])
             self.assertEqual(units, sum(day["units"] for day in daily))
-            self.assertEqual(revenue, units * price)
+            self.assertAlmostEqual(revenue, units * price)
             self.assertIsNone(share)
         score = ProductScore(**finished.await_args.args[-1][0])
         self.assertEqual(score.training_cutoff, "2026-10-05")
-        self.assertEqual(score.forecast_method, "variant_prophet_raw")
-        self.assertEqual(score.evaluation_version, 3)
+        self.assertEqual(score.forecast_method, "variant_prophet_expected")
+        self.assertEqual(score.evaluation_version, 4)
         self.assertEqual(score.coverage.gap_days, 0)
         self.assertEqual(len(score.variant_scores), 3)
         self.assertEqual(len(score.weeks), len(score.n_weeks))
         for index, week in enumerate(score.weeks):
-            self.assertEqual(week.w_pred, sum(v.weeks[index].w_pred for v in score.variant_scores))
+            self.assertAlmostEqual(week.w_pred, sum(v.weeks[index].w_pred for v in score.variant_scores))
             self.assertEqual(week.w_actual, sum(v.weeks[index].w_actual for v in score.variant_scores))
         self.assertEqual([week.w_actual for week in score.weeks], [week.w_actual for week in score.n_weeks])
 

@@ -1,4 +1,5 @@
-﻿import { useState, useMemo, useCallback } from "react";
+import { formatDemand } from "../formatDemand";
+import { useState, useMemo, useCallback } from "react";
 import { useDemandHistory, useDemandResults, useDemandIngredients, forecastKeys } from "../query";
 import { useQueryClient } from "@tanstack/react-query";
 import { summarizeEvaluation } from "../evaluation";
@@ -23,7 +24,7 @@ function IndividualEvaluation({ scores, variants }) {
     ...(score.variant_scores || []).map((variant) => ({
       ...variant,
       key: `variant:${variant.variant_id}`,
-      label: `${score.product_name} / ${names.get(variant.variant_id) || variant.variant_id}${score.forecast_method === "variant_prophet_raw" ? "" : " (allocated)"}`,
+      label: `${score.product_name} / ${names.get(variant.variant_id) || variant.variant_id}${["variant_prophet_raw", "variant_prophet_expected"].includes(score.forecast_method) ? "" : " (allocated)"}`,
     })),
   ]);
   return (
@@ -31,7 +32,7 @@ function IndividualEvaluation({ scores, variants }) {
       <summary className="cursor-pointer">Individual product and variant evaluation</summary>
       <p className="my-2 text-xs text-muted-foreground">
         Training through {scores[0].training_cutoff || "cutoff unavailable (older run)"}.
-        {scores[0].forecast_method === "variant_prophet_raw"
+        {["variant_prophet_raw", "variant_prophet_expected"].includes(scores[0].forecast_method)
           ? " Each variant is forecast independently with Prophet using unit counts."
           : " Legacy run: variant quantities were allocated from historical sales mix."}
         R² is N/A when actual sales have no variation. Errors below measure daily units.
@@ -58,7 +59,7 @@ function IndividualEvaluation({ scores, variants }) {
 
 /**
  * ForecastingPage — friendly redesign.
- * Answers only 3 questions: Demand (To Prepare), Revenue (Expected Sales), Inventory (What to Order)
+ * Answers only 3 questions: Demand (Expected Units), Revenue (Expected Sales), Inventory (What to Order)
  * Plain language, 3 KPI cards + combined chart + tabbed details. Tech behind Details flap.
  *
  * State (Rule of Thumb):
@@ -103,6 +104,8 @@ export default function ForecastingPage() {
   const skipped = resultsData?.data?.skipped || [];
   const productScores = job?.product_scores || null;
   const coverage = productScores?.[0]?.coverage;
+  // Historical saved runs keep their original rounded quantities and scores.
+  const expectedDemand = productScores?.some((score) => score.forecast_method === "variant_prophet_expected");
   // A zero forecast is different from a skipped product and remains in evaluation.
   const productCounts = useMemo(() => {
     const totals = new Map();
@@ -184,7 +187,7 @@ export default function ForecastingPage() {
           <Icon name="trendingUp" size={48} className="mx-auto text-muted-foreground/30" />
           <h2 className="mt-4 text-base font-semibold text-foreground">Sales Forecast — Next 7 Days</h2>
           <p className="mt-1 text-sm text-muted-foreground max-w-md mx-auto">
-            See how many to prepare, how much you’ll sell, and what to order — based on your past sales.
+            See expected demand, how much you’ll sell, and what to order — based on your past sales.
           </p>
           <div className="mt-6 flex justify-center">
             <ForecastRunButton onJobComplete={handleJobComplete} />
@@ -205,8 +208,13 @@ export default function ForecastingPage() {
             {!hasData ? (
               <p className="mt-1 text-sm text-muted-foreground">No predictions yet — tap Update Forecast to generate.</p>
             ) : null}
+            {hasData && <p className="mt-1 text-xs text-muted-foreground">
+              {expectedDemand
+                ? "Fractional expected units describe average demand, not whole items to prepare."
+                : "Legacy rounded forecast. Generate a new forecast for fractional expected demand and matching evaluation."}
+            </p>}
             {lastUpdated && <p className="mt-1 text-xs text-muted-foreground">Last updated: {lastUpdated}</p>}
-            {hasData && <p className="mt-1 text-xs text-muted-foreground">{productCounts.total} products forecasted · {productCounts.zero} with zero preparation counts. The product table shows positive demand.</p>}
+            {hasData && <p className="mt-1 text-xs text-muted-foreground">{productCounts.total} products forecasted · {productCounts.zero} with zero expected demand. The product table shows positive demand.</p>}
           </div>
           <div className="shrink-0">
             <ForecastRunButton onJobComplete={handleJobComplete} />
@@ -244,9 +252,9 @@ export default function ForecastingPage() {
       {hasData && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-border bg-card p-5">
-            <StatLabel>Demand — Items to Prepare</StatLabel>
-            <StatValue size="hero" className="mt-1">{periodTotals.units.toLocaleString()}</StatValue>
-            <StatSub>Total forecast for 7 days · avg {Math.round(periodTotals.units/7)} items/day</StatSub>
+            <StatLabel>Demand — Expected Demand</StatLabel>
+            <StatValue size="hero" className="mt-1">{formatDemand(periodTotals.units)}</StatValue>
+            <StatSub>Total forecast for 7 days · avg {formatDemand(periodTotals.units/7)} items/day</StatSub>
           </div>
           <div className="rounded-xl border border-border bg-card p-5">
             <StatLabel>Expected Sales</StatLabel>
@@ -380,7 +388,7 @@ export default function ForecastingPage() {
                   })()}
                 </>
               ) : (
-                <p className="text-xs text-muted-foreground">Not enough completed history to evaluate yet. Preparation estimates can still appear without evaluation scores.</p>
+                <p className="text-xs text-muted-foreground">Not enough completed history to evaluate yet. Demand estimates can still appear without evaluation scores.</p>
               )}
 
               {variantMetrics?.count != null && <p className="text-xs text-muted-foreground">

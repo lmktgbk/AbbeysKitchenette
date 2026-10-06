@@ -1,3 +1,4 @@
+import { formatDemand } from "../formatDemand";
 import { useMemo } from "react";
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -89,18 +90,18 @@ export default function SimpleForecastChart({ results, selectedVariant, selected
             <Tooltip
               contentStyle={{ backgroundColor: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: "8px", fontSize: "12px" }}
               formatter={(value, name) => {
-                if (name === "Items to Prepare") return [`${value} items`, "Items to Prepare"];
+                if (name === "Expected Demand") return [`${formatDemand(value)} expected units`, "Expected Demand"];
                 return [`₱${Number(value).toLocaleString()}`, "Expected Sales"];
               }}
               labelFormatter={formatDayLabel}
             />
             <Legend verticalAlign="top" height={24} iconType="rect" wrapperStyle={{ fontSize: 12 }} />
-            <Bar isAnimationActive={!reduced} animationDuration={600} animationEasing="ease-out" yAxisId="left" dataKey="units" name="Items to Prepare" fill="var(--color-primary)" radius={[4, 4, 0, 0]} barSize={22} />
+            <Bar isAnimationActive={!reduced} animationDuration={600} animationEasing="ease-out" yAxisId="left" dataKey="units" name="Expected Demand" fill="var(--color-primary)" radius={[4, 4, 0, 0]} barSize={22} />
             <Line yAxisId="right" type="monotone" dataKey="revenue" name="Expected Sales" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 3, fill: "#f59e0b", stroke: "var(--color-card)", strokeWidth: 2 }} />
           </ComposedChart>
         </ResponsiveContainer>
         <p className="mt-2 text-xs text-muted-foreground text-center">
-          Total selected 7 days: {totals.units.toLocaleString()} items · ₱{totals.revenue.toLocaleString()} sales
+          Total selected 7 days: {formatDemand(totals.units)} items · ₱{totals.revenue.toLocaleString()} sales
         </p>
       </div>
     </div>

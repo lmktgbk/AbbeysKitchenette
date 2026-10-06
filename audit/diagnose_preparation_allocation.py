@@ -3,7 +3,7 @@ import json,logging
 from pathlib import Path
 import numpy as np,pandas as pd
 from investigate_forecasting import forecast,SELECTED,OUT
-from forecasting.services.allocation import apportion
+from legacy_forecast_allocation import apportion
 from benchmark_forecasting import errors
 logging.disable(logging.INFO)
 

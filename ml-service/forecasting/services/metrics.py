@@ -33,10 +33,10 @@ def compute_metrics(pred_df, actual_df) -> dict:
     r_squared = float(1 - (ss_res / ss_tot)) if len(merged) >= 2 and ss_tot > 0 else None
 
     return {
-        "rmse": round(rmse, 2),
-        "mae": round(mae, 2),
-        "mse": round(mse, 2),
-        "r_squared": round(r_squared, 4) if r_squared is not None else None,
+        "rmse": rmse,
+        "mae": mae,
+        "mse": mse,
+        "r_squared": r_squared,
     }
 
 
@@ -44,7 +44,7 @@ def weekly_metrics(eval_pred_df, holdout_df) -> dict:
     """Decision-horizon score: 7-day predicted total vs 7-day actual total.
 
     Same hidden week, zeros included — daily noise cancels in totals, which
-    is what prep actually uses. Reuses the daily eval forecast, no refit.
+    is the weekly demand horizon. Reuses the daily eval forecast, no refit.
     w_pred/w_actual feed client pooled R2 across product-week points.
     That pooling formula has no explicit volume weights or outlier protection.
     """
@@ -56,10 +56,10 @@ def weekly_metrics(eval_pred_df, holdout_df) -> dict:
     # No per-product weekly rmse: one observation makes sqrt(err^2) == |err|,
     # so whole-menu weekly RMSE is derived as sqrt(mean w_mse) at read time.
     return {
-        "mae": round(err, 2),
-        "mse": round(mse, 2),
-        "w_pred": round(pred_total, 2),
-        "w_actual": round(actual_total, 2),
+        "mae": err,
+        "mse": mse,
+        "w_pred": pred_total,
+        "w_actual": actual_total,
     }
 
 
