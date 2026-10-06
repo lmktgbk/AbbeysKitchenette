@@ -1,0 +1,12 @@
+{
+  "best_overall": "flat_full",
+  "best_prophet": "flat_full",
+  "ranking": [
+    "flat_full",
+    "flat_26w",
+    "weekday_26w",
+    "current",
+    "weekday_8w",
+    "previous_week"
+  ]
+}

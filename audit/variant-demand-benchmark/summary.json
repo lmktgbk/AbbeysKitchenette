@@ -1,0 +1,405 @@
+{
+  "protocol": {
+    "dataset_sha256": "19b6096b9529a79e69f4de4c42555c483ae0ddc1fd622926f104e8b2236a1195",
+    "tuning_cutoff": "2026-06-28",
+    "holdout_cutoff": "2026-08-23",
+    "target": "unrounded variant-week expected units",
+    "selection": "lowest tuning variant-week MAE, then RMSE",
+    "classification": "Predominantly synthetic history; not live accuracy evidence",
+    "production_changed": false
+  },
+  "locked_choice": {
+    "best_overall": "flat_full",
+    "best_prophet": "flat_full",
+    "ranking": [
+      "flat_full",
+      "flat_26w",
+      "weekday_26w",
+      "current",
+      "weekday_8w",
+      "previous_week"
+    ]
+  },
+  "tuning": {
+    "current": {
+      "product_daily": {
+        "observations": 2604,
+        "mae": 0.5704530790042959,
+        "mse": 0.6422609484967343,
+        "rmse": 0.801411846990506,
+        "r2": 0.2282997506239386,
+        "actual_total": 1370.0,
+        "predicted_total": 1369.2741187550778,
+        "bias": -0.0002787562384494057
+      },
+      "product_weekly": {
+        "observations": 372,
+        "mae": 1.5942923561325244,
+        "mse": 4.4612341148023695,
+        "rmse": 2.1121633731324785,
+        "r2": 0.6755193250660609,
+        "actual_total": 1370.0,
+        "predicted_total": 1369.2741187550778,
+        "bias": -0.0019512936691458065
+      },
+      "variant_daily": {
+        "observations": 4410,
+        "mae": 0.4042884142712662,
+        "mse": 0.38110452219210933,
+        "rmse": 0.6173366360358903,
+        "r2": 0.15899134022875894,
+        "actual_total": 1370.0,
+        "predicted_total": 1369.2741187550778,
+        "bias": -0.00016459892175108007
+      },
+      "variant_weekly": {
+        "observations": 630,
+        "mae": 1.2643384455900366,
+        "mse": 2.7385500846079696,
+        "rmse": 1.6548565148096586,
+        "r2": 0.5619758976316562,
+        "actual_total": 1370.0,
+        "predicted_total": 1369.2741187550778,
+        "bias": -0.0011521924522575437
+      }
+    },
+    "flat_full": {
+      "product_daily": {
+        "observations": 2604,
+        "mae": 0.5757980839802512,
+        "mse": 0.6350885392575583,
+        "rmse": 0.7969244250602175,
+        "r2": 0.23691766521372393,
+        "actual_total": 1370.0,
+        "predicted_total": 1399.7355011291052,
+        "bias": 0.011419163260025095
+      },
+      "product_weekly": {
+        "observations": 372,
+        "mae": 1.5815945841156624,
+        "mse": 4.300843126750875,
+        "rmse": 2.073847421280282,
+        "r2": 0.6871851051432797,
+        "actual_total": 1370.0,
+        "predicted_total": 1399.7355011291052,
+        "bias": 0.07993414282017564
+      },
+      "variant_daily": {
+        "observations": 4410,
+        "mae": 0.4081369428650905,
+        "mse": 0.3772016672025515,
+        "rmse": 0.6141674585994861,
+        "r2": 0.167604029538163,
+        "actual_total": 1370.0,
+        "predicted_total": 1399.7355011291052,
+        "bias": 0.006742744020205295
+      },
+      "variant_weekly": {
+        "observations": 630,
+        "mae": 1.2422427965540082,
+        "mse": 2.6313561415073257,
+        "rmse": 1.6221455364754809,
+        "r2": 0.5791212954718803,
+        "actual_total": 1370.0,
+        "predicted_total": 1399.7355011291054,
+        "bias": 0.04719920814143708
+      }
+    },
+    "flat_26w": {
+      "product_daily": {
+        "observations": 2604,
+        "mae": 0.5755415736954745,
+        "mse": 0.6521276333641548,
+        "rmse": 0.8075441990158525,
+        "r2": 0.21644456436277026,
+        "actual_total": 1370.0,
+        "predicted_total": 1384.1809105110956,
+        "bias": 0.0054458181686235325
+      },
+      "product_weekly": {
+        "observations": 372,
+        "mae": 1.5840523526747834,
+        "mse": 4.32349826452078,
+        "rmse": 2.079302350434102,
+        "r2": 0.685537320201909,
+        "actual_total": 1370.0,
+        "predicted_total": 1384.1809105110958,
+        "bias": 0.03812072718036477
+      },
+      "variant_daily": {
+        "observations": 4410,
+        "mae": 0.40897733530022257,
+        "mse": 0.38938789726102724,
+        "rmse": 0.6240095329889017,
+        "r2": 0.1407118663326672,
+        "actual_total": 1370.0,
+        "predicted_total": 1384.1809105110956,
+        "bias": 0.003215625966234848
+      },
+      "variant_weekly": {
+        "observations": 630,
+        "mae": 1.2528040791857418,
+        "mse": 2.634758488910406,
+        "rmse": 1.6231939159910642,
+        "r2": 0.5785770986811931,
+        "actual_total": 1370.0,
+        "predicted_total": 1384.1809105110956,
+        "bias": 0.022509381763643917
+      }
+    },
+    "previous_week": {
+      "product_daily": {
+        "observations": 2604,
+        "mae": 0.6947004608294931,
+        "mse": 1.3406298003072197,
+        "rmse": 1.1578556906226352,
+        "r2": -0.6108162167411011,
+        "actual_total": 1370.0,
+        "predicted_total": 1455.0,
+        "bias": 0.032642089093702
+      },
+      "product_weekly": {
+        "observations": 372,
+        "mae": 2.1370967741935485,
+        "mse": 9.094086021505376,
+        "rmse": 3.0156402340971273,
+        "r2": 0.3385563065667342,
+        "actual_total": 1370.0,
+        "predicted_total": 1455.0,
+        "bias": 0.22849462365591397
+      },
+      "variant_daily": {
+        "observations": 4410,
+        "mae": 0.46825396825396826,
+        "mse": 0.7852607709750566,
+        "rmse": 0.8861494066888814,
+        "r2": -0.7328870955662923,
+        "actual_total": 1370.0,
+        "predicted_total": 1455.0,
+        "bias": 0.01927437641723356
+      },
+      "variant_weekly": {
+        "observations": 630,
+        "mae": 1.680952380952381,
+        "mse": 5.611111111111111,
+        "rmse": 2.3687784005919825,
+        "r2": 0.10251708685279526,
+        "actual_total": 1370.0,
+        "predicted_total": 1455.0,
+        "bias": 0.1349206349206349
+      }
+    },
+    "weekday_8w": {
+      "product_daily": {
+        "observations": 2604,
+        "mae": 0.5844854070660522,
+        "mse": 0.6986607142857143,
+        "rmse": 0.8358592670334608,
+        "r2": 0.16053334909200956,
+        "actual_total": 1370.0,
+        "predicted_total": 1385.5,
+        "bias": 0.005952380952380952
+      },
+      "product_weekly": {
+        "observations": 372,
+        "mae": 1.6559139784946237,
+        "mse": 4.753276209677419,
+        "rmse": 2.1802009562600917,
+        "r2": 0.6542781138640401,
+        "actual_total": 1370.0,
+        "predicted_total": 1385.5,
+        "bias": 0.041666666666666664
+      },
+      "variant_daily": {
+        "observations": 4410,
+        "mae": 0.4154761904761905,
+        "mse": 0.4243551587301587,
+        "rmse": 0.6514254821007225,
+        "r2": 0.06354728813540089,
+        "actual_total": 1370.0,
+        "predicted_total": 1385.5,
+        "bias": 0.0035147392290249433
+      },
+      "variant_weekly": {
+        "observations": 630,
+        "mae": 1.3047619047619048,
+        "mse": 2.927480158730159,
+        "rmse": 1.7109880650460887,
+        "r2": 0.5317570140724741,
+        "actual_total": 1370.0,
+        "predicted_total": 1385.5,
+        "bias": 0.024603174603174603
+      }
+    },
+    "weekday_26w": {
+      "product_daily": {
+        "observations": 2604,
+        "mae": 0.5757266926621765,
+        "mse": 0.6540921340859306,
+        "rmse": 0.808759626889183,
+        "r2": 0.21408414419330157,
+        "actual_total": 1370.0,
+        "predicted_total": 1384.1923076923078,
+        "bias": 0.0054501949663240045
+      },
+      "product_weekly": {
+        "observations": 372,
+        "mae": 1.584057071960298,
+        "mse": 4.323515142838964,
+        "rmse": 2.079306409079471,
+        "r2": 0.6855360925846321,
+        "actual_total": 1370.0,
+        "predicted_total": 1384.1923076923076,
+        "bias": 0.03815136476426809
+      },
+      "variant_daily": {
+        "observations": 4410,
+        "mae": 0.40906157334728765,
+        "mse": 0.3905536770921387,
+        "rmse": 0.624942939068951,
+        "r2": 0.13813926255533093,
+        "actual_total": 1370.0,
+        "predicted_total": 1384.1923076923076,
+        "bias": 0.003218210361067509
+      },
+      "variant_weekly": {
+        "observations": 630,
+        "mae": 1.2528083028083028,
+        "mse": 2.6347680097680093,
+        "rmse": 1.6231968487426316,
+        "r2": 0.578575575844299,
+        "actual_total": 1370.0,
+        "predicted_total": 1384.1923076923076,
+        "bias": 0.022527472527472548
+      }
+    }
+  },
+  "holdout": {
+    "current": {
+      "product_daily": {
+        "observations": 2604,
+        "mae": 0.585543737018173,
+        "mse": 0.6466165619009271,
+        "rmse": 0.8041247178771009,
+        "r2": 0.22774463882831653,
+        "actual_total": 1412.0,
+        "predicted_total": 1379.0128475137985,
+        "bias": -0.01266787729884843
+      },
+      "product_weekly": {
+        "observations": 372,
+        "mae": 1.6511866752116402,
+        "mse": 4.861740011225742,
+        "rmse": 2.204935375748174,
+        "r2": 0.6591771514029006,
+        "actual_total": 1412.0,
+        "predicted_total": 1379.0128475137985,
+        "bias": -0.08867514109193901
+      },
+      "variant_daily": {
+        "observations": 4410,
+        "mae": 0.41316646606321666,
+        "mse": 0.3849676865167793,
+        "rmse": 0.6204576428063235,
+        "r2": 0.15700667962417114,
+        "actual_total": 1412.0,
+        "predicted_total": 1379.0128475137985,
+        "bias": -0.007480079928843836
+      },
+      "variant_weekly": {
+        "observations": 630,
+        "mae": 1.2608073988757997,
+        "mse": 2.999553334663599,
+        "rmse": 1.7319218615929528,
+        "r2": 0.551702962082445,
+        "actual_total": 1412.0,
+        "predicted_total": 1379.0128475137985,
+        "bias": -0.05236055950190684
+      }
+    },
+    "flat_full": {
+      "product_daily": {
+        "observations": 2604,
+        "mae": 0.5880844341688115,
+        "mse": 0.6414263586960788,
+        "rmse": 0.8008909780338886,
+        "r2": 0.2339433081583,
+        "actual_total": 1412.0,
+        "predicted_total": 1401.3636828170231,
+        "bias": -0.004084607213124791
+      },
+      "product_weekly": {
+        "observations": 372,
+        "mae": 1.6219978460510385,
+        "mse": 4.635108937383477,
+        "rmse": 2.152930314102962,
+        "r2": 0.6750646830251574,
+        "actual_total": 1412.0,
+        "predicted_total": 1401.3636828170231,
+        "bias": -0.028592250491873496
+      },
+      "variant_daily": {
+        "observations": 4410,
+        "mae": 0.4152012337400534,
+        "mse": 0.3810467604366435,
+        "rmse": 0.6172898512341212,
+        "r2": 0.16559263270804847,
+        "actual_total": 1412.0,
+        "predicted_total": 1401.3636828170231,
+        "bias": -0.0024118633067975004
+      },
+      "variant_weekly": {
+        "observations": 630,
+        "mae": 1.2399442754238112,
+        "mse": 2.8752338051479667,
+        "rmse": 1.6956514397564042,
+        "r2": 0.5702830873941399,
+        "actual_total": 1412.0,
+        "predicted_total": 1401.3636828170231,
+        "bias": -0.01688304314758249
+      }
+    },
+    "previous_week": {
+      "product_daily": {
+        "observations": 2604,
+        "mae": 0.6827956989247311,
+        "mse": 1.293394777265745,
+        "rmse": 1.1372751545979298,
+        "r2": -0.5447037853756136,
+        "actual_total": 1412.0,
+        "predicted_total": 1424.0,
+        "bias": 0.004608294930875576
+      },
+      "product_weekly": {
+        "observations": 372,
+        "mae": 2.338709677419355,
+        "mse": 9.75268817204301,
+        "rmse": 3.122929421559669,
+        "r2": 0.31630672216120703,
+        "actual_total": 1412.0,
+        "predicted_total": 1424.0,
+        "bias": 0.03225806451612903
+      },
+      "variant_daily": {
+        "observations": 4410,
+        "mae": 0.46303854875283446,
+        "mse": 0.7582766439909298,
+        "rmse": 0.8707908152885685,
+        "r2": -0.6604566260225397,
+        "actual_total": 1412.0,
+        "predicted_total": 1424.0,
+        "bias": 0.0027210884353741495
+      },
+      "variant_weekly": {
+        "observations": 630,
+        "mae": 1.7365079365079366,
+        "mse": 5.704761904761905,
+        "rmse": 2.3884643402742913,
+        "r2": 0.1473971026367873,
+        "actual_total": 1412.0,
+        "predicted_total": 1424.0,
+        "bias": 0.01904761904761905
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "dataset_sha256": "19b6096b9529a79e69f4de4c42555c483ae0ddc1fd622926f104e8b2236a1195",
+  "tuning_cutoff": "2026-06-28",
+  "holdout_cutoff": "2026-08-23",
+  "target": "unrounded variant-week expected units",
+  "selection": "lowest tuning variant-week MAE, then RMSE",
+  "classification": "Predominantly synthetic history; not live accuracy evidence",
+  "production_changed": false
+}
