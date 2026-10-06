@@ -2,7 +2,7 @@ name: Verify SmartCafe
 on:
   pull_request:
   push:
-    branches: [main, code-revision]
+    branches: [main, development, code-revision]
   workflow_dispatch:
 permissions:
   contents: read
