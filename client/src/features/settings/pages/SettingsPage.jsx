@@ -578,17 +578,47 @@ export default function SettingsPage() {
         {/* Security */}
         <Card>
           <CardHeader>
-            <CardTitle>Security</CardTitle>
-            <CardDescription>Restrict staff login and guest order submission to the store network.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-foreground">Allowed IP Addresses</label>
-              <Textarea placeholder={"192.168.1.100, 192.168.1.101, 10.0.0.1"} rows={3}
-                error={errors.storeIpWhitelist?.message} {...register("storeIpWhitelist")} />
-              <p className="mt-1.5 text-xs text-muted-foreground">Comma-separated IP addresses. Leave empty to allow all IPs.</p>
+            <div className="flex items-start gap-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary" aria-hidden="true">
+                <Icon name="lock" size={20} />
+              </div>
+              <div className="space-y-1">
+                <CardTitle>Security</CardTitle>
+                <CardDescription>Manage who can sign in and place orders from your store network.</CardDescription>
+              </div>
             </div>
-            <div className="mt-3 flex justify-end">{renderSectionSaveButton("security")}</div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-5 rounded-xl border border-border bg-muted/20 p-4 sm:p-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+              <div className="min-w-0">
+                <label htmlFor="store-ip-whitelist" className="mb-1.5 block text-sm font-semibold text-foreground">Allowed IP addresses</label>
+                <p id="store-ip-help" className="mb-3 text-xs leading-relaxed text-muted-foreground">
+                  Enter your store's public IPv4 addresses, separated by commas.
+                </p>
+                <Textarea id="store-ip-whitelist" placeholder="203.0.113.10, 198.51.100.20" rows={3}
+                  className="resize-y bg-background font-mono text-xs leading-relaxed"
+                  aria-describedby="store-ip-help store-ip-open"
+                  aria-invalid={Boolean(errors.storeIpWhitelist)}
+                  error={errors.storeIpWhitelist?.message} {...register("storeIpWhitelist")} />
+                <p id="store-ip-open" className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                  Leave blank to allow access from any network.
+                </p>
+              </div>
+              {/* Explain the submission boundary beside the field without implying that browsing is restricted. */}
+              <div className="min-w-0 space-y-3 border-t border-border pt-4 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5">
+                <p className="text-xs font-semibold text-foreground">Where this applies</p>
+                <div className="flex gap-2.5 text-sm">
+                  <Icon name="users" size={16} className="mt-0.5 shrink-0 text-primary" />
+                  <div><p className="font-medium">Staff login</p><p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">Cashier and kitchen accounts.</p></div>
+                </div>
+                <div className="flex gap-2.5 text-sm">
+                  <Icon name="cart" size={16} className="mt-0.5 shrink-0 text-primary" />
+                  <div><p className="font-medium">Guest order submission</p><p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">Menu browsing and order tracking stay public.</p></div>
+                </div>
+                <p className="text-xs leading-relaxed text-muted-foreground">Admin login remains accessible from any network.</p>
+              </div>
+            </div>
+            <div className="flex justify-end">{renderSectionSaveButton("security")}</div>
           </CardContent>
         </Card>
       </form>
