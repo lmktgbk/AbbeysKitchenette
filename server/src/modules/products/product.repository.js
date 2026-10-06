@@ -1,4 +1,5 @@
 import prisma from "../../config/prisma.js";
+import { MANILA_TODAY_SQL, getBusinessDate } from "../../config/time.js";
 
 /** Get Prisma client or transaction client */
 const getClient = (tx) => tx || prisma;
@@ -156,6 +157,7 @@ export const productRepository = {
                 AND COALESCE((
                   SELECT SUM(rb.quantity_left) FROM restock_batches rb
                   WHERE rb.ingredient_id = r.ingredient_id AND rb.quantity_left > 0
+                    AND (rb.expiry_date IS NULL OR rb.expiry_date >= ${MANILA_TODAY_SQL})
                 ), 0) < r.quantity_needed
             )
         ) AS has_active_variant
@@ -421,11 +423,13 @@ export const productRepository = {
    */
   async getStockByIngredientIds(ingredientIds, tx = prisma) {
     if (ingredientIds.length === 0) return {};
+    const today = new Date(`${await getBusinessDate(tx)}T00:00:00Z`);
     const result = await tx.restockBatch.groupBy({
       by: ["ingredientId"],
       where: {
         ingredientId: { in: ingredientIds },
         quantityLeft: { gt: 0 },
+        OR: [{ expiryDate: null }, { expiryDate: { gte: today } }],
       },
       _sum: { quantityLeft: true },
     });

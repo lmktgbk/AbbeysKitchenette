@@ -2,6 +2,8 @@ import { ai, GEMINI_MODEL } from "../../infrastructure/integrations/gemini.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { wasteReductionRepository as repo } from "./wasteReduction.repository.js";
 import { buildWastePrompt } from "./wasteReduction.prompts.js";
+import { loadInventoryPlanningSnapshot } from "../../services/inventoryPlanning.repository.js";
+import { calculateWaste } from "../../services/inventoryPlanning.js";
 import { resolveAdvisory } from "../../services/advisoryEffects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
@@ -15,105 +17,33 @@ import { ACTIONS } from "../auditLogs/auditLog.constants.js";
  */
 
 export const wasteReductionService = {
-  /**
-   * Generate waste reduction insights by gathering context and calling Gemini.
-   */
+  /** Calculate from a consistent snapshot, optionally explain, then publish atomically. */
   async generate({ automation, signal, userId } = {}) {
-    // Step 1: Gather context
-    const [lossRecords, stockVsForecast, restockHistory, ingredientCosts] =
-      await Promise.all([
-        repo.getLossRecords(),
-        repo.getStockVsForecast(),
-        repo.getRestockHistory(),
-        repo.getIngredientCosts(),
-      ]);
-
-    if (!stockVsForecast.length) {
-      throw new AppError(
-        400,
-        "No forecast data available. Run a demand forecast first.",
-        "NO_FORECAST_DATA",
-      );
+    const snapshot = await loadInventoryPlanningSnapshot();
+    if (!snapshot.ingredients.length) throw new AppError(400, "No active ingredients found", "NO_INGREDIENTS");
+    const insights = calculateWaste(snapshot);
+    // Provider output is optional explanatory text. A timeout or malformed reply
+    // keeps the verified calculations available and never changes stock intent.
+    if (insights.length) {
+      try {
+        const { system, user } = buildWastePrompt(insights);
+        const response = await ai.models.generateContent({ model: GEMINI_MODEL, contents: user,
+          config: { systemInstruction: system, responseMimeType: "application/json", temperature: 0.2,
+            abortSignal: signal, httpOptions: { timeout: 15000 } } });
+        const parsed = JSON.parse(response.text);
+        const explanations = Array.isArray(parsed.explanations) ? parsed.explanations : [];
+        for (const item of insights) {
+          const explanation = explanations.find(e => e.ingredient_id === item.ingredient_id);
+          if (typeof explanation?.explanation === "string" && explanation.explanation.length <= 1000) {
+            item.metadata.ai_explanation = explanation.explanation;
+          }
+        }
+      } catch {
+        if (signal?.aborted) throw new AppError(503, "Generation was cancelled", "GENERATION_CANCELLED");
+        console.warn("[wasteReduction] Explanation unavailable; calculated advice retained");
+      }
     }
-
-    // Step 2: Build prompt
-    const { system, user } = buildWastePrompt({
-      lossRecords,
-      stockVsForecast,
-      restockHistory,
-      ingredientCosts,
-    });
-
-    // Step 3: Call Gemini
-    let response;
-    try {
-      response = await ai.models.generateContent({
-        model: GEMINI_MODEL,
-        contents: user,
-        config: {
-          systemInstruction: system,
-          responseMimeType: "application/json",
-          temperature: 0.3,
-          abortSignal: signal,
-          httpOptions: { timeout: 120000 },
-        },
-      });
-    } catch (error) {
-      console.error("[WASTE_GENERATE] Gemini API error:", error.message);
-      throw new AppError(
-        503,
-        "AI service is temporarily unavailable. Please try again later.",
-        "GEMINI_API_ERROR",
-      );
-    }
-
-    // Step 4: Parse JSON response
-    let parsed;
-    try {
-      parsed = JSON.parse(response.text);
-    } catch {
-      console.warn("[WASTE_GENERATE] Invalid provider JSON");
-      throw new AppError(
-        500,
-        "Failed to parse AI response",
-        "GEMINI_PARSE_ERROR",
-      );
-    }
-
-    // Match recommendations to known inventory before recomputing exposure.
-    // Stock and cost come from the database; weekly usage retains the existing
-    // provider fallback when the database context has no usage value.
-    const stockMap = new Map(stockVsForecast.map((s) => [s.ingredient_id, s]));
-    const costMap = new Map((ingredientCosts || []).map((c) => [c.ingredient_id, Number(c.cost_per_unit) || 0]));
-    const validIngredientIds = new Set(stockMap.keys());
-    const insights = (parsed.insights || []).filter((i) => {
-      if (!i.ingredient_id || !validIngredientIds.has(i.ingredient_id)) return false;
-      if (typeof i.overstock_amount !== "number" || i.overstock_amount <= 0) return false;
-      return true;
-    }).map((i) => {
-      const ctx = stockMap.get(i.ingredient_id) || {};
-      const fresh = Number(ctx.stock_fresh ?? ctx.stock ?? 0);
-      const weekly = Number(ctx.weekly_usage ?? i.forecasted_weekly_usage ?? 0);
-      const expiring = Number(ctx.stock_expiring_7d ?? 0);
-      const cost = costMap.get(i.ingredient_id) || 0;
-      // Deterministic overstock: fresh minus weekly need (floor 0), rounded
-      const trueOverstock = weekly > 0 ? Math.max(0, Math.round((fresh - weekly) * 100) / 100) : Math.max(0, fresh);
-      // Savings must match overstock * cost (cap at true exposure)
-      const trueSavings = cost > 0 ? Math.round(trueOverstock * cost * 100) / 100 : null;
-      // Keep AI reasoning/suggestion but fix numbers
-      return {
-        ...i,
-        overstock_amount: trueOverstock,
-        forecasted_weekly_usage: weekly,
-        potential_savings: trueSavings,
-        reasoning: `${Number(expiring) > 0 ? `${expiring} ${ctx.unit || i.unit || ""} expiring within 7 days. ` : ""}Fresh stock ${fresh} vs weekly need ${weekly}. ${i.reasoning || ""}`.trim(),
-      };
-    }).filter((i) => i.overstock_amount > 0 || Number(stockMap.get(i.ingredient_id)?.stock_expiring_7d ?? 0) > 0);
-
-    // Step 6: Store in DB
     await repo.saveInsights(insights, automation, userId);
-
-    // Step 7: Return stored results
     return repo.getPendingInsights();
   },
 

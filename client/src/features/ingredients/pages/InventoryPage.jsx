@@ -78,7 +78,9 @@ export default function InventoryPage() {
           setRestockDraftQuantity(null);
           // Attempt suggestion resolution only after the restock succeeds; this callback does not await that request.
           if (acceptedSuggestionId) {
-            mutations.acceptReorder.mutate(acceptedSuggestionId);
+            mutations.acceptReorder.mutate(acceptedSuggestionId, {
+              onError: () => toast.warning("Stock was recorded, but the suggestion could not be resolved. Refresh suggestions; do not repeat the restock."),
+            });
             setAcceptedSuggestionId(null);
           }
         },

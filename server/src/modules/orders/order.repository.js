@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import prisma from "../../config/prisma.js";
-import { MANILA_TODAY_SQL, BUSINESS_TZ } from "../../config/time.js";
+import { MANILA_TODAY_SQL, BUSINESS_TZ, getBusinessDate } from "../../config/time.js";
 
 /**
  * Live-queue statuses — still-open orders that stay visible regardless of
@@ -797,10 +797,13 @@ export const orderRepository = {
    */
   async getAvailableBatches(ingredientId, tx) {
     const client = tx || prisma;
+    const today = new Date(`${await getBusinessDate(client)}T00:00:00Z`);
     return client.restockBatch.findMany({
       where: {
         ingredientId,
         quantityLeft: { gt: 0 },
+        // Expiry is inclusive through the Manila business date.
+        OR: [{ expiryDate: null }, { expiryDate: { gte: today } }],
       },
       orderBy: [
         { isPriority: "desc" },
@@ -819,10 +822,13 @@ export const orderRepository = {
   async getAllAvailableBatches(ingredientIds, tx) {
     if (ingredientIds.length === 0) return new Map();
     const client = tx || prisma;
+    const today = new Date(`${await getBusinessDate(client)}T00:00:00Z`);
     const batches = await client.restockBatch.findMany({
       where: {
         ingredientId: { in: ingredientIds },
         quantityLeft: { gt: 0 },
+        // Expiry is inclusive through the Manila business date.
+        OR: [{ expiryDate: null }, { expiryDate: { gte: today } }],
       },
       orderBy: [
         { ingredientId: "asc" },

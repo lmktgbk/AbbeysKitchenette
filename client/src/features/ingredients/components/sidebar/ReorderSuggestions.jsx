@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  * - onAccept: (suggestion) => void — called when user accepts (opens RestockModal)
  */
 export default function ReorderSuggestions({ onAccept }) {
-  const { data: suggestionsData, isLoading } = useReorderSuggestions();
+  const { data: suggestionsData, isLoading, isError } = useReorderSuggestions();
   const mutations = useIngredientMutations();
   const [expandedId, setExpandedId] = useState(null);
 
@@ -117,6 +117,8 @@ export default function ReorderSuggestions({ onAccept }) {
               </div>
             ))}
           </div>
+        ) : isError ? (
+          <p className="px-4 py-6 text-sm text-destructive">Could not load suggestions. Refresh to retry.</p>
         ) : suggestions.length === 0 ? (
           <div className="px-4 py-8 text-center">
             <Icon
@@ -125,7 +127,7 @@ export default function ReorderSuggestions({ onAccept }) {
               className="mx-auto mb-2 text-green-500"
             />
             <p className="text-sm text-muted-foreground">
-              No reorder needed right now
+              No pending reorder suggestions
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               Click{" "}
@@ -154,7 +156,8 @@ export default function ReorderSuggestions({ onAccept }) {
                         </span>
                       </div>
                       <div className="mt-0.5 text-xs text-muted-foreground">
-                        <p>Order {s.suggested_quantity} {s.unit} (covers 7 days + buffer)</p>
+                        <p>Order {s.suggested_quantity} {s.unit}</p>
+                        <p>{s.metadata?.source === "forecast" ? "Seven-day forecast + safety buffer" : "Minimum-stock fallback; coverage not verified"}</p>
                         {s.estimated_stockout && (
                           <p>Runs out: {new Date(s.estimated_stockout).toLocaleDateString()}</p>
                         )}
@@ -174,6 +177,7 @@ export default function ReorderSuggestions({ onAccept }) {
                   {isExpanded && (
                     <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                       {s.reasoning}
+                      {s.metadata?.ai_explanation && <span className="block mt-1">AI explanation: {s.metadata.ai_explanation}</span>}
                     </p>
                   )}
 
@@ -186,7 +190,7 @@ export default function ReorderSuggestions({ onAccept }) {
                       onClick={() => handleAccept(s)}
                       disabled={mutations.acceptReorder.isPending}
                     >
-                      Accept
+                      Restock
                     </Button>
                     <Button
                       size="sm"

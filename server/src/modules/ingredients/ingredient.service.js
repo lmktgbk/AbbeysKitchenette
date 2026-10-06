@@ -3,6 +3,7 @@ import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { recordEffects, recordMutation } from "../../infrastructure/effects/effects.js";
 import { lockStock } from "./ingredient.lock.js";
 import prisma from "../../config/prisma.js";
+import { getBusinessDate, toManilaDateString } from "../../config/time.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 
 // Frozen response/notification quantities use the ledger's three-decimal precision.
@@ -35,8 +36,7 @@ function mapToIngredientResponse(ingredient, stockQuantity) {
  */
 function daysUntilExpiry(expiryDate) {
   if (!expiryDate) return null;
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
+  const today = new Date(`${toManilaDateString()}T00:00:00Z`);
   const expiry = new Date(expiryDate);
   expiry.setUTCHours(0, 0, 0, 0);
   return Math.round((expiry - today) / 86400000);
@@ -475,6 +475,14 @@ export const ingredientService = {
     await prisma.$transaction(async (tx) => {
       await lockStock(tx, [id]);
       qtyBefore = await ingredientRepository.getStockFromBatches(id, tx);
+      if (data.expired_batch_only) {
+        // Recheck expiry under the same stock lock used by expiry edits and deductions.
+        const current = await ingredientRepository.findBatchByIdAndIngredient(batch_id, id, tx);
+        const today = await getBusinessDate(tx);
+        if (!current?.expiryDate || toISODateOnly(current.expiryDate) >= today) {
+          throw new AppError(409, "Batch expiry changed. Refresh before recording loss", "BATCH_NOT_EXPIRED");
+        }
+      }
       let totalCostLost;
 
       if (batch_id) {
@@ -566,7 +574,8 @@ export const ingredientService = {
     if (Number(batch.quantityLeft) <= 0) {
       throw new AppError(400, "Batch has no remaining stock", "BATCH_DEPLETED");
     }
-    if (daysUntilExpiry(batch.expiryDate) === null || daysUntilExpiry(batch.expiryDate) > 0) {
+    const today = await getBusinessDate(prisma);
+    if (!batch.expiryDate || toISODateOnly(batch.expiryDate) >= today) {
       throw new AppError(400, "Only expired batches can use one-click expiry loss", "BATCH_NOT_EXPIRED");
     }
 
@@ -574,6 +583,7 @@ export const ingredientService = {
       id,
       {
         loss_type: "expiry",
+        expired_batch_only: true,
         quantity_lost: Number(batch.quantityLeft),
         batch_id: batchId,
         notes: `Expired on ${toISODateOnly(batch.expiryDate)} (one-click write-off)`,
@@ -593,11 +603,10 @@ export const ingredientService = {
     }
 
     const batchIngredient = await ingredientRepository.findById(id);
-    const updated = await recordMutation(prisma, tx => ingredientRepository.updateBatchExpiry(
-      batchId,
-      expiryDate ? new Date(`${expiryDate}T00:00:00Z`) : null,
-      tx,
-    ), () => ({ audit: {
+    const updated = await recordMutation(prisma, async tx => {
+      await lockStock(tx, [id]);
+      return ingredientRepository.updateBatchExpiry(batchId, expiryDate ? new Date(`${expiryDate}T00:00:00Z`) : null, tx);
+    }, () => ({ audit: {
       userId,
       action: ACTIONS.INGREDIENT_UPDATED,
       targetType: "restock_batch",

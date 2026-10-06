@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  * Each insight has waste risk badge, potential savings, reasoning, and accept/reject actions.
  */
 export default function WasteInsights() {
-  const { data: insightsData, isLoading } = useWasteReductions();
+  const { data: insightsData, isLoading, isError } = useWasteReductions();
   const mutations = useIngredientMutations();
   const [expandedId, setExpandedId] = useState(null);
 
@@ -116,6 +116,8 @@ export default function WasteInsights() {
               </div>
             ))}
           </div>
+        ) : isError ? (
+          <p className="px-4 py-6 text-sm text-destructive">Could not load insights. Refresh to retry.</p>
         ) : insights.length === 0 ? (
           <div className="px-4 py-8 text-center">
             <Icon
@@ -124,7 +126,7 @@ export default function WasteInsights() {
               className="mx-auto mb-2 text-green-500"
             />
             <p className="text-sm text-muted-foreground">
-              No waste risks detected
+              No pending waste insights
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               Click{" "}
@@ -153,12 +155,9 @@ export default function WasteInsights() {
                         </span>
                       </div>
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        Too much by {i.overstock_amount} {i.unit}
-                        {i.potential_savings && (
-                          <span>
-                            {" "}
-                            · Save ₱{i.potential_savings.toLocaleString()} if reduced
-                          </span>
+                        {i.metadata?.kind === "expired_stock" ? "Expired / at-risk stock:" : i.metadata?.kind === "expiry_risk" ? "Estimated at expiry:" : i.metadata?.kind === "expiry_watch" ? "Expiring; risk unknown:" : "Excess stock:"} {i.metadata?.kind === "expiry_watch" ? i.metadata.expiring_watch_quantity : i.overstock_amount} {i.unit}
+                        {i.metadata?.estimated_cost_at_risk != null && (
+                          <span> · Estimated cost at risk: ₱{i.metadata.estimated_cost_at_risk.toLocaleString()}</span>
                         )}
                       </p>
                     </div>
@@ -177,6 +176,7 @@ export default function WasteInsights() {
                     <div className="mt-1 space-y-1">
                       <p className="text-xs leading-relaxed text-muted-foreground">
                         {i.reasoning}
+                        {i.metadata?.ai_explanation && <span className="block mt-1">AI explanation: {i.metadata.ai_explanation}</span>}
                       </p>
                       <p className="text-xs font-medium text-foreground">
                         Suggestion: {i.suggestion}
@@ -193,7 +193,7 @@ export default function WasteInsights() {
                       onClick={() => handleAccept(i.id)}
                       disabled={mutations.acceptWaste.isPending}
                     >
-                      Accept
+                      Acknowledge
                     </Button>
                     <Button
                       size="sm"

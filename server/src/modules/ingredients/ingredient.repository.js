@@ -546,7 +546,7 @@ export const ingredientRepository = {
   async updateBatchExpiry(batchId, expiryDate, tx) {
     return (tx || prisma).restockBatch.update({
       where: { restockId: batchId },
-      data: { expiryDate },
+      data: { expiryDate, version: { increment: 1 } },
     });
   },
 
