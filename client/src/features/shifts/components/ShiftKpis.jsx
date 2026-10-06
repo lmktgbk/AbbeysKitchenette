@@ -17,8 +17,8 @@ export default function ShiftKpis({ params = {} }) {
 
   if (isLoading || error || !stats) {
     return (
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
             <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
             <div className="flex-1 space-y-2">
@@ -40,7 +40,7 @@ export default function ShiftKpis({ params = {} }) {
     : from ? `since ${from}` : `through ${to}`;
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
         <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${Number(stats.openNow) > 0 ? "bg-green-500" : "bg-muted-foreground/30"}`} />
         <div className="min-w-0">
@@ -54,12 +54,19 @@ export default function ShiftKpis({ params = {} }) {
           <StatValue>{Number(stats.sessions ?? 0)}</StatValue>
         </div>
       </div>
-      <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
-        <div className="min-w-0">
-          <StatLabel>Cash sales · {period}</StatLabel>
-          <StatValue>{formatPeso(stats.cashSales)}</StatValue>
+      {/* The API aggregates each tender in the same snapshot; displaying them adds no requests. */}
+      {[
+        { label: "Cash sales", value: stats.cashSales },
+        { label: "GCash sales", value: stats.gcashSales },
+        { label: "Maya sales", value: stats.mayaSales },
+      ].map(({ label, value }) => (
+        <div key={label} className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+          <div className="min-w-0">
+            <StatLabel>{label} · {period}</StatLabel>
+            <StatValue>{formatPeso(value)}</StatValue>
+          </div>
         </div>
-      </div>
+      ))}
       <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
         <div className="min-w-0">
           <StatLabel>Difference · {period}</StatLabel>
