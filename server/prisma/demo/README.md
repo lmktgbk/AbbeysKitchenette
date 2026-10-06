@@ -171,4 +171,27 @@ npm run seed:demo:forecast -- --through=2026-10-05 --apply --confirm=RESET_SMART
 Stop backend/ML first, then restart and regenerate forecasting/MBA afterward.
 Use extend only after this new profile is initialized. Historical 30-order benchmark
 scores do not apply to this changed volume. Lower traffic does not guarantee a
-particular forecast revenue or R²; revenue also depends on basket sizes/menu prices.
+particular forecast revenue or RÂ²; revenue also depends on basket sizes/menu prices.
+
+
+## Forecast demo v3: varied baskets, unchanged demand
+
+V3 preserves v2's ten-order daily average and every variant/day sales quantity.
+Only synthetic basket grouping changes: a quarter retain their old preferences;
+the rest include solo purchases and varied companions. The 37 actual receipt
+samples bypass regrouping. Order cash/payment splits may change, but daily variant
+revenue and recipe consumption remain identical. The regression compares all 643
+days from January 2025 through October 5, 2026. These remain synthetic demo scores.
+
+V2 cannot extend with v3. Stop backend and ML, then run from server:
+
+```bash
+npm run db:migrate:deploy
+npm run db:generate
+npm run seed:demo:forecast -- --through=2026-10-05 --apply --confirm=RESET_SMARTCAFE
+```
+
+This explicitly replaces demo data. Restart and regenerate forecasting, MBA,
+reorder and waste advice. Extend the same v3 profile through the completed day
+before your defense; exclude the in-progress day. Preview without --apply never
+accesses the database. Keep the configured demo admin credentials.

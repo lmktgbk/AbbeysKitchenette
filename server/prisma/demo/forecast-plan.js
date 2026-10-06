@@ -3,11 +3,13 @@ import { products, categories } from "./catalog.js";
 import { planDay, seedId, fingerprint } from "./plan.js";
 import { receipts } from "./receipts.js";
 
-export const PROFILE = "forecast-demo-v2";
+export const PROFILE = "forecast-demo-v3";
+// Freeze the approved v2 demand generation. Only basket grouping changes in v3.
+const DEMAND_PROFILE = "forecast-demo-v2";
 export const assumptions = {
   profile: PROFILE, averageOrdersPerDay: 10, weekdayWeights: [1.2, .85, .9, .95, 1, 1.1, 1.3],
   weeklyTrafficNoise: .08, basketWeightNoise: .10, annualDemandAmplitude: .05,
-  classification: "Controlled synthetic weekly basket quotas; not client-confirmed demand or live accuracy",
+  classification: "Controlled synthetic variant totals with varied baskets; not client-confirmed demand or live accuracy",
 };
 const variants = products.flatMap(([name, category, , sizes]) => sizes.map(([size, price, recipe]) => ({ name, category, size, price, recipe })));
 const drinks = variants.filter((v) => categories.Beverages.includes(v.category));
@@ -35,8 +37,8 @@ for (const [, , , , lines] of receipts) {
   if (selected.length >= 2) templates.push({ lines: selected, weight: 3 });
 }
 
-function randomFor(week) {
-  let state = createHash("sha256").update(`${PROFILE}:${week}`).digest().readUInt32LE();
+function randomFor(week, profile = DEMAND_PROFILE) {
+  let state = createHash("sha256").update(`${profile}:${week}`).digest().readUInt32LE();
   return () => { state = (Math.imul(1664525, state) + 1013904223) >>> 0; return state / 4294967296; };
 }
 
@@ -52,7 +54,7 @@ function quotas(total, weights) {
 const cache = new Map();
 
 /** Whole-week generation makes a later extension reproduce the same earlier days. */
-export function forecastDemoDay(day) {
+export function forecastDemoBaselineDay(day) {
   const date = new Date(day);
   const monday = new Date(date); monday.setUTCDate(date.getUTCDate() - (date.getUTCDay() + 6) % 7);
   const week = monday.toISOString().slice(0, 10);
@@ -75,7 +77,7 @@ export function forecastDemoDay(day) {
       const orders = baskets.slice(cursor, cursor + dailyCounts[d]).map((lines, i) => {
         const merged = new Map();
         for (const line of lines) merged.set(key(line), { ...line, quantity: (merged.get(key(line))?.quantity || 0) + 1 });
-        return { id: seedId(`${PROFILE}:${dateKey}:${i}`), source: "synthetic", customer: `Demo guest ${i + 1}`,
+        return { id: seedId(`${DEMAND_PROFILE}:${dateKey}:${i}`), source: "synthetic", customer: `Demo guest ${i + 1}`,
           table: `Table ${1 + i % 8}`, payment: random() < .75 ? "cash" : random() < .5 ? "maya" : "gcash",
           minute: 16 * 60 + Math.floor(random() * 390), lines: [...merged.values()] };
       });
@@ -85,6 +87,43 @@ export function forecastDemoDay(day) {
   }
   // Reuse the existing transcription path solely for original receipt samples.
   return [...cache.get(week).get(day), ...planDay(day).filter((o) => o.source === "receipt")].sort((a, b) => a.minute - b.minute);
+}
+
+/**
+ * Keep variant/day totals identical while introducing solo and varied purchases.
+ * A quarter of baskets retain the simulated preferences; the rest are shuffled.
+ * Receipt samples never enter this pool. Order count and every sold unit survive.
+ */
+export function forecastDemoDay(day) {
+  const original = forecastDemoBaselineDay(day);
+  const random = randomFor(day, PROFILE);
+  const selected = original.filter(o => o.source === "synthetic");
+  const changed = selected.filter(() => random() >= 0.25);
+  const tokens = changed.flatMap(o => o.lines.flatMap(line => Array.from({ length: line.quantity }, () => ({ ...line, quantity: 1 }))));
+  const sizes = changed.map(o => o.lines.reduce((sum, line) => sum + line.quantity, 0));
+  // Move units between basket sizes, without removing orders or creating sales.
+  for (let i = 0; i < sizes.length; i++) {
+    if (sizes[i] <= 1 || random() >= 0.4) continue;
+    const receiver = (i + 1 + Math.floor(random() * Math.max(1, sizes.length - 1))) % sizes.length;
+    if (receiver === i || sizes[receiver] + sizes[i] - 1 > 6) continue;
+    sizes[receiver] += sizes[i] - 1; sizes[i] = 1;
+  }
+  for (let i = tokens.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1)); [tokens[i], tokens[j]] = [tokens[j], tokens[i]];
+  }
+  const replacements = new Map();
+  let cursor = 0;
+  changed.forEach((order, index) => {
+    const lines = new Map();
+    for (const token of tokens.slice(cursor, cursor + sizes[index])) {
+      const id = key(token);
+      lines.set(id, { ...token, quantity: (lines.get(id)?.quantity || 0) + 1 });
+    }
+    cursor += sizes[index]; replacements.set(order.id, [...lines.values()]);
+  });
+  return original.map((order, index) => order.source === "receipt" ? order : {
+    ...order, id: seedId(`${PROFILE}:${day}:${index}`), lines: replacements.get(order.id) ?? order.lines,
+  });
 }
 
 // Distinct checkpoints prevent resuming this profile with the legacy generator.

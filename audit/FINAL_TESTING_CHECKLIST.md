@@ -1445,3 +1445,33 @@ Instructions and assumptions: `server/prisma/demo/README.md`.
 - [ ] Stop backend and ML, then freshly reseed with `npm run seed:demo:forecast -- --through=2026-10-05 --apply --confirm=RESET_SMARTCAFE` from `server/`.
 - [ ] Confirm approximately 10 synthetic orders/day and 37 unchanged receipt samples. Do not extend the old 30-order profile.
 - [ ] Restart services and generate new forecast/MBA runs. Record the new revenue and metrics; historical 30-order benchmarks are not applicable.
+
+
+## October 6: MBA and inventory advice
+
+- [ ] From server, run db:migrate:deploy and db:generate.
+- [ ] Stop backend/ML before explicitly confirmed v3 reset; this replaces demo data.
+- [ ] Run seed:demo:forecast -- --through=2026-10-05 --apply --confirm=RESET_SMARTCAFE.
+- [ ] Restart and generate forecasting, MBA, reorder, then waste advice.
+- [ ] Preview: 6,512 orders, 17,130 units, 37 receipt samples.
+- [ ] MBA shows exact supporting counts and training/recent denominators.
+- [ ] Only sufficiently supported stable rules receive the top-bundle badge.
+- [ ] Default bundle price is both prices added; no automatic discount.
+- [ ] Missing ingredient costs show unavailable; ingredient margin excludes overhead.
+- [ ] Manual bundle price changes request justification; existing saved prices survive.
+- [ ] Recipe demand sums across variants; kg/l rounding differs from g/ml.
+- [ ] Missing, partial or stale forecasts show minimum-stock fallback.
+- [ ] Expiring quantities are used only on/before their expiry date.
+- [ ] Waste distinguishes expired stock, estimated expiry risk, uncertain expiry watches and excess stock.
+- [ ] Cost at risk is estimated, without guaranteed savings for long-life excess stock.
+- [ ] Restock records stock once; resolution failure explains that restock succeeded.
+- [ ] Acknowledge/dismiss does not deduct stock; disposal requires confirmation.
+- [ ] A batch expiring today remains usable today; expired loss rejects it today.
+- [ ] Empty pending lists do not claim healthy inventory.
+
+Automated tests cover all 643 days' preserved daily variant quantities and receipt
+samples; expiry boundaries, priority overrides, missing forecasts, unit rounding,
+MBA identity and exact counts, combined pricing, and isolated PostgreSQL migration
+and concurrent disposal. Disposable database schemas are cleaned afterward.
+
+Live Google delivery, browser workflows and post-reseed outputs remain Not verified.
