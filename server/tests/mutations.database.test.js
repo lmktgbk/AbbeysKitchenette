@@ -7,6 +7,7 @@ vi.mock("../src/modules/priceOptimization/priceOptimization.prompts.js", () => (
 import { isolatedPostgres } from "./helpers/isolatedPostgres.js";
 import { shiftService } from "../src/modules/shifts/shift.service.js";
 import pricing from "../src/modules/priceOptimization/priceOptimization.service.js";
+import { PRICE_POLICY_VERSION } from "../src/modules/priceOptimization/priceOptimization.output.js";
 import { createEffectsRepository } from "../src/infrastructure/effects/effects.repository.js";
 let fixture, db, user;
 describe.skipIf(process.env.MUTATION_DB_CHECK !== "1")("PostgreSQL pricing and shift audit recovery", () => {
@@ -15,7 +16,7 @@ describe.skipIf(process.env.MUTATION_DB_CHECK !== "1")("PostgreSQL pricing and s
   beforeEach(async () => {
     await db.domainEffect.deleteMany(); await db.auditLog.deleteMany();
     await db.shift.deleteMany(); await db.product.deleteMany(); await db.subcategory.deleteMany();
-    await db.category.deleteMany(); await db.user.deleteMany();
+    await db.category.deleteMany(); await db.ingredient.deleteMany(); await db.user.deleteMany();
     user = await db.user.create({ data: { name: "Fixture", email: "fixture@example.invalid", role: "admin", passwordHash: "unused" } });
   }, 20000);
   async function blocked(work) {
@@ -57,11 +58,18 @@ describe.skipIf(process.env.MUTATION_DB_CHECK !== "1")("PostgreSQL pricing and s
     const sub = await db.subcategory.create({ data: { categoryId: category.categoryId, subcategoryName: "Fixture" } });
     const product = await db.product.create({ data: { subcategoryId: sub.subcategoryId, productName: "Coffee" } });
     const variant = await db.productVariant.create({ data: { productId: product.productId, sizeName: "Regular", price: 85 } });
-    const suggestion = await db.priceOptimization.create({ data: { variantId: variant.variantId, productName: "Coffee", sizeName: "Regular", currentPrice: 85, recommendedPrice: 95, priceChange: 10, changePercent: 11.76, direction: "increase", confidence: 0.8, reasoning: "Fixture", marginBefore: 50, marginAfter: 55 } });
+    // A valid current-policy suggestion lets this test reach audit capture rather
+    // than failing earlier at the recipe-cost or outdated-policy safeguards.
+    const ingredient = await db.ingredient.create({ data: { ingredientName: "Fixture coffee", unit: "g" } });
+    await db.restockBatch.create({ data: { ingredientId: ingredient.ingredientId, restockedById: user.id,
+      quantityAdded: 10, quantityLeft: 10, costPerUnit: 30, totalCost: 300 } });
+    await db.recipe.create({ data: { variantId: variant.variantId, ingredientId: ingredient.ingredientId, quantityNeeded: 1 } });
+    const suggestion = await db.priceOptimization.create({ data: { variantId: variant.variantId, productName: "Coffee", sizeName: "Regular", currentPrice: 85, recommendedPrice: 95, priceChange: 10, changePercent: 11.76, direction: "increase", confidence: 0.8, reasoning: "Fixture", marginBefore: 50, marginAfter: 55, policyVersion: PRICE_POLICY_VERSION } });
     await blocked(() => pricing[action](suggestion.id, user.id));
     expect((await db.priceOptimization.findFirst()).status).toBe("pending");
     expect(Number((await db.productVariant.findFirst()).price)).toBe(85);
     await pricing[action](suggestion.id, user.id);
+    expect(Number((await db.productVariant.findFirst()).price)).toBe(action === "applyPrice" ? 95 : 85);
     await expect(pricing[action](suggestion.id, user.id)).rejects.toMatchObject({ statusCode: 409 });
     await createEffectsRepository(db).deliverOne();
     expect(await db.auditLog.count()).toBe(1); expect(await db.domainEffect.count()).toBe(1);
