@@ -1351,6 +1351,14 @@ read-only experiment, use an activated Python environment at the repository root
 `python audit/compare_forecast_methods.py --product-id PRODUCT_UUID`.
 
 
+## Order-details confirmation handoffs (October 6)
+
+- [ ] Open an accepted order and click Start Preparing. Confirm that the confirmation stays visible and usable. Dismiss it: Order Details remains open and status stays accepted.
+- [ ] Confirm Start Preparing. Verify a successful request closes Order Details and reopening shows preparing.
+- [ ] On another accepted order, click Cancel Order, select a reason and confirm. Verify cancellation, refund and ingredient restoration using the existing cancellation business checks.
+- [ ] Dismiss cancellation, or observe an API rejection: Order Details remains available and no success message appears for a failed action.
+- [ ] From a pending order, Accept opens payment collection; from a preparing order, Cancel opens the detailed loss/refund dialog.
+
 ## Inventory datepicker inside dialogs (October 6)
 
 - [ ] Open Restock Ingredient and its expiry calendar. Select a current-month date and confirm the field updates.

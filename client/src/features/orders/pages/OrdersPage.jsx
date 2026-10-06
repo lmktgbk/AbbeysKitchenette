@@ -166,6 +166,12 @@ export default function OrdersPage({ embedded = false }) {
     setShowDetailModal(true);
   }
 
+  /** Release detail state after success or when handing off to another React dialog. */
+  function closeOrderDetails() {
+    setShowDetailModal(false);
+    setSelectedOrderId(null);
+  }
+
   /** Routes pending acceptance to payment collection; other steps use the authorized status endpoint. */
   async function handleAdvance(orderOrId, targetStatus) {
     const orderId = typeof orderOrId === "string" ? orderOrId : orderOrId.order_id;
@@ -183,6 +189,7 @@ export default function OrdersPage({ embedded = false }) {
     const needsPayment = currentOrder?.status === "pending";
 
     if (needsPayment) {
+      closeOrderDetails();
       setAcceptingOrder(currentOrder);
       return;
     }
@@ -207,7 +214,11 @@ export default function OrdersPage({ embedded = false }) {
       }),
     });
 
-    if (ok) toast.success("Order updated");
+    if (ok) {
+      // SweetAlert is hosted inside Order Details; wait for it to finish before unmounting its host.
+      closeOrderDetails();
+      toast.success("Order updated");
+    }
   }
 
   /** Opens a drawer after SHIFT_REQUIRED; the user must then retry the intended acceptance. */
@@ -228,7 +239,7 @@ export default function OrdersPage({ embedded = false }) {
 
     // Pending orders: reason required, soft-cancel (no ingredients deducted, no payment received)
     if (isPending) {
-      await confirmWithReason({
+      const result = await confirmWithReason({
         title: "Delete Order?",
         message: `Delete order ${orderNumberLabel(order.order_number)}? This will permanently remove the order.`,
         confirmLabel: "Delete",
@@ -242,13 +253,14 @@ export default function OrdersPage({ embedded = false }) {
           toast.success("Order deleted");
         },
       });
+      if (result.confirmed) closeOrderDetails();
       return;
     }
 
     // Accepted orders: reason required, auto full refund + ingredient restore
     if (isAccepted) {
       const total = Number(order.total_amount).toLocaleString();
-      await confirmWithReason({
+      const result = await confirmWithReason({
         title: `Cancel Order ${orderNumberLabel(order.order_number)}?`,
         message: `Cancelling will restore all ingredients and issue a full refund of ₱${total}.`,
         confirmLabel: "Yes, Cancel Order",
@@ -262,10 +274,12 @@ export default function OrdersPage({ embedded = false }) {
           toast.success("Order cancelled");
         },
       });
+      if (result.confirmed) closeOrderDetails();
       return;
     }
 
     // Preparing orders: open rich cancel dialog
+    closeOrderDetails();
     setCancellingOrderId(order.order_id);
   }
 
@@ -556,14 +570,8 @@ export default function OrdersPage({ embedded = false }) {
         }}
         order={detailOrder}
         loading={isLoadingDetail}
-        onCancel={(order) => {
-          setShowDetailModal(false);
-          handleCancelClick(order);
-        }}
-        onAdvance={(order) => {
-          setShowDetailModal(false);
-          handleAdvance(order);
-        }}
+        onCancel={handleCancelClick}
+        onAdvance={handleAdvance}
         onRemoveItem={handleRemoveItemClick}
       />
 
