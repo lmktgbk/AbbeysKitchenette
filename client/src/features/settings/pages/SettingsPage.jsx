@@ -16,6 +16,8 @@ import Icon from "@/components/ui/icon";
 import { useSettings, useUpdateSettings } from "../query";
 import { useSettingsRealtime } from "@/realtime/subscriptions";
 import { settingsSchema } from "../validation";
+import { DropDown } from "@/components/filters/DropDown";
+import TimePicker from "@/components/filters/TimePicker";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const DAYS = [
@@ -149,6 +151,8 @@ export default function SettingsPage() {
   function updateAutomation(jobKey, field, value) {
     const current = getValues(`automation.${jobKey}`) ?? {};
     const next = { ...current, [field]: value };
+    // Daily reports summarize yesterday; edits cannot retain a legacy weekly frequency.
+    if (jobKey === "dailyReport") next.frequency = "daily";
     // Switching to weekly without a weekday is invalid — default to Monday.
     if (field === "frequency" && value === "weekly" && !next.day) {
       next.day = "monday";
@@ -415,72 +419,72 @@ export default function SettingsPage() {
                 const jobError =
                   errors.automation?.[key]?.message ||
                   errors.automation?.[key]?.time?.message ||
-                  errors.automation?.[key]?.day?.message;
+                  errors.automation?.[key]?.day?.message ||
+                  errors.automation?.[key]?.frequency?.message;
                 return (
                   <div key={key} className="rounded-lg border border-border p-3">
-                    <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+                      <div className="flex items-center gap-3 lg:min-w-64 lg:flex-1">
                       <button
                         type="button"
+                        role="switch"
+                        aria-checked={job.enabled}
+                        aria-label={`Enable ${label}`}
                         onClick={() => updateAutomation(key, "enabled", !job.enabled)}
-                        className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                        className={`relative h-6 w-11 shrink-0 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                           job.enabled ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                         }`}
                       >
-                        {job.enabled ? "On" : "Off"}
+                        <span aria-hidden="true" className={`absolute left-1 top-0.5 h-4 w-4 rounded-full bg-background shadow-sm transition-transform ${job.enabled ? "translate-x-5" : "translate-x-0"}`} />
                       </button>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-foreground">{label}</p>
                         <p className="text-xs text-muted-foreground">{hint}</p>
                       </div>
+                      </div>
                       {job.enabled && (
-                        dailyOnly ? (
-                          <div className="ml-auto flex shrink-0 items-center gap-2">
-                            <span className="text-xs text-muted-foreground">Daily at</span>
-                            <Input
-                              type="time"
-                              value={job.time}
-                              onChange={(e) => updateAutomation(key, "time", e.target.value)}
-                              className="w-32"
-                            />
+                        <div className="grid w-full gap-3 sm:grid-cols-3 lg:w-auto lg:min-w-[26rem]">
+                          {dailyOnly ? (
+                            <div className="self-center text-sm text-muted-foreground sm:col-span-2">Runs daily</div>
+                          ) : (
+                            <div>
+                              <p className="mb-1 text-xs text-muted-foreground">Frequency</p>
+                              <DropDown options={[{ value: "daily", label: "Daily" }, { value: "weekly", label: "Weekly" }]}
+                                value={job.frequency} onChange={(value) => updateAutomation(key, "frequency", value)}
+                                aria-label={`${label} frequency`} className="w-full" />
+                            </div>
+                          )}
+                          {!dailyOnly && job.frequency === "weekly" && <div>
+                            <p className="mb-1 text-xs text-muted-foreground">Weekday</p>
+                            <DropDown options={DAYS.map((day) => ({ value: day.key, label: day.label }))}
+                              value={job.day ?? "monday"} onChange={(value) => updateAutomation(key, "day", value)}
+                              aria-label={`${label} weekday`} className="w-full" />
+                          </div>}
+                          <div className={dailyOnly || job.frequency === "weekly" ? "" : "sm:col-start-3"}>
+                            <p className="mb-1 text-xs text-muted-foreground">Run time</p>
+                            <TimePicker value={job.time} minuteStep={1} allowClear={false}
+                              aria-label={`${label} run time`} onChange={(value) => updateAutomation(key, "time", value)} />
                           </div>
-                        ) : (
-                        <div className="ml-auto grid shrink-0 grid-cols-[6rem_6rem_8rem] items-center gap-2">
-                          <select
-                            value={job.frequency}
-                            onChange={(e) => updateAutomation(key, "frequency", e.target.value)}
-                            className="h-9 w-24 rounded-lg border border-border bg-transparent px-2 text-sm text-foreground focus:border-primary focus:outline-none"
-                          >
-                            <option value="daily">Daily</option>
-                            <option value="weekly">Weekly</option>
-                          </select>
-                          <select
-                            value={job.day ?? "monday"}
-                            onChange={(e) => updateAutomation(key, "day", e.target.value)}
-                            disabled={job.frequency !== "weekly"}
-                            title={job.frequency !== "weekly" ? "Weekday applies to weekly schedules" : undefined}
-                            className="h-9 w-24 rounded-lg border border-border bg-transparent px-2 text-sm text-foreground focus:border-primary focus:outline-none disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            {DAYS.map(({ key: d, label: l }) => (
-                              <option key={d} value={d}>{l}</option>
-                            ))}
-                          </select>
-                          <Input
-                            type="time"
-                            value={job.time}
-                            onChange={(e) => updateAutomation(key, "time", e.target.value)}
-                            className="w-32"
-                          />
                         </div>
-                        ))}
+                      )}
                     </div>
-                    {job.enabled && jobError && (
+                    {jobError && (
                       <p className="mt-1.5 text-xs text-destructive">{jobError}</p>
                     )}
                   </div>
                 );
               })}
             </div>
-            <div className="mt-3 flex justify-end">{renderSectionSaveButton("automation")}</div>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="text-xs text-muted-foreground">
+                <p>All schedules use Philippine time (Asia/Manila).</p>
+                <p className="mt-1">A missed schedule from the last 24 hours may run after saving.</p>
+                <p className="mt-1">{isSectionDirty("automation") ? "Unsaved changes — save to apply your schedule." : "Schedules saved."}</p>
+                {updateMutation.isError && savingSection === null && isSectionDirty("automation") &&
+                  <p role="alert" className="mt-1 text-destructive">Could not save settings. Your changes are available to retry.</p>}
+              </div>
+              {renderSectionSaveButton("automation")}
+            </div>
           </CardContent>
         </Card>
 

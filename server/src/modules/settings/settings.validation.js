@@ -73,7 +73,9 @@ const automationSchema = z.object({
   waste: automationJobSchema.optional(),
   marketBasket: automationJobSchema.optional(),
   // Daily report email (daily-only in UI; same shape for scheduler reuse).
-  dailyReport: automationJobSchema.optional(),
+  dailyReport: automationJobSchema.refine((job) => job.frequency === "daily", {
+    message: "Daily reports must run daily", path: ["frequency"],
+  }).optional(),
 });
 
 const ipWhitelistSchema = z

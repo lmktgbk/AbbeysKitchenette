@@ -96,3 +96,32 @@ it('does not admit work if a settings read finishes after shutdown', async () =>
   release({ now, automation: schedule }); await Promise.all([work, stop]);
   expect(claim).not.toHaveBeenCalled();
 });
+
+
+// Validate UI and API schedule contracts against the same exact-minute inputs.
+import { updateSettingsSchema } from '../src/modules/settings/settings.validation.js';
+import { settingsSchema } from '../../client/src/features/settings/validation.js';
+const automationContracts = [updateSettingsSchema, settingsSchema.pick({ automation: true })];
+it('accepts all exact minutes, including midnight and the last minute', () => {
+  for (const schema of automationContracts) {
+    for (let minute = 0; minute < 60; minute++) {
+      expect(schema.safeParse({ automation: { forecast: { enabled: true, frequency: 'daily', time: `05:${String(minute).padStart(2, '0')}` } } }).success).toBe(true);
+    }
+    expect(schema.safeParse({ automation: { dailyReport: { enabled: true, frequency: 'daily', time: '23:59' } } }).success).toBe(true);
+    expect(schema.safeParse({ automation: { dailyReport: { enabled: true, frequency: 'daily', time: '00:00' } } }).success).toBe(true);
+  }
+});
+it('rejects invalid clock ranges and missing weekly weekdays on both sides', () => {
+  for (const schema of automationContracts) {
+    for (const time of ['24:00', '12:60', '', '5:07']) {
+      expect(schema.safeParse({ automation: { forecast: { enabled: true, frequency: 'daily', time } } }).success).toBe(false);
+    }
+    expect(schema.safeParse({ automation: { reorder: { enabled: true, frequency: 'weekly', time: '05:07' } } }).success).toBe(false);
+    expect(schema.safeParse({ automation: { reorder: { enabled: true, frequency: 'weekly', time: '05:07', day: 'friday' } } }).success).toBe(true);
+  }
+});
+it('enforces daily-only reports even for direct API callers', () => {
+  for (const schema of automationContracts) {
+    expect(schema.safeParse({ automation: { dailyReport: { enabled: true, frequency: 'weekly', day: 'monday', time: '00:30' } } }).success).toBe(false);
+  }
+});

@@ -1,5 +1,5 @@
 import { useResettableState } from "@/hooks/useResettableState";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import Icon from "@/components/ui/icon";
@@ -12,11 +12,12 @@ import usePopoverAlign from "./usePopoverAlign";
  * @param {Object} props
  * @param {string|null} props.value - "HH:mm" (24-hour) or null
  * @param {(value: string|null) => void} props.onChange
+ * @param {number} [props.minuteStep=15] - Minute spacing; automation uses 1.
+ * @param {boolean} [props.allowClear=true] - Hide clearing for required times.
  * @param {string} [props.placeholder] - muted text when empty
  */
 
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
-const MINUTES = ["00", "15", "30", "45"];
 
 function formatDisplay(value) {
   if (!value) return "";
@@ -32,8 +33,13 @@ function parseValue(value) {
   return { hour: h ?? "08", minute: m ?? "00" };
 }
 
-export default function TimePicker({ value, onChange, placeholder = "Select time" }) {
+export default function TimePicker({ value, onChange, placeholder = "Select time", minuteStep = 15, allowClear = true, "aria-label": ariaLabel }) {
   const [open, setOpen] = useState(false);
+  // Exact schedules use step 1; other consumers keep quarter-hour choices.
+  const minutes = useMemo(() => {
+    const step = Number.isInteger(minuteStep) && minuteStep >= 1 && minuteStep <= 60 ? minuteStep : 15;
+    return Array.from({ length: Math.ceil(60 / step) }, (_, i) => String(i * step).padStart(2, "0"));
+  }, [minuteStep]);
   // Resolve the portal boundary when opening, rather than reading a DOM ref during render.
   const [portalTarget, setPortalTarget] = useState(null);
   const { hour: initH, minute: initM } = parseValue(value);
@@ -124,6 +130,7 @@ export default function TimePicker({ value, onChange, placeholder = "Select time
   return (
     <div ref={ref} className="relative">
       <button
+        aria-label={ariaLabel}
         type="button"
         onClick={(event) => {
           setPortalTarget(event.currentTarget.closest('[role="dialog"]'));
@@ -141,7 +148,7 @@ export default function TimePicker({ value, onChange, placeholder = "Select time
         <span className="flex-1 truncate text-center">
           {value ? formatDisplay(value) : placeholder}
         </span>
-        {value ? (
+        {value && allowClear ? (
           <span
             role="button"
             tabIndex={0}
@@ -209,7 +216,7 @@ export default function TimePicker({ value, onChange, placeholder = "Select time
                 className="h-40 overflow-y-auto rounded-md border border-border"
                 style={{ scrollbarWidth: "none" }}
               >
-                {MINUTES.map((m) => (
+                {minutes.map((m) => (
                   <button
                     key={m}
                     type="button"
@@ -230,14 +237,14 @@ export default function TimePicker({ value, onChange, placeholder = "Select time
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between mt-3">
-            <button
+          <div className="flex items-center justify-end gap-2 mt-3">
+            {allowClear && <button
               type="button"
               onClick={handleClear}
               className="px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
             >
               Clear
-            </button>
+            </button>}
             <button
               type="button"
               onClick={handleApply}

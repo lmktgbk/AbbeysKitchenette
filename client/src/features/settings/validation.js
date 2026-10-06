@@ -27,7 +27,7 @@ const automationJobSchema = z
   .object({
     enabled: z.boolean(),
     frequency: z.enum(["daily", "weekly"]),
-    time: z.string().regex(TIME_RE, "Time must be HH:MM format"),
+    time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Choose a valid time from 00:00 to 23:59"),
     day: z.enum(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]).optional(),
   })
   .refine((j) => j.frequency === "daily" || j.day !== undefined, {
@@ -40,7 +40,9 @@ const automationSchema = z.object({
   reorder: automationJobSchema.optional(),
   waste: automationJobSchema.optional(),
   marketBasket: automationJobSchema.optional(),
-  dailyReport: automationJobSchema.optional(),
+  dailyReport: automationJobSchema.refine((job) => job.frequency === "daily", {
+    message: "Daily reports must run daily", path: ["frequency"],
+  }).optional(),
 });
 
 const diningTableSchema = z.object({

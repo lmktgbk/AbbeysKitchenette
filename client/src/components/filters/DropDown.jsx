@@ -21,6 +21,7 @@ export function DropDown({
     disabled = false,
     size = "default",
     className,
+    "aria-label": ariaLabel,
 }) {
     const [open, setOpen] = useState(false);
     const [openUp, setOpenUp] = useState(false);
@@ -63,6 +64,7 @@ export function DropDown({
         <div ref={ref} className={cn("relative", className)}>
             {/* Trigger */}
             <button
+                aria-label={ariaLabel}
                 type="button"
                 onClick={() => {
                     if (disabled) return;

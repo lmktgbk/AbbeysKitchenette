@@ -1382,3 +1382,15 @@ read-only experiment, use an activated Python environment at the repository root
 The fixed historical benchmark ends September 28, the existing synthetic-history
 boundary. Normal forecasts use yesterday; no synthetic extension was inserted.
 The dataset is predominantly simulated and cannot establish real-world accuracy.
+
+
+## Automation settings components (October 6)
+
+- [ ] Enable/disable a job using its switch; confirm unsaved feedback appears and no settings change until Save.
+- [ ] Choose Daily or Weekly from the themed dropdown. Only weekly schedules show a weekday selector.
+- [ ] Select non-quarter minutes such as 05:07 and 05:43, including 00:00 and 23:59. Apply, save, refresh and confirm values persist.
+- [ ] Daily Report shows Runs daily and a required time, without a frequency selector or clear-time action.
+- [ ] Check desktop/mobile wrapping, dropdown and clock scrolling, keyboard Tab/Enter and reopening selected times.
+- [ ] Verify save failures preserve the draft and show retry feedback. Compare stored settings after a successful save.
+- [ ] Observe an intended scheduled run with the backend online; times use Asia/Manila. A missed occurrence within 24 hours may run after saving or restart.
+- [ ] Verify real daily-report email separately. Live scheduled delivery remains Not verified by component/validation tests.
