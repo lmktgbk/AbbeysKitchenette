@@ -451,22 +451,25 @@ function BatchRow({ batch, ingredient, onTogglePriority, isPriorityLoading }) {
       </TableCell>
 
       {/* Supplier — full name, wraps if very long */}
-      <TableCell title={batch.supplier_name || undefined}>
+      <TableCell className="[overflow-wrap:anywhere]" title={batch.supplier_name || undefined}>
         {batch.supplier_name || "—"}
       </TableCell>
 
       <TableCell className="text-center">
         {batch.notes ? (
-          <span className="group relative inline-flex items-center justify-center">
+          // Native disclosure also allows keyboard and touch access to the full note.
+          <details className="group relative inline-block text-left">
+            <summary aria-label={`Notes for batch ${batch.batch_id}`} className="list-none cursor-pointer rounded p-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">
             <Icon
               name="fileText"
               size={14}
               className="text-muted-foreground cursor-help"
             />
-            <span className="absolute right-0 bottom-full mb-2 hidden group-hover:block w-56 p-2.5 text-xs text-foreground bg-popover border border-border rounded-lg z-50 leading-relaxed">
+            </summary>
+            <div className="absolute right-0 bottom-full mb-2 hidden group-open:block group-hover:block group-focus-within:block w-56 max-w-[calc(100vw-3rem)] max-h-48 overflow-y-auto whitespace-pre-wrap [overflow-wrap:anywhere] p-2.5 text-xs text-foreground bg-popover border border-border rounded-lg z-50 leading-relaxed">
               {batch.notes}
-            </span>
-          </span>
+            </div>
+          </details>
         ) : null}
       </TableCell>
     </TableRow>
@@ -659,7 +662,7 @@ function HistoryRow({ entry, unit }) {
 
         {/* Notes: full width below */}
         {entry.notes && (
-          <div className="mt-2 rounded-md bg-muted/50 px-2.5 py-1.5 text-xs text-muted-foreground">
+          <div className="mt-2 rounded-md bg-muted/50 px-2.5 py-1.5 text-xs text-muted-foreground whitespace-pre-wrap [overflow-wrap:anywhere]">
             {entry.notes}
           </div>
         )}
