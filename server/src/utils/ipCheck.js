@@ -2,7 +2,7 @@ import prisma from "../config/prisma.js";
 import { env } from "../config/env.js";
 
 /**
- * Checks if the request is coming from a store device.
+ * Checks the store network policy for staff login and guest order submission.
  *
  * We verify the PUBLIC IP address (not the device's hardware/MAC address).
  * All devices at the store share the same public IP (the router's IP from the ISP).

@@ -579,7 +579,7 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Security</CardTitle>
-            <CardDescription>Restrict staff email login to specific IP addresses (store devices only).</CardDescription>
+            <CardDescription>Restrict staff login and guest order submission to the store network.</CardDescription>
           </CardHeader>
           <CardContent>
             <div>

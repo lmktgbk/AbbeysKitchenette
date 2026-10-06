@@ -12,7 +12,7 @@ const router = Router();
  *
  * GET  /api/guest/menu          — Available products for customer menu
  * GET  /api/guest/settings      — Store settings for landing page
- * POST /api/guest/orders        — Place online order (strict limit)
+ * POST /api/guest/orders        — Place order (store IP whitelist and strict limit)
  * GET  /api/guest/orders/:token — Track own order (poll-friendly limit)
  *
  * Guests can only read their own order — edits and cancels happen

@@ -5,6 +5,7 @@ import { settingsRepository } from "../settings/settings.repository.js";
 import { DEFAULT_DINING_TABLES } from "../settings/settings.validation.js";
 import { isStoreOpen } from "../../utils/storeHours.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
+import { isStoreIP } from "../../utils/ipCheck.js";
 
 /**
  * Guest Controller
@@ -60,6 +61,11 @@ export const guestController = {
    */
   async placeOrder(req, res) {
     try {
+      // Enforce the shared store whitelist before any order or replay lookup.
+      // Menu browsing and token-based tracking remain accessible off-site.
+      if (!await isStoreIP(req.ip)) {
+        throw new AppError(403, "Please connect to the store Wi-Fi to place an order.", "STORE_IP_REQUIRED");
+      }
       const { customer_name, table_number, items } = req.body;
       const order = await guestService.placeOrder({
         beforeCreate: async () => {
