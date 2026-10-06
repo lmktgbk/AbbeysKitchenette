@@ -1,9 +1,16 @@
 import { describe, it, expect } from "vitest";
 import { ingredients, products } from "../prisma/demo/catalog.js";
 import { receipts } from "../prisma/demo/receipts.js";
-import { validateCatalog, planDay, takeStock, dates, seedId } from "../prisma/demo/plan.js";
+import { START, validateCatalog, planDay, takeStock, dates, seedId } from "../prisma/demo/plan.js";
 
 describe("Demo seed plans", () => {
+  it("includes sales history from January 2025 through the completed cutoff", () => {
+    expect(START).toBe("2025-01-01");
+    const history = dates(START, "2026-10-05");
+    expect(history).toHaveLength(643);
+    expect(history.at(-1)).toBe("2026-10-05");
+    expect(planDay(history[0]).length).toBeGreaterThan(0);
+  });
   it("resolves every recipe and all 37 receipt samples", () => {
     expect(validateCatalog).not.toThrow();
     expect(receipts).toHaveLength(37);

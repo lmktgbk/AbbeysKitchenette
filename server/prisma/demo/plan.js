@@ -5,7 +5,7 @@ import { receipts } from "./receipts.js";
 export const VERSION = "demo-v1";
 // Only our own validation messages may be shown; database errors may contain secrets.
 export class SeedError extends Error {}
-export const START = "2026-01-01";
+export const START = "2025-01-01";
 export const fingerprint = createHash("sha256").update(JSON.stringify({ ingredients, products, receipts })).digest("hex");
 export const marker = `${VERSION}:${fingerprint}`;
 export const units = (value) => Math.round(Number(value) * 1000) / 1000;

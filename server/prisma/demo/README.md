@@ -34,7 +34,7 @@ with this workflow, or run the older `npm run reset` command.
 
 ## Simulation parameters
 
-Start: **January 1, 2026**. End: yesterday in **Asia/Manila**, or `--through=YYYY-MM-DD`.
+Start: **January 1, 2025**. End: yesterday in **Asia/Manila**, or `--through=YYYY-MM-DD`.
 Never include today or future days. Generated IDs and random draws are date based,
 so extending does not change previously generated orders.
 
