@@ -50,7 +50,7 @@ export const getShiftOrdersQuerySchema = z.object({
 
 // ── Query Schemas ───────────────────────────────────────
 
-// GET /api/shifts/stats — optional YYYY-MM-DD range (default: today)
+// GET /api/shifts/stats — optional YYYY-MM-DD range (default: all time)
 export const getShiftStatsQuerySchema = withDateRange(z.object({
   date_from: calendarDate.optional(), // YYYY-MM-DD
   date_to: calendarDate.optional(), // YYYY-MM-DD

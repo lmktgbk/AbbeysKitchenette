@@ -112,7 +112,7 @@ export default function ShiftsView({ dateFrom, dateTo, onDateChange }) {
                 onClick={() => handleDateChange("", "")}
                 className="cursor-pointer text-xs text-primary hover:underline"
               >
-                Back to today
+                All time
               </button>
             )}
             <DateRangeFilter

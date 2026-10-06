@@ -254,7 +254,7 @@ export const shiftRepository = {
 
   /**
    * Period stats for the Shifts KPI row.
-   * Sessions opened in [from, to]; open_now counts all live drawers.
+   * Sessions opened in [from, to]; null bounds are unrestricted. Open_now counts all live drawers.
    */
   async getStats(from, to) {
     // Separate sales/refund aggregates avoid multiplying tender by refund joins.
@@ -262,7 +262,9 @@ export const shiftRepository = {
     const [row] = await prisma.$queryRaw`
       WITH sessions AS MATERIALIZED (
         SELECT shift_id, opened_at, COALESCE(closed_at, statement_timestamp()) AS ended_at, status, variance
-        FROM shifts WHERE opened_at >= ${from} AND opened_at <= ${to}
+        FROM shifts
+        WHERE (${from}::timestamptz IS NULL OR opened_at >= ${from})
+          AND (${to}::timestamptz IS NULL OR opened_at <= ${to})
       ), sales AS (
         SELECT COALESCE(o.payment_method, 'cash') AS method,
           SUM(CASE WHEN o.amount_paid IS NULL THEN o.total_amount ELSE o.amount_paid - COALESCE(o.change, 0) END) AS amount

@@ -25,7 +25,7 @@ export default function StaffPage() {
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
 
-  // Date range shared by the Shifts KPIs + history (empty = today).
+  // Date range shared by the Shifts KPIs + history (empty = all time).
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const shiftRangeParams = {

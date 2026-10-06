@@ -3,7 +3,7 @@ import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { recordEffects, recordMutation } from "../../infrastructure/effects/effects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import prisma from "../../config/prisma.js";
-import { toManilaDateString, manilaDayStart, manilaDayEndExclusive } from "../../config/time.js";
+import { manilaDayStart, manilaDayEndExclusive } from "../../config/time.js";
 
 function roundMoney(n) {
   return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
@@ -318,17 +318,16 @@ export const shiftService = {
   },
 
   /**
-   * Period stats for the Shifts KPI row (default: today, Manila business day).
+   * Period stats for the Shifts KPI row (unbounded dates mean all time, as in the list).
    * Uses the same drawer arithmetic as cards. Separately timed reads can differ
    * while sales change; the repository aggregates this KPI response in one snapshot.
    */
   async getStats({ dateFrom, dateTo }) {
-    const today = toManilaDateString();
-    const fromStr = dateFrom || today;
-    const toStr = dateTo || fromStr;
+    const fromStr = dateFrom || null;
+    const toStr = dateTo || null;
     // Manila-anchored instants — never host-local midnight or UTC-day.
-    const from = manilaDayStart(fromStr);
-    const to = new Date(manilaDayEndExclusive(toStr).getTime() - 1);
+    const from = fromStr ? manilaDayStart(fromStr) : null;
+    const to = toStr ? new Date(manilaDayEndExclusive(toStr).getTime() - 1) : null;
     const stats = await shiftRepository.getStats(from, to);
     return { ...stats, date_from: fromStr, date_to: toStr };
   },

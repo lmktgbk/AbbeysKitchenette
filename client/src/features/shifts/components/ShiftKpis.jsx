@@ -2,13 +2,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatLabel, StatValue, StatSub } from "@/components/ui/stat";
 import { formatPeso, formatVariance } from "@/lib/money";
 import { useShiftStats } from "../query";
+import { toLocalDate } from "@/lib/date";
 
 /**
  * ShiftKpis
  *
  * Shifts-view summary cards. Same chrome as the module KpiCards so the
  * row feels native when the Staff view switches.
- * Labels follow the selected range ("today" by default).
+ * Labels follow the same date bounds as the history query; empty bounds mean all time.
  */
 export default function ShiftKpis({ params = {} }) {
   const { data, isLoading, error } = useShiftStats(params);
@@ -32,8 +33,11 @@ export default function ShiftKpis({ params = {} }) {
 
   const off = Number(stats.offCount ?? 0);
   const variance = Number(stats.varianceTotal ?? 0);
-  const ranged = !!(params.date_from || params.date_to);
-  const period = ranged ? "selected period" : "today";
+  const { date_from: from, date_to: to } = params;
+  const period = !from && !to ? "all time"
+    : from === to ? (from === toLocalDate(new Date()) ? "today" : from)
+    : from && to ? `${from} – ${to}`
+    : from ? `since ${from}` : `through ${to}`;
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
