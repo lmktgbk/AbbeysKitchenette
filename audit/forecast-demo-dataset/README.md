@@ -1,4 +1,8 @@
-# Controlled 30-order demonstration dataset
+# Historical 30-order demonstration benchmark
+
+**Historical v1 results:** the active seed now uses `forecast-demo-v2` at 10
+orders/day. The figures below remain evidence for the previous 30-order simulation,
+not a benchmark of v2. The user will reseed and evaluate v2 locally.
 
 This is a separate export, not a replacement of the current Supabase database.
 The original seed and its extension behavior are unchanged. The preview exporter rejects `--apply`. The approved database-import command is

@@ -19,12 +19,12 @@ describe("Controlled forecasting demo", () => {
     expect([...days.slice(0,3).flatMap(forecastDemoDay),...days.slice(3).flatMap(forecastDemoDay)]).toEqual(all);
     expect(new Set(all.map((o)=>o.id)).size).toBe(all.length);
   });
-  it("keeps traffic near the approved 30 daily average with mixed basket sizes", () => {
+  it("keeps traffic near the approved 10 daily average with mixed basket sizes", () => {
     const days=dates('2025-01-01','2026-10-05').map(forecastDemoDay);
     const synthetic=days.flat().filter((o)=>o.source==='synthetic');
-    expect(synthetic.length/days.length).toBeGreaterThan(29);
-    expect(synthetic.length/days.length).toBeLessThan(31);
-    expect(new Set(synthetic.flatMap((o)=>o.lines.map((l)=>`${l.name}|${l.size}`))).size).toBe(210);
+    expect(synthetic.length/days.length).toBeGreaterThan(9);
+    expect(synthetic.length/days.length).toBeLessThan(11);
+    // Lower traffic may leave rare variants unsold; do not manufacture sales for coverage.
     const average=synthetic.reduce((s,o)=>s+o.lines.reduce((n,l)=>n+l.quantity,0),0)/synthetic.length;
     expect(average).toBeGreaterThan(2); expect(average).toBeLessThan(3);
     expect(new Set(days.map((d)=>d.length)).size).toBeGreaterThan(5);

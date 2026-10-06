@@ -152,3 +152,23 @@ remain unchanged; profile-specific sales and checkpoint markers distinguish this
 simulation. Purchase/deduction/accounting logic is shared with the existing writer.
 Restart services after completion, sign in with the configured demo admin, then
 run demand forecasting and MBA. Latest October scores are not the August benchmark.
+
+
+## Lower-traffic profile (forecast-demo-v2)
+
+The forecast profile now targets **10 synthetic orders/day**, with the same basket
+and inventory rules and the 37 unchanged receipt samples. Weekly traffic is derived
+from `averageOrdersPerDay * 7`. Actual receipt samples are added on their original
+dates, so those days may exceed the synthetic target. Rare variants may have no
+sales; they remain in the catalog and forecasting can legitimately skip them.
+
+Switching from the 30-order profile requires a fresh reset, not `--mode=extend`:
+
+```bash
+npm run seed:demo:forecast -- --through=2026-10-05 --apply --confirm=RESET_SMARTCAFE
+```
+
+Stop backend/ML first, then restart and regenerate forecasting/MBA afterward.
+Use extend only after this new profile is initialized. Historical 30-order benchmark
+scores do not apply to this changed volume. Lower traffic does not guarantee a
+particular forecast revenue or R²; revenue also depends on basket sizes/menu prices.

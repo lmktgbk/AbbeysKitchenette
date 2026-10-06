@@ -1438,3 +1438,10 @@ Instructions and assumptions: `server/prisma/demo/README.md`.
 - [ ] Restart services, sign in using the configured demo admin, then generate forecast and MBA runs.
 - [ ] New forecast uses method `variant_prophet_expected_flat`, evaluation version 5; weekly variant headline is primary. Compare actual October metrics separately from the August benchmark.
 - [ ] Check inventory, receipts, cash totals and one positive closing batch per ingredient through the UI.
+
+
+## Lower-traffic reseed (forecast-demo-v2)
+
+- [ ] Stop backend and ML, then freshly reseed with `npm run seed:demo:forecast -- --through=2026-10-05 --apply --confirm=RESET_SMARTCAFE` from `server/`.
+- [ ] Confirm approximately 10 synthetic orders/day and 37 unchanged receipt samples. Do not extend the old 30-order profile.
+- [ ] Restart services and generate new forecast/MBA runs. Record the new revenue and metrics; historical 30-order benchmarks are not applicable.

@@ -3,9 +3,9 @@ import { products, categories } from "./catalog.js";
 import { planDay, seedId, fingerprint } from "./plan.js";
 import { receipts } from "./receipts.js";
 
-export const PROFILE = "forecast-demo-v1";
+export const PROFILE = "forecast-demo-v2";
 export const assumptions = {
-  profile: PROFILE, averageOrdersPerDay: 30, weekdayWeights: [1.2, .85, .9, .95, 1, 1.1, 1.3],
+  profile: PROFILE, averageOrdersPerDay: 10, weekdayWeights: [1.2, .85, .9, .95, 1, 1.1, 1.3],
   weeklyTrafficNoise: .08, basketWeightNoise: .10, annualDemandAmplitude: .05,
   classification: "Controlled synthetic weekly basket quotas; not client-confirmed demand or live accuracy",
 };
@@ -60,7 +60,7 @@ export function forecastDemoDay(day) {
     const random = randomFor(week);
     const elapsed = (Date.parse(week) - Date.parse("2025-01-01")) / 86400000;
     const trend = 1 + assumptions.annualDemandAmplitude * Math.sin(elapsed * 2 * Math.PI / 365.25);
-    const total = Math.round(210 * trend * (1 + (random() * 2 - 1) * assumptions.weeklyTrafficNoise));
+    const total = Math.round(assumptions.averageOrdersPerDay * 7 * trend * (1 + (random() * 2 - 1) * assumptions.weeklyTrafficNoise));
     const counts = quotas(total, templates.map((t) => t.weight * (1 + (random() * 2 - 1) * assumptions.basketWeightNoise)));
     const baskets = counts.flatMap((count, i) => Array.from({ length: count }, () => templates[i].lines));
     // Shuffle basket placement; weekly counts never depend on future test sales.
