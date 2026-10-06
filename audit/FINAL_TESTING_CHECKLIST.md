@@ -1351,6 +1351,13 @@ read-only experiment, use an activated Python environment at the repository root
 `python audit/compare_forecast_methods.py --product-id PRODUCT_UUID`.
 
 
+## Inventory datepicker inside dialogs (October 6)
+
+- [ ] Open Restock Ingredient and its expiry calendar. Select a current-month date and confirm the field updates.
+- [ ] Use both month arrows, Clear and Done. Calendar clicks must not close the restock dialog or submit its form.
+- [ ] Scroll the modal with the calendar open, then close/reopen it and check placement and selected date.
+- [ ] Repeat date selection in the batch-edit dialog and check keyboard focus stays inside the modal.
+
 ## Direct variant forecasting and recorded-sales coverage (October 6)
 
 - [ ] Restart the ML service and client, then generate a new forecast. Older runs retain their original method and scores.

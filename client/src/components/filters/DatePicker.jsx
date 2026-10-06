@@ -40,6 +40,8 @@ function formatDisplay(str) {
 
 export default function DatePicker({ value, onChange, placeholder = "Select date" }) {
   const [open, setOpen] = useState(false);
+  // Resolve on opening so the calendar stays inside a modal's pointer and focus boundary.
+  const [portalTarget, setPortalTarget] = useState(null);
   const initial = value ? parseISO(value) : new Date();
   const [viewMonth, setViewMonth] = useState(initial.getMonth());
   const [viewYear, setViewYear] = useState(initial.getFullYear());
@@ -51,8 +53,8 @@ export default function DatePicker({ value, onChange, placeholder = "Select date
   const [gen, setGen] = useState(0);
 
   // ── Portal position (fixed, viewport-anchored) ──
-  // WHY portal: triggers often live inside overflow-hidden cards that clip
-  // an absolute panel. A body-level fixed panel escapes all ancestors.
+  // Fixed positioning escapes clipping around the trigger. Inside a modal,
+  // portal into its dialog rather than the body, where Radix blocks interaction.
   const PANEL_WIDTH = 288;
   const [pos, setPos] = useState({ top: 0, left: 0, ready: false, gen: 0 });
 
@@ -171,7 +173,11 @@ export default function DatePicker({ value, onChange, placeholder = "Select date
     <div ref={ref} className="relative">
       <button
         type="button"
-        onClick={() => { setGen((g) => g + 1); setOpen((prev) => !prev); }}
+        onClick={(event) => {
+          setPortalTarget(event.currentTarget.closest('[role="dialog"]'));
+          setGen((g) => g + 1);
+          setOpen((prev) => !prev);
+        }}
         className={cn(
           "flex h-10 w-full items-center gap-2 rounded-lg border border-input bg-card px-3 text-sm transition-colors",
           "focus:outline-none focus:border-primary hover:border-muted-foreground/50",
@@ -199,7 +205,7 @@ export default function DatePicker({ value, onChange, placeholder = "Select date
         )}
       </button>
 
-      {/* Panel — body portal so ancestor overflow can't clip it. */}
+      {/* Keep modal calendars within the dialog; standalone calendars use the body. */}
       {open && pos.gen === gen && createPortal(
         <div
           ref={panelRef}
@@ -279,7 +285,7 @@ export default function DatePicker({ value, onChange, placeholder = "Select date
             </button>
           </div>
         </div>,
-        document.body
+        portalTarget ?? document.body
       )}
     </div>
   );
