@@ -155,15 +155,18 @@ export default function ForecastingPage() {
   const showLoading = resultsLoading && !job;
 
   // Calculate product and baseline summaries from the same stored observations.
-  const evalMetrics = useMemo(
+  const productMetrics = useMemo(
     () => summarizeEvaluation(productScores, forecasted, job?.completed),
     [productScores, forecasted, job?.completed],
   );
 
-  // Weekly variant scores reuse the product summary calculation with variant-week pairs.
+  // The model predicts variants; product sums are a separate secondary evaluation.
   const variantMetrics = useMemo(() => summarizeEvaluation(
     productScores?.flatMap((score) => score.variant_scores || []).filter((score) => score.weeks?.length), [],
   ), [productScores]);
+
+  // Do not substitute product scores when an older run lacks variant evaluation.
+  const evalMetrics = variantMetrics;
 
   // ── Loading skeletons ──
   if (historyLoading || showLoading) {
@@ -251,27 +254,28 @@ export default function ForecastingPage() {
       {/* 3 KPI Cards */}
       {hasData && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-border bg-card p-5">
+          <div className="min-w-0 rounded-xl border border-border bg-card p-5">
             <StatLabel>Demand — Expected Demand</StatLabel>
             <StatValue size="hero" className="mt-1">{formatDemand(periodTotals.units)}</StatValue>
             <StatSub>Total forecast for 7 days · avg {formatDemand(periodTotals.units/7)} items/day</StatSub>
           </div>
-          <div className="rounded-xl border border-border bg-card p-5">
+          <div className="min-w-0 rounded-xl border border-border bg-card p-5">
             <StatLabel>Expected Sales</StatLabel>
             <StatValue size="hero" className="mt-1">₱{periodTotals.revenue.toLocaleString()}</StatValue>
             <StatSub>Total for 7 days · avg ₱{Math.round(periodTotals.revenue/7).toLocaleString()}/day</StatSub>
           </div>
-          <div className={`rounded-xl border p-5 ${lowIngredients.length ? "border-amber-200 bg-amber-50/50 dark:border-amber-900/40 dark:bg-amber-950/10" : "border-border bg-card"}`}>
+          <div className={`min-w-0 rounded-xl border p-5 ${lowIngredients.length ? "border-amber-200 bg-amber-50/50 dark:border-amber-900/40 dark:bg-amber-950/10" : "border-border bg-card"}`}>
             <StatLabel>What to Order</StatLabel>
             {lowIngredients.length ? (
               <>
                 <StatValue size="hero" className="mt-1 text-amber-700 dark:text-amber-400">{lowIngredients.length} low</StatValue>
-                <StatSub>{topNeed.map((i)=> i.name).join(", ")}{lowIngredients.length > 3 ? ` +${lowIngredients.length-3} more` : ""}</StatSub>
+                {/* Long ingredient names wrap within the grid cell instead of widening it. */}
+                <StatSub className="block whitespace-normal break-words">{topNeed.map((i)=> i.name).join(", ")}{lowIngredients.length > 3 ? ` +${lowIngredients.length-3} more` : ""}</StatSub>
               </>
             ) : (
               <>
                 <StatValue size="hero" className="mt-1 text-green-700 dark:text-green-400">{ingredientIncomplete ? "Review needed" : "All good"}</StatValue>
-                <StatSub>{ingredientIncomplete ? "Ingredient calculation incomplete; check recipes and resale items" : "No urgent orders"}</StatSub>
+                <StatSub className="block whitespace-normal break-words">{ingredientIncomplete ? "Ingredient calculation incomplete; check recipes and resale items" : "No urgent orders"}</StatSub>
               </>
             )}
           </div>
@@ -318,20 +322,20 @@ export default function ForecastingPage() {
 
       {productScores?.length > 0 && <IndividualEvaluation scores={productScores} variants={forecasted} />}
       {/* Evaluation — clean card, matches KPI/Chart style */}
-      {hasData && evalMetrics && (
+      {hasData && (evalMetrics || productMetrics) && (
         <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <button onClick={() => setShowDetails(!showDetails)} className="flex w-full items-center justify-between gap-3 px-4 py-3 hover:bg-muted/50 transition-colors">
+          <button onClick={() => setShowDetails(!showDetails)} className="flex w-full flex-wrap items-center justify-between gap-3 px-4 py-3 hover:bg-muted/50 transition-colors">
             <div className="text-left">
-              <h3 className="text-sm font-semibold text-foreground">Model Evaluation</h3>
-              <p className="text-xs text-muted-foreground">How accurate is this forecast?</p>
+              <h3 className="text-sm font-semibold text-foreground">Variant Evaluation</h3>
+              <p className="text-xs text-muted-foreground">How accurately are individual variants forecast?</p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              {evalMetrics.count != null ? (
+              {evalMetrics?.count != null ? (
                 <>
-                  <span title="Pooled R-squared across held-out product-week totals" className="hidden sm:inline-flex rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                  <span title="Pooled R-squared across held-out variant-week totals" className="hidden sm:inline-flex rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                     Pooled R² {formatR2(evalMetrics.r2)}
                   </span>
-                  <span title="Mean Absolute Error — typical weekly miss per product" className="inline-flex rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  <span title="Mean Absolute Error — typical weekly miss per variant" className="inline-flex rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                     Typical error {evalMetrics.mae.toFixed(1)}/week{evalMetrics.dailyMae != null ? ` · ±${evalMetrics.dailyMae.toFixed(1)}/day` : ""}
                   </span>
                 </>
@@ -345,17 +349,17 @@ export default function ForecastingPage() {
           </button>
           {showDetails && (
             <div className="border-t border-border px-4 py-3 space-y-4">
-              {evalMetrics.count != null && (
+              {evalMetrics?.count != null && (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div className="rounded-lg border border-border bg-card px-3 py-2">
                   <p className="text-xs text-muted-foreground">Pooled weekly R²</p>
                   <p className="text-sm font-semibold text-foreground">{formatR2(evalMetrics.r2)}</p>
-                  <p className="text-xs text-muted-foreground">Across held-out product-week totals</p>
+                  <p className="text-xs text-muted-foreground">Across held-out variant-week totals</p>
                 </div>
                 <div className="rounded-lg border border-border bg-card px-3 py-2">
                   <p className="text-xs text-muted-foreground">Typical error (MAE)</p>
                   <p className="text-sm font-semibold text-foreground">±{evalMetrics.mae.toFixed(2)} units/week</p>
-                  <p className="text-xs text-muted-foreground">Average miss per product week</p>
+                  <p className="text-xs text-muted-foreground">Average miss per variant week</p>
                 </div>
                 <div className="rounded-lg border border-border bg-card px-3 py-2">
                   <p className="text-xs text-muted-foreground">RMSE</p>
@@ -369,10 +373,10 @@ export default function ForecastingPage() {
                 </div>
               </div>
               )}
-              {evalMetrics.count != null ? (
+              {evalMetrics?.count != null ? (
                 <>
                   <p className="text-xs text-muted-foreground">
-                    Held-out product-week totals across {evalMetrics.count} products (hidden weeks, zeros included)
+                    Held-out variant-week totals across {evalMetrics.count} variants (hidden weeks, zeros included)
                     {evalMetrics.range ? ` · R² range ${(evalMetrics.range[0] * 100).toFixed(1)}–${(evalMetrics.range[1] * 100).toFixed(1)}% across evaluated hidden weeks` : ""}
                     {evalMetrics.unscored ? ` · ${evalMetrics.unscored} too new to score` : ""} · Lower is better for MAE/RMSE/MSE
                   </p>
@@ -382,19 +386,19 @@ export default function ForecastingPage() {
                     const r2gap = n.productR2 != null && n.r2 != null ? ((n.productR2 - n.r2) * 100).toFixed(0) : null;
                     return (
                       <p className="text-xs text-muted-foreground">
-                        Carry-forward baseline ({n.observations} matched product-weeks): MAE {n.mae.toFixed(2)}/week · RMSE {n.rmse.toFixed(2)}/week · R² {formatR2(n.r2)}. Prophet error reduction: MAE {pct(n.mae, n.productMae)}%, RMSE {pct(n.rmse, n.productRmse)}% (negative means worse). R² difference: {r2gap == null ? "N/A" : `${r2gap} pts`}.
+                        Carry-forward baseline ({n.observations} matched variant-weeks): MAE {n.mae.toFixed(2)}/week · RMSE {n.rmse.toFixed(2)}/week · R² {formatR2(n.r2)}. Prophet error reduction: MAE {pct(n.mae, n.productMae)}%, RMSE {pct(n.rmse, n.productRmse)}% (negative means worse). R² difference: {r2gap == null ? "N/A" : `${r2gap} pts`}.
                       </p>
                     );
                   })()}
                 </>
               ) : (
-                <p className="text-xs text-muted-foreground">Not enough completed history to evaluate yet. Demand estimates can still appear without evaluation scores.</p>
+                <p className="text-xs text-muted-foreground">Variant evaluation is unavailable for this run. Generate a new forecast with sufficient sales history; product scores below are a separate aggregation.</p>
               )}
 
-              {variantMetrics?.count != null && <p className="text-xs text-muted-foreground">
-                Weekly variant totals ({variantMetrics.count} variants): R² {formatR2(variantMetrics.r2)} ·
-                MAE {variantMetrics.mae.toFixed(2)} · RMSE {variantMetrics.rmse.toFixed(2)} · MSE {variantMetrics.mse.toFixed(2)}.
-                {variantMetrics.naive && ` Matched variant baseline: R² ${formatR2(variantMetrics.naive.r2)} · MAE ${variantMetrics.naive.mae.toFixed(2)} · RMSE ${variantMetrics.naive.rmse.toFixed(2)}.`}
+              {productMetrics?.count != null && <p className="text-xs text-muted-foreground">
+                Aggregated product evaluation ({productMetrics.count} products, weekly totals): R² {formatR2(productMetrics.r2)} ·
+                MAE {productMetrics.mae.toFixed(2)} · RMSE {productMetrics.rmse.toFixed(2)} · MSE {productMetrics.mse.toFixed(2)}.
+                {productMetrics.naive && ` Matched product baseline: R² ${formatR2(productMetrics.naive.r2)} · MAE ${productMetrics.naive.mae.toFixed(2)} · RMSE ${productMetrics.naive.rmse.toFixed(2)}.`}
               </p>}
               <p className="border-t border-border pt-2 text-xs text-muted-foreground">
                 Forecast ID: {job?.id} · {forecasted.length} predicted{skipped.length ? ` · ${skipped.length} skipped; see history or error reason` : ""}
