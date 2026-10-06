@@ -10,13 +10,11 @@ from database import get_pool
 from jobs import job_connection, fail_owned_job, WORKER_OWNER
 from config import (
     PROPHET_CONFIG,
-    YEARLY_MIN_DAYS,
     HOLDOUT_DAYS,
     EVAL_ORIGINS,
 )
 from forecasting.services.data_loader import load_variant_daily_sales
 from forecasting.services.metrics import compute_metrics, weekly_metrics
-from forecasting.services.holidays import philippine_holidays
 
 # Business timezone — the whole web app follows the Asia/Manila calendar day.
 BUSINESS_TZ = ZoneInfo("Asia/Manila")
@@ -119,31 +117,13 @@ async def save_skipped(job_id, variant_id, product_name, size_name, price,
 
 # ── Prophet factory ───────────────────────────────────────────
 
-_HOLIDAYS = None  # Cache a successful calendar; failed/empty construction is retried on the next model.
-
-
 def build_prophet(n_days: int) -> Prophet:
-    """Create a fresh model for each fit using shared settings and the cached holiday calendar."""
-    global _HOLIDAYS
-    if _HOLIDAYS is None:
-        try:
-            _HOLIDAYS = philippine_holidays()
-        except Exception:
-            _HOLIDAYS = None
+    """Create the selected full-history, flat-trend model for production and holdouts.
 
-    return Prophet(
-        changepoint_prior_scale=PROPHET_CONFIG["changepoint_prior_scale"],
-        seasonality_mode=PROPHET_CONFIG["seasonality_mode"],
-        seasonality_prior_scale=PROPHET_CONFIG["seasonality_prior_scale"],
-        weekly_seasonality=PROPHET_CONFIG["weekly_seasonality"],
-        yearly_seasonality=n_days >= YEARLY_MIN_DAYS,  # needs ~2 full cycles to stay stable
-        changepoint_range=PROPHET_CONFIG["changepoint_range"],
-        interval_width=PROPHET_CONFIG["interval_width"],
-        # Only point forecasts are published; avoid simulating unused uncertainty bands.
-        uncertainty_samples=0,
-        holidays=_HOLIDAYS,
-        holidays_prior_scale=PROPHET_CONFIG["holidays_prior_scale"],
-    )
+    n_days preserves the factory interface used by audit callers. The selected
+    model always disables yearly seasonality, irrespective of calendar length.
+    """
+    return Prophet(**PROPHET_CONFIG)
 
 
 FORECAST_PERIOD = 7
@@ -304,7 +284,7 @@ async def run_demand_forecast(job_id: int) -> dict:
                 if score:
                     product_scores.append({"product_id": str(product_id), "product_name": product_name,
                                            "variants": len(variants), "training_cutoff": cutoff.isoformat(),
-                                           "evaluation_version": 4, "forecast_method": "variant_prophet_expected",
+                                           "evaluation_version": 5, "forecast_method": "variant_prophet_expected_flat",
                                            "coverage": coverage, **score})
                 if product_saved:
                     completed_count += 1

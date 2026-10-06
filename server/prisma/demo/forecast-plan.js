@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { products, categories } from "./catalog.js";
-import { planDay, seedId } from "./plan.js";
+import { planDay, seedId, fingerprint } from "./plan.js";
 import { receipts } from "./receipts.js";
 
 export const PROFILE = "forecast-demo-v1";
@@ -86,3 +86,10 @@ export function forecastDemoDay(day) {
   // Reuse the existing transcription path solely for original receipt samples.
   return [...cache.get(week).get(day), ...planDay(day).filter((o) => o.source === "receipt")].sort((a, b) => a.minute - b.minute);
 }
+
+// Distinct checkpoints prevent resuming this profile with the legacy generator.
+// Change PROFILE when generation behavior changes; assumptions/catalog are hashed too.
+export const forecastSeed = {
+  marker: `${PROFILE}:${createHash("sha256").update(JSON.stringify({ assumptions, fingerprint })).digest("hex")}`,
+  planDay: forecastDemoDay,
+};

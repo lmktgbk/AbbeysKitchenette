@@ -23,7 +23,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "ml-service"))
 from forecasting.services import data_loader
 from legacy_forecast_allocation import preparation_plan
-from forecasting.services.demand_forecast import build_prophet, MIN_DATA_DAYS
+from legacy_prophet import build_legacy_prophet as build_prophet
+from forecasting.services.demand_forecast import MIN_DATA_DAYS
 SHARE_WINDOW_DAYS = 30  # Historical allocation comparator; not used by production forecasting.
 
 METHODS = ("product_sqrt", "product_raw", "variant_sqrt", "variant_raw", "same_weekday")

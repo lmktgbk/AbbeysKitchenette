@@ -5,14 +5,19 @@ import { PrismaClient } from "../src/generated/prisma/client.ts";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { ingredients, products } from "./demo/catalog.js";
 import { receipts } from "./demo/receipts.js";
-import { START, dates, planDay, validateCatalog, marker, at, SeedError } from "./demo/plan.js";
+import { START, dates, planDay, validateCatalog, marker, at, SeedError, seedId } from "./demo/plan.js";
+import { forecastSeed } from "./demo/forecast-plan.js";
 import { initialize, loadCatalog, writeDay, closingStock } from "./demo/write.js";
 
 /** Preview is the default. No connection is opened without an explicit --apply. */
 async function main() {
   const args = process.argv.slice(2);
   const allowed = ["--apply", "--confirm=RESET_SMARTCAFE"];
-  if (args.some((arg) => !allowed.includes(arg) && !/^--(through|mode)=/.test(arg))) throw new SeedError("Unknown seed option");
+  if (args.some((arg) => !allowed.includes(arg) && !/^--(through|mode|profile)=/.test(arg))) throw new SeedError("Unknown seed option");
+  const profile = args.find((arg) => arg.startsWith("--profile="))?.slice(10) ?? "legacy";
+  if (!["legacy", "forecast"].includes(profile)) throw new SeedError("Profile must be legacy or forecast");
+  const seed = profile === "forecast" ? forecastSeed : { marker, planDay };
+  const selectedMarker = seed.marker;
   const mode = args.find((arg) => arg.startsWith("--mode="))?.slice(7) ?? "fresh";
   if (!["fresh", "extend"].includes(mode)) throw new SeedError("Mode must be fresh or extend");
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
@@ -21,11 +26,11 @@ async function main() {
   if (through >= today) throw new SeedError("Only completed Manila days may be seeded");
   validateCatalog();
   let orders = 0, units = 0, samples = 0;
-  for (const day of days) for (const order of planDay(day)) {
+  for (const day of days) for (const order of seed.planDay(day)) {
     orders++; units += order.lines.reduce((sum, line) => sum + line.quantity, 0);
     if (order.source === "receipt") samples++;
   }
-  console.log(JSON.stringify({ mode, from: START, through, days: days.length, ingredients: ingredients.length, products: products.length,
+  console.log(JSON.stringify({ mode, profile, from: START, through, days: days.length, ingredients: ingredients.length, products: products.length,
     variants: products.reduce((sum, product) => sum + product[3].length, 0), orders, units, receiptSamplesInRange: samples, receiptSamplesAvailable: receipts.length,
     applyRequested: args.includes("--apply") }, null, 2));
   if (!args.includes("--apply")) return;
@@ -48,16 +53,19 @@ async function main() {
       if (tables.some((table) => !table)) throw new SeedError("An unmapped model requires explicit seed reset support");
       await initialize(prisma, tables, process.env.DEMO_ADMIN_EMAIL, process.env.DEMO_ADMIN_PASSWORD);
     }
+    // Refuse a profile mismatch before writing even the first extension day.
+    const firstCheckpoint = await prisma.shift.findUnique({ where: { shiftId: seedId(`shift:${START}`) } });
+    if (firstCheckpoint && firstCheckpoint.closeNote !== selectedMarker) throw new SeedError("Seed profile differs from existing data; use the matching profile or a confirmed fresh reset");
     const catalog = await loadCatalog(prisma);
-    const latest = await prisma.shift.findFirst({ where: { closeNote: marker }, orderBy: { openedAt: "desc" } });
+    const latest = await prisma.shift.findFirst({ where: { closeNote: selectedMarker }, orderBy: { openedAt: "desc" } });
     if (latest && latest.openedAt > at(through, "16:00")) throw new SeedError("Cannot extend backward over newer seeded days");
     let added = 0;
     for (const day of days) {
-      if (await writeDay(prisma, day, catalog)) added++;
+      if (await writeDay(prisma, day, catalog, seed)) added++;
       if (added && added % 14 === 0) console.log(`Seed progress: ${day}`);
     }
-    const closed = await prisma.restockBatch.findFirst({ where: { notes: `${marker}:closing`, restockedAt: at(through, "23:58") } });
-    if (added || !closed) await closingStock(prisma, through);
+    const closed = await prisma.restockBatch.findFirst({ where: { notes: `${selectedMarker}:closing`, restockedAt: at(through, "23:58") } });
+    if (added || !closed) await closingStock(prisma, through, seed);
     console.log(`Completed: ${added} new days. Existing checkpoints were preserved.`);
   } finally {
     await prisma.$disconnect();

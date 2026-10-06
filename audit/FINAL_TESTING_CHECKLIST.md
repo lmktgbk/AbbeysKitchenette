@@ -1427,3 +1427,14 @@ Instructions and assumptions: `server/prisma/demo/README.md`.
 - [ ] Run `node audit/check_demo_dataset.mjs` to reconcile payments, recipes, purchases and simulated closing batches.
 - [ ] Keep August benchmark metrics separate from the next application's October evaluation.
 - [ ] After separately approving/importing the new dataset and model setting, verify the full forecasting and MBA pages manually. Neither has been applied by the preview command.
+
+
+## Apply approved demo locally
+
+- [ ] Stop backend and ML service; from `server/`, preview `npm run seed:demo:forecast -- --through=2026-10-05`.
+- [ ] Confirm preview: 19,409 orders, 48,176 units, 37 receipt samples.
+- [ ] Run `npm run seed:demo:forecast -- --through=2026-10-05 --apply --confirm=RESET_SMARTCAFE` to replace current application data.
+- [ ] If interrupted, resume with `npm run seed:demo:forecast -- --mode=extend --through=2026-10-05 --apply`; do not run a second fresh reset.
+- [ ] Restart services, sign in using the configured demo admin, then generate forecast and MBA runs.
+- [ ] New forecast uses method `variant_prophet_expected_flat`, evaluation version 5; weekly variant headline is primary. Compare actual October metrics separately from the August benchmark.
+- [ ] Check inventory, receipts, cash totals and one positive closing batch per ingredient through the UI.

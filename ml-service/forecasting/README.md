@@ -40,21 +40,20 @@ backtests those cases receive a zero fallback and their errors remain included.
 | Target | Raw daily units | No square-root transformation or historical mix split |
 | Seasonality mode | additive | Seasonal effects add unit quantities |
 | Weekly seasonality | enabled | Learn recurring weekday patterns |
-| Yearly seasonality | enabled at 730 calendar days | Require about two yearly cycles |
-| Changepoint prior scale | 0.02 | Conservative trend flexibility |
-| Changepoint range | 0.8 | Candidate changes within first 80% of history |
-| Seasonality prior scale | 2.0 | Regularize seasonal effects |
-| Holiday prior scale | 10.0 | Regularize Philippine holiday effects |
+| Growth | flat | Full-history average level plus weekly effects |
+| Yearly/daily seasonality | disabled | Match the selected benchmark configuration |
+| Seasonality prior scale | 0.1 | Regularize seasonal effects |
+| Holiday effects | disabled | Match the selected benchmark configuration |
 | Uncertainty samples | 0 | Point forecasts only; no simulated confidence bands |
-| Interval width | 0.90 | Retained Prophet setting; no interval is published |
 | Holdout length | 7 days | Match operational horizon |
 | Evaluation origins | 3 by default | Latest nonoverlapping hidden weeks; env `FORECAST_EVAL_ORIGINS` |
 | Retained jobs | 10 terminal runs | Compare runs; running jobs are preserved |
 
-Prophet's built-in trend is linear; remaining unoverridden settings use library
-defaults. Holiday definitions are in `services/holidays.py`. No weather,
-competitor prices, promotions, stockout history or external regressors are fitted.
-Yearly-seasonality eligibility uses calendar span, not positive-sales-day count.
+The selected model uses a flat trend and full available history. No weather,
+competitor prices, promotions, holidays, stockout history or external regressors
+are fitted. Historical model and holiday definitions live in audit files solely
+for reproducing earlier comparisons. This selection supports the controlled demo;
+its synthetic-data metrics do not establish actual future accuracy.
 
 ## Output calculations
 
@@ -102,7 +101,7 @@ periods for final evaluation.
 Apply migration `20261006120000_expected_demand` and regenerate Prisma Client before
 starting the updated worker. It converts `forecast_results.total_units` from integer
 to double precision without deleting historical rows. New jobs use
-`forecast_method=variant_prophet_expected` and `evaluation_version=4`. The legacy
+`forecast_method=variant_prophet_expected_flat` and `evaluation_version=5`. The legacy
 `share` column is NULL for direct forecasts. Job progress counters still count
 product groups for API compatibility; skipped rows and reasons identify variants.
 Model fitting occurs in the existing child worker, outside database transactions.

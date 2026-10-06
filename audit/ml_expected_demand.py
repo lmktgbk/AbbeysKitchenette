@@ -6,11 +6,22 @@ from unittest.mock import patch, Mock
 import numpy as np
 import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'ml-service'))
-from forecasting.services.demand_forecast import predict_units, evaluate_product
+from forecasting.services.demand_forecast import predict_units, evaluate_product, build_prophet
 from forecasting.services.metrics import weekly_metrics
 from forecasting.models.demand import DailyForecast
 
 class ExpectedDemand(unittest.TestCase):
+    def test_selected_model_matches_benchmarked_configuration(self):
+        model = build_prophet(900)
+        self.assertEqual(model.growth, 'flat')
+        self.assertEqual(model.seasonality_mode, 'additive')
+        self.assertEqual(model.seasonality_prior_scale, .1)
+        self.assertTrue(model.weekly_seasonality)
+        self.assertFalse(model.yearly_seasonality)
+        self.assertFalse(model.daily_seasonality)
+        self.assertIsNone(model.holidays)
+        self.assertEqual(model.uncertainty_samples, 0)
+
     def test_fractional_output_and_negative_clipping(self):
         train = pd.DataFrame({'ds': pd.date_range('2026-01-01', periods=14), 'y': [1]*14})
         model = Mock()

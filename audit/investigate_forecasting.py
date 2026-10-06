@@ -22,10 +22,12 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'ml-service'))
 sys.path.insert(0, str(ROOT / 'audit'))
 from benchmark_forecasting import read_snapshot, errors
-from forecasting.services.demand_forecast import build_prophet, training_reason
+from legacy_prophet import build_legacy_prophet as build_prophet
+from forecasting.services.demand_forecast import training_reason
 from legacy_forecast_allocation import preparation_plan
 
 OUT = ROOT / 'audit' / 'forecasting-investigation'
+# 'current' is the original October 6 configuration, frozen for historical comparisons.
 METHODS = ['current', 'flat_full', 'flat_26w', 'previous_week', 'weekday_8w', 'weekday_26w']
 TARGETS = ['product_daily', 'product_weekly', 'variant_daily', 'variant_weekly']
 TUNE_CUTOFF = date(2026, 6, 28)

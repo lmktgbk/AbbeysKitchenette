@@ -1,8 +1,8 @@
 # Controlled 30-order demonstration dataset
 
 This is a separate export, not a replacement of the current Supabase database.
-The original seed and its extension behavior are unchanged. `--apply` is deliberately
-unsupported here: review the benchmark before approving a database replacement.
+The original seed and its extension behavior are unchanged. The preview exporter rejects `--apply`. The approved database-import command is
+`npm run seed:demo:forecast` from `server/`; see the seed README for reset/resume commands.
 
 ## Simulation assumptions
 
@@ -89,7 +89,10 @@ synthetic relationships are not independently discovered real customer preferenc
 
 Recommendation: the simpler model is suitable for this explicitly labelled
 controlled demonstration, with weekly variant metrics as the primary evaluation.
-No production setting was changed. The current Supabase database remains intact.
+The selected configuration is now implemented as evaluation version 5 with method
+`variant_prophet_expected_flat`. The user will apply the database seed locally;
+the current public Supabase data has not been reset by this implementation step.
 These August results are not the application's October results. The full latest
 production run, actual database import and browser verification remain **Not verified**.
-Before applying this dataset, agree on database replacement and the model switch.
+Database replacement and the model switch were approved; stop services before
+running the documented import locally.

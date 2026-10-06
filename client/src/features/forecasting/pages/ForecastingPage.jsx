@@ -24,7 +24,7 @@ function IndividualEvaluation({ scores, variants }) {
     ...(score.variant_scores || []).map((variant) => ({
       ...variant,
       key: `variant:${variant.variant_id}`,
-      label: `${score.product_name} / ${names.get(variant.variant_id) || variant.variant_id}${["variant_prophet_raw", "variant_prophet_expected"].includes(score.forecast_method) ? "" : " (allocated)"}`,
+      label: `${score.product_name} / ${names.get(variant.variant_id) || variant.variant_id}${["variant_prophet_raw", "variant_prophet_expected", "variant_prophet_expected_flat"].includes(score.forecast_method) ? "" : " (allocated)"}`,
     })),
   ]);
   return (
@@ -32,7 +32,7 @@ function IndividualEvaluation({ scores, variants }) {
       <summary className="cursor-pointer">Individual product and variant evaluation</summary>
       <p className="my-2 text-xs text-muted-foreground">
         Training through {scores[0].training_cutoff || "cutoff unavailable (older run)"}.
-        {["variant_prophet_raw", "variant_prophet_expected"].includes(scores[0].forecast_method)
+        {["variant_prophet_raw", "variant_prophet_expected", "variant_prophet_expected_flat"].includes(scores[0].forecast_method)
           ? " Each variant is forecast independently with Prophet using unit counts."
           : " Legacy run: variant quantities were allocated from historical sales mix."}
         R² is N/A when actual sales have no variation. Errors below measure daily units.
@@ -105,7 +105,7 @@ export default function ForecastingPage() {
   const productScores = job?.product_scores || null;
   const coverage = productScores?.[0]?.coverage;
   // Historical saved runs keep their original rounded quantities and scores.
-  const expectedDemand = productScores?.some((score) => score.forecast_method === "variant_prophet_expected");
+  const expectedDemand = productScores?.some((score) => ["variant_prophet_expected", "variant_prophet_expected_flat"].includes(score.forecast_method));
   // A zero forecast is different from a skipped product and remains in evaluation.
   const productCounts = useMemo(() => {
     const totals = new Map();

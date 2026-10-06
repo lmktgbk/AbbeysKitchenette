@@ -125,3 +125,30 @@ profile without opening a database connection. It does not change `seed:demo`.
 Its fixed weekly basket quotas intentionally reduce noise for teaching; see
 `../../../audit/forecast-demo-dataset/README.md` for assumptions and benchmarks.
 Do not use the destructive original seed command to import this preview profile.
+
+
+## Apply the approved forecasting profile
+
+Stop the backend and ML service first. From `server/`, preview, then apply:
+
+```bash
+npm run seed:demo:forecast -- --through=2026-10-05
+npm run seed:demo:forecast -- --through=2026-10-05 --apply --confirm=RESET_SMARTCAFE
+```
+
+The second command replaces Prisma-owned application data and creates the admin
+from existing `DEMO_ADMIN_EMAIL`/`DEMO_ADMIN_PASSWORD` (minimum 12 characters).
+Supabase auth/storage and migration history remain outside the reset table list.
+Each business day is one transaction. If interrupted, resume **without resetting**:
+
+```bash
+npm run seed:demo:forecast -- --mode=extend --through=2026-10-05 --apply
+```
+
+Use the same profile for later extensions with a newer completed-day cutoff.
+The original `seed:demo` default remains the legacy generator. Cross-profile
+extension is refused before any day writes. Catalog IDs/receipt transcriptions
+remain unchanged; profile-specific sales and checkpoint markers distinguish this
+simulation. Purchase/deduction/accounting logic is shared with the existing writer.
+Restart services after completion, sign in with the configured demo admin, then
+run demand forecasting and MBA. Latest October scores are not the August benchmark.

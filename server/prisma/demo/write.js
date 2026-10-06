@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { ingredients, products, categories } from "./catalog.js";
 import { marker, seedId, at, units, planDay, takeStock, SeedError } from "./plan.js";
 
+const LEGACY_SEED = { marker, planDay };
 const adminId = seedId("admin");
 const money = (value) => Math.round(value * 100) / 100;
 const timestamp = (day, minute) => at(day, `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`);
@@ -72,7 +73,8 @@ export async function loadCatalog(prisma) {
  * A failed day has no checkpoint, so --extend safely resumes without duplicates.
  * Purchases cover the day's shortage; this is a demo inventory policy, not forecasting.
  */
-export async function writeDay(prisma, day, catalog) {
+export async function writeDay(prisma, day, catalog, seed = LEGACY_SEED) {
+  const { marker, planDay } = seed;
   return prisma.$transaction(async (tx) => {
     const shiftId = seedId(`shift:${day}`);
     const checkpoint = await tx.shift.findUnique({ where: { shiftId } });
@@ -170,7 +172,8 @@ export async function writeDay(prisma, day, catalog) {
 }
 
 /** Leave one current positive batch per ingredient; never rewrite exhausted history. */
-export async function closingStock(prisma, through) {
+export async function closingStock(prisma, through, seed = LEGACY_SEED) {
+  const { marker } = seed;
   await prisma.$transaction(async (tx) => {
     const stock = await tx.restockBatch.findMany({ where: { quantityLeft: { gt: 0 } } });
     const purchases = [];

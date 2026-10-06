@@ -16,22 +16,17 @@ FORECAST_PORT = int(os.getenv("PORT", os.getenv("FORECAST_PORT", "8000")))
 if not 1 <= FORECAST_PORT <= 65535:
     raise ValueError("PORT/FORECAST_PORT must be between 1 and 65535")
 
-# Shared Prophet settings: additive seasonality expresses seasonal effects in units,
-# rather than multiplying the current trend level.
-# Conservative priors reduce responsiveness to isolated spikes.
-# These shared settings do not guarantee forecast accuracy.
+# Selected on variant-week validation: a flat level plus additive weekly effects.
+# Point expectations remain fractional; no holiday/yearly/daily effects are fitted.
 PROPHET_CONFIG = {
-    "changepoint_prior_scale": 0.02,
+    "growth": "flat",
     "seasonality_mode": "additive",
-    "seasonality_prior_scale": 2.0,
+    "seasonality_prior_scale": 0.1,
     "weekly_seasonality": True,
-    "changepoint_range": 0.8,  # fit trend on first 80%, keep tail stable
-    "interval_width": 0.90,  # retained Prophet setting; no uncertainty bands are published
-    "holidays_prior_scale": 10.0,
+    "yearly_seasonality": False,
+    "daily_seasonality": False,
+    "uncertainty_samples": 0,
 }
-
-# Enable yearly seasonality only after two years of calendar history.
-YEARLY_MIN_DAYS = 730
 
 # Scoring tail hidden from training. 7 days = the same horizon we deploy,
 # so the paper grade matches what the kitchen actually gets.
