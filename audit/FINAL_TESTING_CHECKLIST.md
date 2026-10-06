@@ -1394,3 +1394,16 @@ The dataset is predominantly simulated and cannot establish real-world accuracy.
 - [ ] Verify save failures preserve the draft and show retry feedback. Compare stored settings after a successful save.
 - [ ] Observe an intended scheduled run with the backend online; times use Asia/Manila. A missed occurrence within 24 hours may run after saving or restart.
 - [ ] Verify real daily-report email separately. Live scheduled delivery remains Not verified by component/validation tests.
+
+## Fresh capstone seed and extensions (October 6)
+
+Instructions and assumptions: `server/prisma/demo/README.md`.
+
+- [ ] Review estimated recipes, costs, shelf lives and inferred ingredients before applying the seed.
+- [ ] Stop backend/ML services. Run the preview; confirm its range excludes today and preserves all 37 receipt samples.
+- [ ] Set your chosen demo admin credentials in the uncommitted server `.env`, then run the explicitly confirmed fresh seed command.
+- [ ] Restart services and verify admin login, product variants/recipes, inventory, order details/receipts, shifts and dashboard totals.
+- [ ] Check that receipt samples and simulated customers are clearly identified; historical receipt amounts/times are reconstructions.
+- [ ] Confirm each ingredient has one positive remaining batch and historical deductions/losses reconcile to batch quantities.
+- [ ] Before defense, preview/apply extension through the last completed Manila day. Verify existing manual orders remain and repeating the extension adds no duplicates.
+- [ ] Generate forecasting and MBA only after operational checks. Record held-out metrics and matched baselines, and disclose synthetic-data assumptions. Full-history model results remain Not verified until evaluated.
