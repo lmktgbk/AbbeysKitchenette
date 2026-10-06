@@ -1,0 +1,11 @@
+# Verbose local checkpoints are reproducible. The committed summary consolidates
+# their findings; keep the frozen grouped-sales snapshot and comparison figure.
+allocation_diagnostic.json
+diagnostics.json
+environment.json
+locked_choice.json
+protocol.json
+reserved_test.json
+sales_profile.json
+stored_job_verification.json
+tuning.json
