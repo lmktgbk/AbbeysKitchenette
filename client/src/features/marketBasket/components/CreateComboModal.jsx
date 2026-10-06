@@ -40,14 +40,16 @@ export default function CreateComboModal({ open, onOpenChange, combo }) {
     defaultValues: {
       name: combo?.suggested_name || "",
       description: `A fusion of ${variantA} and ${variantB}`,
-      price: combo?.pricing?.suggested_price || 0,
+      price: combo?.pricing?.total_price || 0,
+      price_reason: "",
     },
   });
 
   const price = useWatch({ control, name: "price" });
 
+  const costComplete = ingredients.length > 0 && ingredients.every((ing) => ing.cost_per_unit != null);
   const totalCost = useMemo(
-    () => ingredients.reduce((sum, ing) => sum + ing.line_cost, 0),
+    () => ingredients.reduce((sum, ing) => sum + (ing.line_cost ?? 0), 0),
     [ingredients],
   );
   const margin = useMemo(
@@ -60,8 +62,8 @@ export default function CreateComboModal({ open, onOpenChange, combo }) {
     setIngredients((prev) => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
-      updated[index].line_cost = parseFloat(
-        (updated[index].quantity_needed * updated[index].cost_per_unit).toFixed(2),
+      updated[index].line_cost = updated[index].cost_per_unit == null ? null : parseFloat(
+        (updated[index].quantity_needed * updated[index].cost_per_unit).toFixed(4),
       );
       return updated;
     });
@@ -73,11 +75,15 @@ export default function CreateComboModal({ open, onOpenChange, combo }) {
 
   // Translate the recommendation draft into one bundle variant and its ingredient recipes.
   async function onSubmit(data) {
+    if (data.price !== combo.pricing?.total_price && !data.price_reason?.trim()) {
+      toast.error("Explain the manual price adjustment before creating this bundle");
+      return;
+    }
     // No subcategory_id — server assigns Bundles/Bundle via the is_bundle flag.
     const payload = {
       product_name: data.name.trim(),
       is_bundle: true,
-      description: data.description.trim(),
+      description: [data.description?.trim(), data.price_reason?.trim() ? `Price adjustment: ${data.price_reason.trim()}` : ""].filter(Boolean).join("\n"),
       variants: [
         {
           size_name: combo?.size_name_a || "Regular",
@@ -162,32 +168,39 @@ export default function CreateComboModal({ open, onOpenChange, combo }) {
           {/* Price */}
           <div>
             <label className="mb-1 block text-sm font-semibold text-foreground">
-              Price per cup
+              Bundle price
             </label>
             <Input
               type="number"
               min={0}
-              step={5}
+              step={0.01}
               error={errors.price?.message}
               {...register("price", { valueAsNumber: true })}
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Suggested: ₱{combo.pricing?.suggested_price} (15% off ₱{combo.pricing?.total_price} total, min margin 30%)
+              Default: ₱{combo.pricing?.total_price}, the sum of both variant prices.
             </p>
           </div>
 
+          {price !== combo.pricing?.total_price && (
+            <div>
+              <label className="mb-1 block text-sm font-semibold">Reason for price adjustment</label>
+              <Input {...register("price_reason")} maxLength={150} placeholder="Business justification for this price" />
+            </div>
+          )}
           {/* Cost Analysis */}
           <div className="rounded-lg bg-muted/50 p-3 text-xs">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Ingredient cost:</span>
-              <span className="text-foreground">₱{totalCost.toFixed(2)}/cup</span>
+              <span className="text-foreground">{costComplete ? `₱${totalCost.toFixed(2)} per bundle` : "Cost unavailable"}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Margin:</span>
-              <span className="text-foreground">{margin}%</span>
+              <span className="text-foreground">{costComplete ? `${margin}%` : "Unavailable"}</span>
             </div>
           </div>
 
+          <p className="text-xs text-muted-foreground">Ingredient margin excludes labor, utilities, packaging and other operating costs.</p>
           {/* Ingredients */}
           <div>
             <label className="mb-2 block text-sm font-semibold text-foreground">
@@ -204,7 +217,7 @@ export default function CreateComboModal({ open, onOpenChange, combo }) {
                       {ing.ingredient_name}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      ₱{Number(ing.cost_per_unit).toFixed(2)}/{ing.unit}
+                      {ing.cost_per_unit == null ? "Cost unavailable" : `₱${Number(ing.cost_per_unit).toFixed(4)}/${ing.unit}`}
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
@@ -221,7 +234,7 @@ export default function CreateComboModal({ open, onOpenChange, combo }) {
                     <span className="w-8 text-xs text-muted-foreground">{ing.unit}</span>
                   </div>
                   <span className="w-16 text-right text-xs text-foreground">
-                    ₱{ing.line_cost.toFixed(2)}
+                    {ing.line_cost == null ? "Unknown" : `₱${ing.line_cost.toFixed(2)}`}
                   </span>
                   <button
                     type="button"

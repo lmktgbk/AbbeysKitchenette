@@ -134,7 +134,7 @@ export default function MarketBasketPage() {
         <>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {visibleRules.map((rule, idx) => (
-              <ComboCard key={rule.id} rule={rule} isTop={startIdx + idx === 0} totalOrders={job?.total_orders} onCreateCombo={handleCreateCombo} />
+              <ComboCard key={rule.id} rule={rule} isTop={startIdx + idx === 0 && rule.stable === true} onCreateCombo={handleCreateCombo} />
             ))}
           </div>
           <Pagination

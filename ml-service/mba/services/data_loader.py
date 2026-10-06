@@ -2,9 +2,6 @@
 import pandas as pd
 from database import get_pool
 
-BUNDLE_DISCOUNT_PERCENT = 15.0
-
-
 async def load_order_baskets(min_date: str | None = None) -> pd.DataFrame:
     """Load order baskets at variant level — each row is (order_id, order_date,
     variant_id, variant_label, product_name, size_name). order_date drives the
@@ -27,8 +24,6 @@ async def load_order_baskets(min_date: str | None = None) -> pd.DataFrame:
         JOIN product_variants pv ON pv.variant_id = oi.variant_id
         JOIN products p ON p.product_id = pv.product_id
         WHERE o.status = 'completed'
-          AND p.is_archived = FALSE
-          AND pv.is_available = TRUE
           AND oi.removed_at IS NULL
           AND o.order_date IS NOT NULL
           {where}
@@ -50,6 +45,11 @@ async def load_product_details() -> pd.DataFrame:
     """
     pool = await get_pool()
     rows = await pool.fetch("""
+        WITH ingredient_costs AS (
+            SELECT ingredient_id,
+                   SUM(quantity_added * cost_per_unit) / NULLIF(SUM(quantity_added), 0) AS cost_per_unit
+            FROM restock_batches GROUP BY ingredient_id
+        )
         SELECT
             p.product_id,
             p.product_name,
@@ -62,21 +62,20 @@ async def load_product_details() -> pd.DataFrame:
             i.ingredient_name,
             i.unit,
             r.quantity_needed::float AS quantity_needed,
-            COALESCE(
-                (SELECT SUM(rb.quantity_added * rb.cost_per_unit) / SUM(rb.quantity_added)
-                 FROM restock_batches rb
-                 WHERE rb.ingredient_id = r.ingredient_id),
-                0
-            )::float AS cost_per_unit
+            ic.cost_per_unit::float AS cost_per_unit
         FROM products p
         JOIN subcategories sc ON sc.subcategory_id = p.subcategory_id
         JOIN categories c ON c.category_id = sc.category_id
         JOIN product_variants pv ON pv.product_id = p.product_id
         JOIN recipes r ON r.variant_id = pv.variant_id
         JOIN ingredients i ON i.ingredient_id = r.ingredient_id
+        LEFT JOIN ingredient_costs ic ON ic.ingredient_id = r.ingredient_id
         WHERE p.is_archived = FALSE
           AND pv.is_available = TRUE
-          AND i.is_archived = FALSE
+          AND NOT EXISTS (
+            SELECT 1 FROM recipes rx JOIN ingredients ix ON ix.ingredient_id=rx.ingredient_id
+            WHERE rx.variant_id=pv.variant_id AND ix.is_archived=TRUE
+          )
         ORDER BY p.product_id, pv.size_name, i.ingredient_name
     """)
     if not rows:
@@ -86,8 +85,3 @@ async def load_product_details() -> pd.DataFrame:
             "ingredient_id", "ingredient_name", "unit", "quantity_needed", "cost_per_unit",
         ])
     return pd.DataFrame([dict(r) for r in rows])
-
-
-async def load_combo_discount() -> float:
-    """Promotion discount is fixed at 15% — no system_settings column exists."""
-    return BUNDLE_DISCOUNT_PERCENT

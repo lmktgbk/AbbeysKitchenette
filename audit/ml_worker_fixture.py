@@ -79,13 +79,10 @@ def mba_fixture(output):
         return baskets
     async def load_details():
         return details
-    async def discount():
-        return 15
     async def save(job_id, rules, stats):
         published.append({"rules": rules, "stats": stats})
     mba.load_order_baskets = load_baskets
     mba.load_product_details = load_details
-    mba.load_combo_discount = discount
     mba.save_results_to_db = save
     _worker_main("mba", 1, uuid4(), {"min_support": 0.1, "min_confidence": 0.1, "top_n": 5})
     output.put(published[0])

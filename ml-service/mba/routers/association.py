@@ -62,12 +62,14 @@ async def _load_rule_rows(pool, job_id):
                           ) AS combo_exists
                    FROM mba_rules r
                    WHERE r.job_id = $1
-                   ORDER BY r.confidence * r.lift DESC"""
+                   ORDER BY r.stable DESC NULLS LAST,
+                            (r.evidence->>'recent_supporting_baskets')::int DESC NULLS LAST,
+                            (r.evidence->>'supporting_baskets')::int DESC NULLS LAST, r.confidence DESC, r.lift DESC"""
     try:
-        rows = await pool.fetch(query.format(extended_columns="r.conviction, r.stable, r.recent_support, r.recent_confidence, r.recent_lift,"), job_id)
+        rows = await pool.fetch(query.format(extended_columns="r.conviction, r.stable, r.recent_support, r.recent_confidence, r.recent_lift, r.evidence,"), job_id)
         return rows, True
     except UndefinedColumnError:
-        rows = await pool.fetch(query.format(extended_columns=""), job_id)
+        rows = await pool.fetch(query.split("ORDER BY")[0].format(extended_columns="") + " ORDER BY r.confidence * r.lift DESC", job_id)
         return rows, False
 
 
@@ -121,14 +123,15 @@ async def get_job(job_id: int):
                 "merged_ingredients": merged_ings,
                 "pricing": pricing,
                 "conviction": float(r["conviction"]) if extended and r["conviction"] is not None else None,
-                "stable": bool(r["stable"]) if extended and "stable" in keys else None,
+                "evidence": json.loads(r["evidence"]) if extended and isinstance(r.get("evidence"), str) else r.get("evidence"),
+                "stable": bool(r["stable"]) if extended and "stable" in keys and r.get("evidence") else None,
                 "recent_support": float(r["recent_support"]) if extended and r["recent_support"] is not None else None,
                 "recent_confidence": float(r["recent_confidence"]) if extended and r["recent_confidence"] is not None else None,
                 "recent_lift": float(r["recent_lift"]) if extended and r["recent_lift"] is not None else None,
             }
             rules.append(rule)
 
-        if rules:
+        if rules and rules[0]["stable"]:
             top_pair_a = f"{rules[0]['product_a']} {rules[0].get('size_name_a', '')}".strip()
             top_pair_b = f"{rules[0]['product_b']} {rules[0].get('size_name_b', '')}".strip()
 

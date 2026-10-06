@@ -166,7 +166,7 @@ class Reliability(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(str(UUID(rule["product_a_id"])), rule["product_a_id"])
         self.assertEqual(len(rule["merged_ingredients"]), 1)
         self.assertEqual(rule["merged_ingredients"][0]["quantity_needed"], 2)
-        self.assertGreaterEqual(rule["pricing"]["suggested_price"], rule["pricing"]["min_price"])
+        self.assertEqual(rule["pricing"]["suggested_price"], rule["pricing"]["price_a"] + rule["pricing"]["price_b"])
 
 
 if __name__ == "__main__":

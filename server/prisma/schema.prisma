@@ -687,6 +687,8 @@ model MBARule {
   isCombo           Boolean  @default(false) @map("is_combo")
   explanation       String?  @db.Text
   suggestedName     String?  @map("suggested_name") @db.VarChar(200)
+  // Exact training/recent counts; nullable for historical analyses.
+  evidence          Json?
   mergedIngredients Json?    @map("merged_ingredients")
   pricing           Json?
 

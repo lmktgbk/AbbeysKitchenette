@@ -10,13 +10,13 @@ import Icon from "@/components/ui/icon";
  * - onCreateCombo: (rule) => void
  * - isTop: boolean
  */
-function ComboCard({ rule, onCreateCombo, isTop, totalOrders }) {
+function ComboCard({ rule, onCreateCombo, isTop }) {
 
   return (
     <div className={`flex h-full flex-col rounded-xl border bg-card p-4 transition-all hover:shadow-sm ${isTop ? "border-primary/40 bg-primary/5 hover:border-primary/60 hover:shadow" : "border-border hover:border-primary/30"}`}>
       {isTop && (
         <span className="mb-2 inline-flex w-fit items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary border border-primary/30">
-          ★ Top Promotion
+          ★ Top Bundle
         </span>
       )}
       {/* Product pairing — clean single line */}
@@ -33,7 +33,7 @@ function ComboCard({ rule, onCreateCombo, isTop, totalOrders }) {
         <div title="Share of all baskets containing both items" className="rounded-lg border border-border bg-muted/30 px-2 py-1.5 text-center">
           <p className="type-caption font-medium uppercase tracking-wide text-muted-foreground">Support</p>
           <p className="text-sm font-semibold text-foreground">{(rule.support * 100).toFixed(2)}%</p>
-          <p className="type-caption text-muted-foreground">{totalOrders ? `${Math.round(rule.support * totalOrders)} baskets` : "co-occurrence"}</p>
+          <p className="type-caption text-muted-foreground">{rule.evidence ? `${rule.evidence.supporting_baskets} / ${rule.evidence.training_baskets} training baskets` : "Count unavailable - rerun analysis"}</p>
         </div>
         <div title="Share of A-buyers who also take B" className="rounded-lg border border-border bg-muted/30 px-2 py-1.5 text-center">
           <p className="type-caption font-medium uppercase tracking-wide text-muted-foreground">Confidence</p>
@@ -46,6 +46,10 @@ function ComboCard({ rule, onCreateCombo, isTop, totalOrders }) {
           <p className="type-caption text-muted-foreground">vs coincidence</p>
         </div>
       </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        {rule.stable ? "Stable in recent orders" : "Insufficient recent evidence"}
+        {rule.evidence && ` - ${rule.evidence.recent_supporting_baskets} / ${rule.evidence.recent_baskets} recent baskets`}
+      </p>
       {/* Pricing preview — flex-1 to align buttons */}
       {rule.pricing && (
         <div className="mt-3 flex-1 rounded-lg bg-muted/50 px-3 py-2 text-xs">
@@ -56,18 +60,19 @@ function ComboCard({ rule, onCreateCombo, isTop, totalOrders }) {
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Suggested price:</span>
+            <span className="text-muted-foreground">Default bundle price:</span>
             <span className="font-mono font-medium text-foreground">
-              ₱{rule.pricing.suggested_price}
+              ₱{rule.pricing.total_price}
             </span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Cost:</span>
-            <span className="font-mono text-foreground">₱{rule.pricing.total_cogs}</span>
+            <span className="font-mono text-foreground">{rule.pricing.total_cogs == null ? "Cost unavailable" : `₱${rule.pricing.total_cogs}`}</span>
           </div>
         </div>
       )}
 
+      <p className="my-2 text-xs text-muted-foreground">Ingredient margin excludes operating costs. No automatic discount.</p>
       {/* Create Promotion / Already Created button — mt-auto for alignment */}
       {rule.combo_exists ? (
         <Button

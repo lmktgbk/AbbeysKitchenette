@@ -15,23 +15,16 @@ from mba.services import data_loader
 from mba.routers import association
 
 class BasketCalculations(unittest.TestCase):
-    def test_price_rounding_cannot_cross_below_recipe_cost_floor(self):
-        result = mba._compute_combo_price([{"line_cost": 31}], 15, 15)
-        self.assertEqual(result["min_price"], 32)
-        self.assertEqual(result["suggested_price"], 35)
+    def test_bundle_price_is_exact_source_sum_without_discount(self):
+        result = mba._compute_combo_price([{"line_cost": 31}], 130, 150)
+        self.assertEqual(result["suggested_price"], 280)
+        self.assertEqual(result["total_cogs"], 31)
+        self.assertEqual(mba._compute_combo_price([], 130, 150)["total_cogs"], None)
 
-    def test_price_floor_properties_across_rounding_boundaries(self):
-        for cost in [0, 1, 4, 4.01, 6, 11, 31, 31.01, 34, 36.01, 99.99, 1000.01]:
-            for discount in [0, 15, 100]:
-                result = mba._compute_combo_price([{"line_cost": cost}], 15, 15, discount)
-                self.assertGreaterEqual(result["suggested_price"], result["min_price"])
-                self.assertGreaterEqual(result["suggested_price"], 5)
-                self.assertEqual(result["suggested_price"] % 5, 0)
-
-    def test_normal_nearest_five_price_remains_unchanged(self):
-        result = mba._compute_combo_price([{"line_cost": 2}], 10, 20)
-        self.assertEqual(result["bundle_price"], 25.5)
-        self.assertEqual(result["suggested_price"], 25)
+    def test_missing_cost_is_unknown_not_zero(self):
+        result = mba._compute_combo_price([{"line_cost": None}], 15, 15)
+        self.assertFalse(result["cost_complete"])
+        self.assertIsNone(result["ingredient_margin"])
 
     def test_recipe_merge_sums_shared_quantity_and_preserves_first_cost(self):
         a = {"ingredients": [{"ingredient_id": "shared", "ingredient_name": "Shared", "unit": "g", "quantity_needed": 1, "cost_per_unit": 2}]}
@@ -48,9 +41,9 @@ class BasketCalculations(unittest.TestCase):
                              {"order_id": 1, "variant_label": "A", "variant_id": 1},
                              {"order_id": 2, "variant_label": "B", "variant_id": 2}])
         result = mba._build_baskets(data)
-        self.assertTrue(result.loc[1, "A"])
-        self.assertFalse(result.loc[1, "B"])
-        self.assertEqual(result["A"].sum(), 1)
+        self.assertTrue(result.loc[1, 1])
+        self.assertFalse(result.loc[1, 2])
+        self.assertEqual(result[1].sum(), 1)
 
     def test_real_mining_collapses_mirror_pair_and_keeps_metrics(self):
         matrix = pd.DataFrame({"A": [True] * 40 + [False] * 40,
@@ -65,7 +58,7 @@ class BasketCalculations(unittest.TestCase):
 
     def test_recent_missing_item_is_unstable(self):
         result = mba._verify_on_recent(pd.DataFrame({"A": [True, False]}), "A", "B")
-        self.assertEqual(result, {"support": 0., "confidence": 0., "lift": 0.})
+        self.assertEqual(result["supporting_baskets"], 0)
         self.assertFalse(mba._is_stable(result, .005, .08))
 
     def test_indexed_details_preserve_uuid_recipe_rounding_and_missing_label(self):
@@ -75,9 +68,20 @@ class BasketCalculations(unittest.TestCase):
                "quantity_needed": .333, "cost_per_unit": 2.345}
         result = mba._get_variant_details("Fixture Small", {"Fixture Small": pd.DataFrame([row])})
         self.assertEqual(result["product_id"], str(UUID(int=1)))
-        self.assertEqual(result["ingredients"][0]["cost_per_unit"], 2.35)
-        self.assertEqual(result["ingredients"][0]["line_cost"], .78)
+        self.assertEqual(result["ingredients"][0]["cost_per_unit"], 2.345)
+        self.assertAlmostEqual(result["ingredients"][0]["line_cost"], .333 * 2.345)
         self.assertEqual(mba._get_variant_details("Missing", {}), {})
+
+    def test_rare_coincidence_and_tiny_recent_count_do_not_qualify(self):
+        basket = pd.DataFrame({1: [True]*4+[False]*96, 2: [True]*4+[False]*96})
+        self.assertTrue(mba._compute_rules(basket).empty)
+        recent = mba._verify_on_recent(basket, 1, 2)
+        self.assertFalse(mba._is_stable(recent, .005, .08))
+
+    def test_same_labels_do_not_merge_different_variant_ids(self):
+        df = pd.DataFrame([{"order_id": 1, "variant_label": "Same", "variant_id": 1},
+                           {"order_id": 2, "variant_label": "Same", "variant_id": 2}])
+        self.assertEqual(list(mba._build_baskets(df).columns), [1, 2])
 
 class BasketResponses(unittest.IsolatedAsyncioTestCase):
     async def test_missing_optional_column_retries_only_legacy_select(self):
@@ -116,7 +120,7 @@ class BasketResponses(unittest.IsolatedAsyncioTestCase):
                "variant_id_a": 1, "variant_id_b": 2, "size_name_a": "Small", "size_name_b": "Large",
                "support": .5, "confidence": 1., "lift": 2., "is_combo": True, "combo_exists": False,
                "explanation": None, "suggested_name": "A + B", "merged_ingredients": '[]', "pricing": '{"suggested_price":35}',
-               "conviction": None, "stable": True, "recent_support": .5, "recent_confidence": 1., "recent_lift": 2.}
+               "evidence": {"version": 1}, "conviction": None, "stable": True, "recent_support": .5, "recent_confidence": 1., "recent_lift": 2.}
         pool = SimpleNamespace(fetchrow=AsyncMock(return_value={"id": 10, "status": "completed"}), fetch=AsyncMock(return_value=[row]))
         with patch.object(association, "get_pool", AsyncMock(return_value=pool)):
             result = await association.get_job(10)
@@ -125,14 +129,14 @@ class BasketResponses(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["rules"][0]["pricing"], {"suggested_price": 35})
         self.assertTrue(result["rules"][0]["stable"])
 
-    async def test_empty_loader_and_fixed_discount_contract(self):
+    async def test_empty_loader_and_historical_basket_contract(self):
         pool = SimpleNamespace(fetch=AsyncMock(return_value=[]))
         with patch.object(data_loader, "get_pool", AsyncMock(return_value=pool)):
             baskets = await data_loader.load_order_baskets()
             details = await data_loader.load_product_details()
         self.assertIn("order_date", baskets.columns)
         self.assertIn("ingredient_id", details.columns)
-        self.assertEqual(await data_loader.load_combo_discount(), mba.BUNDLE_DISCOUNT_PERCENT)
+        self.assertNotIn("pv.is_available = TRUE", pool.fetch.call_args_list[0].args[0])
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -15,5 +15,6 @@ export const createComboSchema = z.object({
     .max(500, "Must not exceed 500 characters")
     .optional()
     .or(z.literal("")),
+  price_reason: z.string().max(150).optional(),
   price: z.number().positive("Price must be greater than zero"),
 });
