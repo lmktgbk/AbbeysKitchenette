@@ -51,6 +51,24 @@ https://render.com/docs/monorepo-support
 Railway shared-monorepo reference:
 https://docs.railway.com/deployments/monorepo
 
+## Supabase certificate trust on Railway
+
+The repository-root `prod-ca-2021.crt` is the public Supabase CA certificate;
+it contains no database credentials. Keep it in the backend build context.
+Set this backend service variable before deploying:
+
+```text
+NODE_EXTRA_CA_CERTS=/app/prod-ca-2021.crt
+```
+
+Keep `sslmode=verify-full` on `DATABASE_URL` and `DIRECT_URL`. Node loads
+additional trusted CAs at process startup, so a dotenv file alone cannot enable
+this setting. Certificate and hostname verification remain enabled.
+
+A read-only runtime `SELECT 1` with this certificate succeeded locally within
+the existing 2.5-second connection timeout. Railway startup and `/api/ready`
+still require verification after deployment.
+
 ## ML service
 
 Root Directory: `ml-service`. Install `requirements.lock` and start `python main.py`.
