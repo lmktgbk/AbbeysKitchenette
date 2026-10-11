@@ -13,10 +13,10 @@
 }
 
 @media print {
-  /* Default terminal is the 58mm JP-58H; the driver dialog can still
-     override to 80mm paper when [data-paper="80mm"]. */
+  /* The driver selects roll length/size; receipt width follows the terminal preference.
+     Print at 100% scale with browser headers/footers disabled. */
   @page {
-    size: 58mm auto;
+    size: auto;
     margin: 1mm;
   }
 
@@ -34,9 +34,10 @@
     margin: 0 auto;
     color: #000 !important;
     background: #fff !important;
-    font-family: "Courier New", ui-monospace, monospace;
-    font-size: 10px;
-    line-height: 1.4;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.35;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -44,8 +45,8 @@
   /* Legacy 80mm terminals keep the wider layout. */
   #print-root-thermal[data-paper="80mm"] {
     width: 72mm;
-    font-size: 11px;
-    line-height: 1.45;
+    font-size: 13px;
+    line-height: 1.4;
   }
 
   #print-root-thermal * {
@@ -63,23 +64,30 @@
       print uses the rules above; structure shared) ── */
 
 .rc-receipt {
-  font-family: "Courier New", ui-monospace, monospace;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
 .rc-center { text-align: center; }
 .rc-logo { max-width: 32mm; max-height: 18mm; margin: 0 auto; display: block; }
-.rc-store { font-size: 12px; font-weight: 700; }
-.rc-small { font-size: 10px; }
+.rc-store { font-size: 14px; font-weight: 700; }
+.rc-small { font-size: 11px; }
 .rc-disclaimer { font-size: 10px; font-weight: 700; }
 .rc-divider { border-top: 1px dashed #000; margin: 5px 0; }
 .rc-row { display: flex; justify-content: space-between; gap: 6px; overflow-wrap: anywhere; }
 .rc-row .rc-right { white-space: nowrap; }
-.rc-item { margin: 1px 0; }
+.rc-item { margin: 8px 0; break-inside: avoid; }
 .rc-item-sub { padding-left: 10px; }
-.rc-total { font-size: 12px; font-weight: 700; }
+.rc-total { font-size: 15px; font-weight: 700; }
 .rc-footer { margin-top: 6px; padding-bottom: 12px; }
 
 /* 80mm keeps the roomier legacy sizes. */
 .rc-receipt[data-paper="80mm"] .rc-logo { max-width: 40mm; max-height: 22mm; }
-.rc-receipt[data-paper="80mm"] .rc-store { font-size: 14px; }
-.rc-receipt[data-paper="80mm"] .rc-total { font-size: 14px; }
+.rc-receipt[data-paper="80mm"] .rc-store { font-size: 16px; }
+.rc-receipt[data-paper="80mm"] .rc-total { font-size: 16px; }
+
+/* Reserve the amount column while long item names wrap within the remaining width. */
+.rc-row > span:first-child { min-width: 0; flex: 1; }
+.rc-row .rc-right { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.rc-item-name, .rc-heading { font-weight: 700; }
+.rc-receipt p { margin: 2px 0; overflow-wrap: anywhere; }
+.rc-receipt { color: #000; }

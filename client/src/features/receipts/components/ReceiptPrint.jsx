@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { orderNumberLabel } from "@/lib/orderNumber";
+import { receiptMoney as peso, receiptDate, receiptDiscount } from "../receiptFormat";
 import faviconUrl from "@/assets/favicon.png";
 
 /**
@@ -15,49 +16,15 @@ import faviconUrl from "@/assets/favicon.png";
  * image decode before printing.
  */
 
-function peso(n) {
-  return `₱${Number(n ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
-}
-
-function discountTag(order) {
-  if (!order?.discount_type || order.discount_type === "none") return null;
-  if (order.discount_type === "senior") return "Senior 20%";
-  if (order.discount_type === "pwd") return "PWD 20%";
-  if (order.discount_type === "mixed") return "Mixed (per-item)";
-  if (Number(order.discount_percent) > 0) {
-    return `Promo ${order.discount_percent}%${order?.discount_label ? ` ${order.discount_label}` : ""}`;
-  }
-  if (Number(order.discount_amount) > 0) {
-    return `Promo ₱${Number(order.discount_amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}${order?.discount_label ? ` ${order.discount_label}` : ""}`;
-  }
-  return `Promo${order?.discount_label ? ` ${order.discount_label}` : ""}`;
-}
-
-function itemDiscountTag(item) {
-  if (!item?.discount_type || item.discount_type === "none") return null;
-  if (item.discount_type === "senior") return "SNR 20%";
-  if (item.discount_type === "pwd") return "PWD 20%";
-  // Promo intent is derived from stored fields (no promo_mode column):
-  // percent promos keep their %, amount promos show the peso value.
-  // Never prints a bare "fixed" — the amount is always on the right.
-  if (Number(item.discount_percent) > 0) return `Promo ${item.discount_percent}%`;
-  if (Number(item.discount_amount) > 0) return `Promo ₱${Number(item.discount_amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
-  return item.discount_label ? `Promo ${item.discount_label}` : "Promo";
-}
-
 export default function ReceiptPrint({ payload, paperSize = "58mm", showLogo = true }) {
   const [logoMissing, setLogoMissing] = useState(false);
   if (!payload) return null;
   const { order, store } = payload;
   if (!order) return null;
 
-  const dt = order.created_at ? new Date(order.created_at) : new Date();
-  const dateStr = dt.toLocaleString("en-US", {
-    month: "short", day: "numeric", year: "numeric",
-    hour: "numeric", minute: "2-digit", hour12: true,
-  });
+  const dateStr = receiptDate(order.created_at);
   const cashier = order.accepted_by?.name || order.creator_name || "—";
-  const tag = discountTag(order);
+  const tag = receiptDiscount(order);
   const method = (order.payment_method || "cash").toUpperCase();
 
   return (
@@ -82,25 +49,26 @@ export default function ReceiptPrint({ payload, paperSize = "58mm", showLogo = t
 
       {/* Meta */}
       <div className="rc-row"><span>Order {orderNumberLabel(order.order_number)}</span><span className="rc-right">{order.order_source === "online" ? "Online" : "Walk-in"}</span></div>
-      <div className="rc-row"><span>{dateStr}</span><span className="rc-right">Table {order.table_number}</span></div>
+      <p>{dateStr}</p>
+      <p>Table: {order.table_number ?? "—"}</p>
       <div className="rc-row"><span>Cashier: {cashier}</span></div>
-      <div className="rc-row"><span>Customer: {order.customer_name}</span></div>
-      <div className="rc-row"><span>{method}{order.reference_no ? ` ${order.reference_no}` : ""}</span></div>
+      <div className="rc-row"><span>Customer: {order.customer_name || "Walk-in"}</span></div>
       <div className="rc-divider" />
 
-      {/* Items */}
+      {/* Item amounts are gross; saved discounts explain the difference to the final total. */}
+      <div className="rc-row rc-heading"><span>ITEM</span><span className="rc-right">AMOUNT</span></div>
       {(order.items ?? []).filter((i) => !i.is_removed).map((item) => (
         <div key={item.order_item_id} className="rc-item">
-          <div className="rc-row">
-            <span>{item.product_name}{item.size_name ? ` (${item.size_name})` : ""} ×{item.quantity}</span>
+          <div className="rc-row rc-item-name">
+            <span>{item.quantity} × {item.product_name}</span>
             <span className="rc-right">{peso(item.subtotal)}</span>
           </div>
           <div className="rc-row rc-item-sub">
-            <span>@ {peso(item.unit_price)}</span>
+            <span>{item.size_name ? `${item.size_name} · ` : ""}{peso(item.unit_price)} each</span>
           </div>
-          {itemDiscountTag(item) && Number(item.discount_amount || 0) > 0 && (
+          {receiptDiscount(item) && Number(item.discount_amount || 0) > 0 && (
             <div className="rc-row rc-item-sub">
-              <span>{itemDiscountTag(item)}</span>
+              <span>{receiptDiscount(item)}</span>
               <span className="rc-right">-{peso(item.discount_amount)}</span>
             </div>
           )}
@@ -110,17 +78,21 @@ export default function ReceiptPrint({ payload, paperSize = "58mm", showLogo = t
 
       {/* Totals */}
       <div className="rc-row"><span>Subtotal</span><span className="rc-right">{peso(order.subtotal_amount ?? order.total_amount)}</span></div>
-      {tag && (
+      {(tag || Number(order.discount_amount) > 0) && (
         <>
-          <div className="rc-row"><span>Discount {tag}</span><span className="rc-right">-{peso(order.discount_amount)}</span></div>
+          <div className="rc-row"><span>Total discounts</span><span className="rc-right">-{peso(order.discount_amount)}</span></div>
+          {tag && <p className="rc-small">{tag}</p>}
           {(order.senior_id_no || order.pwd_id_no || order.discount_id_no) && (
             <div className="rc-row"><span>ID {[order.senior_id_no, order.pwd_id_no].filter(Boolean).join(" / ") || order.discount_id_no}</span></div>
           )}
         </>
       )}
-      <div className="rc-row rc-total"><span>Total</span><span className="rc-right">{peso(order.total_amount)}</span></div>
+      <div className="rc-row rc-total"><span>TOTAL</span><span className="rc-right">{peso(order.total_amount)}</span></div>
+      <div className="rc-divider" />
+      <p>Payment: {method}</p>
+      {order.reference_no && <p className="rc-small">Reference: {order.reference_no}</p>}
       {order.amount_paid != null && (
-        <div className="rc-row"><span>Paid</span><span className="rc-right">{peso(order.amount_paid)}</span></div>
+        <div className="rc-row"><span>Amount paid</span><span className="rc-right">{peso(order.amount_paid)}</span></div>
       )}
       {order.change != null && (
         <div className="rc-row"><span>Change</span><span className="rc-right">{peso(order.change)}</span></div>

@@ -1475,3 +1475,26 @@ MBA identity and exact counts, combined pricing, and isolated PostgreSQL migrati
 and concurrent disposal. Disposable database schemas are cleaned afterward.
 
 Live Google delivery, browser workflows and post-reseed outputs remain Not verified.
+
+
+## Stocktake count workflow
+
+- [ ] Count 90 ml against 105 ml recorded (5 ml in A, 100 ml in B): deduct 5 + 10 ml; create no loss record or waste expense.
+- [ ] Changed counts require an explanation; unchanged counts can save optional notes.
+- [ ] Record loss separately handles known spoilage, spillage, expiry or missing stock.
+- [ ] Increased counts restore non-expired batches oldest first, within original received quantities. Depleted non-expired batches can restore.
+- [ ] Insufficient restoration capacity rejects the entire adjustment. Use Restock for purchases.
+- [ ] History retains explanations and restored batch quantities; costs, expiry and priority flags stay unchanged.
+- [ ] SweetAlert Cancel preserves the draft and saves nothing; confirmation saves once.
+- [ ] Apply the stock-count history notes migration before testing multi-batch history.
+- [ ] Optional isolated failure check: a second-batch write failure rolls back the first batch and history/audit writes. Never inject failures into operational data.
+
+
+## Thermal receipt layout
+
+- [ ] Print a saved order on 58 mm and 80 mm with logo enabled; disable logo and reprint.
+- [ ] Match the driver paper size to POS settings; use 100% scale and disable browser headers/footers.
+- [ ] Long item names, variants and payment references wrap without overlapping amounts or losing text.
+- [ ] Check item discounts and total discounts against saved amounts; the total is not recalculated during printing.
+- [ ] Check Cash, GCash and Maya payments, change and refunds in browser and direct ESC/POS printing.
+- [ ] Compare the physical print: item names and total are bold, details are readable, and no strokes are missing. Physical printer quality remains unverified by automated checks.

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useForm, Controller, useWatch } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Dialog,
@@ -14,21 +14,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { confirm } from "@/components/alerts/ConfirmDialog";
 import { countSchema } from "../ingredientValidation";
-
-const REASONS = [
-  { value: "spillage", label: "Spillage" },
-  { value: "spoilage", label: "Spoilage" },
-  { value: "found_stock", label: "Found stock" },
-  { value: "other", label: "Other" },
-];
 
 /**
  * CountModal (BR-07)
  *
  * Record a physical stocktake count for an ingredient.
  * Shows the live system figure and a color-coded variance preview
- * before confirming. Reason is required.
+ * before confirming. Changed quantities require an explanation.
  *
  * Props:
  * - open: boolean
@@ -46,17 +40,24 @@ export default function CountModal({
 }) {
   const [prevOpen, setPrevOpen] = useState(open);
 
+
+  const systemStock = Number(ingredient?.stock_quantity ?? 0);
+
   const {
     register,
     handleSubmit,
     reset,
     control,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm({
-    resolver: zodResolver(countSchema),
+    resolver: zodResolver(countSchema.superRefine((data, ctx) => {
+      if (Math.round((data.physical_quantity - systemStock) * 1000) !== 0 && !data.notes) {
+        ctx.addIssue({ code: "custom", path: ["notes"], message: "Explain why this count differs from recorded stock" });
+      }
+    })),
     defaultValues: {
       physical_quantity: "",
-      reason: "spillage",
+      reason: "correction",
       notes: "",
     },
   });
@@ -64,11 +65,10 @@ export default function CountModal({
   // Fresh form on every open (render-adjust pattern).
   if (open !== prevOpen) {
     setPrevOpen(open);
-    if (open) reset({ physical_quantity: "", reason: "spillage", notes: "" });
+    if (open) reset({ physical_quantity: "", reason: "correction", notes: "" });
   }
 
   // Snapshot-based display only; the server compares the submitted physical count to current stock.
-  const systemStock = Number(ingredient?.stock_quantity ?? 0);
   const rawPhysical = useWatch({ control, name: "physical_quantity" });
   const physical = rawPhysical === "" || rawPhysical == null ? null : Number(rawPhysical);
   const variance = physical == null || Number.isNaN(physical)
@@ -100,12 +100,19 @@ export default function CountModal({
         </DialogHeader>
 
         <form
-          onSubmit={handleSubmit((data) => onSubmit(data))}
+          onSubmit={handleSubmit(async data => {
+            // Confirmation explains the actual ledger effect; cancellation leaves the draft intact.
+            const difference = Math.round((data.physical_quantity - systemStock) * 1000) / 1000;
+            const note = difference > 0 ? "The increase fills non-expired batches oldest first, up to their original received quantities. If capacity is insufficient, nothing is saved. Use Restock for purchases."
+              : difference < 0 ? "This corrects recorded stock without creating a loss or waste expense."
+              : "This saves the stocktake and notes without changing quantities.";
+            if (await confirm({ title: "Record this stock count?", message: `${ingredient.ingredient_name}: ${systemStock.toLocaleString()} → ${data.physical_quantity.toLocaleString()} ${ingredient.unit}`, note, confirmLabel: "Record count", variant: "warning" })) onSubmit(data);
+          })}
           className="flex flex-col gap-4"
         >
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-foreground">
-              Physical count ({ingredient.unit})
+              Actual stock counted ({ingredient.unit})
             </label>
             <Input
               type="number"
@@ -124,52 +131,24 @@ export default function CountModal({
                 varianceTone === "over" && "text-green-600 dark:text-green-400",
               )}>
                 {variance === 0
-                  ? "Matches system stock — nothing to correct"
+                  ? "Matches system stock — stocktake will be saved"
                   : varianceTone === "short"
-                    ? `−${Math.abs(variance).toLocaleString()} ${ingredient.unit} short — will be recorded as loss`
+                    ? `−${Math.abs(variance).toLocaleString()} ${ingredient.unit} short — record correction`
                     : `+${variance.toLocaleString()} ${ingredient.unit} over — stock will increase`}
               </p>
             )}
           </div>
 
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-foreground">
-              Reason <span className="font-normal text-muted-foreground">(required)</span>
-            </label>
-            <Controller
-              name="reason"
-              control={control}
-              render={({ field }) => (
-                <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
-                  {REASONS.map((r) => (
-                    <button
-                      key={r.value}
-                      type="button"
-                      onClick={() => field.onChange(r.value)}
-                      className={cn(
-                        "cursor-pointer rounded-md px-2 py-1.5 text-xs transition-colors",
-                        field.value === r.value
-                          ? "bg-primary font-semibold text-primary-foreground shadow-sm"
-                          : "font-medium text-muted-foreground hover:bg-background hover:text-foreground",
-                      )}
-                    >
-                      {r.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            />
-            {errors.reason && (
-              <p className="mt-1 text-xs text-destructive">{errors.reason.message}</p>
-            )}
-          </div>
+          <p className="rounded-md bg-muted p-3 text-xs text-muted-foreground">
+            Count corrects recorded stock. For spoiled, spilled, expired or missing stock, use Record loss. For purchases, use Restock.
+          </p>
 
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-foreground">
-              Notes <span className="font-normal text-muted-foreground">(optional)</span>
+              Explanation <span className="font-normal text-muted-foreground">{variance != null && variance !== 0 ? "(required)" : "(optional)"}</span>
             </label>
             <Textarea
-              placeholder="Anything worth remembering about this count..."
+              placeholder="Explain the stock record correction..."
               error={errors.notes?.message}
               {...register("notes")}
             />
@@ -179,7 +158,7 @@ export default function CountModal({
             <Button type="button" variant="secondary" onClick={handleClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading || isSubmitting}>
               {isLoading ? "Recording..." : "Record count"}
             </Button>
           </DialogFooter>

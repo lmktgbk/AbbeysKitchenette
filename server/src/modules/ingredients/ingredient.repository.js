@@ -675,21 +675,6 @@ export const ingredientRepository = {
   },
 
   /**
-   * Find the oldest batch regardless of remaining stock (BR-07 overage
-   * fallback when every batch is depleted).
-   * @param {string} ingredientId - ingredient UUID
-   * @param {object} [tx] - optional Prisma transaction client
-   * @returns {object|null} - oldest RestockBatch or null
-   */
-  async findOldestBatch(ingredientId, tx) {
-    const client = tx || prisma;
-    return client.restockBatch.findFirst({
-      where: { ingredientId },
-      orderBy: { restockedAt: "asc" },
-    });
-  },
-
-  /**
    * Find the FIFO leader — the oldest active batch with remaining stock.
    * When no priority is set, this batch gets the highlighted star.
    * @param {string} ingredientId - ingredient UUID
@@ -705,6 +690,17 @@ export const ingredientRepository = {
   },
 
   /* ── Loss Declaration ─────────────────── */
+
+  /** Count restoration includes depleted, non-expired batches; service caps each at its original receipt. */
+  async findCountRestorationBatches(ingredientId, today, tx) {
+    return tx.restockBatch.findMany({
+      where: { ingredientId,
+        OR: [{ expiryDate: null }, { expiryDate: { gte: new Date(`${today}T00:00:00Z`) } }],
+      },
+      orderBy: [{ restockedAt: "asc" }, { restockId: "asc" }],
+      select: { restockId: true, quantityAdded: true, quantityLeft: true, version: true },
+    });
+  },
 
   /**
    * Fetch active batches for FIFO deduction — only batches with remaining stock.

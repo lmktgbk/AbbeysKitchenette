@@ -618,17 +618,11 @@ export const ingredientService = {
   },
 
   /**
-   * Record a physical stocktake count (BR-07).
-   * Compares the counted quantity against system stock and corrects it:
-   *   - Balanced (variance 0): no writes, returns the match.
-   *   - Short: shrinks oldest batches first (FIFO cascade), auto-creates
-   *     a loss record so the money trail stays intact.
-   *   - Over: grows the oldest batch. No loss record — found stock
-   *     is not a loss.
-   * Reason direction is enforced: shorts can't be "found stock",
-   * overs can't be spoilage/spillage.
+   * Reconcile recorded stock to a physical count without creating loss records.
+   * Shortages deduct priority/FIFO; increases restore within original batch capacity.
+   * Unchanged counts still preserve stocktake notes. Actual waste belongs to declareLoss.
    * @param {string} id - ingredient UUID
-   * @param {object} data - { physical_quantity, reason, notes? }
+   * @param {object} data - { physical_quantity, notes? }
    * @param {string} userId - admin performing the count
    */
   async recordCount(id, data, userId) {
@@ -638,10 +632,10 @@ export const ingredientService = {
     }
 
     const physical = Number(data.physical_quantity);
-    const reason = data.reason;
+    const reason = "correction";
 
-    let lossRecord = null;
     let result;
+    const restoredBatches = [];
 
     await prisma.$transaction(async (tx) => {
       await lockStock(tx, [id]);
@@ -650,65 +644,35 @@ export const ingredientService = {
       const systemStock = await ingredientRepository.getStockFromBatches(id, tx);
       const variance = Math.round((physical - systemStock) * 1000) / 1000;
 
-      if (variance === 0) {
-        result = {
-          ingredient_id: id,
-          system_stock: systemStock,
-          physical_stock: physical,
-          variance: 0,
-          outcome: "balanced",
-        };
-        return;
-      }
-
+      // Even matching counts retain their notes and audit trail.
       const isShort = variance < 0;
-      if (isShort && reason === "found_stock") {
-        throw new AppError(400, "A shortage cannot be recorded as found stock", "INVALID_COUNT_REASON");
-      }
-      if (!isShort && (reason === "spoilage" || reason === "spillage")) {
-        throw new AppError(400, "An overage cannot be recorded as spoilage or spillage", "INVALID_COUNT_REASON");
+      // Require an explanation against the locked stock snapshot, not a stale page total.
+      if (variance !== 0 && !data.notes?.trim()) {
+        throw new AppError(400, "Explain why the stock count differs from the recorded quantity", "COUNT_EXPLANATION_REQUIRED");
       }
 
       const absQty = Math.abs(variance);
       if (isShort) {
-        // Shrink oldest batches first (FIFO cascade), tracking cost as we go.
-        const batches = await ingredientRepository.findActiveBatchesFifo(id, tx);
+        // Reuse priority/FIFO allocation; corrections do not create a financial loss.
+        await this._deductFifo(id, absQty, tx);
+      } else if (variance > 0) {
+        // Plan allocations under the ingredient lock before writing: insufficient capacity
+        // fails without partial restoration. FIFO allocation retains each batch's cost/expiry.
+        const today = await getBusinessDate(tx);
+        const batches = await ingredientRepository.findCountRestorationBatches(id, today, tx);
         let remaining = absQty;
-        let totalCost = 0;
         for (const batch of batches) {
-          if (remaining <= 0) break;
-          const take = Math.min(remaining, Number(batch.quantityLeft));
-          if (take <= 0) continue;
-          await ingredientRepository.decrementBatchQuantity(batch.restockId, take, batch.version, tx);
-          totalCost += take * Number(batch.costPerUnit ?? 0);
-          remaining = Math.round((remaining - take) * 1000) / 1000;
+          const capacity = roundStock(Number(batch.quantityAdded) - Number(batch.quantityLeft));
+          const quantity = Math.min(remaining, Math.max(0, capacity));
+          if (quantity > 0) restoredBatches.push({ batchId: batch.restockId, quantity, version: batch.version });
+          remaining = roundStock(remaining - quantity);
+          if (remaining === 0) break;
         }
-        if (remaining > 0) {
-          throw new AppError(400, "Count exceeds available stock to reconcile", "INSUFFICIENT_STOCK");
+        if (remaining > 0) throw new AppError(400, "The increase exceeds available capacity in non-expired batches. Use Restock for additional stock", "COUNT_RESTORATION_CAPACITY");
+        // Sequential, version-guarded writes stay atomic with history and audit intent.
+        for (const allocation of restoredBatches) {
+          await ingredientRepository.incrementBatchQuantity(allocation.batchId, allocation.quantity, allocation.version, tx);
         }
-
-        const lossType = reason === "found_stock" || reason === "other" ? "other" : reason;
-        lossRecord = await ingredientRepository.createLossLog(
-          {
-            ingredientId: id,
-            declaredById: userId,
-            lossType,
-            quantityLost: absQty,
-            costPerUnit: absQty > 0 ? totalCost / absQty : 0,
-            totalCostLost: totalCost,
-            notes: `Stocktake count ${physical} vs system ${systemStock} (${reason})${data.notes ? ` — ${data.notes}` : ""}`,
-          },
-          tx,
-        );
-      } else {
-        // Grow the oldest active batch; fall back to the oldest batch
-        // outright when every batch is depleted.
-        const batches = await ingredientRepository.findActiveBatchesFifo(id, tx);
-        const target = batches[0] ?? await ingredientRepository.findOldestBatch(id, tx);
-        if (!target) {
-          throw new AppError(400, "No batch exists to receive the overage", "NO_BATCH_FOR_OVERAGE");
-        }
-        await ingredientRepository.incrementBatchQuantity(target.restockId, absQty, target.version, tx);
       }
 
       await ingredientRepository.createAdjustment(
@@ -719,8 +683,9 @@ export const ingredientService = {
           quantityBefore: systemStock,
           quantityChanged: variance,
           quantityAfter: physical,
-          relatedLossId: lossRecord ? lossRecord.lossId : null,
-          notes: `Count ${physical} (${reason})${data.notes ? ` — ${data.notes}` : ""}`,
+          relatedRestockId: restoredBatches.length === 1 ? restoredBatches[0].batchId : null,
+          relatedLossId: null,
+          notes: `Count ${physical} (${reason})${data.notes ? ` — ${data.notes}` : ""}${restoredBatches.length ? ` | FIFO restored: ${restoredBatches.map(b => `Batch #${b.batchId}: +${b.quantity} ${existing.unit}`).join("; ")}` : ""}`,
         },
         tx,
       );
@@ -748,12 +713,11 @@ export const ingredientService = {
         action: ACTIONS.STOCK_COUNT_RECORDED,
         targetType: "ingredient",
         targetId: id,
-        details: { name: existing.ingredientName, unit: existing.unit, system: systemStock, physical, variance, reason },
+        details: { name: existing.ingredientName, unit: existing.unit, system: systemStock, physical, variance, reason, restoredBatches: restoredBatches.map(({ batchId, quantity }) => ({ batchId, quantity })) },
       }, notifications });
-      result = { systemStock, variance, isShort, lossId: lossRecord ? lossRecord.lossId : null };
+      result = { systemStock, variance, isShort };
     }, { timeout: 15000 });
 
-    if (result?.outcome === "balanced") return result;
     const { systemStock, variance, isShort } = result;
 
     return {
@@ -761,9 +725,9 @@ export const ingredientService = {
       system_stock: systemStock,
       physical_stock: physical,
       variance,
-      outcome: isShort ? "short" : "over",
+      outcome: variance === 0 ? "balanced" : isShort ? "short" : "over",
       reason,
-      loss_id: result.lossId,
+      loss_id: null,
     };
   },
 
@@ -793,7 +757,7 @@ export const ingredientService = {
       await ingredientRepository.decrementBatchQuantity(batch.restockId, take, batch.version, tx);
 
       totalCost += take * Number(batch.costPerUnit ?? 0);
-      remaining -= take;
+      remaining = roundStock(remaining - take);
     }
 
     if (remaining > 0) {

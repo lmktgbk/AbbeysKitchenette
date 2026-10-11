@@ -248,7 +248,7 @@ model StockAdjustment {
   relatedOrderId   String?        @map("related_order_id") @db.Uuid
   relatedRestockId Int?           @map("related_restock_id")
   relatedLossId    Int?           @map("related_loss_id")
-  notes            String?        @db.VarChar(500)
+  notes            String?        @db.Text
   adjustedAt       DateTime       @default(now()) @map("adjusted_at")
 
   ingredient Ingredient @relation(fields: [ingredientId], references: [ingredientId], onDelete: Cascade)

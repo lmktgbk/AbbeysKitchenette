@@ -112,7 +112,7 @@ export default function InventoryPage() {
           if (outcome === "balanced") {
             toast.success("Count matches system stock");
           } else if (outcome === "short") {
-            toast.success(`Short ${variance.toLocaleString()} recorded as loss`);
+            toast.success(`Stock corrected by −${variance.toLocaleString()}`);
           } else if (outcome === "over") {
             toast.success(`Over ${variance.toLocaleString()} recorded`);
           } else {

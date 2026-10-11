@@ -1,3 +1,6 @@
+import { receiptMoney, receiptDate, receiptDiscount } from "./receiptFormat";
+import { orderNumberLabel } from "../../lib/orderNumber";
+
 /**
  * ESC/POS byte builder for 58mm thermal printers (GOOJPRT JP-58H).
  *
@@ -12,7 +15,7 @@ const ALIGN_CENTER = [0x1b, 0x61, 0x01];
 const BOLD_ON = [0x1b, 0x45, 0x01];
 const BOLD_OFF = [0x1b, 0x45, 0x00];
 const SIZE_NORMAL = [0x1d, 0x21, 0x00];
-const SIZE_DOUBLE = [0x1d, 0x21, 0x11];
+const SIZE_TALL = [0x1d, 0x21, 0x01];
 
 /** Selects the configured paper’s text width; unrecognized sizes use the 58mm default. */
 export function columnsForPaper(paperSize) {
@@ -45,29 +48,31 @@ function centered(str) {
   return [...ALIGN_CENTER, ...enc(`${str}\n`), ...ALIGN_LEFT];
 }
 
-/** Places a value after its label with at least one space; callers decide when to split long lines. */
+/** Wrap every character rather than truncating long names, references or customer details. */
+function wrapped(value, width) {
+  const text = escposText(value).replace(/\s+/g, " ").trim();
+  const lines = [];
+  let remaining = text;
+  while (remaining.length > width) {
+    const space = remaining.lastIndexOf(" ", width);
+    const cut = space > 0 ? space : width;
+    lines.push(remaining.slice(0, cut));
+    remaining = remaining.slice(cut).trimStart();
+  }
+  lines.push(remaining);
+  return lines;
+}
+
+/** Reserve the amount column; excess label text continues below without overlapping it. */
 function row(left, right, cols) {
-  const l = escposText(left);
   const r = escposText(right);
-  const gap = Math.max(1, cols - l.length - r.length);
-  return enc(`${l}${" ".repeat(gap)}${r}\n`);
+  if (r.length >= cols) return enc([...wrapped(left, cols), ...wrapped(r, cols)].join("\n") + "\n");
+  const lines = wrapped(left, Math.max(1, cols - r.length - 1));
+  return enc(lines.map((line, index) => index === 0
+    ? `${line}${" ".repeat(cols - line.length - r.length)}${r}` : line).join("\n") + "\n");
 }
 
-/** Uses an ASCII peso marker for printer text; reads already-calculated receipt amounts. */
-function peso(n) {
-  return `P${Number(n ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
-}
-
-/** Labels the persisted order-level discount summary, including mixed per-line discounts. */
-function discountTag(order) {
-  if (!order?.discount_type || order.discount_type === "none") return null;
-  if (order.discount_type === "senior") return "Senior 20%";
-  if (order.discount_type === "pwd") return "PWD 20%";
-  if (order.discount_type === "mixed") return "Mixed";
-  if (Number(order.discount_percent) > 0) return `Promo ${order.discount_percent}%`;
-  if (Number(order.discount_amount) > 0) return `Promo P${Number(order.discount_amount).toFixed(2)}`;
-  return "Promo";
-}
+const peso = value => receiptMoney(value, "P");
 
 /** GS v 0 raster bitmap (m=0, normal) for the B/W logo. */
 export function rasterCommand(raster) {
@@ -84,63 +89,44 @@ export function rasterCommand(raster) {
 /** Formats saved order data without recomputing settlements; removed items are excluded. */
 function orderLines(order, store, cols) {
   const out = [];
-  const dt = order.created_at ? new Date(order.created_at) : new Date();
-  // This raw printer path uses the device timezone; it does not use the shared Manila date formatter.
-  const dateStr = dt.toLocaleString("en-US", {
-    month: "short", day: "numeric", year: "numeric",
-    hour: "numeric", minute: "2-digit", hour12: true,
-  });
-  const cashier = order.accepted_by?.name || order.creator_name || "-";
-  const method = (order.payment_method || "cash").toUpperCase();
-  const num = order.order_number != null ? `#${order.order_number}` : "";
-  const src = order.order_source === "online" ? "Online" : "Walk-in";
-
-  out.push(...centered(store?.name || "Abbey's Kitchenette"));
-  if (store?.address) out.push(...centered(store.address.slice(0, cols)));
-  if (store?.phone) out.push(...centered(store.phone.slice(0, cols)));
-  out.push(...centered("*** NOT AN OFFICIAL RECEIPT ***"));
+  const line = value => out.push(...enc(wrapped(value, cols).join("\n") + "\n"));
+  const center = value => wrapped(value, cols).forEach(text => out.push(...centered(text)));
+  out.push(...BOLD_ON);
+  center(store?.name || "Abbey's Kitchenette");
+  out.push(...BOLD_OFF);
+  if (store?.address) center(store.address);
+  if (store?.phone) center(store.phone);
+  center("NOT AN OFFICIAL RECEIPT");
   out.push(...divider(cols));
-  out.push(...row(`Order ${num}`.trim(), src, cols));
-  // Date + table on one row when they fit, else split for 32-col paper.
-  const table = `Table ${order.table_number ?? "-"}`;
-  if (dateStr.length + table.length + 1 <= cols) {
-    out.push(...row(dateStr, table, cols));
-  } else {
-    out.push(...enc(`${dateStr}\n`));
-    out.push(...enc(`${table}\n`));
+  out.push(...row(`Order ${orderNumberLabel(order.order_number)}`, order.order_source === "online" ? "Online" : "Walk-in", cols));
+  line(receiptDate(order.created_at));
+  line(`Cashier: ${order.accepted_by?.name || order.creator_name || "-"}`);
+  line(`Customer: ${order.customer_name || "Walk-in"}`);
+  line(`Table: ${order.table_number ?? "-"}`);
+  out.push(...divider(cols), ...BOLD_ON, ...row("ITEM", "AMOUNT", cols), ...BOLD_OFF);
+  for (const item of (order.items ?? []).filter(item => !item.is_removed)) {
+    out.push(...enc("\n"), ...BOLD_ON, ...row(`${item.quantity} x ${item.product_name ?? "Item"}`, peso(item.subtotal), cols), ...BOLD_OFF);
+    line(`  ${item.size_name ? `${item.size_name} - ` : ""}${peso(item.unit_price)} each`);
+    if (Number(item.discount_amount) > 0) out.push(...row(receiptDiscount(item) || "Item discount", `-${peso(item.discount_amount)}`, cols));
   }
-  out.push(...enc(`Cashier: ${String(cashier).slice(0, cols - 9)}\n`));
-  out.push(...enc(`Customer: ${String(order.customer_name ?? "-").slice(0, cols - 10)}\n`));
-  out.push(...enc(`${method}${order.reference_no ? ` ${order.reference_no}` : ""}\n`.slice(0, cols + 1)));
-  out.push(...divider(cols));
-
-  for (const item of (order.items ?? []).filter((i) => !i.is_removed)) {
-    const name = `${item.product_name ?? "Item"}${item.size_name ? ` (${item.size_name})` : ""} x${item.quantity}`;
-    const price = peso(item.subtotal);
-    if (name.length + price.length + 1 <= cols) {
-      out.push(...row(name, price, cols));
-    } else {
-      // Wrap name first, price right-aligned on its own row for 58mm.
-      out.push(...enc(`${name.slice(0, cols)}\n`));
-      if (name.length > cols) out.push(...enc(`${name.slice(cols, cols * 2)}\n`));
-      out.push(...row("", price, cols));
-    }
-    out.push(...row(`@ ${peso(item.unit_price)}`, "", cols));
+  out.push(...divider(cols), ...row("Subtotal", peso(order.subtotal_amount ?? order.total_amount), cols));
+  const tag = receiptDiscount(order);
+  if (tag || Number(order.discount_amount) > 0) {
+    out.push(...row("Total discounts", `-${peso(order.discount_amount)}`, cols));
+    if (tag) line(tag);
+    const ids = [order.senior_id_no, order.pwd_id_no].filter(Boolean).join(" / ") || order.discount_id_no;
+    if (ids) line(`ID ${ids}`);
   }
-  out.push(...divider(cols));
-
-  out.push(...row("Subtotal", peso(order.subtotal_amount ?? order.total_amount), cols));
-  const tag = discountTag(order);
-  if (tag) {
-    const label = `Discount ${tag}`.slice(0, cols - 10);
-    out.push(...row(label, `-${peso(order.discount_amount)}`, cols));
-  }
-  out.push(...BOLD_ON, ...SIZE_DOUBLE, ...enc(`Total ${peso(order.total_amount)}\n`), ...SIZE_NORMAL, ...BOLD_OFF);
-  if (order.amount_paid != null) out.push(...row("Paid", peso(order.amount_paid), cols));
+  // Double height only: double-width totals can overflow the narrow 32-column paper.
+  out.push(...BOLD_ON, ...SIZE_TALL, ...row("TOTAL", peso(order.total_amount), cols), ...SIZE_NORMAL, ...BOLD_OFF, ...divider(cols));
+  line(`Payment: ${(order.payment_method || "cash").toUpperCase()}`);
+  if (order.reference_no) line(`Reference: ${order.reference_no}`);
+  if (order.amount_paid != null) out.push(...row("Amount paid", peso(order.amount_paid), cols));
   if (order.change != null) out.push(...row("Change", peso(order.change), cols));
+  if (Number(order.refund?.amount) > 0) out.push(...row("Refunded", peso(order.refund.amount), cols));
   out.push(...divider(cols));
-  out.push(...centered("Thank you for dining with us!"));
-  out.push(...centered("This serves as your order slip."));
+  center("Thank you for dining with us!");
+  center("This serves as your order slip.");
   return out;
 }
 
@@ -152,7 +138,7 @@ export function buildReceiptBytes(payload, { paperSize = "58mm", logoRaster = nu
   const cols = columnsForPaper(paperSize);
   const order = payload?.order;
   if (!order) return new Uint8Array(INIT);
-  const out = [...INIT, ...ALIGN_LEFT, ...SIZE_NORMAL];
+  const out = [...INIT, 0x1b, 0x4d, 0x00, ...ALIGN_LEFT, ...SIZE_NORMAL];
   if (includeLogo && logoRaster) {
     out.push(...ALIGN_CENTER, ...rasterCommand(logoRaster), ...enc("\n"), ...ALIGN_LEFT);
   }

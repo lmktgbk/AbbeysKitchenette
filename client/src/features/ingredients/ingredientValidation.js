@@ -47,11 +47,10 @@ export const restockSchema = z.object({
 
 // Record count form (BR-07)
 export const countSchema = z.object({
-  physical_quantity: coerceNumber(z.number().min(0, "Count cannot be negative")),
-  reason: z.enum(["spillage", "spoilage", "found_stock", "other"], {
-    required_error: "Reason is required",
-  }),
-  notes: z.string().max(500, "Must not exceed 500 characters").optional(),
+  // Never interpret an empty stocktake as a complete write-off.
+  physical_quantity: z.number({ error: "Enter the actual stock count" }).finite().min(0, "Count cannot be negative"),
+  reason: z.literal("correction").default("correction"),
+  notes: z.string().trim().max(500).optional(),
 });
 
 // Declare loss form

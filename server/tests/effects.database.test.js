@@ -172,7 +172,7 @@ describe.skipIf(process.env.EFFECTS_DB_CHECK !== "1")("PostgreSQL durable effect
   it("real inventory restock, loss and count preserve their audit intents", async () => {
     await ingredientService.restock(ingredient.ingredientId, { quantity_added: 2, cost_per_unit: 2 }, user.id);
     await ingredientService.declareLoss(ingredient.ingredientId, { quantity_lost: 1, loss_type: "spillage" }, user.id);
-    await ingredientService.recordCount(ingredient.ingredientId, { physical_quantity: 1, reason: "other" }, user.id);
+    await ingredientService.recordCount(ingredient.ingredientId, { physical_quantity: 1, reason: "correction", notes: "Fixture stock correction" }, user.id);
     expect(await db.domainEffect.count()).toBe(3);
     await repo.deliverOne(); await repo.deliverOne(); await repo.deliverOne();
     expect(await db.auditLog.count()).toBe(3); expect((await db.notification.findFirst()).type).toBe("stock_low");
@@ -219,4 +219,38 @@ describe.skipIf(process.env.EFFECTS_DB_CHECK !== "1")("PostgreSQL durable effect
     expect(Number(adjustments[1].quantityAfter)).toBe(15);
     expect(await db.domainEffect.count()).toBe(2);
   }, 30000);
+});
+
+
+// These checks use only the disposable schema created above, never operational stock.
+describe.skipIf(process.env.EFFECTS_DB_CHECK !== "1")("stocktake restoration transactions", () => {
+  it("rolls back the first restored batch if the second write fails", async () => {
+    // The main suite's afterAll has cleaned its fixture; create an independent disposable schema.
+    const isolated = await isolatedPostgres("count_restore_check");
+    const previous = h.db;
+    h.db = isolated.db;
+    let injected;
+    try {
+      const { ingredientRepository } = await import("../src/modules/ingredients/ingredient.repository.js");
+      const admin = await h.db.user.create({ data: { name: "Count fixture", email: "count@example.invalid", role: "admin", passwordHash: "unused" } });
+      const stock = await h.db.ingredient.create({ data: { ingredientName: "Milk", unit: "ml", minimumThreshold: 0 } });
+      const a = await h.db.restockBatch.create({ data: { ingredientId: stock.ingredientId, restockedById: admin.id, quantityAdded: 200, quantityLeft: 50, costPerUnit: 1, totalCost: 200, restockedAt: new Date("2026-01-01") } });
+      const b = await h.db.restockBatch.create({ data: { ingredientId: stock.ingredientId, restockedById: admin.id, quantityAdded: 600, quantityLeft: 100, costPerUnit: 2, totalCost: 1200, restockedAt: new Date("2026-01-02") } });
+      const original = ingredientRepository.incrementBatchQuantity;
+      injected = vi.spyOn(ingredientRepository, "incrementBatchQuantity").mockImplementation(async (...args) => {
+        if (args[0] === b.restockId) throw Error("Injected second batch failure");
+        return original.apply(ingredientRepository, args);
+      });
+      await expect(ingredientService.recordCount(stock.ingredientId, { physical_quantity: 650, reason: "correction", notes: "Fixture stock correction" }, admin.id)).rejects.toThrow("Injected second batch failure");
+      expect(Number((await h.db.restockBatch.findUnique({ where: { restockId: a.restockId } })).quantityLeft)).toBe(50);
+      expect(await h.db.stockAdjustment.count()).toBe(0);
+      expect(await h.db.lossRecord.count()).toBe(0);
+      expect(await h.db.domainEffect.count()).toBe(0);
+      injected.mockRestore(); injected = null;
+      await ingredientService.recordCount(stock.ingredientId, { physical_quantity: 650, reason: "correction", notes: "Fixture stock correction" }, admin.id);
+      expect(Number((await h.db.restockBatch.findUnique({ where: { restockId: a.restockId } })).quantityLeft)).toBe(200);
+      expect(Number((await h.db.restockBatch.findUnique({ where: { restockId: b.restockId } })).quantityLeft)).toBe(450);
+      expect(await h.db.lossRecord.count()).toBe(0);
+    } finally { injected?.mockRestore(); h.db = previous; await isolated.cleanup(); }
+  }, 120000);
 });

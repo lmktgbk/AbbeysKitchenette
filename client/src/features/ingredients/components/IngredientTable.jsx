@@ -507,9 +507,8 @@ function ExpandedRow({ ingredient, onRestock, onLoss, onCount, onBatches, onEdit
 
 /* ── Current Batch ──────────────────── */
 
-/** Keeps lengthy notes readable without allowing them to widen the inventory table. */
+/** Compact summary; full restock notes remain in Batches & History. */
 function CurrentBatch({ batch, unit }) {
-  const [notesExpanded, setNotesExpanded] = useState(false);
   const percentRemaining = batch.quantity_added > 0
     ? Math.round((batch.quantity_left / batch.quantity_added) * 100)
     : 0;
@@ -537,20 +536,6 @@ function CurrentBatch({ batch, unit }) {
           value={`₱${batchTotalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
         />
         <DetailRow label="Supplier Name" value={batch.supplier_name || "N/A"} />
-        {/* Seed identifiers and pasted text can contain long, unbroken strings. */}
-        <div className="min-w-0 space-y-1 text-sm">
-          <p className="text-xs font-medium text-muted-foreground">Notes</p>
-          <p className={`whitespace-pre-wrap [overflow-wrap:anywhere] ${notesExpanded ? "" : "line-clamp-3"}`}>
-            {batch.notes || "N/A"}
-          </p>
-          {batch.notes && (
-            <button type="button" aria-expanded={notesExpanded}
-              onClick={() => setNotesExpanded((expanded) => !expanded)}
-              className="text-xs text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
-              {notesExpanded ? "Show less" : "Show more"}
-            </button>
-          )}
-        </div>
         <DetailRow label="Restock Date & Time" value={`${dateStr} · ${timeStr}`} />
         <DetailRow
           label="Expiration Date"

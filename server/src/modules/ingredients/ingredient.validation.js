@@ -92,16 +92,11 @@ export const declareLossSchema = z.object({
 });
 
 // Used by POST /api/ingredients/:id/count — record a physical stocktake count
+// Corrections adjust stock without entering waste totals; an explanation is mandatory.
 export const recordCountSchema = z.object({
   physical_quantity: stockQuantity(),
-  reason: z.enum(["spillage", "spoilage", "found_stock", "other"], {
-    message: "Reason is required",
-  }),
-  notes: z
-    .string()
-    .trim()
-    .max(500, "Notes must not exceed 500 characters")
-    .optional(),
+  reason: z.literal("correction").default("correction"),
+  notes: z.string().trim().max(500).optional(),
 });
 
 // Used by GET /api/ingredients — query params for pagination, search, filter, sort
