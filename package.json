@@ -1,0 +1,15 @@
+{
+  "name": "smartcafe-deployment",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Repository-root Node entry point for backend hosting; application dependencies remain in server.",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "build": "npm --prefix server ci --include=dev && npm --prefix server run check:source && npm --prefix server run db:generate",
+    "start": "npm --prefix server start",
+    "db:migrate:deploy": "npm --prefix server run db:migrate:deploy"
+  },
+  "type": "module"
+}

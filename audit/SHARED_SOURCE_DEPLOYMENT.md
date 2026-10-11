@@ -66,3 +66,16 @@ prove the host retained the same layout.
 
 Hosted builds, Node builder detection, shared-file deployment triggers, startup,
 cookies, and WebSockets remain **Not verified** until staging deployment.
+
+
+## Repository-root Node detection
+
+The root `package.json` and dependency-free lockfile identify the backend build
+context as Node 24 to Railpack. Its commands delegate to `server/`; this is not
+a workspace conversion and does not install client dependencies. Keep Railway's
+Root Directory unset so runtime imports of `shared/` still resolve.
+
+The previously documented `cd server && ...` command overrides remain valid.
+After this change, Railway must rebuild from the new commit, rather than restart
+the old image. Confirm both build and runtime logs show Node/npm available.
+Physical hosted runtime behavior remains unverified until the rebuilt deployment starts.
