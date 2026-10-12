@@ -37,7 +37,10 @@ export const envSchema = z.object({
   ML_SERVICE_KEY: z.preprocess((value) => value === "" ? undefined : value, z.string().regex(/^[a-f0-9]{64}$/i).optional()),
   ML_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(100).max(120000).default(10000),
 
-  // Email — SMTP config (optional — falls back to console log in dev)
+  // Select one delivery provider; never retry an ambiguous send through another provider.
+  EMAIL_PROVIDER: z.enum(["smtp", "brevo"]).default("smtp"),
+  BREVO_API_KEY: optional(z.string().min(1)),
+  EMAIL_FROM_NAME: z.string().min(1).default("Abbey's Kitchenette"),
   SMTP_HOST: optional(z.string()),
   SMTP_PORT: optional(z.coerce.number().int().min(1).max(65535)),
   SMTP_SECURE: optional(z.enum(["true", "false"])),
@@ -76,6 +79,10 @@ export const envSchema = z.object({
   SHEETS_ORDERS_ID: z.string().optional(),
 }).superRefine((config, ctx) => {
   const issue = (path, message) => ctx.addIssue({ code: "custom", path: [path], message });
+  if (config.EMAIL_PROVIDER === "brevo") {
+    if (!config.BREVO_API_KEY) issue("BREVO_API_KEY", "Brevo delivery requires an API key");
+    if (!z.email().safeParse(config.EMAIL_FROM).success) issue("EMAIL_FROM", "Brevo requires a verified sender email address");
+  }
   if (config.COOKIE_SAME_SITE === "none" && config.NODE_ENV !== "production") {
     issue("COOKIE_SAME_SITE", "Cross-site cookies require the production HTTPS configuration");
   }
@@ -96,8 +103,8 @@ export const envSchema = z.object({
   }
   const smtp = Boolean(config.SMTP_HOST && config.SMTP_USER && config.SMTP_PASS);
   const gmail = Boolean(config.GMAIL_USER && config.GMAIL_APP_PASS);
-  if (!smtp && !gmail) issue("SMTP_HOST", "Production requires a real SMTP or Gmail transport");
-  if (config.SMTP_HOST && !smtp) issue("SMTP_HOST", "Complete the SMTP credentials");
+  if (config.EMAIL_PROVIDER === "smtp" && !smtp && !gmail) issue("SMTP_HOST", "Production SMTP delivery requires SMTP or Gmail credentials");
+  if (config.EMAIL_PROVIDER === "smtp" && config.SMTP_HOST && !smtp) issue("SMTP_HOST", "Complete the SMTP credentials");
   if (!z.email().safeParse(config.EMAIL_FROM).success) issue("EMAIL_FROM", "Production EMAIL_FROM must be a sender email address");
   for (const fields of [["CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"], ["GOOGLE_SERVICE_ACCOUNT_EMAIL", "GOOGLE_PRIVATE_KEY", "SHEETS_ORDERS_ID"]]) {
     if (fields.some(field => config[field]) && fields.some(field => !config[field])) issue(fields[0], "Complete all credentials for the enabled integration");

@@ -69,6 +69,19 @@ A read-only runtime `SELECT 1` with this certificate succeeded locally within
 the existing 2.5-second connection timeout. Railway startup and `/api/ready`
 still require verification after deployment.
 
+## Brevo email delivery on Railway
+
+Set `EMAIL_PROVIDER=brevo`, `BREVO_API_KEY`, `EMAIL_FROM` (the verified sender),
+and `EMAIL_FROM_NAME=Abbey's Kitchenette` on the backend service only. Do not
+put API keys in Vercel's browser variables. SMTP credentials are not required
+when Brevo is selected; localhost can select `EMAIL_PROVIDER=smtp` instead.
+
+Login/resent OTPs, password resets, staff invitations, recovery-email verification
+and security notices, and daily reports all use the same delivery function.
+Existing HTML templates and report PDF buffers are retained. HTTP acceptance is
+not proof of inbox delivery: verify each flow live and check Brevo's delivery log.
+Failures remain unconfirmed, with no automatic SMTP fallback or duplicate retry.
+
 ## ML service
 
 Root Directory: `ml-service`. Install `requirements.lock` and start `python main.py`.

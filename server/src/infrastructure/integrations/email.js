@@ -1,21 +1,15 @@
-import transporter from "../../config/nodemailer.js";
+import { createEmailDelivery } from "./email.transport.js";
 import { env } from "../../config/env.js";
+
+const deliver = createEmailDelivery(env);
 
 /**
  * Send an email
  * @param {object} options - { to, subject, html, attachments? }
- * @returns {Promise} - nodemailer send result
+ * @returns {Promise} - provider acceptance, which does not guarantee inbox delivery
  */
 export async function sendEmail({ to, subject, html, attachments }) {
-  const mailOptions = {
-    from: `"Abbey's Kitchenette" <${env.EMAIL_FROM}>`,
-    to,
-    subject,
-    html,
-  };
-  if (attachments?.length) mailOptions.attachments = attachments;
-
-  return transporter.sendMail(mailOptions);
+  return deliver({ to, subject, html, attachments });
 }
 
 // ── Shared theme ─────────────────────────────────────────────
