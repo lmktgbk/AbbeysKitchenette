@@ -32,6 +32,7 @@ export const settingsController = {
         allowed: await isStoreIP(req.ip),
         developmentBypass: env.NODE_ENV === "development",
         proxyHops: env.TRUST_PROXY_HOPS,
+        addressSource: env.CLIENT_IP_SOURCE ?? "proxy",
         // Report only a valid IP; attacker-controlled header text must not be echoed.
         proxyReportedAddress: isIP(forwarded) ? forwarded : null,
       });

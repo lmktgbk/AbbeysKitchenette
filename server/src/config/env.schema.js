@@ -17,6 +17,7 @@ export const envSchema = z.object({
   CLIENT_URL: origin,
   API_PUBLIC_URL: optional(origin),
   TRUST_PROXY_HOPS: optional(z.coerce.number().int().min(0).max(3)),
+  CLIENT_IP_SOURCE: z.enum(["proxy", "railway"]).default("proxy"),
   COOKIE_SAME_SITE: z.enum(["strict", "lax", "none"]).default("strict"),
   RATE_LIMIT_STORE: z.enum(["memory", "postgres"]).optional(),
   GENERAL_RATE_LIMIT_MAX: z.coerce.number().int().min(100).max(100000).default(500),

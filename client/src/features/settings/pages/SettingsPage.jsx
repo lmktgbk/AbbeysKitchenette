@@ -687,7 +687,7 @@ export default function SettingsPage() {
                   <p>Store network: <strong>{network.developmentBypass ? "Development bypass" : network.allowed ? "Allowed" : "Not allowed"}</strong></p>
                   {network.proxyReportedAddress && network.proxyReportedAddress !== network.address &&
                     <p>Proxy-reported address: <span className="font-mono">{network.proxyReportedAddress}</span> — differs from the policy address.</p>}
-                  <p className="text-muted-foreground">Configured proxy hops: {network.proxyHops}. This check does not change access rules.</p>
+                  <p className="text-muted-foreground">Address source: {network.addressSource || "proxy"}{network.addressSource !== "railway" && ` · Proxy hops: ${network.proxyHops}`}. This check does not change access rules.</p>
                 </>}
               </div>
             </div>

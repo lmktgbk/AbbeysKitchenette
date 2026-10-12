@@ -71,6 +71,27 @@ still require verification after deployment.
 
 ## Brevo email delivery on Railway
 
+### Client-IP identity on Railway
+
+Set `CLIENT_IP_SOURCE=railway` on the backend public HTTP service. Keep
+`CLIENT_IP_SOURCE=proxy` for localhost (with `TRUST_PROXY_HOPS=0`) and other
+verified proxy deployments. The shared resolver uses Railway's `X-Real-IP`
+for HTTP access checks, HTTP rate limits and WebSocket connection budgets.
+`TRUST_PROXY_HOPS` still controls Express's other proxy-aware properties.
+
+This relies on Railway public ingress replacing caller-supplied `X-Real-IP`.
+Private-network callers bypass this protection and must be trusted; do not
+expose the container through a TCP proxy or another unsanitized entry path.
+Reference: https://docs.railway.com/networking/public-networking/specs-and-limits
+Header handling: https://station.railway.com/questions/need-authoritative-client-ip-proxy-tru-090eac86
+
+Live verification: use the admin network check and repeat it with a forged
+`X-Real-IP` header against the public domain. The detected policy IP must stay
+equal to the actual connection address. Local unit tests cannot prove hosted
+header replacement. Retest allowed/off-site staff login and guest submissions.
+
+### Email provider
+
 Set `EMAIL_PROVIDER=brevo`, `BREVO_API_KEY`, `EMAIL_FROM` (the verified sender),
 and `EMAIL_FROM_NAME=Abbey's Kitchenette` on the backend service only. Do not
 put API keys in Vercel's browser variables. SMTP credentials are not required

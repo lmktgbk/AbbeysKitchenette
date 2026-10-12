@@ -1497,6 +1497,8 @@ Live Google delivery, browser workflows and post-reseed outputs remain Not verif
 - [ ] Confirm staff and guest submission remain denied off-site and allowed on the configured store network.
 - [ ] Confirm non-admin and unauthenticated requests cannot access `/api/settings/network`.
 - [ ] Do not change proxy trust until the observed addresses and hosting ingress path are verified.
+- [ ] Railway: enable `CLIENT_IP_SOURCE=railway` only for public HTTP ingress with trusted private-network callers. Confirm policy address now matches the actual public address.
+- [ ] As signed-in admin, call the network endpoint with forged `X-Real-IP` and `X-Forwarded-For` headers through the public domain. The policy address must not change; hosted sanitization is not proven by local unit tests.
 
 ## Thermal receipt layout
 

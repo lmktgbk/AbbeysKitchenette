@@ -1,4 +1,4 @@
-import proxyaddr from "proxy-addr";
+import { resolveClientIp } from "../../middleware/clientIp.middleware.js";
 import { ipKeyGenerator } from "express-rate-limit";
 import { env } from "../../config/env.js";
 
@@ -18,10 +18,10 @@ export function realtimeLimits(config = env) {
   };
 }
 
-/** Derive the client IP using the same trusted proxy-hop policy as Express. */
+/** Use the same configured ingress identity as HTTP before IPv6 bucket grouping. */
 export function upgradeClientKey(req, config = env) {
   // HTTP and upgrade requests must select the same client behind the verified ingress.
-  return ipKeyGenerator(proxyaddr(req, (_, hop) => hop < (config.TRUST_PROXY_HOPS ?? 0)));
+  return ipKeyGenerator(resolveClientIp(req, config));
 }
 
 /** Limit upgrade attempts and live sockets; reserve returns an idempotent release callback or null. */

@@ -14,7 +14,7 @@ it.each([true, false])("reports the saved-policy result (%s), using req.ip rathe
   await settingsController.checkNetwork({ user: { role: "admin" }, ip: "203.0.113.1", get: () => "203.0.113.2" }, res);
   expect(policy).toHaveBeenLastCalledWith("203.0.113.1");
   expect(res.set).toHaveBeenCalledWith("Cache-Control", "no-store");
-  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ data: { address: "203.0.113.1", allowed, developmentBypass: false, proxyHops: 1, proxyReportedAddress: "203.0.113.2" } }));
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ data: { address: "203.0.113.1", allowed, developmentBypass: false, proxyHops: 1, addressSource: "proxy", proxyReportedAddress: "203.0.113.2" } }));
 });
 
 it("rejects non-admins before querying policy", async () => {

@@ -3,6 +3,7 @@ import { browserCors, browserWriteGuard } from "./middleware/browserSecurity.mid
 import helmet from "helmet";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
+import { clientIpMiddleware } from "./middleware/clientIp.middleware.js";
 
 // Imports
 import { env } from "./config/env.js";
@@ -38,6 +39,7 @@ import analyticsRoutes from "./modules/analytics/analytics.routes.js";
 const app = express();
 app.disable("etag");
 app.set("trust proxy", env.TRUST_PROXY_HOPS);
+app.use(clientIpMiddleware(env));
 // Production platforms collect stdout; emit bounded, redacted request events.
 app.use(requestTelemetry.middleware);
 
