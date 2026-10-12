@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Icon from "@/components/ui/icon";
 import { useSettings, useUpdateSettings } from "../query";
+import { checkNetworkRequest } from "../api";
 import { useSettingsRealtime } from "@/realtime/subscriptions";
 import { settingsSchema } from "../validation";
 import { DropDown } from "@/components/filters/DropDown";
@@ -116,6 +117,19 @@ export default function SettingsPage() {
 
   const [ipDraft, setIpDraft] = useState("");
   const [ipError, setIpError] = useState("");
+  const [network, setNetwork] = useState(null);
+  const [networkBusy, setNetworkBusy] = useState(false);
+  const [networkError, setNetworkError] = useState("");
+
+  // Explicit checks use persisted settings, not the unsaved form draft.
+  async function checkNetwork() {
+    setNetworkBusy(true);
+    setNetworkError("");
+    setNetwork(null);
+    try { setNetwork((await checkNetworkRequest()).data); }
+    catch (error) { setNetworkError(error.response?.data?.message || "Network check failed. Please retry."); }
+    finally { setNetworkBusy(false); }
+  }
 
   // A new settings response resets the whole draft, including unsaved edits in other sections.
   useEffect(() => {
@@ -659,6 +673,22 @@ export default function SettingsPage() {
                   <div><p className="font-medium">Guest order submission</p><p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">Menu browsing and order tracking stay public.</p></div>
                 </div>
                 <p className="text-xs leading-relaxed text-muted-foreground">Admin login remains accessible from any network.</p>
+              </div>
+            </div>
+            <div className="rounded-lg border border-border p-3 text-xs">
+              <Button type="button" variant="outline" disabled={networkBusy} onClick={checkNetwork}>
+                {networkBusy ? "Checking network…" : "Check this network"}
+              </Button>
+              <p className="mt-2 text-muted-foreground">Checks saved settings using this browser's connection.</p>
+              <div aria-live="polite" className="mt-2 space-y-1 break-words">
+                {networkError && <p className="text-destructive">{networkError}</p>}
+                {network && <>
+                  <p>Detected address: <span className="font-mono">{network.address}</span></p>
+                  <p>Store network: <strong>{network.developmentBypass ? "Development bypass" : network.allowed ? "Allowed" : "Not allowed"}</strong></p>
+                  {network.proxyReportedAddress && network.proxyReportedAddress !== network.address &&
+                    <p>Proxy-reported address: <span className="font-mono">{network.proxyReportedAddress}</span> — differs from the policy address.</p>}
+                  <p className="text-muted-foreground">Configured proxy hops: {network.proxyHops}. This check does not change access rules.</p>
+                </>}
               </div>
             </div>
             <div className="flex justify-end">{renderSectionSaveButton("security")}</div>

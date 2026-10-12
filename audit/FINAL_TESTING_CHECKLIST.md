@@ -1490,6 +1490,14 @@ Live Google delivery, browser workflows and post-reseed outputs remain Not verif
 - [ ] Optional isolated failure check: a second-batch write failure rolls back the first batch and history/audit writes. Never inject failures into operational data.
 
 
+## Hosted store-network diagnostic
+
+- [ ] As admin, open Settings > Security > Check this network on the staff device's network.
+- [ ] Record the detected policy address and any different proxy-reported address; verify the saved whitelist, not an unsaved draft.
+- [ ] Confirm staff and guest submission remain denied off-site and allowed on the configured store network.
+- [ ] Confirm non-admin and unauthenticated requests cannot access `/api/settings/network`.
+- [ ] Do not change proxy trust until the observed addresses and hosting ingress path are verified.
+
 ## Thermal receipt layout
 
 - [ ] Print a saved order on 58 mm and 80 mm with logo enabled; disable logo and reprint.

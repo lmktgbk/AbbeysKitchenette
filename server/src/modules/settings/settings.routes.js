@@ -7,6 +7,9 @@ import { updateSettingsSchema } from "./settings.validation.js";
 
 const router = Router();
 
+// Saved-policy diagnostics are visible only to authenticated admins.
+router.get("/network", authenticate, authorize("admin"), settingsController.checkNetwork);
+
 // GET /api/settings — get current settings (admin only)
 router.get("/", authenticate, authorize("admin"), settingsController.getSettings);
 
