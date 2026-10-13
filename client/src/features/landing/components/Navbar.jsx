@@ -7,7 +7,7 @@ import Icon from "@/components/ui/icon";
  * Fixed top navigation bar for the landing page.
  * Transparent on hero, solid (glassmorphism) on scroll.
  * Mobile: CSS-animated slide-down hamburger menu.
- * Desktop: inline "Order Online" CTA button.
+ * Desktop: inline "Open Kiosk" CTA button.
  */
 export default function Navbar({ storeName = "Abbey's Kitchenette" }) {
     const [scrolled, setScrolled]     = useState(false);
@@ -106,7 +106,7 @@ export default function Navbar({ storeName = "Abbey's Kitchenette" }) {
                 <div className="hidden items-center gap-3 md:flex">
                     <Link to="/order" className="navbar-cta">
                         <Icon name="shoppingBag" size={15} />
-                        Order Online
+                        Open Kiosk
                     </Link>
                 </div>
 
@@ -147,7 +147,7 @@ export default function Navbar({ storeName = "Abbey's Kitchenette" }) {
                             onClick={() => setMobileOpen(false)}
                         >
                             <Icon name="shoppingBag" size={16} />
-                            Order Online
+                            Open Kiosk
                         </Link>
                     </div>
                 </div>

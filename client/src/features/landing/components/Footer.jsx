@@ -1,16 +1,8 @@
 import { Link } from "react-router-dom";
-import Icon from "@/components/ui/icon";
-import { formatStoreHours } from "../formatHours";
 
 export default function Footer({ settings = {} }) {
     const currentYear = new Date().getFullYear();
     const displayName = settings.storeName || "Abbey's Kitchenette";
-    const phone = settings.storePhone || "0929 781 1212";
-    const email = settings.storeEmail || "maryrosemendoza78@yahoo.com";
-    const address = settings.storeAddress || "Robledo Compound, Bulacnin, Lipa City";
-    const hours = formatStoreHours(settings.storeHours);
-
-    const phoneDigits = phone.replace(/\D/g, "");
 
     const quickLinks = [
         { label: "Home",      href: "#home" },
@@ -53,32 +45,6 @@ export default function Footer({ settings = {} }) {
                         A restaurant cafe built in love and perseverance.
                         Best tasting drinks and mouth-watering dishes in Lipa City.
                     </p>
-                    {/* Social Links */}
-                    <div className="footer-socials" aria-label="Social media links">
-                        <a
-                            href="https://www.facebook.com"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="footer-social-link"
-                            aria-label="Facebook"
-                        >
-                            <Icon name="users" size={16} />
-                        </a>
-                        <a
-                            href={`mailto:${email}`}
-                            className="footer-social-link"
-                            aria-label="Email"
-                        >
-                            <Icon name="mail" size={16} />
-                        </a>
-                        <a
-                            href={`tel:${phoneDigits}`}
-                            className="footer-social-link"
-                            aria-label="Call us"
-                        >
-                            <Icon name="phone" size={16} />
-                        </a>
-                    </div>
                 </div>
 
                 {/* Quick Links */}
@@ -96,23 +62,11 @@ export default function Footer({ settings = {} }) {
                             </a>
                         ))}
                         <Link to="/order" className="footer-link">
-                            Order Online
+                            Open Kiosk
                         </Link>
                     </div>
                 </div>
 
-                {/* Contact */}
-                <div>
-                    <h4 className="footer-heading">Contact</h4>
-                    <div className="footer-links">
-                        <span className="footer-link">{address}</span>
-                        <a href={`tel:${phoneDigits}`} className="footer-link">{phone}</a>
-                        <a href={`mailto:${email}`} className="footer-link">
-                            {email}
-                        </a>
-                        <span className="footer-link">{hours}</span>
-                    </div>
-                </div>
             </div>
 
             {/* Divider */}

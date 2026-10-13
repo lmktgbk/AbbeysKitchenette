@@ -201,7 +201,12 @@ export default function CheckoutModal({ cart, subtotal, onClose, onSuccess, menu
                     </div>
 
                     <div className="ord-modal-footer">
-                        {submissionError && <p role="alert">{submissionError}</p>}
+                        {submissionError && (
+                            <p className="ord-submit-error" role="alert">
+                                <Icon name="alertCircle" size={18} className="ord-submit-error-icon" />
+                                <span>{submissionError}</span>
+                            </p>
+                        )}
                         {uncertain && <p role="status">Your order may already be saved. Retry this same order to recover its confirmation. Verify it with staff before starting another.</p>}
                         <button
                             type="submit"

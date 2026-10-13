@@ -8,7 +8,7 @@ import GuestDialog from "./GuestDialog";
  * Menu showcase section with category filter tabs and food/drink cards.
  * Uses real photos from public/landing/.
  * Cards re-animate via key changes when the active filter changes.
- * Includes "Order Online" CTA at the bottom.
+ * Includes "Open Kiosk" CTA at the bottom.
  */
 
 const menuItems = [
@@ -231,7 +231,7 @@ export default function Menu() {
                                 <div className="menu-modal-actions">
                                     <Link to="/order" className="menu-modal-cta">
                                         <Icon name="shoppingBag" size={18} />
-                                        Order Online Now
+                                        Open Kiosk
                                     </Link>
                                     <button
                                         type="button"
@@ -276,11 +276,11 @@ export default function Menu() {
                 </div>
             </div>
 
-            {/* Order Online CTA */}
+            {/* Open Kiosk CTA */}
             <div className="menu-cta-wrap lp-reveal lp-reveal-delay-2" style={{ marginTop: "4rem" }}>
                 <Link to="/order" className="menu-cta-btn">
                     <Icon name="shoppingBag" size={18} />
-                    Order Online Now
+                    Open Kiosk
                 </Link>
             </div>
         </section>

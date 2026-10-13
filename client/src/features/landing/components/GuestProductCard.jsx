@@ -21,9 +21,9 @@ export default function ProductCard({ product, onOpenProductModal }) {
             }}
             style={{ cursor: "pointer" }}
         >
-            {/* Category badge */}
-            {product.category_name && (
-                <div className="ord-product-category-badge">{product.category_name}</div>
+            {/* Subcategory badge (falls back to root category) */}
+            {(product.subcategory_name ?? product.category_name) && (
+                <div className="ord-product-category-badge">{product.subcategory_name ?? product.category_name}</div>
             )}
 
             {/* Image */}

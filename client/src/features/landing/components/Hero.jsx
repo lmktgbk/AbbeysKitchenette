@@ -4,8 +4,8 @@ import Icon from "@/components/ui/icon";
 /**
  * Hero
  * Full-screen hero section with parallax background image,
- * animated headline, stat bar, and dual CTA buttons:
- *  1. "Order Online" → /order (primary)
+ * animated headline, and dual CTA buttons:
+ *  1. "Open Kiosk" → /order (primary)
  *  2. "View Our Menu" → #menu (secondary outline)
  */
 export default function Hero({ storeName = "Abbey's Kitchenette" }) {
@@ -59,7 +59,7 @@ export default function Hero({ storeName = "Abbey's Kitchenette" }) {
                 <div className="hero-ctas">
                     <Link to="/order" className="hero-cta">
                         <Icon name="shoppingBag" size={18} />
-                        Order Online
+                        Open Kiosk
                     </Link>
                     <a
                         href="#menu"
@@ -69,24 +69,6 @@ export default function Hero({ storeName = "Abbey's Kitchenette" }) {
                         View Our Menu
                         <Icon name="arrowDown" size={18} />
                     </a>
-                </div>
-            </div>
-
-            {/* Stats Bar */}
-            <div className="hero-stats" aria-label="Restaurant highlights">
-                <div className="hero-stat">
-                    <div className="hero-stat-value">500+</div>
-                    <div className="hero-stat-label">Happy Diners</div>
-                </div>
-                <div className="hero-stat-divider" />
-                <div className="hero-stat">
-                    <div className="hero-stat-value">30+</div>
-                    <div className="hero-stat-label">Menu Items</div>
-                </div>
-                <div className="hero-stat-divider" />
-                <div className="hero-stat">
-                    <div className="hero-stat-value">5★</div>
-                    <div className="hero-stat-label">Customer Rating</div>
                 </div>
             </div>
 
