@@ -12,7 +12,7 @@ const LOSS_OPTIONS = [
   {
     value: "no_loss",
     label: "No Loss",
-    description: "Restore all ingredients, full refund",
+    description: "Restore all ingredients; choose the refund separately",
     icon: "check",
   },
   {
@@ -50,7 +50,6 @@ export default function CancelOrderDialog({
   const needsReconciliation = order?.consumption_history_available === false
     && order?.status === "preparing";
   const [refundOption, setRefundOption] = useState("full");
-  const [customRefundAmount, setCustomRefundAmount] = useState("");
   const [reason, setReason] = useState("");
   const [reasonError, setReasonError] = useState("");
   const [customReason, setCustomReason] = useState("");
@@ -116,10 +115,8 @@ export default function CancelOrderDialog({
   const refundAmount = useMemo(() => {
     if (refundOption === "full") return totalAmount;
     if (refundOption === "none") return 0;
-    const parsed = parseFloat(customRefundAmount);
-    if (!isNaN(parsed) && parsed >= 0) return Math.min(parsed, totalAmount);
     return 0;
-  }, [refundOption, totalAmount, customRefundAmount]);
+  }, [refundOption, totalAmount]);
 
   if (!order) return null;
 
@@ -254,13 +251,9 @@ export default function CancelOrderDialog({
         }))
       : [];
 
-    const parsedCustom = parseFloat(customRefundAmount);
-    const hasOverride = refundOption === "partial" && !isNaN(parsedCustom) && parsedCustom >= 0;
-
     onConfirm?.({
       loss_option: lossOption,
       refund_option: refundOption,
-      refund_amount: hasOverride ? Math.min(parsedCustom, totalAmount) : undefined,
       reason,
       custom_reason: reason === "other" ? customReason.trim() : undefined,
       item_losses: itemLossesArray,
@@ -287,7 +280,6 @@ export default function CancelOrderDialog({
       setItemLosses({});
       setManualOverrides({});
       setRefundOption("full");
-      setCustomRefundAmount("");
       setReason("");
       setReasonError("");
       setCustomReason("");
@@ -528,7 +520,7 @@ export default function CancelOrderDialog({
                     ? "border-primary bg-primary/5"
                     : "border-border hover:border-border/80 hover:bg-muted/50",
                 )}
-                onClick={() => { setRefundOption("full"); setCustomRefundAmount(""); }}
+                onClick={() => { setRefundOption("full"); }}
               >
                 <div className={cn(
                   "w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
@@ -540,45 +532,6 @@ export default function CancelOrderDialog({
                 <span className="text-xs font-semibold text-primary">₱{totalAmount.toLocaleString()}</span>
               </button>
 
-              {/* Partial */}
-              <div
-                className={cn(
-                  "flex items-center gap-3 w-full px-3 py-2 rounded-lg border transition-colors cursor-pointer",
-                  refundOption === "partial"
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-border/80 hover:bg-muted/50",
-                )}
-                onClick={() => setRefundOption("partial")}
-              >
-                <div className={cn(
-                  "w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
-                  refundOption === "partial" ? "border-primary bg-primary" : "border-border",
-                )}>
-                  {refundOption === "partial" && <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />}
-                </div>
-                <span className="text-sm font-medium text-foreground shrink-0">Partial</span>
-                {refundOption === "partial" ? (
-                  <div className="flex items-center gap-0.5 ml-auto" onClick={(e) => e.stopPropagation()}>
-                    <span className="text-xs text-muted-foreground">₱</span>
-                    <Input
-                      type="number"
-                      value={customRefundAmount}
-                      onChange={(e) => setCustomRefundAmount(e.target.value)}
-                      placeholder="0"
-                      className="w-20 h-6 text-xs text-right px-1.5 py-0 font-semibold"
-                      min="0"
-                      max={totalAmount}
-                      step="1"
-                      autoFocus
-                    />
-                  </div>
-                ) : (
-                  <span className="text-xs font-semibold text-muted-foreground ml-auto">
-                    ₱0
-                  </span>
-                )}
-              </div>
-
               {/* None */}
               <button
                 type="button"
@@ -588,7 +541,7 @@ export default function CancelOrderDialog({
                     ? "border-primary bg-primary/5"
                     : "border-border hover:border-border/80 hover:bg-muted/50",
                 )}
-                onClick={() => { setRefundOption("none"); setCustomRefundAmount(""); }}
+                onClick={() => { setRefundOption("none"); }}
               >
                 <div className={cn(
                   "w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",

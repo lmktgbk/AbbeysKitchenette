@@ -34,6 +34,7 @@ export const analyticsService = {
       ? {
           grossSales: calcDelta(kpis.grossSales, previous.grossSales),
           netSales: calcDelta(kpis.netSales, previous.netSales),
+          retainedPayments: calcDelta(kpis.retainedPayments, previous.retainedPayments),
           transactions: calcDelta(kpis.transactions, previous.transactions),
           atv: calcDelta(kpis.atv, previous.atv),
           cogs: calcDelta(kpis.cogs, previous.cogs),

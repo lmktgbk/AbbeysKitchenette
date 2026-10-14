@@ -17,13 +17,14 @@ export function roundMoney(n) {
  * paid excludes cash change; priorRefunded is the cumulative saved refund.
  * Call with values read under the order lock. This calculation performs no writes.
  */
-export function computeRefundAmount({ limit, paid, priorRefunded, option, requestedAmount }) {
+export function computeRefundAmount({ limit, paid, priorRefunded, option }) {
+  if (!["full", "none"].includes(option)) {
+    throw new AppError(400, "Choose full refund or no refund", "INVALID_REFUND_OPTION");
+  }
   const available = Math.max(0, roundMoney(paid - priorRefunded));
   let amount = 0;
   if (option === "full") {
     amount = Math.min(limit, available);
-  } else if (option !== "none" && requestedAmount != null) {
-    amount = Math.min(Number(requestedAmount), limit, available);
   }
   return Math.max(0, roundMoney(amount));
 }

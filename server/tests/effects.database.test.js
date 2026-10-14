@@ -10,6 +10,8 @@ import { recordEffects } from "../src/infrastructure/effects/effects.js";
 import { createEffectsRepository } from "../src/infrastructure/effects/effects.repository.js";
 import { orderService } from "../src/modules/orders/order.service.js";
 import { ingredientService } from "../src/modules/ingredients/ingredient.service.js";
+import { analyticsRepository } from "../src/modules/analytics/analytics.repository.js";
+import { shiftRepository } from "../src/modules/shifts/shift.repository.js";
 let fixture, db, repo, user, ingredient, variant, batch;
 describe.skipIf(process.env.EFFECTS_DB_CHECK !== "1")("PostgreSQL durable effects and derived repair", () => {
   beforeAll(async () => { fixture = await isolatedPostgres("effects_check"); db = h.db = fixture.db; repo = createEffectsRepository(db); }, 90000);
@@ -149,6 +151,54 @@ describe.skipIf(process.env.EFFECTS_DB_CHECK !== "1")("PostgreSQL durable effect
       .rejects.toMatchObject({ code: "ORDER_STATE_CONFLICT" });
     expect(Number((await db.restockBatch.findUnique({ where: { restockId: batch.restockId } })).quantityLeft)).toBe(10);
   }, 45000);
+
+  it.each([
+    ["full", undefined, 85], ["historical-partial", 50, 50], ["none", undefined, 0],
+  ])("verifies %s cancellation against stock, refunds, sales and drawer totals", async (option, amount, refunded) => {
+    const shift = await db.shift.create({ data: { openedBy: user.id, openingCash: 0 } });
+    const order = await orderService.createWalkIn({ customerName: "Fixture", tableNumber: "1",
+      items: [{ product_id: variant.productId, variant_id: variant.variantId, quantity: 1, unit_price: 85 }],
+      amountPaid: 100, createdBy: user.id, idempotencyKey: "123e4567-e89b-42d3-a456-426614174114" });
+    await orderService.cancelOrDelete(order.order_id, user.id, "Fixture", { refund_option: option === "historical-partial" ? "none" : option });
+    if (option === "historical-partial") {
+      await db.paymentRefund.create({ data: { orderId: order.order_id, amount, refundedById: user.id, reason: "Historical partial refund" } });
+    }
+    const saved = await db.order.findUnique({ where: { orderId: order.order_id }, include: { refund: true } });
+    expect(saved.status).toBe("cancelled");
+    expect(Number(saved.refund?.amount ?? 0)).toBe(refunded);
+    expect(Number((await db.restockBatch.findUnique({ where: { restockId: batch.restockId } })).quantityLeft)).toBe(10);
+    await expect(orderService.cancelOrDelete(order.order_id, user.id, "Repeat", { refund_option: "full" }))
+      .rejects.toMatchObject({ code: "ORDER_STATE_CONFLICT" });
+    expect(await db.orderCancellation.count()).toBe(1);
+    const sales = await shiftRepository.getShiftSales(shift.shiftId, shift.openedAt, null);
+    const refunds = await shiftRepository.getShiftCashRefunds(shift.shiftId, shift.openedAt, null);
+    expect(sales.cashSales).toBe(85);
+    expect(refunds.cashRefunds).toBe(refunded);
+    const kpis = await analyticsRepository.getFinancialKpis();
+    expect(kpis).toMatchObject({ grossSales: 0, netSales: 0, transactions: 0, retainedPayments: 85 - refunded, netProfit: 85 - refunded });
+    expect(kpis.retainedPaymentDetails).toHaveLength(refunded === 85 ? 0 : 1);
+    expect(sales.cashSales - refunds.cashRefunds).toBe(85 - refunded);
+  }, 60000);
+
+  it.each(["full", "none"])("reconciles completed remaining items after %s item refund without double subtraction", async option => {
+    await db.shift.create({ data: { openedBy: user.id, openingCash: 0 } });
+    const line = { product_id: variant.productId, variant_id: variant.variantId, quantity: 1, unit_price: 85 };
+    const order = await orderService.createWalkIn({ customerName: "Fixture", tableNumber: "1", items: [line, line], amountPaid: 200, createdBy: user.id,
+      idempotencyKey: "123e4567-e89b-42d3-a456-426614174115" });
+    const item = await db.orderItem.findFirst({ where: { orderId: order.order_id } });
+    await orderService.removeOrderItem(order.order_id, item.orderItemId, user.id, "Customer changed mind", { refund_option: option });
+    await orderService.prepareOrder(order.order_id, user.id);
+    const remaining = await db.orderItem.findFirst({ where: { orderId: order.order_id, removedAt: null } });
+    await orderService.checkOrderItem(order.order_id, remaining.orderItemId, true, user.id);
+    await orderService.advanceStatus(order.order_id, "completed", { userId: user.id, userRole: "admin" });
+    const retained = option === "none" ? 85 : 0;
+    expect(await analyticsRepository.getFinancialKpis()).toMatchObject({ grossSales: 85, netSales: 85, transactions: 1,
+      retainedPayments: retained, cogs: 4, netProfit: 81 + retained });
+    const [saved] = await db.order.findMany();
+    const date = saved.orderDate.toISOString().slice(0, 10);
+    expect((await analyticsRepository.getFinancialKpis(date, date)).retainedPayments).toBe(retained);
+    expect((await analyticsRepository.getFinancialKpis("2000-01-01", "2000-01-02")).retainedPayments).toBe(0);
+  }, 60000);
 
   it("failed cancellation audit rolls back refund and stock settlement before a clean retry", async () => {
     await db.shift.create({ data: { openedBy: user.id, openingCash: 0 } });

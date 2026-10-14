@@ -258,12 +258,12 @@ export const cancelOrderSchema = z.object({
     .optional()
     .default("no_loss"),
   refund_option: z
-    .enum(["full", "partial", "none"], {
-      errorMap: () => ({ message: "refund_option must be 'full', 'partial', or 'none'" }),
+    .enum(["full", "none"], {
+      error: "Choose full refund or no refund",
     })
     .optional()
-    .default("partial"),
-  refund_amount: money().optional(),
+    .default("full"),
+  refund_amount: z.never({ error: "Custom refund amounts are no longer supported" }).optional(),
   item_losses: z
     .array(
       z.object({
@@ -290,12 +290,12 @@ export const removeItemSchema = z.object({
     .optional()
     .default("no_loss"),
   refund_option: z
-    .enum(["full", "partial", "none"], {
-      errorMap: () => ({ message: "refund_option must be 'full', 'partial', or 'none'" }),
+    .enum(["full", "none"], {
+      error: "Choose full refund or no refund",
     })
     .optional()
-    .default("partial"),
-  refund_amount: money().optional(),
+    .default("full"),
+  refund_amount: z.never({ error: "Custom refund amounts are no longer supported" }).optional(),
   ingredient_losses: z
     .array(
       z.object({

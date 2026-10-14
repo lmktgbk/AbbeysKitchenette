@@ -4,6 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/ui/stat";
 import { cn } from "@/lib/utils";
 import { formatPeso } from "@/features/dashboard/utils/dashboardUtils";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 
 /**
  * TrendArrow — period-over-period delta badge.
@@ -33,11 +34,12 @@ function TrendArrow({ value, tone = "good" }) {
 }
 
 export default function AnalyticsKpis({ kpis, isLoading }) {
+  const [showRetained, setShowRetained] = React.useState(false);
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="rounded-lg border border-border bg-card px-4 py-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-5">
+        {Array.from({ length: 9 }).map((_, i) => (
+          <div key={i} className={cn("rounded-lg border border-border bg-card px-4 py-3", i === 8 && "col-span-full xl:col-span-1 xl:col-start-5 xl:row-start-1 xl:row-span-2")}>
             <Skeleton className="h-3 w-20 mb-2" />
             <Skeleton className="h-7 w-16 mb-1" />
             <Skeleton className="h-3 w-14" />
@@ -117,6 +119,16 @@ export default function AnalyticsKpis({ kpis, isLoading }) {
     },
     {
       icon: "wallet",
+      label: "Retained Payments",
+      value: formatPeso(kpis?.retainedPayments),
+      sub: "Cancelled orders / removed items",
+      delta: kpis?.deltas?.retainedPayments,
+      tone: "neutral",
+      iconBg: "bg-blue-500/10",
+      iconColor: "text-blue-600 dark:text-blue-400",
+    },
+    {
+      icon: "wallet",
       label: "Net Profit",
       value: formatPeso(kpis?.netProfit),
       // Losses here are wasted ingredients only (cash refunds live in the shift ledger).
@@ -130,10 +142,12 @@ export default function AnalyticsKpis({ kpis, isLoading }) {
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <>
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-5">
       {cards.map((card) => (
+        <div key={card.label} className={cn("min-w-0", card.label === "Net Profit" && "col-span-full xl:col-span-1 xl:col-start-5 xl:row-start-1 xl:row-span-2")}>
         <StatCard
-          key={card.label}
+          className={cn("h-full min-w-0", card.label === "Net Profit" && "flex flex-col justify-center bg-primary/5 [&>span]:text-3xl")}
           icon={card.icon}
           iconBg={card.iconBg}
           iconColor={card.iconColor}
@@ -141,7 +155,9 @@ export default function AnalyticsKpis({ kpis, isLoading }) {
           value={card.value}
           sub={card.sub}
           extra={
-            card.delta != null ? (
+            card.label === "Retained Payments" ? (
+              <button type="button" onClick={() => setShowRetained(true)} className="shrink-0 text-xs text-primary underline" aria-label="View retained payment details">Details</button>
+            ) : card.delta != null ? (
               <>
                 <span className="type-small text-muted-foreground">·</span>
                 <TrendArrow value={card.delta} tone={card.tone} />
@@ -149,8 +165,28 @@ export default function AnalyticsKpis({ kpis, isLoading }) {
             ) : null
           }
         />
+        </div>
       ))}
     </div>
+    <p className="mt-2 text-xs text-muted-foreground">Net profit includes retained payments and deducts ingredient losses. Operating expenses are not included.</p>
+    <Dialog open={showRetained} onOpenChange={setShowRetained}>
+      <DialogContent className="max-w-2xl">
+        <DialogClose onClick={() => setShowRetained(false)} />
+        <DialogHeader><DialogTitle>Retained Payments</DialogTitle></DialogHeader>
+        <p className="text-sm text-muted-foreground">Payments kept after refunds, excluding completed sales. Uses the selected order-date period.</p>
+        <div className="max-h-[60vh] overflow-auto space-y-3">
+          {(kpis?.retainedPaymentDetails ?? []).map(row => (
+            <div key={row.order_id} className="rounded-lg border p-3 text-sm">
+              <div className="flex flex-wrap justify-between gap-2"><span>Order #{row.order_number} · {String(row.date).slice(0, 10)}</span><strong>{formatPeso(row.amount)}</strong></div>
+              <p className="text-muted-foreground capitalize">{row.payment_method ?? "cash"}</p>
+              <p className="break-words">{row.reason || "Historical reason not recorded"}</p>
+            </div>
+          ))}
+          {!kpis?.retainedPaymentDetails?.length && <p className="text-sm">No retained payments in this period.</p>}
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 

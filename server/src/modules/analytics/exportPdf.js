@@ -188,6 +188,7 @@ export function buildPdfBuffer(payload) {
               ["COGS", num(k.cogs), delta(k.deltas?.cogs)],
               ["Gross Profit", num(k.grossProfit), delta(k.deltas?.grossProfit)],
               ["Net Profit", num(k.netProfit), delta(k.deltas?.netProfit)],
+              ["Retained Payments", num(k.retainedPayments), delta(k.deltas?.retainedPayments)],
             ];
             const cols = 4;
             const cardW = contentWidth / cols;

@@ -215,9 +215,9 @@ export const orderController = {
    */
   async cancelOrder(req, res) {
     try {
-      const { reason, custom_reason, loss_option, refund_option, refund_amount, item_losses } = req.body || {};
+      const { reason, custom_reason, loss_option, refund_option, item_losses } = req.body || {};
       const finalReason = reason === "other" ? custom_reason : reason;
-      const result = await orderService.cancelOrDelete(req.params.id, req.user.id, finalReason, { loss_option, refund_option, refund_amount, item_losses });
+      const result = await orderService.cancelOrDelete(req.params.id, req.user.id, finalReason, { loss_option, refund_option, item_losses });
       // Cancellation restores ingredients — refresh stock screens + menus.
       emitOrderChanged(req.params.id);
       emitGuestForOrder(req.params.id);
@@ -234,14 +234,14 @@ export const orderController = {
    */
   async removeItem(req, res) {
     try {
-      const { reason, custom_reason, loss_option, refund_option, refund_amount, ingredient_losses } = req.body;
+      const { reason, custom_reason, loss_option, refund_option, ingredient_losses } = req.body;
       const finalReason = reason === "other" ? custom_reason : reason;
       const result = await orderService.removeOrderItem(
         req.params.id,
         Number(req.params.itemId),
         req.user.id,
         finalReason,
-        { loss_option, refund_option, refund_amount, ingredient_losses },
+        { loss_option, refund_option, ingredient_losses },
       );
       // Item removal restores ingredients — refresh stock screens + menus.
       emitOrderChanged(req.params.id);

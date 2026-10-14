@@ -284,12 +284,12 @@ export default function OrdersPage({ embedded = false }) {
   }
 
   /** Submits cancellation intent; backend accounting uses persisted consumption and payment records. */
-  async function handleCancelConfirm({ loss_option, refund_option, refund_amount, reason, custom_reason, item_losses }) {
+  async function handleCancelConfirm({ loss_option, refund_option, reason, custom_reason, item_losses }) {
     if (!cancellingOrderId) return;
     try {
       await mutations.cancel.mutateAsync({
         id: cancellingOrderId,
-        data: { reason, custom_reason, loss_option, refund_option, refund_amount, item_losses },
+        data: { reason, custom_reason, loss_option, refund_option, item_losses },
       });
       toast.success("Order cancelled");
       setCancellingOrderId(null);
@@ -331,13 +331,13 @@ export default function OrdersPage({ embedded = false }) {
   }
 
   /** Settles one stored item; the API may cancel the order when its final active item is removed. */
-  async function handleRemoveItemConfirm({ reason, custom_reason, loss_option, refund_option, refund_amount, ingredient_losses }) {
+  async function handleRemoveItemConfirm({ reason, custom_reason, loss_option, refund_option, ingredient_losses }) {
     if (!removingItem) return;
     try {
       const result = await mutations.removeItem.mutateAsync({
         orderId: removingItem.orderId,
         itemId: removingItem.item.order_item_id,
-        data: { reason, custom_reason, loss_option, refund_option, refund_amount, ingredient_losses },
+        data: { reason, custom_reason, loss_option, refund_option, ingredient_losses },
       });
       const msg = result?.data?.action === "cancelled"
         ? "Order cancelled (no items left)"

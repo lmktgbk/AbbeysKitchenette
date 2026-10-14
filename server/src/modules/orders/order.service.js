@@ -671,7 +671,8 @@ export const orderService = {
         : [];
 
       // Determine loss handling based on options
-      const refundOption = options.refund_option || "partial"; // "full" | "partial" | "none"
+      const refundOption = options.refund_option || "full"; // "full" | "none"
+      if (refundOption === "none" && !reason?.trim()) throw new AppError(400, "A reason is required when keeping payment", "REFUND_REASON_REQUIRED");
       const itemLosses = options.item_losses || []; // [{ order_item_id, ingredient_losses: [{ ingredient_id, quantity_lost }] }]
 
       // Refund capped at what the customer actually paid (minus prior refunds) —
@@ -682,7 +683,6 @@ export const orderService = {
         paid: paidForCap,
         priorRefunded: Number(order.refund?.amount || 0),
         option: refundOption,
-        requestedAmount: options.refund_amount,
       });
 
       // Claim first: a concurrent settle loses here instead of double-restoring.
@@ -793,7 +793,8 @@ export const orderService = {
     }
 
     let lossOption = options.loss_option || "no_loss";
-    const refundOption = options.refund_option || "partial";
+    const refundOption = options.refund_option || "full";
+    if (refundOption === "none" && !reason?.trim()) throw new AppError(400, "A reason is required when keeping payment", "REFUND_REASON_REQUIRED");
     const ingredientLosses = options.ingredient_losses || [];
 
     // Refund resolved inside the tx after totals are recomputed:
@@ -849,7 +850,6 @@ export const orderService = {
         paid,
         priorRefunded: Number(order.refund?.amount || 0),
         option: refundOption,
-        requestedAmount: options.refund_amount,
       });
 
       remainingCount = remainingItems.length;

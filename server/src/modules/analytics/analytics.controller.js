@@ -191,6 +191,7 @@ function buildExcelWorkbook(ExcelJS, payload) {
       ["COGS", kpis.cogs, deltaFmt(kpis.deltas?.cogs)],
       ["Gross Profit", kpis.grossProfit, deltaFmt(kpis.deltas?.grossProfit)],
       ["Net Profit", kpis.netProfit, deltaFmt(kpis.deltas?.netProfit)],
+      ["Retained Payments", kpis.retainedPayments, deltaFmt(kpis.deltas?.retainedPayments)],
     ];
     for (const [metric, value, d] of kpiRows) ks.addRow({ metric, value, delta: d });
   }

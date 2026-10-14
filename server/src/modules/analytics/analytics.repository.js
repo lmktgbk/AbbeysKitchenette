@@ -26,8 +26,22 @@ export const analyticsRepository = {
         COALESCE(SUM(CASE WHEN o.status = 'completed' THEN o.subtotal_amount END), 0)::float AS gross_sales,
         COALESCE(SUM(CASE WHEN o.status = 'completed' THEN o.discount_amount END), 0)::float AS discounts,
         COALESCE(SUM(CASE WHEN o.status = 'completed' THEN o.total_amount END), 0)::float AS net_sales,
-        COUNT(*) FILTER (WHERE o.status = 'completed')::int AS transactions
+        COUNT(*) FILTER (WHERE o.status = 'completed')::int AS transactions,
+        COALESCE(SUM(retained.amount), 0)::float AS retained_payments,
+        COALESCE(jsonb_agg(jsonb_build_object(
+          'order_id', o.order_id, 'order_number', o.order_number, 'date', o.order_date,
+          'payment_method', o.payment_method, 'amount', retained.amount,
+          'reason', COALESCE((SELECT reason FROM order_cancellations WHERE order_id = o.order_id),
+            (SELECT string_agg(DISTINCT removed_reason, '; ') FROM order_items WHERE order_id = o.order_id AND removed_at IS NOT NULL))
+        ) ORDER BY o.order_date DESC, o.order_number DESC) FILTER (WHERE retained.amount > 0), '[]'::jsonb) AS retained_payment_details
       FROM orders o
+      CROSS JOIN LATERAL (
+        SELECT CASE WHEN o.status IN ('completed', 'cancelled') AND o.amount_paid IS NOT NULL THEN
+          GREATEST(0, o.amount_paid - COALESCE(o.change, 0)
+            - COALESCE((SELECT amount FROM payment_refunds WHERE order_id = o.order_id), 0)
+            - CASE WHEN o.status = 'completed' THEN o.total_amount ELSE 0 END)
+          ELSE 0 END AS amount
+      ) retained
       WHERE 1=1 ${dateWhere}
     `;
     const fin = await prisma.$queryRawUnsafe(financialSql, ...values);
@@ -76,19 +90,23 @@ export const analyticsRepository = {
     const grossSales = row.gross_sales || 0;
     const discounts = row.discounts || 0;
     const netSales = row.net_sales || 0;
+    const retainedPayments = row.retained_payments || 0;
     const transactions = row.transactions || 0;
     const atv = transactions > 0 ? Math.round((netSales / transactions) * 100) / 100 : 0;
     const unitsPerTxn = transactions > 0 ? Math.round((totalUnits / transactions) * 100) / 100 : 0;
     const grossProfit = Math.round((netSales - cogs) * 100) / 100;
     const grossMargin = netSales > 0 ? Math.round((grossProfit / netSales) * 1000) / 10 : 0;
-    const netProfit = Math.round((grossProfit - totalLosses) * 100) / 100;
-    const netMargin = netSales > 0 ? Math.round((netProfit / netSales) * 1000) / 10 : 0;
+    const netProfit = Math.round((grossProfit + retainedPayments - totalLosses) * 100) / 100;
+    const income = netSales + retainedPayments;
+    const netMargin = income > 0 ? Math.round((netProfit / income) * 1000) / 10 : 0;
     const lossRate = cogs > 0 ? Math.round((totalLosses / cogs) * 1000) / 10 : 0;
 
     return {
       grossSales,
       discounts,
       netSales,
+      retainedPayments,
+      retainedPaymentDetails: row.retained_payment_details ?? [],
       transactions,
       totalUnits,
       atv,
