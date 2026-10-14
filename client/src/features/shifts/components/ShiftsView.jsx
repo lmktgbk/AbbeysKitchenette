@@ -111,7 +111,6 @@ export default function ShiftsView({ dateFrom, dateTo, onDateChange }) {
             <DateRangeFilter dateFrom={dateFrom || null} dateTo={dateTo || null} onDateChange={handleDateChange} />
             <button type="submit" className="h-9 rounded-lg bg-primary px-4 text-sm text-primary-foreground">Search</button>
             {search && <button type="button" className="h-9 rounded-lg border px-3 text-sm" onClick={() => { setSearchInput(""); setSearch(""); setHistoryPage(1); }}>Clear</button>}
-            {(dateFrom || dateTo) && <button type="button" onClick={() => handleDateChange("", "")} className="shrink-0 text-xs text-primary hover:underline">All time</button>}
           </form>
         </div>
         {isError ? <div role="alert" className="rounded-xl border p-4 text-sm">
