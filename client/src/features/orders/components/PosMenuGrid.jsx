@@ -43,7 +43,8 @@ export default function PosMenuGrid({ onAddItem, sidebarOpen, onToggleSidebar })
           .filter((p) => p.subcategory_id)
           .map((p) => [p.subcategory_id, p.subcategory_name ?? "Other"])
       ).entries()
-    ).map(([id, name]) => ({ id, name })),
+    ).map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, "en", { sensitivity: "base" })),
   ];
 
   return (
@@ -130,16 +131,16 @@ function ProductCard({ product, onAddItem }) {
 
   const isProductAvailable = product.is_available !== false;
   const variants = product.variants ?? [];
-  const availableVariants = variants.filter((v) => v.is_available !== false);
+  const availableVariants = variants.filter((v) => v.is_available === true && !v.is_manually_deactivated);
   const manuallyDeactivatedCount = variants.filter((v) => v.is_manually_deactivated).length;
   const stockUnavailableCount = variants.filter((v) => !v.is_manually_deactivated && v.is_available === false).length;
 
   const hasVariants = variants.length > 1;
   const singleVariant = variants.length === 1 ? variants[0] : null;
-  const singleAvailable = singleVariant && singleVariant.is_available !== false;
+  const singleAvailable = singleVariant && availableVariants.includes(singleVariant);
 
   function handleQuickAdd() {
-    if (!isProductAvailable) return;
+    if (!isProductAvailable || availableVariants.length === 0) return;
     if (singleAvailable) {
       onAddItem?.({
         product_id: product.product_id,
@@ -155,6 +156,7 @@ function ProductCard({ product, onAddItem }) {
   }
 
   function handleVariantSelect(variant) {
+    if (!isProductAvailable || !availableVariants.includes(variant)) return;
     onAddItem?.({
       product_id: product.product_id,
       variant_id: variant.variant_id,
@@ -177,6 +179,7 @@ function ProductCard({ product, onAddItem }) {
       }`}>
         <button
           type="button"
+          disabled={isFullyUnavailable}
           onClick={handleQuickAdd}
           className={`flex w-full flex-col p-3 text-left ${isFullyUnavailable ? "cursor-not-allowed" : ""}`}
         >
@@ -198,12 +201,7 @@ function ProductCard({ product, onAddItem }) {
               )}
             </p>
           )}
-          {singleVariant && !singleAvailable && (
-            <p className="mt-1 type-small text-destructive">
-              {singleVariant.is_manually_deactivated ? "Unavailable" : "Out of stock"}
-            </p>
-          )}
-          {hasVariants && availableVariants.length === 0 && (
+          {isFullyUnavailable && (
             <p className="mt-1 type-small font-medium text-destructive">Unavailable</p>
           )}
         </button>
@@ -219,7 +217,7 @@ function ProductCard({ product, onAddItem }) {
           <p className="text-xs text-muted-foreground">Select size:</p>
           <div className="flex flex-col gap-2 mt-2">
             {variants.map((variant) => {
-              const isAvailable = variant.is_available !== false;
+              const isAvailable = isProductAvailable && availableVariants.includes(variant);
               return (
                 <button
                   key={variant.variant_id}

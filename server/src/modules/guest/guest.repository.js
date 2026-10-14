@@ -4,7 +4,7 @@ import prisma from "../../config/prisma.js";
  * Guest Repository
  *
  * Public queries for the customer-facing menu.
- * Only returns active, non-archived products with available stock.
+ * Includes unavailable items so customers and cashiers can see their status.
  */
 export const guestRepository = {
   /**
@@ -45,6 +45,13 @@ export const guestRepository = {
             price: true,
             isAvailable: true,
             isManuallyDeactivated: true,
+            recipes: {
+              select: {
+                ingredientId: true,
+                quantityNeeded: true,
+                ingredient: { select: { isArchived: true } },
+              },
+            },
           },
           orderBy: { price: "asc" },
         },

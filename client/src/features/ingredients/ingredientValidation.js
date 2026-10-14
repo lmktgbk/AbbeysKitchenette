@@ -56,7 +56,7 @@ export const countSchema = z.object({
 // Declare loss form
 export const lossSchema = z.object({
   loss_type: z.enum(["spoilage", "spillage", "expiry", "other"], {
-    required_error: "Loss type is required",
+    errorMap: () => ({ message: "Select a loss type" }),
   }),
   quantity_lost: coerceNumber(z.number().positive("Quantity must be greater than zero")),
   batch_id: z.preprocess(

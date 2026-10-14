@@ -3,6 +3,7 @@ import { orderService } from "../orders/order.service.js";
 import { orderRepository } from "../orders/order.repository.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import crypto from "crypto";
+import { productRepository } from "../products/product.repository.js";
 
 /**
  * Guest Service
@@ -21,13 +22,20 @@ export const guestService = {
    */
   async getMenu({ search, category }) {
     const products = await guestRepository.getAvailableProducts({ search, category });
+    // Saved flags can lag behind deductions or expiry. Read usable stock once for the menu.
+    const ingredientIds = [...new Set(products.flatMap(p =>
+      p.variants.flatMap(v => v.recipes.map(r => r.ingredientId))))];
+    const stock = await productRepository.getStockByIngredientIds(ingredientIds);
+    const available = v => v.isAvailable && !v.isManuallyDeactivated &&
+      v.recipes.length > 0 && v.recipes.every(r => !r.ingredient.isArchived &&
+        (stock[r.ingredientId] ?? 0) >= Number(r.quantityNeeded));
 
     return products.map((p) => ({
       product_id: p.productId,
       product_name: p.productName,
       description: p.description,
       image_url: p.imageUrl,
-      is_available: p.isAvailable,
+      is_available: p.isAvailable && p.variants.some(available),
       subcategory_id: p.subcategory?.subcategoryId ?? null,
       subcategory_name: p.subcategory?.subcategoryName ?? null,
       category_name: p.subcategory?.category?.categoryName ?? null,
@@ -35,7 +43,7 @@ export const guestService = {
         variant_id: v.variantId,
         size_name: v.sizeName,
         price: Number(v.price),
-        is_available: v.isAvailable,
+        is_available: Boolean(available(v)),
         is_manually_deactivated: v.isManuallyDeactivated,
       })),
     }));
