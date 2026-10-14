@@ -2,7 +2,7 @@
  * Guest ordering keeps recoverable cart intent separate from current menu quotes.
  * Store hours and menu preflight guide the UI; the server authorizes and prices each submission.
  */
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import "../ordering.css";
@@ -78,24 +78,95 @@ function OrderingUI({ onOrderSuccess }) {
     const [search, setSearch] = useState("");
     const [activeCategory, setActiveCategory] = useState("all");
 
-    // One complete catalog supports both local search and authoritative cart reconciliation.
-    const menuQuery = useGuestMenu({}, { refetchInterval: 60000 });
+    // Grid page: server-filtered by subcategory (GET /api/guest/menu?category=<subcategoryId>),
+    // mirroring the POS grid. Pills are flat subcategories — no root grouping.
+    const menuQuery = useGuestMenu({
+        category: activeCategory === "all" ? undefined : activeCategory,
+    }, { refetchInterval: 60000 });
     const { data: menuData, isPending, isError, isFetching, refetch } = menuQuery;
-    const allProducts = useMemo(() => menuData?.data?.menu ?? [], [menuData]);
+    const gridProducts = useMemo(() => menuData?.data?.menu ?? [], [menuData]);
+
+    // Full catalog for pills, cart reconciliation, the detail modal, and the
+    // checkout re-quote — never the filtered page, or cart lines outside the
+    // active pill would read "Unavailable item" and block submission.
+    const catalogQuery = useGuestMenu({}, { refetchInterval: 60000 });
+    const allProducts = useMemo(() => catalogQuery.data?.data?.menu ?? [], [catalogQuery.data]);
 
     const categories = useMemo(() => {
         const seen = new Map();
         allProducts
-            .filter((p) => p.category_name)
-            .forEach((p) => seen.set(p.category_name, p.category_name));
+            .filter((p) => p.subcategory_id)
+            .forEach((p) => seen.set(p.subcategory_id, p.subcategory_name ?? "Other"));
         return [
             { id: "all", name: "All Items" },
-            ...Array.from(seen.values()).map((name) => ({ id: name, name })),
+            ...Array.from(seen.entries()).map(([id, name]) => ({ id, name })),
         ];
     }, [allProducts]);
 
-    const filtered = allProducts.filter(product =>
-        (activeCategory === "all" || product.category_name === activeCategory) &&
+    // ── Category scroll navigation ────────────────
+    const tabsRef = useRef(null);
+    const [canScrollLeft, setCanScrollLeft] = useState(false);
+    const [canScrollRight, setCanScrollRight] = useState(false);
+
+    const updateScrollButtons = useCallback(() => {
+        const el = tabsRef.current;
+        if (!el) return;
+        const { scrollLeft, scrollWidth, clientWidth } = el;
+        setCanScrollLeft(scrollLeft > 2);
+        setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 4);
+    }, []);
+
+    useEffect(() => {
+        const el = tabsRef.current;
+        if (!el) return;
+
+        updateScrollButtons();
+
+        const onWheel = (e) => {
+            if (e.deltaY !== 0 && el.scrollWidth > el.clientWidth) {
+                e.preventDefault();
+                el.scrollLeft += e.deltaY;
+            }
+        };
+
+        el.addEventListener("scroll", updateScrollButtons, { passive: true });
+        el.addEventListener("wheel", onWheel, { passive: false });
+        window.addEventListener("resize", updateScrollButtons);
+
+        let ro = null;
+        if (typeof ResizeObserver !== "undefined") {
+            ro = new ResizeObserver(() => updateScrollButtons());
+            ro.observe(el);
+        }
+
+        return () => {
+            el.removeEventListener("scroll", updateScrollButtons);
+            el.removeEventListener("wheel", onWheel);
+            window.removeEventListener("resize", updateScrollButtons);
+            if (ro) ro.disconnect();
+        };
+    }, [categories, updateScrollButtons]);
+
+    const scrollTabs = (direction) => {
+        const el = tabsRef.current;
+        if (!el) return;
+        const scrollDistance = Math.max(el.clientWidth * 0.6, 220);
+        el.scrollBy({
+            left: direction === "left" ? -scrollDistance : scrollDistance,
+            behavior: "smooth",
+        });
+    };
+
+    const handleCategoryClick = (catId, e) => {
+        setActiveCategory(catId);
+        e?.currentTarget?.scrollIntoView({
+            behavior: "smooth",
+            inline: "center",
+            block: "nearest",
+        });
+    };
+
+    const filtered = gridProducts.filter(product =>
         product.product_name.toLowerCase().includes(search.trim().toLowerCase()));
 
     // ── Cart state ───────────────────────────────
@@ -165,7 +236,7 @@ function OrderingUI({ onOrderSuccess }) {
                         />
                         <div>
                             <div className="ord-header-brand-name"><span className="ord-brand-cursive">Abbey's</span> Kitchenette</div>
-                            <div className="ord-header-tagline">Online Ordering</div>
+                            <div className="ord-header-tagline">In-Store Kiosk</div>
                         </div>
                     </Link>
                 </div>
@@ -192,10 +263,13 @@ function OrderingUI({ onOrderSuccess }) {
 
             {/* Page hero strip */}
             <div className="ord-page-hero">
-                <h1 className="ord-page-hero-title">Order Online</h1>
-                <p className="ord-page-hero-sub">
-                    Browse our menu, add items to your cart, and we'll have it ready for you.
-                </p>
+                <h1 className="ord-page-hero-title">Store Kiosk</h1>
+            </div>
+
+            {/* In-store kiosk notice — always visible: ordering requires store Wi-Fi */}
+            <div className="ord-kiosk-banner" role="note">
+                <Icon name="info" size={20} className="ord-kiosk-banner-icon" />
+                <span>In-store kiosk only — connect to the store's Wi-Fi to send your order to our counter.</span>
             </div>
 
             {/* Store closed banner */}
@@ -245,17 +319,43 @@ function OrderingUI({ onOrderSuccess }) {
                         </div>
                     </div>
 
-                    {/* Category tabs */}
-                    <div className="ord-category-tabs">
-                        {categories.map((cat) => (
-                            <button
-                                key={cat.id}
-                                className={`ord-category-tab${activeCategory === cat.id ? " active" : ""}`}
-                                onClick={() => setActiveCategory(cat.id)}
-                            >
-                                {cat.name}
-                            </button>
-                        ))}
+                    {/* Category tabs with Back and Next navigation buttons */}
+                    <div className="ord-category-tabs-wrapper">
+                        <button
+                            type="button"
+                            className="ord-category-nav-btn ord-category-nav-prev"
+                            onClick={() => scrollTabs("left")}
+                            disabled={!canScrollLeft}
+                            aria-label="Previous categories"
+                            title="Previous categories"
+                        >
+                            <Icon name="chevronLeft" size={18} />
+                        </button>
+
+                        <div ref={tabsRef} className="ord-category-tabs" role="tablist">
+                            {categories.map((cat) => (
+                                <button
+                                    key={cat.id}
+                                    role="tab"
+                                    aria-selected={activeCategory === cat.id}
+                                    className={`ord-category-tab${activeCategory === cat.id ? " active" : ""}`}
+                                    onClick={(e) => handleCategoryClick(cat.id, e)}
+                                >
+                                    {cat.name}
+                                </button>
+                            ))}
+                        </div>
+
+                        <button
+                            type="button"
+                            className="ord-category-nav-btn ord-category-nav-next"
+                            onClick={() => scrollTabs("right")}
+                            disabled={!canScrollRight}
+                            aria-label="Next categories"
+                            title="Next categories"
+                        >
+                            <Icon name="chevronRight" size={18} />
+                        </button>
                     </div>
 
                     {/* Product grid */}
@@ -339,7 +439,9 @@ function OrderingUI({ onOrderSuccess }) {
                 <CheckoutModal
                     cart={cart}
                     subtotal={subtotal}
-                    menuQuery={menuQuery}
+                    // Full catalog: the checkout re-quote must see every line,
+                    // not just the active pill's page.
+                    menuQuery={catalogQuery}
                     onSuccess={result => {
                         // Clear synchronously before unmounting; an effect cannot run on the removed ordering screen.
                         try { writeCart(window.sessionStorage, []); } catch { /* Storage may be disabled. */ }

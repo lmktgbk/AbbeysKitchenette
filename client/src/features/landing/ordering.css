@@ -231,6 +231,27 @@
   z-index: 1;
 }
 
+/* ── In-store kiosk notice — permanent entry banner ─────────
+   Info-blue (not amber) so it stays distinct from the warning-
+   toned closed-store banner when both render together. */
+.ord-kiosk-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  margin: 1.5rem 1.5rem 0;
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  border: 1.5px solid #93c5fd;
+  border-radius: 0.75rem;
+  color: #1e40af;
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+.ord-kiosk-banner-icon {
+  color: #2563eb;
+  flex-shrink: 0;
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    MAIN LAYOUT (Full-width clean grid)
 ═══════════════════════════════════════════════════════════════════ */
@@ -292,18 +313,67 @@
   box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
 }
 
-/* Category filter tabs */
+/* Category filter tabs with Next & Back buttons */
+.ord-category-tabs-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  width: 100%;
+}
+
 .ord-category-tabs {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   overflow-x: auto;
-  padding-bottom: 0.25rem;
-  margin-bottom: 1.5rem;
+  scroll-behavior: smooth;
+  padding: 0.25rem 0.25rem;
   scrollbar-width: none;
+  flex: 1;
+  min-width: 0;
+  -webkit-overflow-scrolling: touch;
 }
 .ord-category-tabs::-webkit-scrollbar {
   display: none;
+}
+
+.ord-category-nav-btn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border: 1.5px solid rgba(245, 158, 11, 0.35);
+  color: var(--ord-amber-dark);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(180, 83, 9, 0.12);
+  transition: all var(--ord-transition);
+  z-index: 2;
+}
+
+.ord-category-nav-btn:hover:not(:disabled) {
+  background: var(--ord-amber);
+  border-color: var(--ord-amber);
+  color: #ffffff;
+  transform: scale(1.08);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
+}
+
+.ord-category-nav-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.ord-category-nav-btn:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #a8a29e;
+  box-shadow: none;
+  pointer-events: none;
 }
 
 .ord-category-tab {
@@ -313,11 +383,13 @@
   font-size: 0.8125rem;
   font-weight: 500;
   border: 1.5px solid rgba(245, 158, 11, 0.2);
-  background: transparent;
+  background: #ffffff;
   color: #7c5c3e;
   cursor: pointer;
   transition: all var(--ord-transition);
   font-family: "Inter", sans-serif;
+  user-select: none;
+  white-space: nowrap;
 }
 .ord-category-tab:hover {
   border-color: var(--ord-amber);
@@ -1051,6 +1123,29 @@
 .ord-field-error {
   font-size: 0.75rem;
   color: #dc2626;
+}
+
+/* Form-level submission error banner (e.g. off-store-WiFi rejection).
+   Red error language matches .ord-field-error; distinct from the neutral
+   uncertain-recovery note below it. */
+.ord-submit-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  padding: 0.875rem 1rem;
+  margin: 0;
+  background: #fef2f2;
+  border: 1.5px solid rgba(220, 38, 38, 0.35);
+  border-radius: 0.75rem;
+  color: #991b1b;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.ord-submit-error-icon {
+  color: #dc2626;
+  flex-shrink: 0;
+  margin-top: 0.125rem;
 }
 
 /* Order summary in modal */

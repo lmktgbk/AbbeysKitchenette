@@ -1,13 +1,30 @@
+import { useState } from "react";
 import Icon from "@/components/ui/icon";
+import { GALLERY_PHOTOS } from "./Gallery";
 
 /**
  * About
  * About section telling the story of Abbey's Kitchenette.
- * Two-column layout: image (left) + text (right) on desktop, stacked on mobile.
+ * Two-column layout: interactive image (left) + text (right) on desktop, stacked on mobile.
+ * The image cycles through gallery photos when clicked.
  * Uses .lp-reveal + .lp-reveal-delay-* for scroll-driven fade-up animations
  * (triggered by IntersectionObserver in LandingPage.jsx).
  */
 export default function About() {
+    const defaultIndex = GALLERY_PHOTOS.findIndex((p) => p.src.includes("macrame"));
+    const [currentIndex, setCurrentIndex] = useState(defaultIndex >= 0 ? defaultIndex : 0);
+
+    const currentPhoto = GALLERY_PHOTOS[currentIndex] || GALLERY_PHOTOS[0];
+
+    const handleNextImage = () => {
+        setCurrentIndex((prev) => (prev + 1) % GALLERY_PHOTOS.length);
+    };
+
+    const handlePrevImage = (e) => {
+        e.stopPropagation();
+        setCurrentIndex((prev) => (prev - 1 + GALLERY_PHOTOS.length) % GALLERY_PHOTOS.length);
+    };
+
     const values = [
         { icon: "heart",    label: "Built with Love" },
         { icon: "coffee",   label: "Cozy Atmosphere" },
@@ -24,14 +41,66 @@ export default function About() {
             </div>
 
             <div className="about-grid" style={{ marginTop: "3.5rem" }}>
-                {/* Image */}
+                {/* Interactive Gallery Image */}
                 <div className="lp-reveal lp-reveal-delay-1">
-                    <img
-                        src="/landing/macrame_corner.png"
-                        alt="Boho macrame nook at Abbey's Kitchenette"
-                        className="about-image"
-                        loading="lazy"
-                    />
+                    <div
+                        className="about-image-wrapper"
+                        onClick={handleNextImage}
+                        title="Click to view next photo from gallery"
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Photo: ${currentPhoto.title}. Click to view next gallery photo.`}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                handleNextImage();
+                            }
+                        }}
+                    >
+                        <img
+                            key={currentPhoto.src}
+                            src={currentPhoto.src}
+                            alt={currentPhoto.title}
+                            className="about-image about-image-animated"
+                            loading="lazy"
+                        />
+
+                        {/* Navigation arrows (desktop hover / mobile visible) */}
+                        <button
+                            type="button"
+                            className="about-image-nav-btn about-image-nav-prev"
+                            onClick={handlePrevImage}
+                            aria-label="Previous gallery photo"
+                        >
+                            <Icon name="chevronLeft" size={18} />
+                        </button>
+                        <button
+                            type="button"
+                            className="about-image-nav-btn about-image-nav-next"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleNextImage();
+                            }}
+                            aria-label="Next gallery photo"
+                        >
+                            <Icon name="chevronRight" size={18} />
+                        </button>
+
+                        {/* Photo Title & Counter Badge */}
+                        <div className="about-image-badge">
+                            <Icon name="camera" size={12} />
+                            <span>{currentPhoto.title}</span>
+                            <span className="about-image-badge-counter">
+                                {currentIndex + 1} / {GALLERY_PHOTOS.length}
+                            </span>
+                        </div>
+
+                        {/* Click to change hint */}
+                        <div className="about-image-hint">
+                            <span>Click to change</span>
+                            <Icon name="chevronRight" size={13} />
+                        </div>
+                    </div>
                 </div>
 
                 {/* Text */}

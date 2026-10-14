@@ -75,9 +75,9 @@ export default function CustomerProductDetailModal({ product, onAddToCart, onClo
                         </div>
 
                         <div className="ord-detail-info">
-                            {product.category_name && (
+                            {(product.subcategory_name ?? product.category_name) && (
                                 <div className="ord-detail-badges">
-                                    <span className="ord-detail-cat-badge">{product.category_name}</span>
+                                    <span className="ord-detail-cat-badge">{product.subcategory_name ?? product.category_name}</span>
                                 </div>
                             )}
 

@@ -60,7 +60,7 @@ const router = createBrowserRouter([
         element: <RouteContent><LandingPage /></RouteContent>,
     },
 
-    // Online Ordering Page (public, no auth required)
+    // Store Kiosk ordering page (public, no auth required)
     {
         path: "/order",
         element: <RouteContent><OrderingPage /></RouteContent>,

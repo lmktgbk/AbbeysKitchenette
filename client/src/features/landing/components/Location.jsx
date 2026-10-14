@@ -2,6 +2,8 @@ import Icon from "@/components/ui/icon";
 import { formatStoreHours } from "../formatHours";
 
 export default function Location({ settings = {} }) {
+    // Visit Us answers only where + when open. Phone/email live in
+    // Get in Touch (action cards) and the footer — not repeated here.
     const details = [
         {
             icon: "mapPin",
@@ -12,16 +14,6 @@ export default function Location({ settings = {} }) {
             icon: "clock",
             label: "Hours",
             value: formatStoreHours(settings.storeHours),
-        },
-        {
-            icon: "phone",
-            label: "Phone",
-            value: settings.storePhone || "0929 781 1212",
-        },
-        {
-            icon: "mail",
-            label: "Email",
-            value: settings.storeEmail || "maryrosemendoza78@yahoo.com",
         },
     ];
 

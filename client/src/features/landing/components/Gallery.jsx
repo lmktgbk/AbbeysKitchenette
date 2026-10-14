@@ -1,6 +1,80 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
 
+// Ambiance, decor, gazebos, neon wall, and events (no food/drinks)
+export const GALLERY_PHOTOS = [
+    {
+        id: 1,
+        title: "Neon Leaf Wall",
+        category: "neon",
+        aspect: "portrait",
+        src: "/landing/leaf_wall_living.jpg",
+    },
+    {
+        id: 2,
+        title: "Outdoor Night Gazebo",
+        category: "night",
+        aspect: "landscape",
+        src: "/landing/outdoor_gazebo.jpg",
+    },
+    {
+        id: 3,
+        title: "Macrame & Boho Nook",
+        category: "indoor",
+        aspect: "portrait",
+        src: "/landing/macrame_corner.png",
+    },
+    {
+        id: 4,
+        title: "Anniversary Party Setup",
+        category: "indoor",
+        aspect: "landscape",
+        src: "/landing/anniversary_setup.jpg",
+    },
+    {
+        id: 5,
+        title: "Daytime Garden Courtyard",
+        category: "garden",
+        aspect: "landscape",
+        src: "/landing/daytime_courtyard.jpg",
+    },
+    {
+        id: 6,
+        title: "Group Gathering at Neon Wall",
+        category: "neon",
+        aspect: "landscape",
+        src: "/landing/group_neon_wall.jpg",
+    },
+    {
+        id: 7,
+        title: "Gazebo Ambiance",
+        category: "night",
+        aspect: "portrait",
+        src: "/landing/gazebo_interior.jpg",
+    },
+    {
+        id: 8,
+        title: "Rose Gold Balloon Ceiling",
+        category: "indoor",
+        aspect: "landscape",
+        src: "/landing/rose_gold_balloons.jpg",
+    },
+    {
+        id: 9,
+        title: "Daytime Patio Gathering",
+        category: "garden",
+        aspect: "landscape",
+        src: "/landing/daytime_patio_crowd.jpg",
+    },
+    {
+        id: 10,
+        title: "Outdoor Courtyard Lawn",
+        category: "garden",
+        aspect: "landscape",
+        src: "/landing/outdoor_courtyard.jpg",
+    },
+];
+
 /**
  * Gallery — Instagram Grid Style
  * Ambiance & Event photography only (food items removed).
@@ -10,99 +84,7 @@ export default function Gallery() {
     const [activeFilter, setActiveFilter] = useState("all");
     const [selectedImg, setSelectedImg] = useState(null);
 
-    // Ambiance, decor, gazebos, neon wall, and events (no food/drinks)
-    const photos = [
-        {
-            id: 1,
-            title: "Neon Leaf Wall",
-            category: "neon",
-            aspect: "portrait",
-            desc: "Bloom where you are planted ✨",
-            likes: "428",
-            src: "/landing/leaf_wall_living.jpg",
-        },
-        {
-            id: 2,
-            title: "Outdoor Night Gazebo",
-            category: "night",
-            aspect: "landscape",
-            desc: "Cozy nights under the fairy lights 🌙✨",
-            likes: "512",
-            src: "/landing/outdoor_gazebo.jpg",
-        },
-        {
-            id: 3,
-            title: "Macrame & Boho Nook",
-            category: "indoor",
-            aspect: "portrait",
-            desc: "Warm coffee & serene boho corners ☕🌿",
-            likes: "295",
-            src: "/landing/macrame_corner.png",
-        },
-        {
-            id: 4,
-            title: "Anniversary Party Setup",
-            category: "indoor",
-            aspect: "landscape",
-            desc: "Special moments made unforgettable 💕",
-            likes: "614",
-            src: "/landing/anniversary_setup.jpg",
-        },
-        {
-            id: 5,
-            title: "Daytime Garden Courtyard",
-            category: "garden",
-            aspect: "landscape",
-            desc: "Fresh breeze & outdoor coffee sessions 🍃",
-            likes: "340",
-            src: "/landing/daytime_courtyard.jpg",
-        },
-        {
-            id: 6,
-            title: "Group Gathering at Neon Wall",
-            category: "neon",
-            aspect: "landscape",
-            desc: "Good food, good coffee, good times with family & friends 💚",
-            likes: "782",
-            src: "/landing/group_neon_wall.jpg",
-        },
-        {
-            id: 7,
-            title: "Gazebo Ambiance",
-            category: "night",
-            aspect: "portrait",
-            desc: "Soft lights, chill music, perfect evening 🌟",
-            likes: "490",
-            src: "/landing/gazebo_interior.jpg",
-        },
-        {
-            id: 8,
-            title: "Rose Gold Balloon Ceiling",
-            category: "indoor",
-            aspect: "landscape",
-            desc: "Celebrate life's milestones with us 🎈🌹",
-            likes: "318",
-            src: "/landing/rose_gold_balloons.jpg",
-        },
-        {
-            id: 9,
-            title: "Daytime Patio Gathering",
-            category: "garden",
-            aspect: "landscape",
-            desc: "Lively afternoons at Abbey's Kitchenette ☀️☕",
-            likes: "420",
-            src: "/landing/daytime_patio_crowd.jpg",
-        },
-        {
-            id: 10,
-            title: "Outdoor Courtyard Lawn",
-            category: "garden",
-            aspect: "landscape",
-            desc: "Relaxing amidst nature & greenery 🌿",
-            likes: "276",
-            src: "/landing/outdoor_courtyard.jpg",
-        },
-    ];
+    const photos = GALLERY_PHOTOS;
 
     const filters = [
         { id: "all",    label: "All" },
@@ -155,13 +137,7 @@ export default function Gallery() {
                         />
                         <div className="gallery-insta-overlay">
                             <div className="gallery-insta-overlay-inner">
-                                <div className="gallery-insta-stats">
-                                    <span className="gallery-insta-stat">
-                                        <Icon name="heart" size={18} />
-                                        <span>{photo.likes}</span>
-                                    </span>
-                                </div>
-                                <p className="gallery-insta-caption">{photo.desc}</p>
+                                <h3 className="gallery-insta-card-title">{photo.title}</h3>
                             </div>
                         </div>
                     </div>
@@ -181,14 +157,7 @@ export default function Gallery() {
                         </button>
                         <img src={selectedImg.src} alt={selectedImg.title} className="gallery-lightbox-img" />
                         <div className="gallery-lightbox-info">
-                            <div className="flex items-center justify-between mb-1">
-                                <h3>{selectedImg.title}</h3>
-                                <span className="flex items-center gap-1.5 text-sm text-pink-400 font-semibold">
-                                    <Icon name="heart" size={16} />
-                                    {selectedImg.likes}
-                                </span>
-                            </div>
-                            <p>{selectedImg.desc}</p>
+                            <h3>{selectedImg.title}</h3>
                         </div>
                     </div>
                 </div>
