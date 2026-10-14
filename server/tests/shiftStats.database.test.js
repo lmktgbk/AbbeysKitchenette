@@ -65,4 +65,15 @@ describe.skipIf(process.env.SHIFT_STATS_DB_CHECK !== "1")("PostgreSQL shift stat
     try { await shifts.getStats(from, to); expect(query).toHaveBeenCalledOnce(); } finally { h.db = db; }
     console.log(JSON.stringify({ fixture: "shift-stats", sessions: actual.sessions, statements: 1, elapsedMs: Math.round(elapsedMs) }));
   }, 30000);
+  it("searches full history by cashier or reference using Manila day boundaries", async () => {
+    const target = await session({ status: "closed", openedAt: new Date("2026-09-30T18:00:00Z"), closeNote: "Found five pesos after recount" });
+    await db.shift.createMany({ data: Array.from({ length: 51 }, (_, index) => ({ openedBy: user.id, openingCash: 0, status: "closed", openedAt: new Date(Date.UTC(2026, 9, 2, 0, index)) })) });
+    const filter = { status: "closed", search: target.shiftId.slice(0, 8), dateFrom: "2026-10-01", dateTo: "2026-10-01" };
+    const rows = await shifts.findManyPaginated({ ...filter, skip: 0, take: 20 });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ shift_id: target.shiftId, close_note: "Found five pesos after recount" });
+    expect(await shifts.countFiltered(filter)).toBe(1);
+    expect(await shifts.countFiltered({ ...filter, dateFrom: "2026-09-30", dateTo: "2026-09-30" })).toBe(0);
+    expect(await shifts.countFiltered({ status: "closed", search: "Fixture", dateFrom: "2026-10-02", dateTo: "2026-10-02" })).toBe(51);
+  }, 30000);
 });

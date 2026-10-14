@@ -44,3 +44,14 @@ export function formatDuration(openedAt, closedAt) {
   if (mins < 60) return `${mins}m`;
   return `${Math.floor(mins / 60)}h ${mins % 60}m`;
 }
+/** Translate saved variance alerts without exposing internal UUIDs to the user. */
+export function shiftAlertDetails(message = "") {
+  const shiftId = message.match(/\[([a-f0-9-]{36})\]/i)?.[1];
+  const mismatch = shiftId && message.match(/off by ₱(-?[\d,.]+) \(expected ₱([\d,.]+), actual ₱([\d,.]+)\)/);
+  return {
+    shiftId,
+    description: mismatch
+      ? `The cash drawer is ${mismatch[1].startsWith("-") ? "short" : "over"} by ₱${mismatch[1].replace("-", "")}. Expected cash: ₱${mismatch[2]}; counted cash: ₱${mismatch[3]}.`
+      : message,
+  };
+}

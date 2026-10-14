@@ -135,11 +135,11 @@ export const shiftService = {
     return { ...formatShift(shift), ...(await this.buildSummary(shift)) };
   },
 
-  async list({ page = 1, limit = 20, status, staffId, dateFrom, dateTo }) {
+  async list({ page = 1, limit = 20, status, staffId, dateFrom, dateTo, search }) {
     const skip = (page - 1) * limit;
     const [rows, totalItems] = await Promise.all([
-      shiftRepository.findManyPaginated({ skip, take: limit, status, staffId, dateFrom, dateTo }),
-      shiftRepository.countFiltered({ status, staffId, dateFrom, dateTo }),
+      shiftRepository.findManyPaginated({ skip, take: limit, status, staffId, dateFrom, dateTo, search }),
+      shiftRepository.countFiltered({ status, staffId, dateFrom, dateTo, search }),
     ]);
     // Strip the window-function count; open rows get live summaries
     // so admin cards show current expected cash, not NULL.

@@ -1,4 +1,5 @@
 import Icon from "@/components/ui/icon";
+import { shiftAlertDetails } from "@/features/shifts/shiftUtils";
 
 const TYPE_ICONS = {
   order_new: "cart",
@@ -75,7 +76,7 @@ export default function NotificationItem({ notification, onMarkRead, onDelete })
             <Icon name="x" size={12} />
           </button>
         </div>
-        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{message}</p>
+        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{shiftAlertDetails(message).description}</p>
         <p className="type-small text-muted-foreground/70 mt-1">{formatTimeAgo(created_at)}</p>
       </div>
       {!is_read && (

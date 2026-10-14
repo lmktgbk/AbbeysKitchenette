@@ -41,7 +41,6 @@ export default function CreateComboModal({ open, onOpenChange, combo }) {
       name: combo?.suggested_name || "",
       description: `A fusion of ${variantA} and ${variantB}`,
       price: combo?.pricing?.total_price || 0,
-      price_reason: "",
     },
   });
 
@@ -75,15 +74,12 @@ export default function CreateComboModal({ open, onOpenChange, combo }) {
 
   // Translate the recommendation draft into one bundle variant and its ingredient recipes.
   async function onSubmit(data) {
-    if (data.price !== combo.pricing?.total_price && !data.price_reason?.trim()) {
-      toast.error("Explain the manual price adjustment before creating this bundle");
-      return;
-    }
+
     // No subcategory_id — server assigns Bundles/Bundle via the is_bundle flag.
     const payload = {
       product_name: data.name.trim(),
       is_bundle: true,
-      description: [data.description?.trim(), data.price_reason?.trim() ? `Price adjustment: ${data.price_reason.trim()}` : ""].filter(Boolean).join("\n"),
+      description: data.description?.trim() || "",
       variants: [
         {
           size_name: combo?.size_name_a || "Regular",
@@ -181,13 +177,6 @@ export default function CreateComboModal({ open, onOpenChange, combo }) {
               Default: ₱{combo.pricing?.total_price}, the sum of both variant prices.
             </p>
           </div>
-
-          {price !== combo.pricing?.total_price && (
-            <div>
-              <label className="mb-1 block text-sm font-semibold">Reason for price adjustment</label>
-              <Input {...register("price_reason")} maxLength={150} placeholder="Business justification for this price" />
-            </div>
-          )}
           {/* Cost Analysis */}
           <div className="rounded-lg bg-muted/50 p-3 text-xs">
             <div className="flex justify-between">

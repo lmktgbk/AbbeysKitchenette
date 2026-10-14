@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
+import { shiftAlertDetails } from "@/features/shifts/shiftUtils";
 
 const SEVERITY_CONFIG = {
   critical: {
@@ -73,9 +74,11 @@ function formatTimeAgo(dateStr) {
   return date.toLocaleDateString();
 }
 
-export default function AnomalyCard({ anomaly, onAcknowledge }) {
+export default function AnomalyCard({ anomaly, onAcknowledge, onViewShift }) {
   const [expanded, setExpanded] = useState(false);
   const config = SEVERITY_CONFIG[anomaly.severity] || SEVERITY_CONFIG.low;
+  // Keep the persisted identifier for deduplication, but show a plain-language cash verdict.
+  const { shiftId, description } = shiftAlertDetails(anomaly.description);
 
   return (
     <div className={`rounded-xl border border-border bg-card border-l-4 ${config.color} transition-colors hover:shadow-sm`}>
@@ -95,7 +98,8 @@ export default function AnomalyCard({ anomaly, onAcknowledge }) {
                   {CATEGORY_LABELS[anomaly.category]}
                 </span>
               </div>
-              <p className="text-sm text-foreground/80 mt-1">{anomaly.description}</p>
+              <p className="text-sm text-foreground/80 mt-1">{description}</p>
+              {shiftId && onViewShift && <button type="button" onClick={() => onViewShift(shiftId)} className="mt-2 text-xs font-semibold text-primary hover:underline">View Shift</button>}
               <p className="type-small text-muted-foreground/70 mt-0.5">
                 {formatTimeAgo(anomaly.detectedAt)}
               </p>

@@ -97,12 +97,13 @@ export const shiftController = {
    */
   async getShifts(req, res) {
     try {
-      const { page, limit, status, staff_id, date_from, date_to } = req.validatedQuery;
+      const { page, limit, status, staff_id, date_from, date_to, search } = req.validatedQuery;
       const result = await shiftService.list({
         page: Number(page),
         limit: Number(limit),
         status,
         staffId: staff_id,
+        search,
         dateFrom: date_from,
         dateTo: date_to,
       });

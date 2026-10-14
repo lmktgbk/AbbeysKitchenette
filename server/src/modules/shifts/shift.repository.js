@@ -331,7 +331,7 @@ export const shiftRepository = {
 
   /* ── Admin list ──────────────────────────── */
 
-  async findManyPaginated({ skip, take, status, staffId, dateFrom, dateTo }) {
+  async findManyPaginated({ skip, take, status, staffId, dateFrom, dateTo, search }) {
     const clauses = [];
     const values = [];
     let idx = 1;
@@ -345,12 +345,16 @@ export const shiftRepository = {
       values.push(staffId);
     }
     if (dateFrom) {
-      clauses.push(`s.opened_at >= $${idx++}::date`);
+      clauses.push(`s.opened_at >= ($${idx++}::date::timestamp AT TIME ZONE 'Asia/Manila')`);
       values.push(dateFrom);
     }
     if (dateTo) {
-      clauses.push(`s.opened_at < ($${idx++}::date + INTERVAL '1 day')`);
+      clauses.push(`s.opened_at < (($${idx++}::date + INTERVAL '1 day') AT TIME ZONE 'Asia/Manila')`);
       values.push(dateTo);
+    }
+    if (search) {
+      clauses.push(`(s.shift_id::text ILIKE $${idx} OR EXISTS (SELECT 1 FROM "User" u WHERE u.id = s.opened_by AND u.name ILIKE $${idx}))`);
+      values.push(`%${search.trim()}%`); idx++;
     }
     const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
 
@@ -373,7 +377,7 @@ export const shiftRepository = {
     return prisma.$queryRawUnsafe(sql, ...values);
   },
 
-  async countFiltered({ status, staffId, dateFrom, dateTo }) {
+  async countFiltered({ status, staffId, dateFrom, dateTo, search }) {
     const clauses = [];
     const values = [];
     let idx = 1;
@@ -387,12 +391,16 @@ export const shiftRepository = {
       values.push(staffId);
     }
     if (dateFrom) {
-      clauses.push(`s.opened_at >= $${idx++}::date`);
+      clauses.push(`s.opened_at >= ($${idx++}::date::timestamp AT TIME ZONE 'Asia/Manila')`);
       values.push(dateFrom);
     }
     if (dateTo) {
-      clauses.push(`s.opened_at < ($${idx++}::date + INTERVAL '1 day')`);
+      clauses.push(`s.opened_at < (($${idx++}::date + INTERVAL '1 day') AT TIME ZONE 'Asia/Manila')`);
       values.push(dateTo);
+    }
+    if (search) {
+      clauses.push(`(s.shift_id::text ILIKE $${idx} OR EXISTS (SELECT 1 FROM "User" u WHERE u.id = s.opened_by AND u.name ILIKE $${idx}))`);
+      values.push(`%${search.trim()}%`); idx++;
     }
     const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
     const result = await prisma.$queryRawUnsafe(

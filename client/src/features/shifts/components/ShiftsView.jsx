@@ -28,16 +28,22 @@ export default function ShiftsView({ dateFrom, dateTo, onDateChange }) {
   const [detailShiftId, setDetailShiftId] = useState(null);
   const [historyPage, setHistoryPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
 
-  const { data, isLoading } = useShiftsList({
-    status: "all",
-    limit: "50",
+  const { data, isLoading, isError, refetch } = useShiftsList({
+    status: "closed",
+    page: String(historyPage),
+    limit: String(pageSize),
+    search: search || undefined,
     date_from: dateFrom || undefined,
     date_to: dateTo || undefined,
   });
   const shifts = data?.data?.shifts ?? [];
-  const openCards = shifts.filter((s) => s.status === "open");
-  const closedCards = shifts.filter((s) => s.status !== "open");
+  const { data: openData } = useShiftsList({ status: "open", limit: "100", search: search || undefined });
+  const openCards = openData?.data?.shifts ?? [];
+  const closedCards = shifts;
+  const totalClosed = data?.data?.totalItems ?? 0;
 
   // Choose the closure endpoint by shift ownership; backend authorization still controls forced closure.
   async function handleCloseShiftConfirm(form) {
@@ -58,7 +64,7 @@ export default function ShiftsView({ dateFrom, dateTo, onDateChange }) {
     }
   }
 
-  // A new date range starts local history pagination again; the query returns at most 50 shifts.
+  // A new date range starts the server-backed history pagination again.
   function handleDateChange(from, to) {
     setHistoryPage(1);
     onDateChange?.(from, to);
@@ -74,13 +80,14 @@ export default function ShiftsView({ dateFrom, dateTo, onDateChange }) {
     );
   }
 
-  // History pages over the closed list; open cards always pin on top.
-  const closedPages = Math.max(Math.ceil(closedCards.length / pageSize), 1);
-  const safePage = Math.min(historyPage, closedPages);
-  const pagedClosed = closedCards.slice((safePage - 1) * pageSize, safePage * pageSize);
-
   return (
     <div className="flex flex-col gap-3">
+      <form className="flex flex-wrap gap-2" onSubmit={event => { event.preventDefault(); setSearch(searchInput.trim()); setHistoryPage(1); }}>
+        <input aria-label="Search shifts by cashier or reference" value={searchInput} onChange={event => setSearchInput(event.target.value)}
+          placeholder="Cashier name or shift reference…" maxLength={200} className="min-w-0 flex-1 rounded-lg border bg-card px-3 py-2 text-sm" />
+        <button type="submit" className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground">Search</button>
+        {search && <button type="button" className="rounded-lg border px-3 py-2 text-sm" onClick={() => { setSearchInput(""); setSearch(""); setHistoryPage(1); }}>Clear</button>}
+      </form>
       {openCards.length > 0 && (
         <div>
           <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -122,7 +129,10 @@ export default function ShiftsView({ dateFrom, dateTo, onDateChange }) {
             />
           </div>
         </div>
-        {closedCards.length === 0 ? (
+        {isError ? <div role="alert" className="rounded-xl border p-4 text-sm">
+          <p>Shift history could not be loaded.</p>
+          <button type="button" className="mt-2 text-primary underline" onClick={() => refetch()}>Retry</button>
+        </div> : closedCards.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border">
             <EmptyState
               icon="clock"
@@ -132,7 +142,7 @@ export default function ShiftsView({ dateFrom, dateTo, onDateChange }) {
           </div>
         ) : (
           <div className="grid gap-2 xl:grid-cols-2">
-            {pagedClosed.map((s) => (
+            {closedCards.map((s) => (
               <ShiftCard
                 key={s.shift_id}
                 shift={s}
@@ -143,11 +153,11 @@ export default function ShiftsView({ dateFrom, dateTo, onDateChange }) {
             ))}
           </div>
         )}
-        {closedCards.length > pageSize && (
+        {(totalClosed > pageSize || historyPage > 1) && (
           <div className="mt-2 overflow-hidden rounded-xl border border-border bg-card">
             <Pagination
-              currentPage={safePage}
-              totalItems={closedCards.length}
+              currentPage={historyPage}
+              totalItems={totalClosed}
               pageSize={pageSize}
               onPageChange={setHistoryPage}
               onPageSizeChange={(size) => { setPageSize(size); setHistoryPage(1); }}

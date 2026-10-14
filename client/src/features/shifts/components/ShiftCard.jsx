@@ -40,6 +40,7 @@ export default function ShiftCard({ shift, onOpen, onClose, canClose }) {
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{shift.opener_name ?? "Cashier"}</p>
+          <p className="text-xs text-muted-foreground">Reference: {shift.shift_id.slice(0, 8)}</p>
           <p className="truncate text-xs text-muted-foreground">
             {day} · {range}{duration && <> · {duration}</>}
           </p>

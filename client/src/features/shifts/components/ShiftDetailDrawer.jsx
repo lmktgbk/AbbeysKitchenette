@@ -175,6 +175,12 @@ export default function ShiftDetailDrawer({ open, onOpenChange, shiftId, onClose
               )}
             </div>
 
+            {shift.close_note && <section className="rounded-lg border border-border p-3">
+              <h3 className="text-sm font-semibold">{variance ? "Difference note" : "Closing note"}</h3>
+              <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted-foreground">{shift.close_note}</p>
+              {shift.closer_name && <p className="mt-2 text-xs text-muted-foreground">Recorded by {shift.closer_name}</p>}
+            </section>}
+
             {/* Non-cash aside — refunds follow their channel, never the drawer */}
             <div className="space-y-0.5 text-xs text-muted-foreground">
               <p>Touched no drawer — GCash {formatPeso(summary.gcash_sales)} · Maya {formatPeso(summary.maya_sales)}</p>

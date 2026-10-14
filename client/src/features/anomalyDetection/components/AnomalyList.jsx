@@ -1,9 +1,12 @@
 import { Pagination } from "@/components/filters/Pagination";
 import AnomalyCard from "./AnomalyCard";
+import { useState } from "react";
+import ShiftDetailDrawer from "@/features/shifts/components/ShiftDetailDrawer";
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100];
 
 export default function AnomalyList({ anomalies, totalItems, page, pageSize, onPageChange, onPageSizeChange, onAcknowledge }) {
+  const [shiftId, setShiftId] = useState(null);
   const totalPages = Math.ceil(totalItems / pageSize);
 
   if (anomalies.length === 0) {
@@ -17,8 +20,10 @@ export default function AnomalyList({ anomalies, totalItems, page, pageSize, onP
           key={anomaly.id}
           anomaly={anomaly}
           onAcknowledge={onAcknowledge}
+          onViewShift={setShiftId}
         />
       ))}
+      {shiftId && <ShiftDetailDrawer open shiftId={shiftId} onOpenChange={open => !open && setShiftId(null)} />}
 
       {totalPages > 1 && (
         <Pagination

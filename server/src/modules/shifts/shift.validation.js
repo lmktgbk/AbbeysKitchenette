@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { pageQuery, limitQuery, calendarDate, money, withDateRange } from "../../utils/validation.js";
+import { pageQuery, limitQuery, calendarDate, money, withDateRange, searchQuery } from "../../utils/validation.js";
 
 /**
  * Shift Validation Schemas (BR-02)
@@ -58,6 +58,7 @@ export const getShiftStatsQuerySchema = withDateRange(z.object({
 
 // GET /api/shifts — admin list with filters
 export const getShiftsQuerySchema = withDateRange(z.object({
+  search: searchQuery,
   page: pageQuery,
   limit: limitQuery("20"),
   status: z.enum(["all", "open", "closed"]).optional().default("all"),
