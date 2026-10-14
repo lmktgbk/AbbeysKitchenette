@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { orderNumberLabel } from "@/lib/orderNumber";
 import { useKpiDetails } from "../query";
+import { Pagination } from "@/components/filters/Pagination";
 
 const peso = value => Number(value ?? 0).toLocaleString("en-PH", { style: "currency", currency: "PHP" });
 const kinds = { "Gross Sales": "orders", Discounts: "discounts", "Net Sales": "orders", Transactions: "orders", COGS: "cogs" };
@@ -59,11 +60,10 @@ export default function KpiDetailsModal({ label, kpis, dateFrom, dateTo, onClose
           {label === "Retained Payments" && <p className="mt-3 text-xs text-muted-foreground">Payments kept after refunds, excluding completed sales.</p>}
           {label === "Net Profit" && <p className="mt-3 text-xs text-muted-foreground">Operating expenses are not included. Ingredient losses follow their recorded loss dates.</p>}
         </div>
-        {(total > 20 || page > 1) && <div className="flex items-center justify-between gap-3 border-t pt-3 text-sm">
-          <button type="button" disabled={page === 1 || query.isFetching} onClick={() => setPage(p => p - 1)} className="rounded border px-3 py-2 disabled:opacity-40">Previous</button>
-          <span>Page {page} of {Math.max(page, Math.ceil(total / 20))}</span>
-          <button type="button" disabled={page * 20 >= total || query.isFetching} onClick={() => setPage(p => p + 1)} className="rounded border px-3 py-2 disabled:opacity-40">Next</button>
-        </div>}
+        {(total > 20 || page > 1) && <fieldset disabled={query.isFetching} className="min-w-0 shrink-0">
+          <Pagination currentPage={page} totalItems={total} pageSize={20} onPageChange={setPage}
+            itemLabel={kind === "cogs" ? "ingredients" : "orders"} className="px-0" />
+        </fieldset>}
       </DialogContent>
     </Dialog>
   );
