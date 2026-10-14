@@ -31,22 +31,13 @@ export default function Contact({ settings = {} }) {
     ];
 
     return (
-        <section id="contact" className="landing-section">
-            <div className="text-center lp-reveal">
-                <h2 className="landing-title">Get in Touch</h2>
-                <p className="landing-subtitle" style={{ marginTop: "0.75rem" }}>
-                    Have a question, suggestion, or want to place a reservation?
-                    Call or email us directly.
-                </p>
-                <span className="landing-title-line" />
-            </div>
-
-            <div className="contact-actions lp-reveal lp-reveal-delay-1" style={{ marginTop: "3.5rem" }}>
+        // Preserve #contact navigation while avoiding a second full-height section.
+        <div id="contact" className="visit-contact-actions" aria-label="Contact Abbey's Kitchenette">
                 {actions.map((action) => (
                     <a
                         key={action.label}
                         href={action.href}
-                        className="contact-detail-item contact-action"
+                        className="contact-detail-item visit-contact-action"
                         aria-label={`${action.label}: ${action.value}`}
                     >
                         <div className="contact-detail-icon">
@@ -58,7 +49,6 @@ export default function Contact({ settings = {} }) {
                         </div>
                     </a>
                 ))}
-            </div>
-        </section>
+        </div>
     );
 }

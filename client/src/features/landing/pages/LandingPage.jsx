@@ -15,7 +15,6 @@ import Menu from "../components/Menu";
 import Location from "../components/Location";
 import Testimonials from "../components/Testimonials";
 import Gallery from "../components/Gallery";
-import Contact from "../components/Contact";
 import Footer from "../components/Footer";
 
 export default function LandingPage() {
@@ -88,9 +87,6 @@ export default function LandingPage() {
             </div>
             <div className="location-section">
                 <Location settings={settings} />
-            </div>
-            <div className="contact-section">
-                <Contact settings={settings} />
             </div>
             <Footer settings={settings} />
         </div>

@@ -1,9 +1,9 @@
 import Icon from "@/components/ui/icon";
 import { formatStoreHours } from "../formatHours";
+import Contact from "./Contact";
 
 export default function Location({ settings = {} }) {
-    // Visit Us answers only where + when open. Phone/email live in
-    // Get in Touch (action cards) and the footer — not repeated here.
+    // One section groups visit details and contact actions beside the venue photo.
     const details = [
         {
             icon: "mapPin",
@@ -18,19 +18,17 @@ export default function Location({ settings = {} }) {
     ];
 
     return (
-        <section id="location" className="landing-section">
-            <div className="text-center lp-reveal">
-                <h2 className="landing-title">Visit Us</h2>
-                <p className="landing-subtitle" style={{ marginTop: "0.75rem" }}>
-                    We'd love to see you! Come dine in and experience the Abbey's
-                    Kitchenette difference.
-                </p>
-                <span className="landing-title-line" />
-            </div>
-
-            <div className="location-grid" style={{ marginTop: "3.5rem" }}>
-                {/* Info */}
+        <section id="location" className="landing-section visit-contact-section">
+            <div className="location-grid">
                 <div className="location-info lp-reveal lp-reveal-delay-1">
+                    <div className="visit-heading">
+                        <h2 className="landing-title">Visit &amp; Contact Us</h2>
+                        <p className="landing-subtitle" style={{ marginTop: "0.75rem" }}>
+                            We'd love to see you! Come dine in and experience the Abbey's
+                            Kitchenette difference.
+                        </p>
+                        <span className="landing-title-line" />
+                    </div>
                     {details.map((item) => (
                         <div key={item.label} className="location-item">
                             <div className="location-icon">
@@ -42,6 +40,7 @@ export default function Location({ settings = {} }) {
                             </div>
                         </div>
                     ))}
+                    <Contact settings={settings} />
                 </div>
 
                 {/* Image */}

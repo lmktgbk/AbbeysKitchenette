@@ -1216,6 +1216,41 @@
   background: #fffbf5;
 }
 
+/* The visit/contact group shares one responsive row; long settings values
+   wrap within the text column instead of pushing the photo off-screen. */
+.visit-contact-section.landing-section { padding-block: 3.5rem; }
+.visit-contact-section .location-grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 3rem; }
+.visit-contact-section .location-info { gap: 1.25rem; min-width: 0; }
+.visit-contact-section .location-item > div:last-child,
+.visit-contact-actions .contact-action-body { min-width: 0; overflow-wrap: anywhere; }
+.visit-heading .landing-subtitle { margin-inline: 0; }
+.visit-heading .landing-title-line { margin-inline: 0; }
+.visit-contact-actions { display: grid; gap: 0.75rem; border-top: 1px solid #e8dacc; padding-top: 1.25rem; scroll-margin-top: 6rem; }
+.visit-contact-action { text-decoration: none; min-height: 44px; align-items: center; }
+.visit-contact-section .location-grid .location-image { aspect-ratio: 4 / 3; height: auto; }
+
+/* Wrap navigation naturally rather than reserving a tall column for links. */
+.landing-footer.compact-footer { padding: 2.5rem 2rem 1.25rem; }
+.compact-footer .footer-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2rem; margin-bottom: 1.5rem; }
+.compact-footer .footer-grid > * { min-width: 0; }
+.compact-footer .footer-brand-desc { max-width: 380px; color: #c4ad9b; }
+.compact-footer .footer-links { flex-direction: row; flex-wrap: wrap; gap: 0.25rem 1.25rem; }
+.compact-footer .footer-link { display: inline-flex; align-items: center; min-height: 36px; color: #e6d0be; }
+.compact-footer .footer-divider { margin-bottom: 1rem; }
+.compact-footer .footer-bottom { color: #c4ad9b; }
+
+@media (max-width: 900px) {
+  .visit-contact-section .location-grid { grid-template-columns: 1fr; gap: 2rem; }
+  .visit-contact-section .location-grid .location-image { aspect-ratio: 16 / 9; }
+}
+@media (max-width: 640px) {
+  .visit-contact-section.landing-section { padding: 2.5rem 1.25rem; }
+  .landing-footer.compact-footer { padding: 2rem 1.25rem 1rem; }
+  .compact-footer .footer-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+  .compact-footer .footer-bottom { align-items: flex-start; flex-direction: column; }
+  .compact-footer .footer-link, .compact-footer .footer-staff-login { min-height: 44px; }
+}
+
 .location-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

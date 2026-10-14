@@ -8,8 +8,8 @@ export default function Footer({ settings = {} }) {
         { label: "Home",      href: "#home" },
         { label: "About Us",  href: "#about" },
         { label: "Menu",      href: "#menu" },
-        { label: "Location",  href: "#location" },
-        { label: "Contact",   href: "#contact" },
+        { label: "Gallery",  href: "#gallery" },
+        { label: "Visit & Contact", href: "#location" },
     ];
 
     const handleNavClick = (e, href) => {
@@ -19,7 +19,7 @@ export default function Footer({ settings = {} }) {
     };
 
     return (
-        <footer className="landing-footer">
+        <footer className="landing-footer compact-footer">
             <div className="footer-grid">
                 {/* Brand */}
                 <div>
@@ -48,8 +48,8 @@ export default function Footer({ settings = {} }) {
                 </div>
 
                 {/* Quick Links */}
-                <div>
-                    <h4 className="footer-heading">Quick Links</h4>
+                <nav aria-label="Footer navigation">
+                    <h4 className="footer-heading">Explore Abbey's</h4>
                     <div className="footer-links">
                         {quickLinks.map((link) => (
                             <a
@@ -65,7 +65,7 @@ export default function Footer({ settings = {} }) {
                             Open Kiosk
                         </Link>
                     </div>
-                </div>
+                </nav>
 
             </div>
 
