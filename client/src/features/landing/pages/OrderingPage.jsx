@@ -91,7 +91,8 @@ function OrderingUI({ onOrderSuccess }) {
             .forEach((p) => seen.set(p.subcategory_id, p.subcategory_name ?? "Other"));
         return [
             { id: "all", name: "All Items" },
-            ...Array.from(seen.entries()).map(([id, name]) => ({ id, name })),
+            ...Array.from(seen.entries()).map(([id, name]) => ({ id, name }))
+                .sort((a, b) => a.name.localeCompare(b.name, "en", { sensitivity: "base" })),
         ];
     }, [allProducts]);
 
