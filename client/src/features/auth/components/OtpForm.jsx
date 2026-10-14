@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { verifyOtpRequest, resendOtpRequest, otpFailure, otpSecondsRemaining } from "../api";
+import { verifyOtpRequest, resendOtpRequest, otpFailure, otpSecondsRemaining, formatRetryWait } from "../api";
 import { establishSession } from "../session";
 import { otpSchema } from "../authValidation";
 import Icon from "@/components/ui/icon";
@@ -114,7 +114,7 @@ export default function OtpForm({ userId, onRestart }) {
 
             <div className="flex flex-col gap-3">
                 <Button type="submit" fullWidth disabled={isSubmitting || resending || expired || verifyBlockedUntil > now}>
-                    {isSubmitting ? "Verifying..." : verifyBlockedUntil > now ? `Verify in ${otpSecondsRemaining(verifyBlockedUntil, now)}s` : "Verify"}
+                    {isSubmitting ? "Verifying..." : verifyBlockedUntil > now ? `Verify in ${formatRetryWait(otpSecondsRemaining(verifyBlockedUntil, now))}` : "Verify"}
                 </Button>
                 <Button
                     type="button"
@@ -122,7 +122,7 @@ export default function OtpForm({ userId, onRestart }) {
                     onClick={handleResend}
                     disabled={resending || isSubmitting || expired || secondsLeft > 0}
                 >
-                    {resending ? "Sending..." : secondsLeft > 0 ? `Resend OTP in ${secondsLeft}s` : "Resend OTP"}
+                    {resending ? "Sending..." : secondsLeft > 0 ? `Resend OTP in ${formatRetryWait(secondsLeft)}` : "Resend OTP"}
                 </Button>
                 {expired && <Button type="button" variant="ghost" onClick={onRestart}>Sign in again</Button>}
             </div>

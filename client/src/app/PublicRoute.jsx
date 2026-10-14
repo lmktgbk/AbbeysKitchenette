@@ -1,6 +1,6 @@
 import { Navigate } from "react-router-dom";
 import useAuthStore from "@/features/auth/authStore";
-import PrimarySpinner from "@/components/ui/spinner";
+import SessionCheck from "@/features/auth/components/SessionCheck";
 
 /**
  * PublicRoute
@@ -13,7 +13,7 @@ export function PublicRoute({ children }) {
 
     if (loading) {
         return (
-            <PrimarySpinner />
+            <SessionCheck />
         );
     }
 

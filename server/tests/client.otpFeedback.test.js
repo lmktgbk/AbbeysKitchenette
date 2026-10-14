@@ -1,8 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("../../client/src/config/axios.js", () => ({ default: {} }));
-import { otpFailure, otpSecondsRemaining } from "../../client/src/features/auth/api.js";
+import { otpFailure, otpSecondsRemaining, formatRetryWait } from "../../client/src/features/auth/api.js";
 
 describe("OTP failure and countdown contracts", () => {
+  it("formats waits as readable minutes and seconds", () => {
+    expect(formatRetryWait(300)).toBe("5m 0s");
+    expect(formatRetryWait(138)).toBe("2m 18s");
+    expect(formatRetryWait(12)).toBe("12s");
+  });
   it("preserves the cooldown message and JSON timing without readable CORS headers", () => {
     expect(otpFailure({ response: { data: { message: "Please wait before requesting a new code",
       error: "OTP_RESEND_COOLDOWN", data: { retryAfterSeconds: 12 } } } })).toEqual({

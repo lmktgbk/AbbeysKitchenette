@@ -7,6 +7,7 @@ import { establishSession, restoreSession, clearSession, getSessionEpoch } from 
 import { stopRealtime, startRealtime } from "../../client/src/realtime/socket.js";
 import api from "../../client/src/config/axios.js";
 import { logoutSession } from "../../client/src/features/auth/useLogout.js";
+import { sessionRestoreUser } from "../../client/src/features/auth/sessionRestore.js";
 
 const first = { id: "first", name: "First", role: "admin" };
 const second = { id: "second", name: "Second", role: "cashier" };
@@ -14,6 +15,27 @@ beforeEach(async () => { await clearSession(); vi.clearAllMocks(); });
 afterEach(async () => { vi.restoreAllMocks(); await clearSession(); });
 
 describe("client cookie-session state", () => {
+  it.each([429, 503, undefined])("preserves established identity and caches on temporary session-check failure (%s)", async status => {
+    restoreSession(first);
+    queryClient.setQueryData(["orders"], [{ id: "saved" }]);
+    let failure;
+    try {
+      await api.get("/auth/me", { adapter: async config => { throw { config, ...(status ? { response: { status, data: { error: "TEMPORARY" } } } : {}) }; } });
+    } catch (error) { failure = error; }
+    expect(sessionRestoreUser({ isError: true, error: failure }, getSessionEpoch())).toBeUndefined();
+    expect(useAuthStore.getState().user).toEqual(first);
+    expect(queryClient.getQueryData(["orders"])).toEqual([{ id: "saved" }]);
+  });
+  it("keeps initial identity unverified on temporary failure and clears it only on confirmed rejection", () => {
+    useAuthStore.setState({ user: null, loading: true });
+    const epoch = getSessionEpoch();
+    expect(sessionRestoreUser({ isError: true, error: { response: { status: 429 } } }, epoch)).toBeUndefined();
+    expect(useAuthStore.getState().loading).toBe(true);
+    const rejection = { isError: true, error: { config: { sessionEpoch: epoch }, response: { status: 401, data: { error: "UNAUTHORIZED" } } } };
+    expect(sessionRestoreUser(rejection, epoch)).toBeNull();
+    expect(sessionRestoreUser(rejection, epoch + 1)).toBeUndefined();
+    expect(sessionRestoreUser({ isSuccess: true, data: { data: { user: first } } }, epoch)).toEqual(first);
+  });
   it("clears the previous operator's data and restores auth query/store together", async () => {
     restoreSession(first);
     queryClient.setQueryData(["staff"], [{ name: "Private data" }]);

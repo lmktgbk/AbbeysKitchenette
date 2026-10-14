@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import useAuthStore from "@/features/auth/authStore";
-import PrimarySpinner from "@/components/ui/spinner";
+import SessionCheck from "@/features/auth/components/SessionCheck";
 
 /**
  * ProtectedRoute
@@ -13,7 +13,7 @@ export function ProtectedRoute({ children }) {
 
     if (loading) {
         return (
-            <PrimarySpinner />
+            <SessionCheck />
         );
     }
 

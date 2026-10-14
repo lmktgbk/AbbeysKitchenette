@@ -1492,11 +1492,15 @@ Live Google delivery, browser workflows and post-reseed outputs remain Not verif
 
 ## Shared-network authentication and staff deletion
 
-- [ ] Set Railway `GENERAL_RATE_LIMIT_MAX=3000`; run normal reads on several store devices and verify sensitive action limits remain stricter.
+- [ ] Verify five-minute HTTP windows and five-minute password lockout. General/auth/guest limits follow the policy file; existing old deadlines expire naturally.
+- [ ] A 429, network failure or 5xx from `/auth/me` keeps established identity; an initial failure shows a session-check retry screen. Genuine session expiry still signs out.
+- [ ] Retry countdowns use the server deadline and show minutes/seconds; OTP expiry remains ten minutes and resend cooldown sixty seconds.
+
+- [ ] Keep Railway `GENERAL_RATE_LIMIT_MAX=3000`; run normal reads on several store devices and verify sensitive action limits remain stricter.
 - [ ] Forecast/MBA completion refreshes immediately via WebSockets. With the connection lost, unfinished jobs refresh every five seconds; while live, a fifteen-second safety refresh recovers missed events.
 - [ ] Initial/transient status-fetch failure recovers; completed/failed jobs stop polling. Guest menu still refreshes every sixty seconds.
 
-- [ ] Two staff on one Wi-Fi can log in and verify OTPs without exhausting the old ten-request shared budget.
+- [ ] Two staff on one Wi-Fi can log in and verify OTPs without exhausting the old ten-request shared budget; up to 100 guest submissions share a five-minute network budget.
 - [ ] Recovery/resend throttling does not independently block verification; network-wide abuse still reaches the 100-request outer cap.
 - [ ] Incorrect passwords and OTPs still reach their existing account/challenge limits; a resend still observes the 60-second cooldown.
 - [ ] OTP action throttling shows an accurate countdown and does not unnecessarily disable the other action.

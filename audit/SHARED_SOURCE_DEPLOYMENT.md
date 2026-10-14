@@ -110,6 +110,13 @@ This Python application does not import the JavaScript shared helper.
 
 ## Verification
 
+The HTTP rate-limit policy uses five-minute windows (`server/src/config/securityPolicy.js`).
+Keep `GENERAL_RATE_LIMIT_MAX=3000` on Railway. Password lockout is five minutes;
+OTP validity remains ten minutes and resend cooldown sixty seconds. Existing
+persisted counter deadlines and lockouts expire naturally; redeployment does not
+erase or retroactively shorten them. Temporary `/auth/me` failures show retry
+without clearing an established session; initial protected access remains gated.
+
 From the repository root, `npm --prefix server run check:source` checks the sibling
 file and imports it with Node without connecting to the database or providers.
 `npm --prefix client run build` verifies the frontend's import can be bundled.

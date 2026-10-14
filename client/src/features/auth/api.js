@@ -5,13 +5,23 @@
  */
 import api from "@/config/axios";
 
+/** JSON timing works even when cross-origin browsers hide Retry-After. */
+export function retryDelaySeconds(error) {
+  const seconds = Number(error?.response?.data?.data?.retryAfterSeconds ?? error?.response?.headers?.["retry-after"]);
+  return Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : 0;
+}
+
+export function formatRetryWait(seconds) {
+  const value = Math.max(0, Math.ceil(seconds));
+  return value < 60 ? `${value}s` : `${Math.floor(value / 60)}m ${value % 60}s`;
+}
+
 /** Interpret OTP failures without replacing actionable backend messages with a generic toast. */
 export function otpFailure(error) {
   const response = error.response;
-  const seconds = Number(response?.data?.data?.retryAfterSeconds ?? response?.headers?.["retry-after"]);
   return {
     message: response?.data?.message || (response ? "Unable to complete this request. Please try again." : "Cannot reach the server. Check your connection and try again."),
-    retryAfterSeconds: Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : 0,
+    retryAfterSeconds: retryDelaySeconds(error),
     expired: response?.data?.error === "INVALID_CHALLENGE",
     rateLimited: response?.data?.error === "AUTH_RATE_LIMIT_EXCEEDED",
     verificationLimited: response?.data?.error === "OTP_VERIFY_RATE_LIMIT_EXCEEDED",
