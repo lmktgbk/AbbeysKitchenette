@@ -40,7 +40,7 @@ export default function ShiftsView({ dateFrom, dateTo, onDateChange }) {
     date_to: dateTo || undefined,
   });
   const shifts = data?.data?.shifts ?? [];
-  const { data: openData } = useShiftsList({ status: "open", limit: "100", search: search || undefined });
+  const { data: openData } = useShiftsList({ status: "open", limit: "100" });
   const openCards = openData?.data?.shifts ?? [];
   const closedCards = shifts;
   const totalClosed = data?.data?.totalItems ?? 0;
@@ -82,12 +82,7 @@ export default function ShiftsView({ dateFrom, dateTo, onDateChange }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <form className="flex flex-wrap gap-2" onSubmit={event => { event.preventDefault(); setSearch(searchInput.trim()); setHistoryPage(1); }}>
-        <input aria-label="Search shifts by cashier or reference" value={searchInput} onChange={event => setSearchInput(event.target.value)}
-          placeholder="Cashier name or shift reference…" maxLength={200} className="min-w-0 flex-1 rounded-lg border bg-card px-3 py-2 text-sm" />
-        <button type="submit" className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground">Search</button>
-        {search && <button type="button" className="rounded-lg border px-3 py-2 text-sm" onClick={() => { setSearchInput(""); setSearch(""); setHistoryPage(1); }}>Clear</button>}
-      </form>
+
       {openCards.length > 0 && (
         <div>
           <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -129,6 +124,12 @@ export default function ShiftsView({ dateFrom, dateTo, onDateChange }) {
             />
           </div>
         </div>
+      <form className="flex flex-wrap gap-2" onSubmit={event => { event.preventDefault(); setSearch(searchInput.trim()); setHistoryPage(1); }}>
+        <input aria-label="Search shifts by cashier or reference" value={searchInput} onChange={event => setSearchInput(event.target.value)}
+          placeholder="Cashier name or shift reference…" maxLength={200} className="min-w-0 flex-1 rounded-lg border bg-card px-3 py-2 text-sm" />
+        <button type="submit" className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground">Search</button>
+        {search && <button type="button" className="rounded-lg border px-3 py-2 text-sm" onClick={() => { setSearchInput(""); setSearch(""); setHistoryPage(1); }}>Clear</button>}
+      </form>
         {isError ? <div role="alert" className="rounded-xl border p-4 text-sm">
           <p>Shift history could not be loaded.</p>
           <button type="button" className="mt-2 text-primary underline" onClick={() => refetch()}>Retry</button>
