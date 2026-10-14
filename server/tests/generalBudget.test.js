@@ -23,7 +23,7 @@ it("admits multiple staff reads past the old 500 cap without relaxing sensitive 
     const statuses = await Promise.all(Array.from({ length: 40 }, () => request(ip)));
     expect(statuses.every(status => status === 200)).toBe(true);
   }
-  for (let i = 0; i < 10; i++) expect(await request(ip, "/guest")).toBe(200);
+  for (let i = 0; i < 100; i++) expect(await request(ip, "/guest")).toBe(200);
   expect(await request(ip, "/guest")).toBe(429);
   for (let i = 0; i < 100; i++) expect(await request(ip, "/auth")).toBe(200);
   expect(await request(ip, "/auth")).toBe(429);

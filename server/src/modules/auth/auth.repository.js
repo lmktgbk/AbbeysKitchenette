@@ -2,6 +2,7 @@ import { authAudit } from "./auth.effects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import crypto from "crypto";
 import prisma from "../../config/prisma.js";
+import { SECURITY_POLICY } from "../../config/securityPolicy.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { SESSION_USER_SELECT } from "./auth.session.js";
 import { lockAccount } from "./auth.accountLock.js";
@@ -82,7 +83,7 @@ export const authRepository = {
       const user = await tx.user.update({
         where: { id: userId }, data: { failedLoginAttempts: { increment: 1 } },
       });
-      if (user.failedLoginAttempts < 5) return user;
+      if (user.failedLoginAttempts < SECURITY_POLICY.accountFailures) return user;
       return tx.user.update({ where: { id: userId }, data: {
         lockedUntil: new Date(Date.now() + lockoutMinutes * 60 * 1000),
       } });

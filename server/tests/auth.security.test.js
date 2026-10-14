@@ -283,7 +283,7 @@ describe("authentication data flow with actual routes/controllers/services", () 
     await expect(authService.resetPassword(token, "Reset-audit-passphrase!")).resolves.toMatchObject({ id: ID });
   });
   it("serializes login counters and resets are unique even in the same second", async () => {
-    const results = await Promise.all(Array.from({ length: 5 }, () => authRepository.incrementFailedLoginAttempts(ID, 15)));
+    const results = await Promise.all(Array.from({ length: 5 }, () => authRepository.incrementFailedLoginAttempts(ID, 5)));
     expect(results.map(r => r.failedLoginAttempts)).toEqual([1, 2, 3, 4, 5]);
     expect(h.db.state.user[0].lockedUntil).toBeInstanceOf(Date);
     const a = signToken({ sub: ID, purpose: "password-reset", version: 0 }, "15m");
@@ -340,8 +340,23 @@ describe("authentication data flow with actual routes/controllers/services", () 
   it("restarts expired lockout accounting without losing new parallel strikes", async () => {
     h.db.state.user[0].lockedUntil = new Date(Date.now() - 1);
     h.db.state.user[0].failedLoginAttempts = 5;
-    const results = await Promise.all([authRepository.incrementFailedLoginAttempts(ID, 15), authRepository.incrementFailedLoginAttempts(ID, 15)]);
+    const results = await Promise.all([authRepository.incrementFailedLoginAttempts(ID, 5), authRepository.incrementFailedLoginAttempts(ID, 5)]);
     expect(results.map(r => r.failedLoginAttempts)).toEqual([1, 2]);
+  });
+  it("locks five wrong passwords for five minutes and admits a correct password afterward", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const start = Date.now();
+    try {
+      for (let i = 0; i < 5; i++) {
+        await expect(authService.adminLogin(user.email, "incorrect-password", "127.0.0.1"))
+          .rejects.toMatchObject({ code: i === 4 ? "ACCOUNT_LOCKED" : "INVALID_CREDENTIALS" });
+      }
+      expect(h.db.state.user[0].lockedUntil.getTime()).toBe(start + 300000);
+      vi.setSystemTime(start + 299999);
+      await expect(authService.adminLogin(user.email, PASSWORD, "127.0.0.1")).rejects.toMatchObject({ code: "ACCOUNT_LOCKED" });
+      vi.setSystemTime(start + 300001);
+      expect((await authService.adminLogin(user.email, PASSWORD, "127.0.0.1")).requiresOtp).toBe(true);
+    } finally { vi.useRealTimers(); }
   });
   it("fails closed with a safe retryable response when session lookup is unavailable", async () => {
     const lookup = vi.spyOn(h.db.user, "findUnique").mockRejectedValue(new Error("private database connection details"));

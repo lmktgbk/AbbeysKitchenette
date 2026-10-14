@@ -15,12 +15,12 @@ import {
   generateOtpEmail,
 } from "../../infrastructure/integrations/email.js";
 import { env } from "../../config/env.js";
+import { SECURITY_POLICY } from "../../config/securityPolicy.js";
 import { deleteImage } from "../../infrastructure/storage/imageCleanup.js";
 
-// Brute-force budget: 5 strikes per account, then a 15-minute lockout.
-// Mirrored by the route-level accountLimiter (10/15m) as the outer net.
-const LOGIN_MAX_ATTEMPTS = 5;
-const LOGIN_LOCKOUT_MINUTES = 15;
+// Durable account failures and route-level budgets share the five-minute policy.
+const LOGIN_MAX_ATTEMPTS = SECURITY_POLICY.accountFailures;
+const LOGIN_LOCKOUT_MINUTES = SECURITY_POLICY.passwordLockoutMinutes;
 
 export const authService = {
   // Separate portals, identical failure shape: staff portal is cashier +
@@ -75,7 +75,7 @@ export const authService = {
       const updated = await authRepository.incrementFailedLoginAttempts(user.id, LOGIN_LOCKOUT_MINUTES);
       const remaining = LOGIN_MAX_ATTEMPTS - updated.failedLoginAttempts;
       if (remaining <= 0) {
-        throw new AppError(423, "Account locked due to too many failed attempts.", "ACCOUNT_LOCKED");
+        throw new AppError(423, `Account locked after too many incorrect passwords. Try again in ${LOGIN_LOCKOUT_MINUTES} minutes.`, "ACCOUNT_LOCKED");
       }
       throw new AppError(401, "Invalid email or password", "INVALID_CREDENTIALS");
     }

@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { SECURITY_POLICY } from "./securityPolicy.js";
 
 /**
  * Environment validation — fail fast with an actionable message instead of
@@ -20,7 +21,7 @@ export const envSchema = z.object({
   CLIENT_IP_SOURCE: z.enum(["proxy", "railway"]).default("proxy"),
   COOKIE_SAME_SITE: z.enum(["strict", "lax", "none"]).default("strict"),
   RATE_LIMIT_STORE: z.enum(["memory", "postgres"]).optional(),
-  GENERAL_RATE_LIMIT_MAX: z.coerce.number().int().min(100).max(100000).default(3000),
+  GENERAL_RATE_LIMIT_MAX: z.coerce.number().int().min(100).max(100000).default(SECURITY_POLICY.general),
   JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
   JWT_EXPIRES_IN: z.string().min(1),
   DATABASE_POOL_SIZE: z.coerce.number().int().min(1).max(50).default(10),

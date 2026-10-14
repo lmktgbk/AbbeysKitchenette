@@ -12,6 +12,7 @@ import { PrismaClient } from "../src/generated/prisma/client.ts";
 vi.mock("../src/config/prisma.js", () => ({ default: {} }));
 vi.mock("../src/config/env.js", () => ({ env: { NODE_ENV: "test" } }));
 import { PostgresRateLimitStore, pruneRateLimitBuckets } from "../src/infrastructure/rateLimit/rateLimit.store.js";
+import { SECURITY_POLICY } from "../src/config/securityPolicy.js";
 const schema = `deployment_check_${crypto.randomUUID().replaceAll("-", "")}`;
 let admin, db, madeSchema = false;
 describe.skipIf(process.env.DEPLOYMENT_DB_CHECK !== "1")("PostgreSQL deployment rate protection", () => {
@@ -37,6 +38,18 @@ describe.skipIf(process.env.DEPLOYMENT_DB_CHECK !== "1")("PostgreSQL deployment 
     if (state.schema !== schema) throw new Error("Isolated schema not selected; writes refused");
   }, 90000);
   beforeEach(async () => { await db.rateLimitBucket.deleteMany(); });
+  it("persists a five-minute window without extending its deadline on more requests", async () => {
+    const limiter = new PostgresRateLimitStore("five-minute-fixture", db);
+    limiter.init({ windowMs: SECURITY_POLICY.windowMs });
+    const first = await limiter.increment("shared-network");
+    const [clock] = await db.$queryRaw`SELECT clock_timestamp() AS now`;
+    const remaining = first.resetTime.getTime() - clock.now.getTime();
+    expect(remaining).toBeGreaterThan(295000); expect(remaining).toBeLessThanOrEqual(300000);
+    const second = await limiter.increment("shared-network");
+    expect(second.resetTime).toEqual(first.resetTime); expect(second.totalHits).toBe(2);
+    await db.rateLimitBucket.updateMany({ data: { resetAt: new Date(0) } });
+    expect((await limiter.increment("shared-network")).totalHits).toBe(1);
+  }, 20000);
   afterAll(async () => {
     await db?.$disconnect();
     if (madeSchema) await admin.query(`DROP SCHEMA "${schema}" CASCADE`);

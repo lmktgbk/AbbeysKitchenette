@@ -31,7 +31,7 @@ it("admits repeated successful login/OTP flows for two staff sharing one public 
 it("recovery and resend exhaustion do not consume the independent verification budget", async () => {
   for (let i = 0; i < 20; i++) await post("/resend");
   expect((await post("/resend")).status).toBe(429);
-  for (let i = 0; i < 5; i++) await post("/recover", { email: "staff@example.com" });
+  for (let i = 0; i < 3; i++) expect((await post("/recover", { email: "staff@example.com" })).status).toBe(200);
   expect((await post("/recover", { email: " STAFF@EXAMPLE.COM " })).status).toBe(429);
   expect((await post("/verify")).status).toBe(200);
   expect((await post("/login", { email: "staff@example.com" })).status).toBe(200);
@@ -41,7 +41,7 @@ it("store-policy rejection and email outages do not spend the account password b
   expect((await post("/login", { email: "staff@example.com" })).status).toBe(200);
 });
 it("normalizes account keys across IPs and returns the actual action wait time", async () => {
-  for (let i = 0; i < 10; i++) await post("/login", { email: "staff@example.com", fail: true }, `203.0.113.${i + 10}`);
+  for (let i = 0; i < 5; i++) expect((await post("/login", { email: "staff@example.com", fail: true }, `203.0.113.${i + 10}`)).status).toBe(401);
   const response = await post("/login", { email: " STAFF@EXAMPLE.COM ", fail: true });
   expect(response.status).toBe(429);
   expect((await response.json()).error).toBe("ACCOUNT_RATE_LIMIT_EXCEEDED");
@@ -53,4 +53,19 @@ it("retains the 100-request outer budget across distinct authentication actions"
   expect(result.error).toBe("AUTH_RATE_LIMIT_EXCEEDED");
   expect(result.data.retryAfterSeconds).toBeGreaterThan(0);
   expect(Number(response.headers.get("retry-after"))).toBe(result.data.retryAfterSeconds);
+});
+it("expires the verification window after five minutes without extending it on rejection", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  const start = Date.now(); const ip = "203.0.113.201";
+  try {
+    for (let i = 0; i < 50; i++) expect((await post("/verify", {}, ip)).status).toBe(200);
+    const limited = await post("/verify", {}, ip);
+    expect(limited.status).toBe(429);
+    expect((await limited.json()).data.retryAfterSeconds).toBe(300);
+    vi.setSystemTime(start + 290000);
+    const retry = await post("/verify", {}, ip);
+    expect((await retry.json()).data.retryAfterSeconds).toBe(10);
+    vi.setSystemTime(start + 300001);
+    expect((await post("/verify", {}, ip)).status).toBe(200);
+  } finally { vi.useRealTimers(); }
 });
