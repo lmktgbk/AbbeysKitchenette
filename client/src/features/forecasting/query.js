@@ -6,7 +6,8 @@
 import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as api from "./api";
-import { subscribeRealtime } from "@/realtime/socket";
+import { subscribeRealtime, useRealtimeStatus } from "@/realtime/socket";
+import { jobPollingInterval } from "@/realtime/jobPolling";
 
 export const forecastKeys = {
   all: ["forecasting"],
@@ -27,9 +28,10 @@ export function useRunDemandForecast() {
   });
 }
 
-/** Watches one job topic and polls while its last fetched status is running; caller options may override polling. */
+/** Watch one job topic with a connection-aware safety refresh; callers can override query options. */
 export function useDemandStatus(jobId, options = {}) {
   const queryClient = useQueryClient();
+  const connectionStatus = useRealtimeStatus();
   // Live progress: the server watches the ML job and pushes completion.
   useEffect(() => {
     if (!jobId) return undefined;
@@ -42,9 +44,7 @@ export function useDemandStatus(jobId, options = {}) {
     queryKey: forecastKeys.demandStatus(jobId),
     queryFn: () => api.getDemandStatus(jobId),
     enabled: !!jobId,
-    // Realtime invalidation is supplemented by polling only while the cached status is running.
-    refetchInterval: (query) =>
-      query?.state?.data?.data?.status === "running" ? 2000 : false,
+    refetchInterval: query => jobPollingInterval(query, connectionStatus),
     ...options,
   });
 }

@@ -32,7 +32,6 @@ export const emailChangeLimiter = rateLimit({
  * generalLimiter    → all routes (DDoS protection)
  * authLimiter       → login endpoints (brute force prevention)
  * accountLimiter    → per-user login attempts (distributed attack prevention)
- * liberalLimiter    → dashboard polling (higher limit for real-time data)
  * guestOrderLimiter → public checkout (order spam prevention)
  * guestTrackLimiter → public order tracking (poll-friendly)
  *
@@ -41,13 +40,13 @@ export const emailChangeLimiter = rateLimit({
  */
 
 /**
- * Global rate limiter: 500 requests per 15 min per IP.
+ * Global rate limiter: 3000 requests per 15 min per IP.
  * Applied to all routes via app.use().
  */
 export const generalLimiter = rateLimit({
   store: sharedRateLimitStore("general"),
   windowMs: 15 * 60 * 1000,
-  max: env.GENERAL_RATE_LIMIT_MAX ?? 500,
+  max: env.GENERAL_RATE_LIMIT_MAX ?? 3000,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -131,27 +130,8 @@ export const accountLimiter = rateLimit({
 });
 
 /**
- * Liberal limiter: 3000 requests per 15 min per IP.
- * For dashboard routes that get polled every 15-30 seconds.
- * Admin viewing orders, notifications, forecasts, etc.
- */
-export const liberalLimiter = rateLimit({
-  store: sharedRateLimitStore("liberal"),
-  windowMs: 15 * 60 * 1000,
-  max: 3000,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    success: false,
-    message: "Too many requests, please try again later",
-    error: "RATE_LIMIT_EXCEEDED",
-    data: null,
-  },
-});
-
-/**
  * Guest order limiter: 10 orders per 15 min per IP.
- * Public checkout is the easiest spam target — mirrors authLimiter.
+ * Public checkout has its own stricter submission budget.
  */
 export const guestOrderLimiter = rateLimit({
   store: sharedRateLimitStore("guestOrder"),

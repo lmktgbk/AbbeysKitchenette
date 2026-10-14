@@ -67,7 +67,7 @@ app.use(requestBodyParsers());
 app.use(cookieParser());
 
 // Protects against DDoS and accidental high-volume requests.
-// 500 req / 15 min per IP globally; tighter limiters guard auth,
+// Configured network budget (default 3000 / 15 min); tighter limiters guard auth,
 // checkout, and other sensitive endpoints individually.
 app.use(healthRoutes());
 app.use(generalLimiter);

@@ -1,6 +1,6 @@
 /**
  * Notifications API — owns notification list + read-state transport.
- * WHY: single contract owner for bell polling and bulk-read actions. Contract: GET /notifications, GET /notifications/unread-count, PATCH /notifications/:id/read, PATCH /notifications/read-all, DELETE /notifications/:id; returns res.data envelope.
+ * WHY: single contract owner for bell reads and bulk-read actions; WebSocket events trigger query refreshes. Contract: GET /notifications, GET /notifications/unread-count, PATCH /notifications/:id/read, PATCH /notifications/read-all, DELETE /notifications/:id; returns res.data envelope.
  * State: axios wrappers, no state.
  */
 import api from "@/config/axios";

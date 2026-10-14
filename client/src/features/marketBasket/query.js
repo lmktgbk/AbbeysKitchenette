@@ -7,7 +7,8 @@ import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as api from "./api";
 import { createProductRequest } from "@/features/products/api";
-import { subscribeRealtime } from "@/realtime/socket";
+import { subscribeRealtime, useRealtimeStatus } from "@/realtime/socket";
+import { jobPollingInterval } from "@/realtime/jobPolling";
 
 const marketBasketKeys = {
   all: ["marketBasket"],
@@ -24,6 +25,7 @@ function useMarketBasketJobs(limit = 20) {
 
 export function useMarketBasketJob(jobId) {
   const queryClient = useQueryClient();
+  const connectionStatus = useRealtimeStatus();
   // Live progress: the server watches the ML job and pushes completion.
   useEffect(() => {
     if (jobId == null) return undefined;
@@ -36,10 +38,7 @@ export function useMarketBasketJob(jobId) {
     queryKey: marketBasketKeys.job(jobId),
     queryFn: () => api.getMarketBasketJob(jobId),
     enabled: !!jobId,
-    // Realtime broadcast is primary; 2s polling is backup while running
-    // while cached job status is running; absent initial data does not enable this fallback.
-    refetchInterval: (query) =>
-      query?.state?.data?.data?.status === "running" ? 2000 : false,
+    refetchInterval: query => jobPollingInterval(query, connectionStatus),
   });
 }
 
