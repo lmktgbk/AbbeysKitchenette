@@ -14,6 +14,7 @@ export function otpFailure(error) {
     retryAfterSeconds: Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : 0,
     expired: response?.data?.error === "INVALID_CHALLENGE",
     rateLimited: response?.data?.error === "AUTH_RATE_LIMIT_EXCEEDED",
+    verificationLimited: response?.data?.error === "OTP_VERIFY_RATE_LIMIT_EXCEEDED",
   };
 }
 

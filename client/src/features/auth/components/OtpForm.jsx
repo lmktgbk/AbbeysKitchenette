@@ -37,9 +37,9 @@ export default function OtpForm({ userId, onRestart }) {
         setServerError(failure.message);
         if (failure.retryAfterSeconds) {
             const deadline = Date.now() + failure.retryAfterSeconds * 1000;
-            setRetryAt(deadline);
+            if (!failure.verificationLimited) setRetryAt(deadline);
             setNow(Date.now());
-            if (failure.rateLimited) setVerifyBlockedUntil(deadline);
+            if (failure.rateLimited || failure.verificationLimited) setVerifyBlockedUntil(deadline);
         }
         if (failure.expired) setExpired(true);
         return failure.message;
@@ -114,7 +114,7 @@ export default function OtpForm({ userId, onRestart }) {
 
             <div className="flex flex-col gap-3">
                 <Button type="submit" fullWidth disabled={isSubmitting || resending || expired || verifyBlockedUntil > now}>
-                    {isSubmitting ? "Verifying..." : "Verify"}
+                    {isSubmitting ? "Verifying..." : verifyBlockedUntil > now ? `Verify in ${otpSecondsRemaining(verifyBlockedUntil, now)}s` : "Verify"}
                 </Button>
                 <Button
                     type="button"

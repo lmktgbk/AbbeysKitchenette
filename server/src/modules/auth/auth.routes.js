@@ -3,7 +3,8 @@ import { Router } from "express";
 import { authController } from "./auth.controller.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import authenticate from "../../middleware/authenticate.middleware.js";
-import { authLimiter, accountLimiter, emailChangeLimiter } from "../../middleware/rateLimit.middleware.js";
+import { authLimiter, accountLimiter, emailChangeLimiter, loginLimiter, otpVerifyLimiter,
+  otpResendLimiter, recoveryLimiter, recoveryAccountLimiter, resetLimiter } from "../../middleware/rateLimit.middleware.js";
 import { uploadAvatar } from "../../middleware/upload.middleware.js";
 import {
   loginSchema,
@@ -19,10 +20,10 @@ import {
 const router = Router();
 
 // POST /api/auth/login — staff portal (cashier + kitchen). Admins get USE_ADMIN_PORTAL.
-router.post("/login", authLimiter, accountLimiter, validate(loginSchema), authController.login);
+router.post("/login", authLimiter, loginLimiter, accountLimiter, validate(loginSchema), authController.login);
 
 // POST /api/auth/admin-login — hidden admin portal (admin only, OTP 2FA). Not linked in UI.
-router.post("/admin-login", authLimiter, accountLimiter, validate(loginSchema), authController.adminLogin);
+router.post("/admin-login", authLimiter, loginLimiter, accountLimiter, validate(loginSchema), authController.adminLogin);
 
 // GET /api/auth/me — current user (protected)
 router.get("/me", authenticate, authController.getMe);
@@ -31,16 +32,17 @@ router.get("/me", authenticate, authController.getMe);
 router.post("/logout", authenticate, authController.logout);
 
 // POST /api/auth/verify-otp — verify OTP code, returns JWT
-router.post("/verify-otp", authLimiter, validate(verifyOtpSchema), authController.verifyOtp);
+router.post("/verify-otp", authLimiter, otpVerifyLimiter, validate(verifyOtpSchema), authController.verifyOtp);
 
 // POST /api/auth/resend-otp — resend OTP to email
-router.post("/resend-otp", authLimiter, validate(resendOtpSchema), authController.resendOtp);
+router.post("/resend-otp", authLimiter, otpResendLimiter, validate(resendOtpSchema), authController.resendOtp);
 
 // POST /api/auth/forgot-password — self-service for all roles (same generic response)
 router.post(
   "/forgot-password",
   authLimiter,
-  accountLimiter,
+  recoveryLimiter,
+  recoveryAccountLimiter,
   validate(forgotPasswordSchema),
   authController.forgotPassword,
 );
@@ -49,6 +51,7 @@ router.post(
 router.post(
   "/reset-password",
   authLimiter,
+  resetLimiter,
   validate(resetPasswordSchema),
   authController.resetPassword,
 );

@@ -6,10 +6,12 @@ describe("OTP failure and countdown contracts", () => {
   it("preserves the cooldown message and JSON timing without readable CORS headers", () => {
     expect(otpFailure({ response: { data: { message: "Please wait before requesting a new code",
       error: "OTP_RESEND_COOLDOWN", data: { retryAfterSeconds: 12 } } } })).toEqual({
-      message: "Please wait before requesting a new code", retryAfterSeconds: 12, expired: false, rateLimited: false,
+      message: "Please wait before requesting a new code", retryAfterSeconds: 12, expired: false, rateLimited: false, verificationLimited: false,
     });
   });
   it("distinguishes the shared auth limit from an expired login challenge", () => {
+    expect(otpFailure({ response: { data: { error: "OTP_VERIFY_RATE_LIMIT_EXCEEDED", data: { retryAfterSeconds: 20 } } } })).toMatchObject({ verificationLimited: true, rateLimited: false, retryAfterSeconds: 20 });
+    expect(otpFailure({ response: { data: { error: "OTP_RESEND_RATE_LIMIT_EXCEEDED" } } })).toMatchObject({ verificationLimited: false, rateLimited: false });
     expect(otpFailure({ response: { data: { error: "AUTH_RATE_LIMIT_EXCEEDED" }, headers: { "retry-after": "730" } } })).toMatchObject({ retryAfterSeconds: 730, rateLimited: true, expired: false });
     expect(otpFailure({ response: { data: { message: "Sign in again", error: "INVALID_CHALLENGE" } } })).toMatchObject({ message: "Sign in again", expired: true, retryAfterSeconds: 0 });
   });

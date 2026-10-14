@@ -36,7 +36,9 @@ import { registerSessionSocket } from "../src/infrastructure/realtime/sessions.j
 import { subscribe, topicStats, __reset } from "../src/infrastructure/realtime/hub.js";
 import { generateOtp, verifyOtp } from "../src/modules/auth/auth.otp.js";
 import errorHandler from "../src/middleware/errorHandler.middleware.js";
-import { authLimiter, accountLimiter } from "../src/middleware/rateLimit.middleware.js";
+import { createHash } from "node:crypto";
+import { authLimiter, accountLimiter, loginLimiter, otpVerifyLimiter, otpResendLimiter,
+  recoveryLimiter, recoveryAccountLimiter, resetLimiter } from "../src/middleware/rateLimit.middleware.js";
 import { staffRepository } from "../src/modules/staff/staff.repository.js";
 import { attachRealtimeServer } from "../src/infrastructure/realtime/server.js";
 
@@ -57,8 +59,9 @@ beforeAll(async () => {
 });
 beforeEach(() => {
   h.db.reset(user); h.messages = []; h.storeAllowed = true; h.mailFailure = false; __reset();
-  authLimiter.resetKey("127.0.0.1");
-  accountLimiter.resetKey(`account:${user.email}`);
+  for (const limiter of [authLimiter, loginLimiter, otpVerifyLimiter, otpResendLimiter, recoveryLimiter, resetLimiter]) limiter.resetKey("127.0.0.1");
+  const key = createHash("sha256").update(user.email.toLowerCase()).digest("hex");
+  accountLimiter.resetKey(key); recoveryAccountLimiter.resetKey(key);
 });
 afterAll(async () => {
   realtime.stop();
@@ -120,11 +123,11 @@ describe("OTP resend retry feedback", () => {
     // Verification uses the delivered replacement; no raw code is added to retry metadata.
     expect((await request("/verify-otp", { userId: ID, code: h.messages.at(-1).html }, flow.challenge)).status).toBe(200);
   });
-  it("provides the shared auth budget reset separately from the OTP cooldown", async () => {
-    for (let i = 0; i < 10; i++) await request("/resend-otp", { userId: ID });
+  it("provides the resend action budget reset separately from the OTP cooldown", async () => {
+    for (let i = 0; i < 20; i++) await request("/resend-otp", { userId: ID });
     const result = await request("/resend-otp", { userId: ID });
     expect(result.status).toBe(429);
-    expect(result.body.error).toBe("AUTH_RATE_LIMIT_EXCEEDED");
+    expect(result.body.error).toBe("OTP_RESEND_RATE_LIMIT_EXCEEDED");
     expect(result.body.data.retryAfterSeconds).toBeGreaterThan(60);
     expect(result.body.data.retryAfterSeconds).toBeLessThanOrEqual(900);
     expect(Number(result.retryAfter)).toBe(result.body.data.retryAfterSeconds);
