@@ -103,33 +103,17 @@ export default function ShiftsView({ dateFrom, dateTo, onDateChange }) {
       )}
 
       <div>
-        <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            History
-          </p>
-          <div className="flex items-center gap-2">
-            {(dateFrom || dateTo) && (
-              <button
-                type="button"
-                onClick={() => handleDateChange("", "")}
-                className="cursor-pointer text-xs text-primary hover:underline"
-              >
-                All time
-              </button>
-            )}
-            <DateRangeFilter
-              dateFrom={dateFrom || null}
-              dateTo={dateTo || null}
-              onDateChange={handleDateChange}
-            />
-          </div>
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="shrink-0 text-xs font-semibold uppercase tracking-wide text-muted-foreground">History</p>
+          <form className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap" onSubmit={event => { event.preventDefault(); setSearch(searchInput.trim()); setHistoryPage(1); }}>
+            <input aria-label="Search shifts by cashier or reference" value={searchInput} onChange={event => setSearchInput(event.target.value)}
+              placeholder="Cashier name or shift reference…" maxLength={200} className="h-9 min-w-0 basis-full rounded-lg border bg-card px-3 text-sm sm:w-64 sm:basis-auto" />
+            <DateRangeFilter dateFrom={dateFrom || null} dateTo={dateTo || null} onDateChange={handleDateChange} />
+            <button type="submit" className="h-9 rounded-lg bg-primary px-4 text-sm text-primary-foreground">Search</button>
+            {search && <button type="button" className="h-9 rounded-lg border px-3 text-sm" onClick={() => { setSearchInput(""); setSearch(""); setHistoryPage(1); }}>Clear</button>}
+            {(dateFrom || dateTo) && <button type="button" onClick={() => handleDateChange("", "")} className="shrink-0 text-xs text-primary hover:underline">All time</button>}
+          </form>
         </div>
-      <form className="flex flex-wrap gap-2" onSubmit={event => { event.preventDefault(); setSearch(searchInput.trim()); setHistoryPage(1); }}>
-        <input aria-label="Search shifts by cashier or reference" value={searchInput} onChange={event => setSearchInput(event.target.value)}
-          placeholder="Cashier name or shift reference…" maxLength={200} className="min-w-0 flex-1 rounded-lg border bg-card px-3 py-2 text-sm" />
-        <button type="submit" className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground">Search</button>
-        {search && <button type="button" className="rounded-lg border px-3 py-2 text-sm" onClick={() => { setSearchInput(""); setSearch(""); setHistoryPage(1); }}>Clear</button>}
-      </form>
         {isError ? <div role="alert" className="rounded-xl border p-4 text-sm">
           <p>Shift history could not be loaded.</p>
           <button type="button" className="mt-2 text-primary underline" onClick={() => refetch()}>Retry</button>
