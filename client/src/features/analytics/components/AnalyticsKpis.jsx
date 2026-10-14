@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/ui/stat";
 import { cn } from "@/lib/utils";
 import { formatPeso } from "@/features/dashboard/utils/dashboardUtils";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
+import KpiDetailsModal from "./KpiDetailsModal";
 
 /**
  * TrendArrow — period-over-period delta badge.
@@ -33,8 +33,8 @@ function TrendArrow({ value, tone = "good" }) {
   );
 }
 
-export default function AnalyticsKpis({ kpis, isLoading }) {
-  const [showRetained, setShowRetained] = React.useState(false);
+export default function AnalyticsKpis({ kpis, isLoading, dateFrom, dateTo }) {
+  const [selectedCard, setSelectedCard] = React.useState(null);
   if (isLoading) {
     return (
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-5">
@@ -48,8 +48,6 @@ export default function AnalyticsKpis({ kpis, isLoading }) {
       </div>
     );
   }
-
-  const hasLosses = Number(kpis?.totalLosses || 0) > 0;
 
   const cards = [
     {
@@ -121,7 +119,7 @@ export default function AnalyticsKpis({ kpis, isLoading }) {
       icon: "wallet",
       label: "Retained Payments",
       value: formatPeso(kpis?.retainedPayments),
-      sub: "Cancelled orders / removed items",
+      sub: "Payments kept after refunds",
       delta: kpis?.deltas?.retainedPayments,
       tone: "neutral",
       iconBg: "bg-blue-500/10",
@@ -131,10 +129,7 @@ export default function AnalyticsKpis({ kpis, isLoading }) {
       icon: "wallet",
       label: "Net Profit",
       value: formatPeso(kpis?.netProfit),
-      // Losses here are wasted ingredients only (cash refunds live in the shift ledger).
-      sub: hasLosses
-        ? `${kpis?.netMargin ?? 0}% margin · Loss ${formatPeso(kpis?.totalLosses)}`
-        : `${kpis?.netMargin ?? 0}% margin`,
+      sub: `${kpis?.netMargin ?? 0}% margin`,
       delta: kpis?.deltas?.netProfit,
       iconBg: "bg-amber-500/10",
       iconColor: "text-amber-600 dark:text-amber-400",
@@ -143,49 +138,29 @@ export default function AnalyticsKpis({ kpis, isLoading }) {
 
   return (
     <>
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-5">
-      {cards.map((card) => (
-        <div key={card.label} className={cn("min-w-0", card.label === "Net Profit" && "col-span-full xl:col-span-1 xl:col-start-5 xl:row-start-1 xl:row-span-2")}>
-        <StatCard
-          className={cn("h-full min-w-0", card.label === "Net Profit" && "flex flex-col justify-center bg-primary/5 [&>span]:text-3xl")}
-          icon={card.icon}
-          iconBg={card.iconBg}
-          iconColor={card.iconColor}
-          label={card.label}
-          value={card.value}
-          sub={card.sub}
-          extra={
-            card.label === "Retained Payments" ? (
-              <button type="button" onClick={() => setShowRetained(true)} className="shrink-0 text-xs text-primary underline" aria-label="View retained payment details">Details</button>
-            ) : card.delta != null ? (
-              <>
-                <span className="type-small text-muted-foreground">·</span>
-                <TrendArrow value={card.delta} tone={card.tone} />
-              </>
-            ) : null
-          }
-        />
-        </div>
-      ))}
-    </div>
-    <p className="mt-2 text-xs text-muted-foreground">Net profit includes retained payments and deducts ingredient losses. Operating expenses are not included.</p>
-    <Dialog open={showRetained} onOpenChange={setShowRetained}>
-      <DialogContent className="max-w-2xl">
-        <DialogClose onClick={() => setShowRetained(false)} />
-        <DialogHeader><DialogTitle>Retained Payments</DialogTitle></DialogHeader>
-        <p className="text-sm text-muted-foreground">Payments kept after refunds, excluding completed sales. Uses the selected order-date period.</p>
-        <div className="max-h-[60vh] overflow-auto space-y-3">
-          {(kpis?.retainedPaymentDetails ?? []).map(row => (
-            <div key={row.order_id} className="rounded-lg border p-3 text-sm">
-              <div className="flex flex-wrap justify-between gap-2"><span>Order #{row.order_number} · {String(row.date).slice(0, 10)}</span><strong>{formatPeso(row.amount)}</strong></div>
-              <p className="text-muted-foreground capitalize">{row.payment_method ?? "cash"}</p>
-              <p className="break-words">{row.reason || "Historical reason not recorded"}</p>
-            </div>
-          ))}
-          {!kpis?.retainedPaymentDetails?.length && <p className="text-sm">No retained payments in this period.</p>}
-        </div>
-      </DialogContent>
-    </Dialog>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-5">
+        {cards.map(card => {
+          const isProfit = card.label === "Net Profit";
+          return (
+            <button key={card.label} type="button" onClick={() => setSelectedCard(card.label)}
+              aria-label={`View ${card.label} breakdown`} aria-haspopup="dialog"
+              className={cn("min-w-0 rounded-lg text-left transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                isProfit && "col-span-full xl:col-span-1 xl:col-start-5 xl:row-start-1 xl:row-span-2 border border-border bg-primary/5 p-4 flex flex-col justify-between")}>
+              <StatCard className={cn("h-full min-w-0", isProfit && "h-auto border-0 bg-transparent p-0 [&>span]:text-3xl")}
+                icon={card.icon} iconBg={card.iconBg} iconColor={card.iconColor}
+                label={card.label} value={card.value} sub={card.sub}
+                extra={card.delta != null ? <TrendArrow value={card.delta} tone={card.tone} /> : null} />
+              {isProfit && <dl className="mt-3 border-t border-border pt-3 space-y-2 text-xs">
+                {[["Gross profit", kpis?.grossProfit], ["Retained payments", kpis?.retainedPayments], ["Ingredient losses", -(kpis?.totalLosses ?? 0)]].map(([label, amount]) => (
+                  <div key={label} className="flex flex-wrap justify-between gap-x-2 gap-y-1"><dt className="text-muted-foreground">{label}</dt><dd className="font-semibold tabular-nums">{formatPeso(amount)}</dd></div>
+                ))}
+              </dl>}
+            </button>
+          );
+        })}
+      </div>
+      {selectedCard && <KpiDetailsModal key={`${selectedCard}:${dateFrom}:${dateTo}`} label={selectedCard} kpis={kpis}
+        dateFrom={dateFrom} dateTo={dateTo} onClose={() => setSelectedCard(null)} />}
     </>
   );
 }

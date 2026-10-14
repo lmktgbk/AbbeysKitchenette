@@ -6,6 +6,32 @@ import prisma from "../../config/prisma.js";
  * Transactions = completed orders only, COGS = actual FIFO cost
  */
 export const analyticsRepository = {
+  /** On-demand drilldowns use the same completed-order dates and FIFO records as the KPI totals. */
+  async getKpiDetails({ kind, dateFrom, dateTo, page = 1 }) {
+    const values = [];
+    const clauses = ["o.status = 'completed'"];
+    if (dateFrom) { values.push(dateFrom); clauses.push(`o.order_date >= $${values.length}::date`); }
+    if (dateTo) { values.push(dateTo); clauses.push(`o.order_date <= $${values.length}::date`); }
+    if (kind === "discounts") clauses.push("o.discount_amount > 0");
+    if (kind === "cogs") clauses.push("d.reversed_at IS NULL");
+    const where = clauses.join(" AND ");
+    const sql = kind === "cogs" ? `
+      SELECT i.ingredient_name, i.unit, SUM(d.quantity_deducted)::float AS quantity,
+        SUM(d.quantity_deducted * d.cost_per_unit)::float AS cost, COUNT(*) OVER()::int AS total
+      FROM order_ingredient_deductions d JOIN orders o ON o.order_id = d.order_id
+      JOIN ingredients i ON i.ingredient_id = d.ingredient_id
+      WHERE ${where} GROUP BY i.ingredient_id, i.ingredient_name, i.unit ORDER BY cost DESC, i.ingredient_id
+    ` : `
+      SELECT o.order_id, o.order_number, o.order_date, o.payment_method, o.discount_type,
+        o.subtotal_amount::float AS gross, o.discount_amount::float AS discount, o.total_amount::float AS net,
+        (SELECT COALESCE(SUM(quantity), 0)::int FROM order_items WHERE order_id = o.order_id AND removed_at IS NULL) AS units,
+        COUNT(*) OVER()::int AS total
+      FROM orders o WHERE ${where} ORDER BY o.order_date DESC, o.order_number DESC, o.order_id
+    `;
+    values.push(20, (page - 1) * 20);
+    const rows = await prisma.$queryRawUnsafe(`${sql} LIMIT $${values.length - 1} OFFSET $${values.length}`, ...values);
+    return { rows: rows.map(({ total: _total, ...row }) => row), total: rows[0]?.total ?? 0, page, limit: 20 };
+  },
   async getFinancialKpis(dateFrom, dateTo) {
     const values = [];
     let idx = 1;

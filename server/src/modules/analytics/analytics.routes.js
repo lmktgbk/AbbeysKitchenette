@@ -4,6 +4,7 @@ import { validateQuery } from "../../middleware/validate.middleware.js";
 import authenticate from "../../middleware/authenticate.middleware.js";
 import authorize from "../../middleware/authorize.middleware.js";
 import { getAnalyticsQuerySchema, getTrendQuerySchema, getExportQuerySchema, getVariantProfitQuerySchema, getIngredientProfitQuerySchema, getWasteDetailsQuerySchema } from "./analytics.validation.js";
+import { getKpiDetailsQuerySchema } from "./analytics.validation.js";
 
 const router = Router();
 
@@ -13,6 +14,7 @@ router.use(authenticate);
 router.use(authorize("admin"));
 
 router.get("/kpis", validateQuery(getAnalyticsQuerySchema), analyticsController.getKpis);
+router.get("/kpis/details", validateQuery(getKpiDetailsQuerySchema), analyticsController.getKpiDetails);
 router.get("/trend", validateQuery(getTrendQuerySchema), analyticsController.getTrend);
 router.get("/variants/profitability", validateQuery(getVariantProfitQuerySchema), analyticsController.getVariantProfitability);
 router.get("/ingredients/profitability", validateQuery(getIngredientProfitQuerySchema), analyticsController.getIngredientProfitability);

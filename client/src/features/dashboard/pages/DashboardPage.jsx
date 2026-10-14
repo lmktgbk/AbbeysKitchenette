@@ -89,7 +89,7 @@ export default function DashboardPage() {
       />
       <ExportChoicesModal open={exportOpen} onOpenChange={setExportOpen} onExport={handleExport} dateFrom={dateFrom} dateTo={dateTo} />
 
-      <AnalyticsKpis kpis={ak} isLoading={analyticsLoading} />
+      <AnalyticsKpis kpis={ak} isLoading={analyticsLoading} dateFrom={dateFrom} dateTo={dateTo} />
 
       <DashboardAnomalyBanner />
 

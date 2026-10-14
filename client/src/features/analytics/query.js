@@ -5,6 +5,16 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { getAnalyticsKpisRequest, getVariantProfitabilityRequest, getWasteDetailsRequest } from "./api";
+import { getKpiDetailsRequest } from "./api";
+
+export function useKpiDetails(params, enabled) {
+  return useQuery({
+    queryKey: ["analytics", "kpiDetails", params],
+    queryFn: () => getKpiDetailsRequest(params),
+    enabled,
+    staleTime: 30000,
+  });
+}
 
 export function useAnalyticsKpis(params) {
   return useQuery({

@@ -14,6 +14,15 @@ function handleError(res, error, fallbackCode) {
 }
 
 export const analyticsController = {
+  async getKpiDetails(req, res) {
+    try {
+      const { kind, date_from, date_to, page } = req.validatedQuery;
+      const result = await analyticsService.getKpiDetails({ kind, dateFrom: date_from, dateTo: date_to, page: Number(page) });
+      return successResponse(res, "KPI details retrieved", result);
+    } catch (error) {
+      return handleError(res, error, "GET_KPI_DETAILS_ERROR");
+    }
+  },
   async getKpis(req, res) {
     try {
       const { date_from, date_to } = req.validatedQuery;

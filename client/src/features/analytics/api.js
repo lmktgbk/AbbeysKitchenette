@@ -25,6 +25,11 @@ export async function getAnalyticsKpisRequest(params = {}) {
   return res.data;
 }
 
+export async function getKpiDetailsRequest(params) {
+  const res = await api.get("/analytics/kpis/details", { params: toSnakeParams(params) });
+  return res.data;
+}
+
 export async function exportAnalyticsRequest(params = {}) {
   const format = params.format === "pdf" ? "pdf" : "excel";
   const res = await api.get("/analytics/export", {

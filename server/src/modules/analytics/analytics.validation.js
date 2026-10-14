@@ -9,6 +9,13 @@ export const getAnalyticsQuerySchema = withDateRange(z.object({
   date_to: calendarDate.optional(),
 }));
 
+export const getKpiDetailsQuerySchema = withDateRange(z.object({
+  date_from: calendarDate.optional(),
+  date_to: calendarDate.optional(),
+  kind: z.enum(["orders", "discounts", "cogs"]),
+  page: pageQuery,
+}));
+
 export const EXPORT_TYPES = ["all", "financial", "kpi", "orders", "variants", "ingredients", "trend", "waste"];
 
 export const getExportQuerySchema = withDateRange(z.object({

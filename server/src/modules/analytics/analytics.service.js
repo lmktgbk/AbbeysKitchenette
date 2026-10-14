@@ -20,6 +20,9 @@ function calcDelta(current, previous) {
 }
 
 export const analyticsService = {
+  getKpiDetails(params) {
+    return analyticsRepository.getKpiDetails(params);
+  },
   /**
    * Financial KPIs for a window plus deltas against the previous equal-length
    * window (computed from the same repository shape so figures always agree).

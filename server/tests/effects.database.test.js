@@ -194,6 +194,13 @@ describe.skipIf(process.env.EFFECTS_DB_CHECK !== "1")("PostgreSQL durable effect
     const retained = option === "none" ? 85 : 0;
     expect(await analyticsRepository.getFinancialKpis()).toMatchObject({ grossSales: 85, netSales: 85, transactions: 1,
       retainedPayments: retained, cogs: 4, netProfit: 81 + retained });
+    const details = await analyticsRepository.getKpiDetails({ kind: "orders" });
+    expect(details.total).toBe(1);
+    expect(details.rows[0]).toMatchObject({ order_id: order.order_id, gross: 85, net: 85, units: 1, discount: 0 });
+    expect((await analyticsRepository.getKpiDetails({ kind: "discounts" })).rows).toEqual([]);
+    const costs = await analyticsRepository.getKpiDetails({ kind: "cogs" });
+    expect(costs.rows[0]).toMatchObject({ ingredient_name: "Coffee", unit: "g", quantity: 2, cost: 4 });
+    expect((await analyticsRepository.getKpiDetails({ kind: "orders", dateFrom: "2000-01-01", dateTo: "2000-01-02" })).rows).toEqual([]);
     const [saved] = await db.order.findMany();
     const date = saved.orderDate.toISOString().slice(0, 10);
     expect((await analyticsRepository.getFinancialKpis(date, date)).retainedPayments).toBe(retained);
@@ -218,6 +225,21 @@ describe.skipIf(process.env.EFFECTS_DB_CHECK !== "1")("PostgreSQL durable effect
     expect(Number((await db.paymentRefund.findUnique({ where: { orderId: order.order_id } })).amount)).toBe(85);
     expect(Number((await db.restockBatch.findUnique({ where: { restockId: batch.restockId } })).quantityLeft)).toBe(10);
   }, 45000);
+
+  it("discount drilldown lists the same completed discounted orders as the KPI", async () => {
+    await db.shift.create({ data: { openedBy: user.id, openingCash: 0 } });
+    const order = await orderService.createWalkIn({ customerName: "Fixture", tableNumber: "1",
+      items: [{ product_id: variant.productId, variant_id: variant.variantId, quantity: 1, unit_price: 85, discount_type: "senior" }],
+      amountPaid: 100, createdBy: user.id, idempotencyKey: "123e4567-e89b-42d3-a456-426614174116" });
+    await orderService.prepareOrder(order.order_id, user.id);
+    const item = await db.orderItem.findFirst({ where: { orderId: order.order_id } });
+    await orderService.checkOrderItem(order.order_id, item.orderItemId, true, user.id);
+    await orderService.advanceStatus(order.order_id, "completed", { userId: user.id, userRole: "admin" });
+    const details = await analyticsRepository.getKpiDetails({ kind: "discounts" });
+    expect(details.total).toBe(1);
+    expect(details.rows[0]).toMatchObject({ gross: 85, discount: 17, net: 68, discount_type: "senior", units: 1 });
+    expect(await analyticsRepository.getFinancialKpis()).toMatchObject({ grossSales: 85, discounts: 17, netSales: 68 });
+  }, 60000);
 
   it("real inventory restock, loss and count preserve their audit intents", async () => {
     await ingredientService.restock(ingredient.ingredientId, { quantity_added: 2, cost_per_unit: 2 }, user.id);
