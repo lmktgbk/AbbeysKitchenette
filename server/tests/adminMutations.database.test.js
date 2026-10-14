@@ -1,7 +1,7 @@
 import { beforeAll, beforeEach, afterAll, describe, it, expect, vi } from "vitest";
 const h = vi.hoisted(() => ({ db: null }));
 vi.mock("../src/config/prisma.js", () => ({ default: new Proxy({}, { get: (_t, key) => typeof h.db[key] === "function" ? h.db[key].bind(h.db) : h.db[key] }) }));
-vi.mock("../src/config/env.js", () => ({ env: { JWT_SECRET: "fixture-key-only", CLIENT_URL: "https://fixture.invalid" } }));
+vi.mock("../src/config/env.js", () => ({ env: { JWT_SECRET: "fixture-key-only", JWT_EXPIRES_IN: "8h", CLIENT_URL: "https://fixture.invalid" } }));
 vi.mock("../src/infrastructure/integrations/email.js", () => ({ sendEmail: vi.fn().mockRejectedValue(Error("Fixture mail offline")), generateStaffInviteEmail: () => "fixture" }));
 vi.mock("../src/infrastructure/storage/imageCleanup.js", () => ({ deleteImage: vi.fn().mockResolvedValue() }));
 vi.mock("../src/modules/auditLogs/auditLog.service.js", () => ({ auditLogService: { logAction: vi.fn().mockResolvedValue() } }));
@@ -10,6 +10,8 @@ import { isolatedPostgres } from "./helpers/isolatedPostgres.js";
 import { productService as products } from "../src/modules/products/product.service.js";
 import { categoryService as categories } from "../src/modules/categories/category.service.js";
 import { staffService as staff } from "../src/modules/staff/staff.service.js";
+import { resolveSession } from "../src/modules/auth/auth.session.js";
+import { signSessionToken } from "../src/config/jwt.js";
 import { settingsService as settings } from "../src/modules/settings/settings.service.js";
 import { revokeLocalSessions } from "../src/infrastructure/realtime/sessions.js";
 import { sendEmail } from "../src/infrastructure/integrations/email.js";
@@ -218,5 +220,44 @@ describe.skipIf(process.env.ADMIN_DB_CHECK !== "1")("PostgreSQL administrative m
     expect(revokeLocalSessions).not.toHaveBeenCalled(); expect(await db.user.count()).toBe(2);
     await staff.deleteStaff(target.id, actor.id); expect(await db.user.count()).toBe(1);
     await deliverAll(); expect(await db.auditLog.count()).toBe(1);
+  }, 30000);
+  it("authentication-only deletion preserves existing and pending actors and cascades tokens atomically", async () => {
+    const session = signSessionToken(target);
+    await db.auditLog.create({ data: { userId: target.id, action: "PASSWORD_RESET", details: { requestId: "fixture" } } });
+    await db.domainEffect.create({ data: { payload: { version: 1, notifications: [], audit: { userId: target.id, action: "OTP_REQUESTED", details: { requestId: "pending-fixture" } } } } });
+    await db.otpCode.create({ data: { userId: target.id, code: "fixture-digest", challengeId: "00000000-0000-4000-8000-000000000001", expiresAt: new Date(Date.now() + 60000) } });
+    await db.passwordResetToken.create({ data: { userId: target.id, tokenHash: "fixture-token", expiresAt: new Date(Date.now() + 60000) } });
+    await db.emailChangeRequest.create({ data: { id: "00000000-0000-4000-8000-000000000002", userId: target.id,
+      oldEmail: target.email, newEmail: "updated@fixture.invalid", name: target.name, codeHash: "fixture", sessionVersion: 0, expiresAt: new Date(Date.now() + 60000) } });
+    await blocked(() => staff.deleteStaff(target.id, actor.id));
+    expect((await db.auditLog.findFirst()).userId).toBe(target.id);
+    expect((await db.auditLog.findFirst()).details).toEqual({ requestId: "fixture" });
+    expect(await db.otpCode.count()).toBe(1);
+    await staff.deleteStaff(target.id, actor.id);
+    expect(await db.user.findUnique({ where: { id: target.id } })).toBeNull();
+    expect(await db.otpCode.count()).toBe(0);
+    expect(await db.passwordResetToken.count()).toBe(0);
+    expect(await db.emailChangeRequest.count()).toBe(0);
+    await expect(resolveSession(session)).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await deliverAll();
+    const logs = await db.auditLog.findMany({ where: { action: { in: ["PASSWORD_RESET", "OTP_REQUESTED"] } } });
+    expect(logs).toHaveLength(2);
+    for (const log of logs) {
+      expect(log.userId).toBeNull();
+      expect(log.details).toMatchObject({ actor_id: target.id, actor_name: "Cashier", actor_role: "cashier" });
+      expect(log.details.requestId).toBeTruthy();
+    }
+    expect(revokeLocalSessions).toHaveBeenCalledWith(target.id);
+  }, 30000);
+  it("delayed audit identity survives deletion-event delivery and outbox pruning", async () => {
+    await staff.deleteStaff(target.id, actor.id);
+    await deliverAll();
+    await db.domainEffect.deleteMany({ where: { state: "delivered" } });
+    // Make this simulated delayed intent due regardless of client/database clock skew.
+    await db.domainEffect.create({ data: { nextAttemptAt: new Date(0), payload: { version: 1, notifications: [], audit: { userId: target.id, action: "LOGIN_SUCCESS" } } } });
+    await deliverAll();
+    const log = await db.auditLog.findFirst({ where: { action: "LOGIN_SUCCESS" } });
+    expect(log.details).toMatchObject({ actor_id: target.id, actor_name: "Cashier", actor_role: "cashier" });
+    expect(log.userId).toBeNull();
   }, 30000);
 });

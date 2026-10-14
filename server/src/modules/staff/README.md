@@ -16,8 +16,11 @@ sessions close after successful commit, supplementing database-backed revocation
 
 Active-state toggles derive their next value from the locked account row; stale
 pre-reads cannot decide a concurrent toggle. Deletes lock the account before
-checking transaction history and recording deletion audit. Drawer/history references
-prevent deletion. Audit failure must roll back the mutation without revoking a
+checking operational history and recording deletion audit. Sales, inventory and
+drawer references prevent deletion; authentication history alone does not.
+Existing audits retain actor ID/name/role before the foreign key is detached.
+Pending delivery resolves that identity from the durable deletion event without
+locking outbox rows during deletion. Audit failure must roll back without revoking a
 session for a change that never committed.
 
 Keep domain checks local and use the auth feature for reset-token/mail lifecycle.

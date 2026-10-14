@@ -1490,6 +1490,16 @@ Live Google delivery, browser workflows and post-reseed outputs remain Not verif
 - [ ] Optional isolated failure check: a second-batch write failure rolls back the first batch and history/audit writes. Never inject failures into operational data.
 
 
+## Shared-network authentication and staff deletion
+
+- [ ] Two staff on one Wi-Fi can log in and verify OTPs without exhausting the old ten-request shared budget.
+- [ ] Recovery/resend throttling does not independently block verification; network-wide abuse still reaches the 100-request outer cap.
+- [ ] Incorrect passwords and OTPs still reach their existing account/challenge limits; a resend still observes the 60-second cooldown.
+- [ ] OTP action throttling shows an accurate countdown and does not unnecessarily disable the other action.
+- [ ] Delete an isolated account with only login/reset history: audit actor names remain identifiable, tokens disappear and old sessions are rejected.
+- [ ] Accounts with orders, refunds, inventory actions or shifts cannot be deleted; the message recommends deactivation.
+- [ ] Audit-preservation/deletion failure rolls everything back; pending audit delivery retains the deleted actor identity.
+
 ## Hosted store-network diagnostic
 
 - [ ] As admin, open Settings > Security > Check this network on the staff device's network.

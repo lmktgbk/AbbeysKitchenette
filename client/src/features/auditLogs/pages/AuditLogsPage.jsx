@@ -407,7 +407,9 @@ export default function AuditLogsPage() {
                             <span className="ml-1 text-xs text-muted-foreground capitalize">({log.user.role})</span>
                           </span>
                         ) : (
-                          <span className="text-sm text-muted-foreground italic">System</span>
+                          <span className="text-sm text-muted-foreground italic">
+                            {log.details?.actor_id ? `${log.details.actor_name || "Unknown staff"} — deleted account` : "System"}
+                          </span>
                         )}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5 pr-6 sm:px-4 sm:py-3 sm:pr-3">

@@ -18,8 +18,21 @@ export function createEffectsRepository(db = prisma) {
             await captureAnomalyTrigger(tx, row.id, payload.audit);
             const { userId, ...audit } = payload.audit;
             const actor = userId ? await tx.user.findUnique({ where: { id: userId }, select: { id: true } }) : null;
+            let deletedActor;
+            if (userId && !actor) {
+              // Deletion and its event commit together. Resolve already-delivered
+              // or pending deletion metadata without acquiring another outbox lock.
+              // This avoids a user/outbox lock inversion during concurrent delivery.
+              const event = await tx.auditLog.findFirst({ where: { action: "STAFF_DELETED", targetId: userId }, select: { details: true } });
+              const pending = event ? null : await tx.domainEffect.findFirst({ where: { AND: [
+                { payload: { path: ["audit", "action"], equals: "STAFF_DELETED" } },
+                { payload: { path: ["audit", "targetId"], equals: userId } },
+              ] }, select: { payload: true } });
+              const snapshot = event?.details ?? pending?.payload?.audit?.details;
+              deletedActor = { actor_id: userId, ...(snapshot?.name ? { actor_name: snapshot.name, actor_role: snapshot.role } : {}) };
+            }
             await tx.auditLog.create({ data: { ...audit, userId: actor?.id ?? null, createdAt: row.created_at,
-              details: { ...audit.details, ...(userId && !actor ? { actor_id: userId } : {}) } } });
+              details: { ...audit.details, ...deletedActor } } });
           }
           if (payload.notifications.length) await tx.notification.createMany({ data: payload.notifications.map(n => ({ ...n, createdAt: row.created_at })) });
           await tx.domainEffect.update({ where: { id: row.id }, data: { state: "delivered", deliveredAt: new Date() } });

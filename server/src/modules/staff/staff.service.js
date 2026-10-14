@@ -153,14 +153,15 @@ export const staffService = {
   async deleteStaff(id, userId) {
     const deleted = await prisma.$transaction(async tx => {
       // FOR UPDATE also serializes new FK references with the history check.
-      const rows = await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${id}::uuid FOR UPDATE`;
+      const rows = await tx.$queryRaw`SELECT id, name, role FROM "User" WHERE id = ${id}::uuid FOR UPDATE`;
       if (!rows.length) throw new AppError(404, "Staff not found", "STAFF_NOT_FOUND");
       if (await staffRepository.hasTransactions(id, tx)) {
-        throw new AppError(400, "Cannot delete staff with transaction history", "STAFF_HAS_TRANSACTIONS");
+        throw new AppError(400, "This account has sales, cash-drawer, or inventory history. Deactivate it instead.", "STAFF_HAS_TRANSACTIONS");
       }
+      await staffRepository.preserveAuditActor(rows[0], tx);
       const row = await staffRepository.deleteUser(id, tx);
       await recordEffects(tx, { audit: { userId, action: ACTIONS.STAFF_DELETED,
-        targetType: "staff", targetId: id, details: { name: row.name } } });
+        targetType: "staff", targetId: id, details: { name: row.name, role: rows[0].role } } });
       return row;
     }, { timeout: 5000 });
     revokeLocalSessions(id);

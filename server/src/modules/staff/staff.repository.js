@@ -116,8 +116,19 @@ export const staffRepository = {
     return user;
   },
 
+  /** Retain the actor snapshot before ON DELETE SET NULL detaches audit rows.
+   * Pending delivery resolves its actor from the durable deletion event instead
+   * of locking outbox rows here (the worker locks those before actor references).
+   */
+  async preserveAuditActor(user, tx) {
+    const snapshot = JSON.stringify({ actor_id: user.id, actor_name: user.name, actor_role: user.role });
+    await tx.$executeRaw`UPDATE audit_logs SET details = COALESCE(details, '{}'::jsonb) || ${snapshot}::jsonb
+      WHERE "userId" = ${user.id}::uuid`;
+  },
+
   /**
-   * Check if staff has transaction history (restock, loss, orders).
+   * Preserve operational accountability. Authentication audits alone do not
+   * prevent deletion; their actor snapshots are retained separately.
    */
   async hasTransactions(id, tx = prisma) {
     const [row] = await tx.$queryRaw`
@@ -129,7 +140,6 @@ export const staffRepository = {
         OR EXISTS (SELECT 1 FROM order_items WHERE prepared_by = ${id}::uuid OR removed_by = ${id}::uuid)
         OR EXISTS (SELECT 1 FROM order_cancellations WHERE cancelled_by = ${id}::uuid)
         OR EXISTS (SELECT 1 FROM payment_refunds WHERE refunded_by = ${id}::uuid)
-        OR EXISTS (SELECT 1 FROM audit_logs WHERE "userId" = ${id}::uuid)
         OR EXISTS (SELECT 1 FROM shifts WHERE opened_by = ${id}::uuid OR closed_by = ${id}::uuid)
         AS has_history
     `;
