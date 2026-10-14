@@ -90,7 +90,7 @@ export default function LandingPage() {
                 <Location settings={settings} />
             </div>
             <div className="contact-section">
-                <Contact />
+                <Contact settings={settings} />
             </div>
             <Footer settings={settings} />
         </div>

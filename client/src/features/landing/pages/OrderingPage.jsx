@@ -78,19 +78,11 @@ function OrderingUI({ onOrderSuccess }) {
     const [search, setSearch] = useState("");
     const [activeCategory, setActiveCategory] = useState("all");
 
-    // Grid page: server-filtered by subcategory (GET /api/guest/menu?category=<subcategoryId>),
-    // mirroring the POS grid. Pills are flat subcategories — no root grouping.
-    const menuQuery = useGuestMenu({
-        category: activeCategory === "all" ? undefined : activeCategory,
-    }, { refetchInterval: 60000 });
+    // One full catalog supports local filters and reconciles every cart line.
+    // Checkout still re-fetches this catalog and the server validates the order.
+    const menuQuery = useGuestMenu({}, { refetchInterval: 60000 });
     const { data: menuData, isPending, isError, isFetching, refetch } = menuQuery;
-    const gridProducts = useMemo(() => menuData?.data?.menu ?? [], [menuData]);
-
-    // Full catalog for pills, cart reconciliation, the detail modal, and the
-    // checkout re-quote — never the filtered page, or cart lines outside the
-    // active pill would read "Unavailable item" and block submission.
-    const catalogQuery = useGuestMenu({}, { refetchInterval: 60000 });
-    const allProducts = useMemo(() => catalogQuery.data?.data?.menu ?? [], [catalogQuery.data]);
+    const allProducts = useMemo(() => menuData?.data?.menu ?? [], [menuData]);
 
     const categories = useMemo(() => {
         const seen = new Map();
@@ -166,7 +158,8 @@ function OrderingUI({ onOrderSuccess }) {
         });
     };
 
-    const filtered = gridProducts.filter(product =>
+    const filtered = allProducts.filter(product =>
+        (activeCategory === "all" || product.subcategory_id === activeCategory) &&
         product.product_name.toLowerCase().includes(search.trim().toLowerCase()));
 
     // ── Cart state ───────────────────────────────
@@ -439,9 +432,7 @@ function OrderingUI({ onOrderSuccess }) {
                 <CheckoutModal
                     cart={cart}
                     subtotal={subtotal}
-                    // Full catalog: the checkout re-quote must see every line,
-                    // not just the active pill's page.
-                    menuQuery={catalogQuery}
+                    menuQuery={menuQuery}
                     onSuccess={result => {
                         // Clear synchronously before unmounting; an effect cannot run on the removed ordering screen.
                         try { writeCart(window.sessionStorage, []); } catch { /* Storage may be disabled. */ }

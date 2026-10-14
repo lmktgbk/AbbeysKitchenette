@@ -2,31 +2,34 @@ import Icon from "@/components/ui/icon";
 
 /**
  * Contact
- * Static direct-channel cards (call + email) styled like the Visit Us rows:
- * icon, label, value — no hints, no chevrons. Fully static values: nothing
- * reads from Settings, nothing is posted to the backend, so there is no
- * spam surface and no silent-failure mode.
+ * Direct call/email links use public store settings. No enquiry form is
+ * submitted; the device's phone or email application handles each action.
  * Uses .lp-reveal for scroll-driven animations.
  */
 
 const EMAIL_SUBJECT = encodeURIComponent("Inquiry — Abbey's Kitchenette");
 
-const ACTIONS = [
-    {
-        icon: "phone",
-        label: "Call Us",
-        value: "0929 781 1212",
-        href: "tel:+639297811212",
-    },
-    {
-        icon: "mail",
-        label: "Email Us",
-        value: "maryrosemendoza78@yahoo.com",
-        href: `mailto:maryrosemendoza78@yahoo.com?subject=${EMAIL_SUBJECT}`,
-    },
-];
+export default function Contact({ settings = {} }) {
+    const phone = settings.storePhone || "0929 781 1212";
+    const email = settings.storeEmail || "maryrosemendoza78@yahoo.com";
+    // Strip display punctuation and convert a Philippine local prefix for dialing.
+    const digits = phone.replace(/\D/g, "");
+    const dial = digits.startsWith("0") ? `+63${digits.slice(1)}` : phone.startsWith("+") ? `+${digits}` : digits;
+    const actions = [
+        {
+            icon: "phone",
+            label: "Call Us",
+            value: phone,
+            href: `tel:${dial}`,
+        },
+        {
+            icon: "mail",
+            label: "Email Us",
+            value: email,
+            href: `mailto:${encodeURIComponent(email)}?subject=${EMAIL_SUBJECT}`,
+        },
+    ];
 
-export default function Contact() {
     return (
         <section id="contact" className="landing-section">
             <div className="text-center lp-reveal">
@@ -39,7 +42,7 @@ export default function Contact() {
             </div>
 
             <div className="contact-actions lp-reveal lp-reveal-delay-1" style={{ marginTop: "3.5rem" }}>
-                {ACTIONS.map((action) => (
+                {actions.map((action) => (
                     <a
                         key={action.label}
                         href={action.href}

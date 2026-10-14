@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
-import { GALLERY_PHOTOS } from "./Gallery";
+import { GALLERY_PHOTOS } from "../galleryPhotos";
 
 /**
  * About
@@ -51,6 +51,8 @@ export default function About() {
                         tabIndex={0}
                         aria-label={`Photo: ${currentPhoto.title}. Click to view next gallery photo.`}
                         onKeyDown={(e) => {
+                            // Arrow buttons handle their own keyboard activation.
+                            if (e.target !== e.currentTarget) return;
                             if (e.key === "Enter" || e.key === " ") {
                                 e.preventDefault();
                                 handleNextImage();
