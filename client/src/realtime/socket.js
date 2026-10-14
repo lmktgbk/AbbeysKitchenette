@@ -7,8 +7,10 @@
  */
 
 import { useSyncExternalStore } from "react";
+import useAuthStore from "@/features/auth/authStore";
 
 const ENABLED = (import.meta.env.VITE_REALTIME ?? "on") !== "off";
+const USE_TICKETS = import.meta.env.VITE_WS_TICKET === "on";
 const MAX_BACKOFF_MS = 30000;
 const PING_MS = 20000;
 const PONG_TIMEOUT_MS = 5000;
@@ -112,15 +114,29 @@ function connect() {
   if (!ENABLED || typeof WebSocket === "undefined") return;
   let current;
   try {
-    current = new WebSocket(wsUrl());
+    const address = new URL(wsUrl());
+    if (USE_TICKETS) address.searchParams.set("auth", "ticket");
+    current = new WebSocket(address.toString());
+    current.authPending = USE_TICKETS && Boolean(useAuthStore.getState().user);
     socket = current;
   } catch {
     scheduleReconnect();
     return;
   }
 
-  current.onopen = () => {
+  current.onopen = async () => {
     if (socket !== current || !started) return;
+    if (current.authPending) {
+      try {
+        const { default: api } = await import("@/config/axios");
+        const response = await api.post("/auth/realtime-ticket", {}, { timeout: 10000 });
+        if (socket !== current || !started) return;
+        current.send(JSON.stringify({ type: "auth", token: response.data.data.ticket }));
+      } catch {
+        if (socket === current) current.close();
+      }
+      return;
+    }
     backoffMs = 1000;
     setStatus("live");
     armHeartbeat();
@@ -136,6 +152,14 @@ function connect() {
       return;
     }
     if (!msg || typeof msg !== "object" || Array.isArray(msg)) return;
+    if (msg.type === "ready" && current.authPending) {
+      current.authPending = false;
+      backoffMs = 1000;
+      setStatus("live");
+      flushSubscriptions();
+      armHeartbeat();
+      return;
+    }
     if (msg.type === "pong") {
       clearTimeout(pongTimer);
       return;
@@ -210,7 +234,7 @@ export function subscribeRealtime(topic, handler) {
   const first = !subscriptions.has(topic);
   if (first) subscriptions.set(topic, new Set());
   subscriptions.get(topic).add(handler);
-  if (first) send({ type: "subscribe", topic });
+  if (first && !socket?.authPending) send({ type: "subscribe", topic });
   return () => {
     const set = subscriptions.get(topic);
     if (!set) return;

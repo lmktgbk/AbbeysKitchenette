@@ -113,6 +113,7 @@ export const authService = {
 
   /** Resolve only a login-purpose token and recheck current account/location before code operations. */
   async _resolveChallenge(userId, challenge, clientIP) {
+    if (!challenge) throw new AppError(401, "Login cookie is missing. Your browser could not retain the sign-in challenge. Please sign in again.", "CHALLENGE_COOKIE_MISSING");
     let claims;
     try {
       claims = verifyToken(challenge, "login-challenge");

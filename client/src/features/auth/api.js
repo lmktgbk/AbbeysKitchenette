@@ -22,7 +22,7 @@ export function otpFailure(error) {
   return {
     message: response?.data?.message || (response ? "Unable to complete this request. Please try again." : "Cannot reach the server. Check your connection and try again."),
     retryAfterSeconds: retryDelaySeconds(error),
-    expired: response?.data?.error === "INVALID_CHALLENGE",
+    expired: ["INVALID_CHALLENGE", "CHALLENGE_COOKIE_MISSING"].includes(response?.data?.error),
     rateLimited: response?.data?.error === "AUTH_RATE_LIMIT_EXCEEDED",
     verificationLimited: response?.data?.error === "OTP_VERIFY_RATE_LIMIT_EXCEEDED",
   };

@@ -97,6 +97,24 @@ async function loggedIn(role = "admin") {
 }
 
 describe("OTP resend retry feedback", () => {
+  it("issues an opaque ticket from the session and authenticates a cookie-free socket", async () => {
+    const flow = await loggedIn();
+    expect((await request("/realtime-ticket", {})).status).toBe(401);
+    const result = await request("/realtime-ticket", {}, flow.session);
+    expect(result.status).toBe(200);
+    const ticket = result.body.data.ticket;
+    expect(ticket).not.toContain(flow.session.split("=")[1]);
+    const ws = new WebSocket(base.replace("http:", "ws:").replace("/api/auth", "/ws?auth=ticket"));
+    const next = () => new Promise(resolve => ws.once("message", raw => resolve(JSON.parse(String(raw)))));
+    try {
+      expect((await next()).type).toBe("hello");
+      let message = next(); ws.send(JSON.stringify({ type: "auth", token: ticket }));
+      expect(await message).toMatchObject({ type: "ready", user: { id: ID, role: "admin" } });
+      // Every subsequent ACL/heartbeat revalidates the server-held session, not the consumed ticket.
+      message = next(); ws.send(JSON.stringify({ type: "subscribe", topic: "orders" }));
+      expect(await message).toMatchObject({ type: "subscribed", topic: "orders" });
+    } finally { ws.terminate(); }
+  });
   it("returns the remaining issuance wait without replacing the code or extending expiry", async () => {
     const flow = await login();
     const stored = h.db.state.otpCode[0];
@@ -132,10 +150,10 @@ describe("OTP resend retry feedback", () => {
     expect(result.body.data.retryAfterSeconds).toBeLessThanOrEqual(900);
     expect(Number(result.retryAfter)).toBe(result.body.data.retryAfterSeconds);
   });
-  it("expired challenges instruct a fresh sign-in instead of returning a cooldown", async () => {
+  it("missing challenge cookies explain the browser issue instead of claiming expiry", async () => {
     const result = await request("/resend-otp", { userId: ID });
     expect(result.status).toBe(401);
-    expect(result.body.error).toBe("INVALID_CHALLENGE");
+    expect(result.body.error).toBe("CHALLENGE_COOKIE_MISSING");
     expect(result.body.message).toContain("sign in again");
     expect(result.body.data).toBeNull();
   });

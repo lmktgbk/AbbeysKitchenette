@@ -1,6 +1,8 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 
 let client, instances;
+const h = vi.hoisted(() => ({ post: vi.fn() }));
+vi.mock("../../client/src/config/axios.js", () => ({ default: { post: h.post } }));
 class FakeWebSocket {
   static OPEN = 1;
   readyState = 0;
@@ -22,6 +24,22 @@ beforeEach(async () => {
 });
 afterEach(() => { client?.stopRealtime(); vi.useRealTimers(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.restoreAllMocks(); });
 describe("browser realtime reconnect and data resync", () => {
+  it("waits for ticket authentication before sending private subscriptions", async () => {
+    client.stopRealtime(); vi.resetModules(); vi.stubEnv("VITE_WS_TICKET", "on");
+    const { default: store } = await import("../../client/src/features/auth/authStore.js");
+    store.getState().setUser({ id: "fixture" });
+    h.post.mockResolvedValue({ data: { data: { ticket: "rt_fixture" } } });
+    client = await import("../../client/src/realtime/socket.js");
+    client.subscribeRealtime("orders", vi.fn());
+    const ws = instances.at(-1); ws.readyState = 1;
+    await ws.onopen();
+    expect(ws.url).toContain("auth=ticket");
+    expect(ws.sent).toEqual([{ type: "auth", token: "rt_fixture" }]);
+    expect(h.post).toHaveBeenCalledWith("/auth/realtime-ticket", {}, { timeout: 10000 });
+    ws.receive({ type: "ready", user: { id: "fixture" } });
+    expect(ws.sent.at(-1)).toEqual({ type: "subscribe", topic: "orders" });
+    expect(client.realtimeStatus()).toBe("live");
+  });
   it("refreshes denied staff subscriptions through the existing REST authorization path", () => {
     const refresh = vi.fn(); client.subscribeRealtime("orders", refresh); instances[0].open();
     instances[0].receive({ type: "error", code: "UNAUTHORIZED", topic: "orders" });

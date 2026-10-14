@@ -6,6 +6,7 @@
  */
 
 import { publicUser, resolveSession } from "../../modules/auth/auth.session.js";
+import { consumeRealtimeTicket } from "./tickets.js";
 
 function parseCookies(header) {
   const out = {};
@@ -48,8 +49,9 @@ export function extractUpgradeToken(req) {
  */
 export async function resolveUser(token) {
   try {
-    const { user, expiresAt } = await resolveSession(token);
-    return { ...publicUser(user), expiresAt };
+    const validationToken = typeof token === "string" && token.startsWith("rt_") ? consumeRealtimeTicket(token) : token;
+    const { user, expiresAt } = await resolveSession(validationToken);
+    return { ...publicUser(user), expiresAt, validationToken };
   } catch (error) {
     error.status = error.statusCode ?? 503;
     throw error;

@@ -62,7 +62,7 @@ async function handleMessage(socket, raw, resolve, limits) {
       const user = await resolve(msg.token);
       if (socket.readyState !== 1 || socket.__closing) return;
       socket.__user = user;
-      socket.__token = msg.token;
+      socket.__token = user.validationToken ?? msg.token;
       registerSessionSocket(socket, socket.__user.id);
       send(socket, { type: "ready", user: { id: socket.__user.id, role: socket.__user.role } });
     } catch (err) {
@@ -156,7 +156,10 @@ export function attachRealtimeServer(httpServer, { config = env, limits = realti
     // stay closed until then.
     try {
       let user = null;
-      const token = extractUpgradeToken(req);
+      // A previous direct-Railway cookie may belong to another operator. In
+      // ticket mode the current same-origin HTTP session must supply identity.
+      const ticketMode = new URL(req.url, "http://realtime.local").searchParams.get("auth") === "ticket";
+      const token = ticketMode ? null : extractUpgradeToken(req);
       if (token && token.length > 4096) return rejectUpgrade(socket, 403);
       if (token) {
         try { user = await auth.resolve(token, () => !draining && !socket.destroyed && socket.writable); } catch (error) {
@@ -180,7 +183,7 @@ export function attachRealtimeServer(httpServer, { config = env, limits = realti
     socket.__topics = new Set();
     socket.__maxBuffered = limits.buffered;
     socket.__user = user || null;
-    socket.__token = user ? token : null;
+    socket.__token = user ? (user.validationToken ?? token) : null;
     if (user) registerSessionSocket(socket, user.id);
     socket.__alive = true;
     socket.on("pong", () => {

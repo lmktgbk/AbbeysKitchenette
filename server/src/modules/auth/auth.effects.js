@@ -24,8 +24,8 @@ export async function recordLoginFailure(email, reason) {
 
 /** Send outside the credential transaction, invalidate failed challenges, and record the provider outcome. */
 export async function sendAuthEmail(message, { userId, context, requestId, subjectId }, invalidate = async () => {}) {
-  let failure;
-  try { await sendEmail(message); }
+  let failure, receipt;
+  try { receipt = await sendEmail(message); }
   catch (error) {
     failure = error instanceof Error ? error : new Error("Email outcome unconfirmed");
     try { await invalidate(); }
@@ -34,7 +34,8 @@ export async function sendAuthEmail(message, { userId, context, requestId, subje
   try {
     // SMTP acceptance is not inbox delivery. A crash leaves the persisted issuance unresolved.
     await prisma.$transaction(tx => authAudit(tx, userId, ACTIONS.AUTH_EMAIL_DELIVERY,
-      { context, requestId, outcome: failure ? "unconfirmed" : "provider-accepted" }, subjectId ?? userId), { timeout: 5000 });
+      { context, requestId, outcome: failure ? "unconfirmed" : "provider-accepted",
+        ...(typeof receipt?.messageId === "string" ? { messageId: receipt.messageId.slice(0, 500) } : {}) }, subjectId ?? userId), { timeout: 5000 });
   } catch {
     console.warn("[auth] Email outcome capture unavailable; issuance remains recorded");
   }
