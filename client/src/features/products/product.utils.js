@@ -24,13 +24,23 @@ export function formatPriceRange(minPrice, maxPrice) {
 /**
  * Determine if a product is effectively active (sellable).
  * A product is sellable if at least 1 variant is both is_available and has sufficient stock.
- * The product-level is_available flag is NOT used — it controls POS visibility, not sellability.
+ * A manually disabled product cannot be sold even if a variant has stock.
  * @param {object} product — { has_active_variant, is_available, variants }
  * @returns {boolean}
  */
 export function isProductActive(product) {
+  if (product.is_available === false) return false;
   if (product.has_active_variant != null) return product.has_active_variant;
-  return product.variants?.some((v) => v.is_available && v.is_stock_sufficient) ?? false;
+  return product.variants?.some((v) => v.is_available && !v.is_manually_deactivated && v.is_stock_sufficient) ?? false;
+}
+
+export function productAvailability(product) {
+  const active = isProductActive(product);
+  const count = product.available_variant_count ?? product.variants?.filter(v => v.is_available && !v.is_manually_deactivated && v.is_stock_sufficient).length ?? 0;
+  const total = product.variant_count ?? product.variants?.length ?? 0;
+  const status = product.availability_status ?? (product.is_available === false ? "deactivated" : active ? count < total ? "partial" : "available" : "out_of_stock");
+  const labels = { available: "Available", partial: "Some variants unavailable", out_of_stock: "Out of stock", deactivated: "Deactivated", setup_needed: "Setup needed" };
+  return { active, status, label: labels[status] ?? "Unavailable", availableCount: count, total };
 }
 
 /** Determine bulk actions from stored visibility, not whether every size has stock.

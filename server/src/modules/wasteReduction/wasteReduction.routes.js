@@ -3,9 +3,13 @@ import { wasteReductionController } from "./wasteReduction.controller.js";
 import { validateParams } from "../../middleware/validate.middleware.js";
 import authenticate from "../../middleware/authenticate.middleware.js";
 import authorize from "../../middleware/authorize.middleware.js";
-import { idParamSchema } from "./wasteReduction.validation.js";
+import { idParamSchema, batchActionParamSchema } from "./wasteReduction.validation.js";
 
 const router = Router();
+router.post("/:id/batches/:batchId/prioritize", authenticate, authorize("admin"),
+  validateParams(batchActionParamSchema), wasteReductionController.prioritizeBatch);
+router.post("/:id/batches/:batchId/expired-loss", authenticate, authorize("admin"),
+  validateParams(batchActionParamSchema), wasteReductionController.recordExpiredLoss);
 
 /**
  * Waste Reduction Routes

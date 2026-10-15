@@ -39,7 +39,8 @@ beforeEach(() => {
     callback(); queueMicrotask(() => done(null, { secure_url: h.url, public_id: `${options.folder}/${options.public_id}`, bytes: 100 }));
   } }));
 });
-const product = { product_name: "Fixture", subcategory_id: 1, variants: [{ size_name: "Regular", price: 10 }] };
+const product = { product_name: "Fixture", subcategory_id: 1, variants: [{ size_name: "Regular", price: 10,
+  recipes: [{ ingredient_id: "00000000-0000-4000-8000-000000000001", quantity_needed: 1 }] }] };
 async function save(data = product, path = "", method = "POST", auth = true) {
   const form = new FormData(); form.append("data", JSON.stringify(data)); form.append("image", new Blob([png], { type: "image/png" }), "image.png");
   return fetch(base + path, { method, headers: auth ? { Authorization: "fixture" } : {}, body: form });

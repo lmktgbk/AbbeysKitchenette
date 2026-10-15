@@ -10,6 +10,7 @@ import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { env } from "../../config/env.js";
 import { BUSINESS_TZ } from "../../config/time.js";
 import { emitAnomalyCompleted } from "../../infrastructure/realtime/events.js";
+import { collectSecurityFindings } from "./securityRules.js";
 
 /**
  * Anomaly Detection Service (BR-12)
@@ -51,6 +52,8 @@ export const anomalyService = {
     const COOLDOWN_MS = 15 * 60 * 1000;
 
     let evaluationFailed = false;
+    try { allResults.push(...await collectSecurityFindings(ruleIds)); }
+    catch { evaluationFailed = true; console.error("[anomaly] Security evaluation failed"); }
     for (const definition of RULE_REGISTRY) {
       // Rule methods use this._lastData/_pendingShift; each evaluation owns
       // its own object so concurrent scans cannot exchange cashier context.
@@ -114,11 +117,12 @@ export const anomalyService = {
       }
       for (const result of allResults) {
         const shiftId = result.ruleId === "shift_variance_spike" ? result.description.match(/\[([a-f0-9-]{36})\]/i)?.[1] : null;
-        const duplicate = shiftId ? await anomalyRepository.existsShiftCard(shiftId, tx)
+        const duplicate = result.securityKey ? await anomalyRepository.existsSecurityCard(result.securityKey, tx)
+          : shiftId ? await anomalyRepository.existsShiftCard(shiftId, tx)
           : await anomalyRepository.existsActiveToday(result.ruleId, tx);
         if (duplicate) continue;
         // ingredientId is evaluation metadata, not an anomaly_results column.
-        const { ingredientId: _ingredientId, ...data } = result;
+        const { ingredientId: _ingredientId, securityKey: _securityKey, ...data } = result;
         saved.push({ ...data, id: crypto.randomUUID() });
       }
       if (saved.length) await anomalyRepository.createMany(saved, tx);
@@ -126,7 +130,7 @@ export const anomalyService = {
         audit: { userId, action: ACTIONS.ANOMALY_SCAN, targetType: "anomaly",
           details: { anomaliesFound: saved.length, elapsedSeconds: Number(elapsed), rules: ruleIds ?? "all" } },
         notifications: saved.filter(r => ["critical", "high"].includes(r.severity)).map(result => ({
-          type: "system", title: `Anomaly: ${result.title}`.slice(0, 200), message: result.description,
+          type: "system", title: `Anomaly: ${result.title}`.slice(0, 200), message: result.description.replace(/\s*\[security:[a-f0-9]{64}\]/g, ""),
           referenceType: "anomaly", referenceId: result.id,
         })),
       });

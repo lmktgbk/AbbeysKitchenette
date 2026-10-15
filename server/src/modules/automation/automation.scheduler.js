@@ -4,6 +4,7 @@ import { wasteReductionService } from '../wasteReduction/wasteReduction.service.
 import { dailyReportService, reportDay } from '../reports/dailyReport.service.js';
 import { toManilaDateString, manilaDayStart } from '../../config/time.js';
 import { fetchMl } from '../../infrastructure/integrations/ml/ml.client.js';
+import { reportWorkerFailure } from '../../utils/workerDiagnostics.js';
 
 export const JOB_KINDS = ['forecast', 'reorder', 'waste', 'marketBasket', 'dailyReport'];
 const weekdays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -123,7 +124,7 @@ export function createAutomationScheduler({ repository = automationRepository, j
       if (stopped) return;
       clearTimeout(timer);
       try { await api.tick(); }
-      catch { console.warn('[automation] Durable scheduler unavailable; no unsaved job started'); }
+      catch (error) { reportWorkerFailure('automation', error); }
       clearTimeout(timer);
       if (!stopped) { timer = setTimeout(() => { void api.reschedule(); }, intervalMs); timer.unref?.(); }
     },

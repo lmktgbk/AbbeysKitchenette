@@ -8,10 +8,10 @@ separate fitted models. Existing historical-share runs remain readable.
 
 - `services/data_loader.py`: grouped completed-sales, current recipe and stock reads.
 - `services/demand_forecast.py`: cutoff, calendars, variant models, rolling holdouts,
-  coverage metadata and short lease-fenced persistence transactions.
+  overall evaluation inputs and short lease-fenced persistence transactions.
 - `services/metrics.py`: daily/weekly errors; negative R² is never clipped.
 - `routers/demand.py`: private job endpoints, current availability and ingredient assembly.
-- `models/demand.py`: backward-compatible response contracts and coverage/evaluation metadata.
+- `models/demand.py`: backward-compatible response contracts and overall evaluation inputs.
 
 ## Context and inputs
 
@@ -69,24 +69,21 @@ variant units × current recipe quantities. Recipes and stock are current reads,
 not historical job snapshots. Missing recipes require review, including legitimate
 resale items. These calculations do not reserve stock or create purchase orders.
 
-## Evaluation and data coverage
+## Overall evaluation
 
 Each hidden week is excluded from training. Fit each variant only before that
 week; score the same fractional expectations used in production. Sum variant expectations
-for product metrics. Store daily errors and weekly total pairs for both levels.
+for product metrics. Store daily MAE and weekly total pairs for both levels.
 The baseline repeats the previous week's same weekdays on identical observations.
 
 MAE is average absolute unit error; MSE is average squared error; RMSE is its
 square root. R² compares squared errors against actual-sales variation. Constant
 actuals have undefined R² (N/A); negative R² remains negative. Pooled weekly R²
 includes differences between variant/product volumes and is not a percentage of
-correctly predicted sales. Daily errors remain visible alongside weekly metrics.
-
-Coverage reports menu-wide dates with no positive recorded completed sales,
-last recorded sale and trailing empty days. The UI shows up to fourteen recent
-empty dates. It does not confirm closure, full recording or zero customer demand.
-Without daily completeness information, those distinctions remain unknown.
-Coverage/cutoff metadata is available on newly scored runs; old runs remain unchanged.
+correctly predicted sales. The overall evaluation retains daily typical error;
+individual daily score tables, R² labels, and coverage notices are not exposed.
+New score payloads omit those unused fields. Existing saved jobs remain unchanged,
+and response models ignore their removed metadata when reading them.
 
 The existing dataset is predominantly receipt-informed synthetic history. The fresh demonstration seed now spans January 2025 through October 5, 2026;
 historical September 28 benchmark artifacts retain their original boundary.

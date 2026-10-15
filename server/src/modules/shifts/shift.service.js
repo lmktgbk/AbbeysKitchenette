@@ -135,6 +135,10 @@ export const shiftService = {
     return { ...formatShift(shift), ...(await this.buildSummary(shift)) };
   },
 
+  async getOpenCount() {
+    return shiftRepository.countFiltered({ status: "open" });
+  },
+
   async list({ page = 1, limit = 20, status, staffId, dateFrom, dateTo, search }) {
     const skip = (page - 1) * limit;
     const [rows, totalItems] = await Promise.all([

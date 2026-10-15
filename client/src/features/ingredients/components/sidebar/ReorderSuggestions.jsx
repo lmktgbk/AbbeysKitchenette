@@ -6,6 +6,7 @@ import { confirm } from "@/components/alerts/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatDate } from "@/lib/date";
 
 /**
  * ReorderSuggestions
@@ -36,9 +37,8 @@ export default function ReorderSuggestions({ onAccept }) {
   }
 
   function handleAccept(suggestion) {
-    if (onAccept) {
-      onAccept(suggestion);
-    }
+    // Opening a delivery draft must not resolve the recommendation.
+    onAccept?.(suggestion);
   }
 
   async function handleReject(id) {
@@ -59,25 +59,25 @@ export default function ReorderSuggestions({ onAccept }) {
 
   const urgencyConfig = {
     high: {
-      label: "Need soon",
+      label: "Buy now",
       className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
     },
     medium: {
-      label: "Need in 3-5 days",
+      label: "Buy soon",
       className:
         "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
     },
     low: {
-      label: "Ok for a week",
+      label: "Review purchase",
       className:
         "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
     },
   };
 
   return (
-    <div className="rounded-xl border border-border bg-card">
+    <div className="flex min-h-0 flex-col rounded-xl border border-border bg-card">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
           <Icon name="package" size={16} className="text-primary" />
           <h3 className="text-sm font-semibold text-foreground">
@@ -94,6 +94,8 @@ export default function ReorderSuggestions({ onAccept }) {
           variant="ghost"
           onClick={handleGenerate}
           disabled={mutations.generateReorder.isPending}
+          aria-label={mutations.generateReorder.isPending ? "Generating reorder suggestions" : "Generate reorder suggestions"}
+          aria-busy={mutations.generateReorder.isPending}
         >
           {mutations.generateReorder.isPending ? (
             <Icon name="loader" size={14} className="animate-spin" />
@@ -104,7 +106,7 @@ export default function ReorderSuggestions({ onAccept }) {
       </div>
 
       {/* Content */}
-      <div className="max-h-64 overflow-y-auto">
+      <div className="min-h-0 max-h-[32rem] overflow-y-auto lg:max-h-none lg:flex-1">
         {isLoading ? (
           <div className="divide-y divide-border">
             {Array.from({ length: 2 }).map((_, i) => (
@@ -140,27 +142,34 @@ export default function ReorderSuggestions({ onAccept }) {
             {suggestions.map((s) => {
               const urgency = urgencyConfig[s.urgency] || urgencyConfig.low;
               const isExpanded = expandedId === s.id;
+              const facts = s.metadata;
+              const isCurrentPolicy = facts?.policy_version === 2;
+              const amount = value => Number(value).toLocaleString(undefined, { maximumFractionDigits: 3 });
+              const expiryEnd = facts?.as_of ? new Date(Date.parse(`${facts.as_of}T00:00:00Z`) + 6 * 86400000).toISOString().slice(0, 10) : null;
+              const expiredBatches = facts?.batches?.filter(b => b.expires && b.expires < facts.as_of) ?? [];
+              const expiringBatches = facts?.batches?.filter(b => b.expires && b.expires >= facts.as_of && b.expires <= expiryEnd) ?? [];
+              const purchaseWarnings = facts?.warnings?.filter(warning => !facts.forecast_issues?.includes(warning)) ?? [];
 
               return (
                 <div key={s.id} className="px-4 py-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-foreground truncate">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="min-w-0 break-words text-sm font-medium text-foreground">
                           {s.ingredient_name}
                         </p>
                         <span
                           className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${urgency.className}`}
                         >
-                          {urgency.label}
+                          {Number(s.suggested_quantity) === 0 ? "No purchase needed" : urgency.label}
                         </span>
                       </div>
-                      <div className="mt-0.5 text-xs text-muted-foreground">
-                        <p>Order {s.suggested_quantity} {s.unit}</p>
-                        <p>{s.metadata?.source === "forecast" ? "Seven-day forecast + safety buffer" : "Minimum-stock fallback; coverage not verified"}</p>
-                        {s.estimated_stockout && (
-                          <p>Runs out: {new Date(s.estimated_stockout).toLocaleDateString()}</p>
-                        )}
+                      <div className="mt-2 space-y-1 break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">
+                        <p className="font-medium text-foreground">Suggested purchase: {amount(s.suggested_quantity)} {s.unit}</p>
+                        <p>Expected use: {isCurrentPolicy && facts.expected_use_available ? `${amount(facts.expected_use)} ${s.unit} / 7 days${facts.forecast_complete ? "" : " (partial estimate)"}` : "Unavailable"}</p>
+                        <p>Usable stock: {amount(s.current_stock)} {s.unit}</p>
+                        <p><span className="font-medium text-foreground">Reason: </span>{s.reasoning}</p>
+                        {s.stale_reason && <p className="text-amber-700 dark:text-amber-400">Needs refresh: {s.stale_reason}</p>}
                       </div>
                     </div>
                   </div>
@@ -172,13 +181,18 @@ export default function ReorderSuggestions({ onAccept }) {
                       setExpandedId(isExpanded ? null : s.id)
                     }
                   >
-                    {isExpanded ? "Hide details" : "Why?"}
+                    {isExpanded ? "Hide details" : "Details"}
                   </button>
                   {isExpanded && (
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                      {s.reasoning}
-                      {s.metadata?.ai_explanation && <span className="block mt-1">AI explanation: {s.metadata.ai_explanation}</span>}
-                    </p>
+                    <div className="mt-2 space-y-1 break-words text-xs leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
+                      <p>Generated: {formatDate(s.created_at, "dateTime")} (Manila)</p>
+                      {isCurrentPolicy && <>
+                        <p>Minimum stock: {amount(facts.minimum_stock)} {s.unit}</p>
+                        {Number(facts.expired_stock) > 0 && <p>Expired stock excluded: {amount(facts.expired_stock)} {s.unit}{expiredBatches.length > 0 ? ` · ${expiredBatches.map(b => `Batch #${b.batch_id}`).join(", ")}` : ""}</p>}
+                        {expiringBatches.map(b => <p key={b.batch_id}>Expiring soon: Batch #{b.batch_id} · {amount(b.remaining)} {s.unit} · {formatDate(b.expires)}</p>)}
+                        {purchaseWarnings.map(warning => <p key={warning} className="text-amber-700 dark:text-amber-400">{warning}</p>)}
+                      </>}
+                    </div>
                   )}
 
                   {/* Actions */}
@@ -188,16 +202,16 @@ export default function ReorderSuggestions({ onAccept }) {
                       variant="primary"
                       className="h-7 text-xs"
                       onClick={() => handleAccept(s)}
-                      disabled={mutations.acceptReorder.isPending}
+                      disabled={mutations.acceptReorder.isPending || mutations.generateReorder.isPending || Boolean(s.stale_reason) || !isCurrentPolicy}
                     >
-                      Restock
+                      Accept
                     </Button>
                     <Button
                       size="sm"
                       variant="ghost"
                       className="h-7 text-xs"
                       onClick={() => handleReject(s.id)}
-                      disabled={mutations.rejectReorder.isPending}
+                      disabled={mutations.rejectReorder.isPending || mutations.generateReorder.isPending}
                     >
                       Dismiss
                     </Button>

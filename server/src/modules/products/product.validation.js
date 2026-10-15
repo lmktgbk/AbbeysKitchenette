@@ -16,7 +16,7 @@ const recipeEntrySchema = z.object({
   quantity_needed: stockQuantity(true),
 });
 
-// Variant entry: size with price and optional recipes
+// Create and replacement payloads require a recipe for every variant, matching the form.
 const variantEntrySchema = z.object({
   variant_id: integerId.optional(), // existing variant (edit mode)
   size_name: z
@@ -26,7 +26,8 @@ const variantEntrySchema = z.object({
     .max(50, "Size name must not exceed 50 characters"),
   price: money(true),
   is_available: z.boolean().optional().default(true),
-  recipes: z.array(recipeEntrySchema).max(LIMITS.recipeLines).optional().default([]),
+  recipes: z.array(recipeEntrySchema, { error: "At least one ingredient is required" })
+    .min(1, "At least one ingredient is required").max(LIMITS.recipeLines),
 });
 
 // ── Product Schemas ───────────────────────────────

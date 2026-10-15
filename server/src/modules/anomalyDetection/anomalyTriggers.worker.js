@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import prisma from "../../config/prisma.js";
 import { anomalyService } from "./anomalyDetection.service.js";
+import { reportWorkerFailure } from "../../utils/workerDiagnostics.js";
 
 /** Recover durable scan triggers with expiring ownership; publish only while the claimed owner remains valid. */
 export function createAnomalyWorker({ db = prisma, scan = (...args) => anomalyService.runScan(...args), intervalMs = 5000 } = {}) {
@@ -38,7 +39,7 @@ export function createAnomalyWorker({ db = prisma, scan = (...args) => anomalySe
   /** Prevent local scan overlap and poll again after either success or recoverable storage failure. */
   function wake() {
     if (!running || flight) return;
-    flight = sweep().catch(() => console.warn("[anomaly] Trigger storage unavailable")).finally(() => {
+    flight = sweep().catch(error => reportWorkerFailure("anomaly", error)).finally(() => {
       flight = null; if (running) { timer = setTimeout(wake, intervalMs); timer.unref?.(); }
     });
   }

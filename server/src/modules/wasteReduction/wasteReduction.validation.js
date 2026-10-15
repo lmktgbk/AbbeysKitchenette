@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { coercedInteger } from "../../utils/validation.js";
 
 /**
  * Waste Reduction Validation Schemas
@@ -8,3 +9,4 @@ import { z } from "zod";
 export const idParamSchema = z.object({
   id: z.string().uuid("Invalid insight ID"),
 });
+export const batchActionParamSchema = idParamSchema.extend({ batchId: coercedInteger() });

@@ -27,7 +27,6 @@ router.post("/admin-login", authLimiter, loginLimiter, accountLimiter, validate(
 
 // GET /api/auth/me — current user (protected)
 router.get("/me", authenticate, authController.getMe);
-router.post("/realtime-ticket", authenticate, authController.realtimeTicket);
 
 // POST /api/auth/logout — clear cookie (protected)
 router.post("/logout", authenticate, authController.logout);

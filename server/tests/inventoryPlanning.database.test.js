@@ -2,7 +2,9 @@ import { beforeAll, afterAll, describe, it, expect, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { isolatedPostgres } from "./helpers/isolatedPostgres.js";
 import { loadInventoryPlanningSnapshot } from "../src/services/inventoryPlanning.repository.js";
-import { calculateReorders, calculateWaste } from "../src/services/inventoryPlanning.js";
+import { ingredientForecastRows, calculateWaste } from "../src/services/inventoryPlanning.js";
+import { buildReorderContexts, normalizeReorders } from "../src/modules/reorderSuggestions/reorderSuggestions.analysis.js";
+import { reorderSuggestionsRepository as reorder } from "../src/modules/reorderSuggestions/reorderSuggestions.repository.js";
 const state = vi.hoisted(() => ({ db: null }));
 vi.mock("../src/config/prisma.js", () => ({ default: new Proxy({}, { get: (_, key) => typeof state.db[key] === "function" ? state.db[key].bind(state.db) : state.db[key] }) }));
 import { orderRepository } from "../src/modules/orders/order.repository.js";
@@ -31,7 +33,7 @@ describe.skipIf(process.env.INVENTORY_DB_CHECK !== "1")("Isolated inventory advi
     expect(snapshot.forecast).toBeNull();
     expect(snapshot.usage[0].total_14day).toBe(10);
     expect(snapshot.usage[0].daily_average).toBeCloseTo(10/14);
-    expect(calculateReorders(snapshot)).toEqual([]);
+    expect(buildReorderContexts(snapshot)[0].forecast_complete).toBe(false);
     expect(calculateWaste(snapshot)[0].metadata.expired_quantity).toBe(500);
   });
   it("filters expired batches from allocation and availability", async () => {
@@ -58,11 +60,30 @@ describe.skipIf(process.env.INVENTORY_DB_CHECK !== "1")("Isolated inventory advi
     await db.forecastResult.create({ data: { jobId: job.id, variantId: variant.variantId,
       productName: "Fixture", sizeName: "Regular", price: 100, categoryId: category.categoryId, dailyData: daily } });
     const snapshot = await loadInventoryPlanningSnapshot(db);
-    const [advice] = calculateReorders(snapshot);
-    expect(advice.metadata.source).toBe("forecast");
-    expect(advice.metadata.expected_demand).toBe(105);
-    expect(advice.suggested_quantity).toBe(150); // today's stock covers only 15 ml before expiry
+    const [advice] = buildReorderContexts(snapshot);
+    expect(advice.forecast_complete).toBe(true);
+    expect(advice.expected_use).toBe(105);
+    expect(advice.estimated_unused_at_expiry).toBe(35);
+    expect(ingredientForecastRows(snapshot)[0].current_stock).toBe(advice.usable_stock);
   });
+  it("accepts current purchasing intent without moving stock and rolls back stale acceptance", async () => {
+    const snapshot = await loadInventoryPlanningSnapshot(fixture.db);
+    const contexts = buildReorderContexts(snapshot);
+    const rows = normalizeReorders({ recommendations: contexts.map(c => ({ ingredient_id: c.ingredient_id, unit: c.unit, suggested_quantity: 200, urgency: "high", reason: "Fixture purchasing decision" })) }, contexts);
+    await reorder.saveSuggestions(rows, undefined, adminId);
+    const [current] = await reorder.getPendingSuggestions();
+    const before = await fixture.db.restockBatch.findMany();
+    await reorder.acceptCurrent(current.id, adminId);
+    expect(await fixture.db.restockBatch.findMany()).toEqual(before);
+    expect((await fixture.db.reorderSuggestion.findUnique({ where: { id: current.id } })).status).toBe("accepted");
+    await reorder.saveSuggestions(rows, undefined, adminId);
+    const [stale] = await reorder.getPendingSuggestions();
+    const usable = before.find(b => Number(b.quantityLeft) === 50);
+    await fixture.db.restockBatch.update({ where: { restockId: usable.restockId }, data: { quantityLeft: 49 } });
+    await expect(reorder.acceptCurrent(stale.id, adminId)).rejects.toMatchObject({ code: "STALE_REORDER_SUGGESTION" });
+    expect((await fixture.db.reorderSuggestion.findUnique({ where: { id: stale.id } })).status).toBe("pending");
+    await fixture.db.restockBatch.update({ where: { restockId: usable.restockId }, data: { quantityLeft: 50 } });
+  }, 30000);
   it("records expired disposal once, atomically, under competing requests", async () => {
     const expired = await fixture.db.restockBatch.findFirst({ where: { ingredientId, quantityLeft: 500 } });
     const outcomes = await Promise.allSettled([

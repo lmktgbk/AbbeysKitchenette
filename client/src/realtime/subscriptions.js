@@ -40,9 +40,9 @@ export function useNotificationsRealtime() {
   useTopics(["notifications:all"], [["notifications"]]);
 }
 
-/** Refresh ingredient-prefixed stock queries; advisory lists use separate keys and are not included here. */
+/** Refresh stock and separately keyed advice when inventory changes. */
 export function useInventoryRealtime() {
-  useTopics(["inventory"], [["ingredients"]]);
+  useTopics(["inventory"], [["ingredients"], ["wasteReductions"], ["reorderSuggestions"]]);
 }
 
 /** POS/admin menus, product grid, categories. */

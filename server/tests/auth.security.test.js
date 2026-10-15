@@ -97,24 +97,6 @@ async function loggedIn(role = "admin") {
 }
 
 describe("OTP resend retry feedback", () => {
-  it("issues an opaque ticket from the session and authenticates a cookie-free socket", async () => {
-    const flow = await loggedIn();
-    expect((await request("/realtime-ticket", {})).status).toBe(401);
-    const result = await request("/realtime-ticket", {}, flow.session);
-    expect(result.status).toBe(200);
-    const ticket = result.body.data.ticket;
-    expect(ticket).not.toContain(flow.session.split("=")[1]);
-    const ws = new WebSocket(base.replace("http:", "ws:").replace("/api/auth", "/ws?auth=ticket"));
-    const next = () => new Promise(resolve => ws.once("message", raw => resolve(JSON.parse(String(raw)))));
-    try {
-      expect((await next()).type).toBe("hello");
-      let message = next(); ws.send(JSON.stringify({ type: "auth", token: ticket }));
-      expect(await message).toMatchObject({ type: "ready", user: { id: ID, role: "admin" } });
-      // Every subsequent ACL/heartbeat revalidates the server-held session, not the consumed ticket.
-      message = next(); ws.send(JSON.stringify({ type: "subscribe", topic: "orders" }));
-      expect(await message).toMatchObject({ type: "subscribed", topic: "orders" });
-    } finally { ws.terminate(); }
-  });
   it("returns the remaining issuance wait without replacing the code or extending expiry", async () => {
     const flow = await login();
     const stored = h.db.state.otpCode[0];

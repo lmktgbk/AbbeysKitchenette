@@ -10,6 +10,8 @@ it("uses an integer-ID minimal contract and a bounded cancellable provider reque
   const config = ai.models.generateContent.mock.calls[0][0].config;
   expect(config.abortSignal).toBeInstanceOf(AbortSignal);
   expect(config.maxOutputTokens).toBe(8192);
+  expect(config.temperature).toBe(0);
+  expect(buildSystemPrompt()).toContain("Regeneration alone is not evidence for another price change");
   expect(buildSystemPrompt()).toContain('"variant_id": 7');
 });
 it.each([undefined, "not json", "x".repeat(100001)])("rejects missing, malformed and excessive response text", async text => {

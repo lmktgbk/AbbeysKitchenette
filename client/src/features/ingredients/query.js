@@ -178,9 +178,13 @@ export function useWasteReductions() {
 export function useIngredientMutations() {
   const queryClient = useQueryClient();
 
-  /** Invalidate all ingredient queries (list, archived, summary, alerts, batches, history) */
+  /** Stock changes also affect the separately keyed inventory advice panels. */
   function invalidateAll() {
-    queryClient.invalidateQueries({ queryKey: ingredientKeys.all });
+    return Promise.all([
+      queryClient.invalidateQueries({ queryKey: ingredientKeys.all }),
+      queryClient.invalidateQueries({ queryKey: ingredientKeys.reorderSuggestions }),
+      queryClient.invalidateQueries({ queryKey: ingredientKeys.wasteReductions }),
+    ]);
   }
 
   /** Invalidate reorder suggestions */
@@ -190,7 +194,16 @@ export function useIngredientMutations() {
 
   /** Invalidate waste reductions */
   function invalidateWaste() {
-    queryClient.invalidateQueries({ queryKey: ingredientKeys.wasteReductions });
+    return queryClient.invalidateQueries({ queryKey: ingredientKeys.wasteReductions });
+  }
+
+  /** Remove confirmed resolved cards immediately, then reconcile with the server. */
+  async function removeResolved(queryKey, field, id) {
+    await queryClient.cancelQueries({ queryKey });
+    queryClient.setQueryData(queryKey, cached => cached?.data?.[field] ? {
+      ...cached, data: { ...cached.data, [field]: cached.data[field].filter(row => row.id !== id) },
+    } : cached);
+    return queryClient.invalidateQueries({ queryKey });
   }
 
   return {
@@ -246,21 +259,13 @@ export function useIngredientMutations() {
     togglePriority: useMutation({
       mutationFn: ({ ingredientId, batchId, isPriority }) =>
         api.toggleBatchPriorityRequest(ingredientId, batchId, isPriority),
-      onSuccess: (_data, vars) => {
-        queryClient.invalidateQueries({
-          queryKey: ingredientKeys.batches(vars.ingredientId),
-        });
-      },
+      onSuccess: () => invalidateAll(),
     }),
 
     /** Follow FIFO — clear all stars, set FIFO leader — invalidates batches for that ingredient */
     followFifo: useMutation({
       mutationFn: (ingredientId) => api.followFifoRequest(ingredientId),
-      onSuccess: (_data, ingredientId) => {
-        queryClient.invalidateQueries({
-          queryKey: ingredientKeys.batches(ingredientId),
-        });
-      },
+      onSuccess: () => invalidateAll(),
     }),
 
     /** Update batch expiry date — invalidates all ingredient queries */
@@ -286,7 +291,7 @@ export function useIngredientMutations() {
     /** Accept a reorder suggestion */
     acceptReorder: useMutation({
       mutationFn: api.acceptReorderSuggestionRequest,
-      onSuccess: () => invalidateReorder(),
+      onSuccess: (_result, id) => removeResolved(ingredientKeys.reorderSuggestions, "suggestions", id),
     }),
 
     /** Reject a reorder suggestion */
@@ -303,10 +308,28 @@ export function useIngredientMutations() {
       onSuccess: () => invalidateWaste(),
     }),
 
+    prioritizeWaste: useMutation({
+      mutationFn: ({ id, batchId }) => api.prioritizeWasteBatchRequest(id, batchId),
+      onSuccess: (_result, { id }) => removeResolved(ingredientKeys.wasteReductions, "insights", id),
+      onSettled: () => {
+        return Promise.all([invalidateAll(),
+          queryClient.invalidateQueries({ queryKey: ["forecasting", "demand", "ingredients"] })]);
+      },
+    }),
+
+    wasteExpiredLoss: useMutation({
+      mutationFn: ({ id, batchId }) => api.recordWasteExpiredLossRequest(id, batchId),
+      onSuccess: (_result, { id }) => removeResolved(ingredientKeys.wasteReductions, "insights", id),
+      onSettled: () => {
+        return Promise.all([invalidateAll(),
+          queryClient.invalidateQueries({ queryKey: ["forecasting", "demand", "ingredients"] })]);
+      },
+    }),
+
     /** Accept a waste reduction insight */
     acceptWaste: useMutation({
       mutationFn: api.acceptWasteReductionRequest,
-      onSuccess: () => invalidateWaste(),
+      onSuccess: (_result, id) => removeResolved(ingredientKeys.wasteReductions, "insights", id),
     }),
 
     /** Reject a waste reduction insight */

@@ -1,4 +1,4 @@
-import { authAudit } from "./auth.effects.js";
+import { authAudit, securityAuthAudit } from "./auth.effects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import crypto from "crypto";
 import prisma from "../../config/prisma.js";
@@ -84,9 +84,12 @@ export const authRepository = {
         where: { id: userId }, data: { failedLoginAttempts: { increment: 1 } },
       });
       if (user.failedLoginAttempts < SECURITY_POLICY.accountFailures) return user;
-      return tx.user.update({ where: { id: userId }, data: {
+      const locked = await tx.user.update({ where: { id: userId }, data: {
         lockedUntil: new Date(Date.now() + lockoutMinutes * 60 * 1000),
       } });
+      if (!(state?.lockedUntil > new Date())) await securityAuthAudit(tx, userId, ACTIONS.ACCOUNT_LOCKED,
+        { attempts: user.failedLoginAttempts, lockoutMinutes });
+      return locked;
     }, { timeout: 5000 });
   },
 

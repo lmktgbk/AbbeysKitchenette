@@ -20,9 +20,9 @@ export default function StockAlerts({ onRestock, onDeclareExpiredLoss }) {
   const alerts = alertsData?.data?.alerts ?? [];
 
   return (
-    <div className="rounded-xl border border-border bg-card">
+    <div className="flex min-h-0 flex-col rounded-xl border border-border bg-card">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
           <Icon name="alertTriangle" size={16} className="text-yellow-600 dark:text-yellow-400" />
           <h3 className="text-sm font-semibold text-foreground">
@@ -37,7 +37,7 @@ export default function StockAlerts({ onRestock, onDeclareExpiredLoss }) {
       </div>
 
       {/* Content */}
-      <div className="max-h-64 overflow-y-auto">
+      <div className="min-h-0 max-h-64 overflow-y-auto lg:max-h-none lg:flex-1">
         {isLoading ? (
           <div className="divide-y divide-border">
             {Array.from({ length: 3 }).map((_, i) => (

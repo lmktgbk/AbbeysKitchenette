@@ -3,11 +3,14 @@ const rulesByAction = {
   ORDER_CANCELLED: ["refund_spike", "cancellation_spike"],
   ORDER_ITEM_REMOVED: ["refund_spike", "cancellation_spike"],
   STOCK_LOSS_DECLARED: ["loss_spike"],
+  ACCOUNT_LOCKED: ["security_account_lockout"],
+  OTP_ATTEMPTS_EXHAUSTED: ["security_otp_exhausted"],
 };
 
 /** Audit intent delivery also admits its scan; restart cannot lose the trigger. */
 export async function captureAnomalyTrigger(tx, eventId, audit) {
   let rules = rulesByAction[audit.action], context = null;
+  if (audit.action === "LOGIN_FAILED" && audit.details?.reason === "STORE_IP_REQUIRED") rules = ["security_outside_store"];
   if (["SHIFT_CLOSED", "SHIFT_FORCE_CLOSED"].includes(audit.action) && Number(audit.details?.variance)) {
     rules = ["shift_variance_spike"];
     context = { shift: { shiftId: audit.targetId, expected: audit.details.expected, actual: audit.details.actual, variance: audit.details.variance } };

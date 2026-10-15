@@ -32,7 +32,13 @@ export const editIngredientSchema = createIngredientSchema.partial();
 // Restock form
 export const restockSchema = z.object({
   quantity_added: coerceNumber(z.number().positive("Quantity must be greater than zero")),
-  total_cost: coerceNumber(z.number().min(0, "Cost cannot be negative")),
+  // A placeholder is not a submitted cost; require an explicit zero or amount.
+  total_cost: z.preprocess(
+    value => value == null || (typeof value === "string" && value.trim() === "") || (typeof value === "number" && Number.isNaN(value))
+      ? undefined : Number(value),
+    z.number({ required_error: "Enter total cost (0 or more)", invalid_type_error: "Enter a valid total cost" })
+      .finite("Enter a valid total cost").min(0, "Cost cannot be negative"),
+  ),
   supplier_name: z
     .string()
     .max(150, "Must not exceed 150 characters")

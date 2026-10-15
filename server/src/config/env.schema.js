@@ -17,7 +17,6 @@ export const envSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(5000),
   CLIENT_URL: origin,
   API_PUBLIC_URL: optional(origin),
-  API_PROXY_SECRET: optional(z.string().min(32)),
   TRUST_PROXY_HOPS: optional(z.coerce.number().int().min(0).max(3)),
   CLIENT_IP_SOURCE: z.enum(["proxy", "railway"]).default("proxy"),
   COOKIE_SAME_SITE: z.enum(["strict", "lax", "none"]).default("strict"),

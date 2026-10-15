@@ -9,6 +9,9 @@ import { toManilaDateString, manilaDayStart } from "../../config/time.js";
  * existsReviewedSupplier (an acknowledged price is never re-flagged).
  */
 export const anomalyRepository = {
+  async existsSecurityCard(key, tx = prisma) {
+    return Boolean(await tx.anomalyResult.findFirst({ where: { category: "security", description: { contains: `[security:${key}]` } }, select: { id: true } }));
+  },
   async create(data) {
     return prisma.anomalyResult.create({ data });
   },

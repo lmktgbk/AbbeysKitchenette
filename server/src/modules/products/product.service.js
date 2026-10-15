@@ -5,6 +5,7 @@ import prisma from "../../config/prisma.js";
 import { deleteImage } from "../../infrastructure/storage/imageCleanup.js";
 import { recordEffects, recordMutation } from "../../infrastructure/effects/effects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
+import { variantHasStock } from "./productAvailability.js";
 
 /**
  * Map Prisma Product or raw SQL row to snake_case API response format.
@@ -26,6 +27,8 @@ function mapToProductResponse(product, extra = {}) {
     is_available: product.is_available ?? product.isAvailable,
     is_archived: product.is_archived ?? product.isArchived,
     has_active_variant: product.has_active_variant ?? undefined,
+    available_variant_count: product.available_variant_count ?? undefined,
+    availability_status: product.availability_status ?? undefined,
     variant_count: product.variant_count ?? product.variants?.length ?? 0,
     min_price: product.min_price != null ? Number(product.min_price) : undefined,
     max_price: product.max_price != null ? Number(product.max_price) : undefined,
@@ -196,9 +199,7 @@ export const productService = {
       }));
 
       // Compute stock sufficiency: ALL ingredients must have enough stock
-      const is_stock_sufficient =
-        recipes.length > 0 &&
-        recipes.every((r) => stockMap[r.ingredient_id] >= r.quantity_needed);
+      const is_stock_sufficient = variantHasStock(v, stockMap);
 
       return {
         variant_id: v.variantId,
@@ -213,9 +214,17 @@ export const productService = {
     });
 
     const prices = variants.map((v) => v.price).filter((p) => p > 0);
+    const enabled = product.isAvailable && product.subcategory?.isActive !== false;
+    const availableCount = enabled ? variants.filter(v => v.is_available && !v.is_manually_deactivated && v.is_stock_sufficient).length : 0;
+    const allDeactivated = variants.length > 0 && variants.every(v => v.is_manually_deactivated);
+    const hasConfiguredVariant = product.variants.some(v => !v.isManuallyDeactivated && v.recipes.length > 0 && v.recipes.every(r => !r.ingredient?.isArchived));
 
     return {
       ...mapToProductResponse(product),
+      has_active_variant: availableCount > 0,
+      available_variant_count: availableCount,
+      availability_status: !enabled || allDeactivated ? "deactivated" : availableCount > 0
+        ? availableCount === variants.length ? "available" : "partial" : !hasConfiguredVariant ? "setup_needed" : "out_of_stock",
       min_price: prices.length > 0 ? Math.min(...prices) : null,
       max_price: prices.length > 0 ? Math.max(...prices) : null,
       variants,

@@ -1,5 +1,21 @@
 # Product mutation boundaries
 
+## Sellability and catalog status
+
+Catalog cards, availability filters, pagination counts and summary KPIs share a
+live SQL eligibility policy: product and subcategory enabled, at least one enabled
+non-manually-deactivated variant with a recipe, no archived recipe ingredients,
+and enough non-expired remaining stock for one unit. POS/public menu and detail
+checks use the matching recipe/stock helper. Archived products remain excluded.
+
+Statuses are Available, Some variants unavailable, Out of stock, Deactivated and
+Setup needed. A mixed product belongs to Available when at least one variant can
+be ordered. Fully unsellable products belong to Unavailable, regardless of whether
+the cause is a manual setting, stock, or incomplete recipes. Product-level flags
+are not overwritten by these read-time calculations. The legacy API filter value
+`active` now means sellable; the UI labels it Available. Filtered empty states offer
+Clear filters, not Add your first product. No migration/reseed is required.
+
 The service coordinates validation, locked mutations, and audit intent. The
 repository supplies product/recipe writes and batch history/stock queries.
 `mutateProduct` locks the parent before variants in stable order; callbacks must

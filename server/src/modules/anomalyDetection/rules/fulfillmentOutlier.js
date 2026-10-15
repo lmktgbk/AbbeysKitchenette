@@ -1,5 +1,5 @@
 import prisma from "../../../config/prisma.js";
-import { toManilaDateString, toDayKey } from "../../../config/time.js";
+import { toManilaDateString, toDayKey, manilaDayStart } from "../../../config/time.js";
 
 export const fulfillmentOutlier = {
   id: "fulfillment_outlier",
@@ -14,9 +14,7 @@ export const fulfillmentOutlier = {
 
   /** Use daily median fulfillment minutes only for dates with at least three measured completed orders. */
   async dataFetcher() {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 30);
-    cutoff.setHours(0, 0, 0, 0);
+    const cutoff = new Date(manilaDayStart(toManilaDateString()).getTime() - 30 * 86400000);
 
     const rows = await prisma.$queryRawUnsafe(`
       SELECT
@@ -89,7 +87,7 @@ export const fulfillmentOutlier = {
 
 An anomaly was detected in order fulfillment time:
 - Today's median fulfillment: ${Math.round(todayMedian)} minutes
-- 30-day median: ${Math.round(mean)} minutes
+- Historical average of daily medians: ${Math.round(mean)} minutes
 - Orders are being fulfilled ${direction} than usual
 
 Provide 2-3 concise, actionable recommendations.

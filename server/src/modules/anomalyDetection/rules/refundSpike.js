@@ -1,5 +1,5 @@
 import prisma from "../../../config/prisma.js";
-import { toManilaDateString, toDayKey } from "../../../config/time.js";
+import { toManilaDateString, toDayKey, manilaDayStart } from "../../../config/time.js";
 
 export const refundSpike = {
   id: "refund_spike",
@@ -9,9 +9,7 @@ export const refundSpike = {
   config: { lookbackDays: 30, zScoreThresholds: { medium: 2.0, high: 2.5, critical: 3.0 } },
   /** Aggregate recorded refund amounts per Manila date; dates without refund records are not filled with zero. */
   async dataFetcher() {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 30);
-    cutoff.setHours(0, 0, 0, 0);
+    const cutoff = new Date(manilaDayStart(toManilaDateString()).getTime() - 30 * 86400000);
     const rows = await prisma.$queryRawUnsafe(`
       SELECT DATE(pr."refunded_at" AT TIME ZONE 'Asia/Manila') AS day, COUNT(*)::int AS cnt, SUM(pr."amount")::float AS total
       FROM payment_refunds pr WHERE pr."refunded_at" >= $1 GROUP BY DATE(pr."refunded_at" AT TIME ZONE 'Asia/Manila') ORDER BY day ASC
@@ -31,14 +29,14 @@ export const refundSpike = {
     const { todayTotal, todayCount, historical } = data;
     const { zScore, mean, mad } = computeZScore(historical, todayTotal);
     const severity = classifySeverity(zScore, this.config.zScoreThresholds);
-    const triggered = Math.abs(zScore) >= this.config.zScoreThresholds.medium && todayTotal > 0;
+    const triggered = zScore >= this.config.zScoreThresholds.medium && todayTotal > 0;
     const min = Math.max(0, mean - 2 * mad * 1.4826);
     const max = mean + 2 * mad * 1.4826;
     const confidence = Math.min(0.99, 0.5 + Math.abs(zScore) * 0.15);
     return {
       triggered, severity,
       title: "Refund Spike Detected",
-      description: `Today ${todayCount} refunds ₱${todayTotal.toLocaleString()} — usually ₱${Math.round(mean).toLocaleString()}.`,
+      description: `Today ${todayCount} refunds ₱${todayTotal.toLocaleString()} — average on recorded refund dates is ₱${Math.round(mean).toLocaleString()}.`,
       actualValue: todayTotal, expectedValue: mean, expectedMin: min, expectedMax: max, confidence,
     };
   },

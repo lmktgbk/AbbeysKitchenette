@@ -61,6 +61,14 @@ export function createAuthDatabase() {
     };
   }
   let queue = Promise.resolve();
+  let securitySavepoint;
+  db.$executeRawUnsafe = async sql => {
+    if (sql === "SAVEPOINT security_alert_capture") securitySavepoint = structuredClone(db.state);
+    else if (sql === "ROLLBACK TO SAVEPOINT security_alert_capture") db.state = structuredClone(securitySavepoint);
+    else if (sql === "RELEASE SAVEPOINT security_alert_capture") securitySavepoint = undefined;
+    else throw new Error("Unsupported SQL in auth fixture");
+    return 0;
+  };
   db.$queryRaw = async (sql, userId) => sql.join("").includes('image_url AS "imageUrl"')
     ? db.state.user.filter(user => user.id === userId).map(user => structuredClone(user)) : [];
   db.$transaction = async callback => {

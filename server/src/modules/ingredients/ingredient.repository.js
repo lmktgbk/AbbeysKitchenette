@@ -206,8 +206,8 @@ export const ingredientRepository = {
    * @param {string} id - ingredient UUID
    * @returns {object|null}
    */
-  async findById(id) {
-    return prisma.ingredient.findUnique({
+  async findById(id, tx) {
+    return (tx || prisma).ingredient.findUnique({
       where: { ingredientId: id },
     });
   },
@@ -681,12 +681,11 @@ export const ingredientRepository = {
    * @returns {number|null} - restockId of FIFO leader, or null if no active batches
    */
   async findFifoLeaderId(ingredientId, tx) {
-    const batch = await (tx || prisma).restockBatch.findFirst({
-      where: { ingredientId, quantityLeft: { gt: 0 } },
-      orderBy: { restockedAt: "asc" },
-      select: { restockId: true },
-    });
-    return batch ? batch.restockId : null;
+    const rows = await (tx || prisma).$queryRawUnsafe(`SELECT restock_id FROM restock_batches
+      WHERE ingredient_id=$1::uuid AND quantity_left>0
+      AND (expiry_date IS NULL OR expiry_date>=${MANILA_TODAY_SQL})
+      ORDER BY restocked_at, restock_id LIMIT 1`, ingredientId);
+    return rows[0]?.restock_id ?? null;
   },
 
   /* ── Loss Declaration ─────────────────── */

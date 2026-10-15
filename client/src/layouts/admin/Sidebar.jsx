@@ -5,6 +5,8 @@ import useLayoutStore from "@/stores/layoutStore";
 import NavItem from "./NavItem";
 import AvatarDropdown from "./AvatarDropdown";
 import ProfileModal from "@/features/profile/components/ProfileModal";
+import { useSidebarCounts } from "./useSidebarCounts";
+import { sidebarCountLabels } from "./sidebarCounts";
 
 const NAV_GROUPS = [
     {
@@ -42,6 +44,7 @@ export default function Sidebar({ expanded = false }) {
     const user = useAuthStore((s) => s.user);
     const [profileOpen, setProfileOpen] = useState(false);
     const isExpanded = expanded || !collapsed;
+    const counts = useSidebarCounts();
 
     return (
         <aside
@@ -74,6 +77,8 @@ export default function Sidebar({ expanded = false }) {
                                     label={item.label}
                                     href={item.href}
                                     collapsed={!isExpanded}
+                                    count={counts[item.href]}
+                                    countLabel={sidebarCountLabels[item.href]}
                                 />
                             ))}
                         </div>

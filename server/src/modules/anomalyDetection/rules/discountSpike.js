@@ -1,5 +1,5 @@
 import prisma from "../../../config/prisma.js";
-import { toManilaDateString, toDayKey } from "../../../config/time.js";
+import { toManilaDateString, toDayKey, manilaDayStart } from "../../../config/time.js";
 
 export const discountSpike = {
   id: "discount_spike",
@@ -9,9 +9,7 @@ export const discountSpike = {
   config: { lookbackDays: 30, zScoreThresholds: { medium: 2.0, high: 2.5, critical: 3.0 } },
   /** Aggregate completed-order discounts as a percentage of subtotal per Manila date. */
   async dataFetcher() {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 30);
-    cutoff.setHours(0, 0, 0, 0);
+    const cutoff = new Date(manilaDayStart(toManilaDateString()).getTime() - 30 * 86400000);
     const rows = await prisma.$queryRawUnsafe(`
       SELECT DATE(o."created_at" AT TIME ZONE 'Asia/Manila') AS day, SUM(o."discount_amount")::float AS disc, SUM(o."subtotal_amount")::float AS sub
       FROM orders o WHERE o."status" = 'completed' AND o."created_at" >= $1
@@ -33,7 +31,7 @@ export const discountSpike = {
     const { todayRate, todayTotal } = data;
     const { zScore, mean, mad } = computeZScore(data.historical, todayRate);
     const severity = classifySeverity(zScore, this.config.zScoreThresholds);
-    const triggered = Math.abs(zScore) >= this.config.zScoreThresholds.medium && todayRate > 0;
+    const triggered = zScore >= this.config.zScoreThresholds.medium && todayRate > 0;
     const confidence = Math.min(0.99, 0.5 + Math.abs(zScore) * 0.15);
     return {
       triggered, severity,
@@ -46,6 +44,6 @@ export const discountSpike = {
   },
   /** Request checks of recorded discount use; the historical-score decision has already been made. */
   geminiPrompt(data) {
-    return `Café discount anomaly: today ${data.todayRate.toFixed(1)}% discount, usual ${data.todayStr} average. Give 2-3 short checks for senior/pwd/promo misuse. Under 100 words, numbered.`;
+    return `Café discount anomaly on ${data.todayStr}: discount share ${data.todayRate.toFixed(1)}%, historical average ${Number(data.mean).toFixed(1)}%. Give 2-3 short checks of discount eligibility, promo setup and entry accuracy. Do not assume misuse or wrongdoing. Under 100 words, numbered.`;
   },
 };

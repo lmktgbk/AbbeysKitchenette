@@ -1,5 +1,6 @@
 import { effectsRepository } from "./effects.repository.js";
 import { broadcast } from "../realtime/hub.js";
+import { reportWorkerFailure } from "../../utils/workerDiagnostics.js";
 
 /** Recover saved effects in bounded sweeps; stop waits for the current sweep before shutdown. */
 export function createEffectsWorker({ repository = effectsRepository, emit = broadcast, intervalMs = 5000 } = {}) {
@@ -25,7 +26,7 @@ export function createEffectsWorker({ repository = effectsRepository, emit = bro
   function wake() {
     if (!running || flight) return;
     clearTimeout(timer);
-    flight = sweep().catch(() => console.warn("[effects] Durable follow-up recovery deferred")).finally(() => {
+    flight = sweep().catch(error => reportWorkerFailure("effects", error)).finally(() => {
       flight = null;
       if (running) { timer = setTimeout(wake, intervalMs); timer.unref?.(); }
     });

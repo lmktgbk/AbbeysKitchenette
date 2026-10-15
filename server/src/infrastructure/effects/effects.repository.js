@@ -38,8 +38,8 @@ export function createEffectsRepository(db = prisma) {
           await tx.domainEffect.update({ where: { id: row.id }, data: { state: "delivered", deliveredAt: new Date() } });
           return { audit: Boolean(payload.audit), notifications: payload.notifications.length };
         }, { timeout: 5000 });
-      } catch {
-        if (!claimed) throw Error("Domain effect storage unavailable");
+      } catch (error) {
+        if (!claimed) throw new Error("Domain effect storage unavailable", { cause: error });
         // Delivery and its completion marker roll back together. Fence retry metadata
         // so another worker's successful delivery cannot be overwritten by this failure.
         const attempts = claimed.attempts + 1;

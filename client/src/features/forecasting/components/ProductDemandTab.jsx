@@ -53,7 +53,7 @@ function groupKey(r) {
 }
 
 export default function ProductDemandTab({
-  results, productScores, activeTab, onTabChange,
+  results, activeTab, onTabChange,
   selectedVariant, selectedProduct, onSelectVariant, onSelectProduct,
 }) {
   const [search, setSearch] = useState("");
@@ -62,14 +62,6 @@ export default function ProductDemandTab({
   const [filterOpen, setFilterOpen] = useState(false);
   const [activeSort, setActiveSort] = useState("units_desc");
   const [activeFilters, setActiveFilters] = useState({ demand: "all", sales: "all" });
-
-  const scoreByProduct = useMemo(() => {
-    const map = new Map();
-    for (const s of productScores || []) {
-      map.set(s.product_id, s);
-    }
-    return map;
-  }, [productScores]);
 
   // Group variants under products; hide products with zero total demand.
   const products = useMemo(() => {
@@ -95,11 +87,10 @@ export default function ProductDemandTab({
         ...p,
         units: p.variants.reduce((s, v) => s + v.units, 0),
         revenue: p.variants.reduce((s, v) => s + v.revenue, 0),
-        score: p.product_id != null ? scoreByProduct.get(p.product_id) : null,
       }))
       .filter((p) => p.units > 0)
       .sort((a, b) => b.units - a.units);
-  }, [results, scoreByProduct]);
+  }, [results]);
 
   const [page, setPage] = useResettableState(1, [search, products, activeSort, activeFilters]);
 
@@ -238,7 +229,6 @@ export default function ProductDemandTab({
                           <p className="font-medium text-foreground">{p.product_name}</p>
                           <p className="text-xs text-muted-foreground">
                             {p.variants.length > 1 ? `${p.variants.length} sizes` : p.variants[0].size_name}
-                            {p.score?.r_squared != null ? ` · R² ${(p.score.r_squared * 100).toFixed(0)}%` : ""}
                           </p>
                         </div>
                       </div>

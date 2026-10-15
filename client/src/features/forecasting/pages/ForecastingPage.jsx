@@ -11,51 +11,11 @@ import IngredientOrderTab from "../components/IngredientOrderTab";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatLabel, StatValue, StatSub } from "@/components/ui/stat";
 import Icon from "@/components/ui/icon";
+import { Button } from "@/components/ui/button";
 
 /** Undefined scores must remain visibly unavailable rather than becoming 0%. */
 function formatR2(value) {
   return value == null ? "N/A" : `${(value * 100).toFixed(1)}%`;
-}
-
-/** Show individual errors alongside the pooled headline so volume differences do not hide weak variants. */
-function IndividualEvaluation({ scores, variants }) {
-  const names = new Map(variants.map((variant) => [variant.variant_id, variant.size_name]));
-  const rows = scores.flatMap((score) => [
-    { ...score, label: score.product_name, key: `product:${score.product_id}` },
-    ...(score.variant_scores || []).map((variant) => ({
-      ...variant,
-      key: `variant:${variant.variant_id}`,
-      label: `${score.product_name} / ${names.get(variant.variant_id) || variant.variant_id}${["variant_prophet_raw", "variant_prophet_expected", "variant_prophet_expected_flat"].includes(score.forecast_method) ? "" : " (allocated)"}`,
-    })),
-  ]);
-  return (
-    <details className="rounded-xl border border-border p-4 text-sm">
-      <summary className="cursor-pointer">Individual product and variant evaluation</summary>
-      <p className="my-2 text-xs text-muted-foreground">
-        Training through {scores[0].training_cutoff || "cutoff unavailable (older run)"}.
-        {["variant_prophet_raw", "variant_prophet_expected", "variant_prophet_expected_flat"].includes(scores[0].forecast_method)
-          ? " Each variant is forecast independently with Prophet using unit counts."
-          : " Legacy run: variant quantities were allocated from historical sales mix."}
-        R² is N/A when actual sales have no variation. Errors below measure daily units.
-      </p>
-      <div className="max-h-96 overflow-auto">
-        <table className="w-full text-xs">
-          <thead><tr><th className="text-left">Product / variant</th><th>R²</th><th>MAE</th><th>RMSE</th><th>MSE</th></tr></thead>
-          <tbody>
-            {rows.map((score) => (
-              <tr key={score.key} className="border-b border-border">
-                <td className="py-2">{score.label}</td>
-                <td className="px-2 text-center">{formatR2(score.r_squared)}</td>
-                {[score.mae, score.rmse, score.mse].map((value, index) => (
-                  <td key={index} className="px-2 text-center">{value == null ? "N/A" : value.toFixed(2)}</td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </details>
-  );
 }
 
 /**
@@ -77,11 +37,11 @@ export default function ForecastingPage() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
 
-  const { data: historyData, isLoading: historyLoading } = useDemandHistory();
+  const { data: historyData, isLoading: historyLoading, isError: historyError, refetch: retryHistory } = useDemandHistory();
   const jobs = historyData?.data?.jobs || [];
   const activeJobId = selectedJobId ?? jobs[0]?.id ?? null;
 
-  const { data: resultsData, isLoading: resultsLoading } = useDemandResults(activeJobId);
+  const { data: resultsData, isLoading: resultsLoading, isError: resultsError, refetch: retryResults } = useDemandResults(activeJobId);
   const { data: ingredientsData, isLoading: ingredientsLoading, isError: ingredientsError } = useDemandIngredients(activeJobId);
 
   // Job switching clears the chart selection explicitly in handleJobComplete below —
@@ -104,7 +64,6 @@ export default function ForecastingPage() {
   const job = resultsData?.data?.job;
   const skipped = resultsData?.data?.skipped || [];
   const productScores = job?.product_scores || null;
-  const coverage = productScores?.[0]?.coverage;
   // Historical saved runs keep their original rounded quantities and scores.
   const expectedDemand = productScores?.some((score) => ["variant_prophet_expected", "variant_prophet_expected_flat"].includes(score.forecast_method));
   // A zero forecast is different from a skipped product and remains in evaluation.
@@ -125,7 +84,7 @@ export default function ForecastingPage() {
     }), { units: 0, revenue: 0 });
   }, [forecasted]);
 
-  const lowIngredients = useMemo(() => ingredients.filter((i) => i.status !== "ok" && Number(i.total_needed || 0) > 0.01), [ingredients]);
+  const lowIngredients = useMemo(() => ingredients.filter((i) => ["critical", "warning"].includes(i.status) && Number(i.total_needed || 0) > 0.01), [ingredients]);
   const topNeed = useMemo(() => {
     const rank = { critical: 0, warning: 1 };
     return [...lowIngredients].sort((a, b) => (rank[a.status] ?? 2) - (rank[b.status] ?? 2) || Number(b.total_needed) - Number(a.total_needed)).slice(0, 3);
@@ -179,6 +138,17 @@ export default function ForecastingPage() {
         </div>
         <Skeleton className="h-[360px] w-full rounded-xl" />
         <Skeleton className="h-64 w-full rounded-xl" />
+      </div>
+    );
+  }
+
+  // Failed reads are not evidence of an empty forecast. Retry the saved result, not model training.
+  if (historyError || resultsError) {
+    return (
+      <div className="rounded-xl border border-destructive/30 bg-card p-6" role="alert">
+        <h1 className="text-base font-semibold text-foreground">Could not load forecast</h1>
+        <p className="mt-2 text-sm text-muted-foreground">The forecast service could not return the saved results. Try loading them again; generating another forecast is not required to retry.</p>
+        <Button className="mt-4" onClick={() => historyError ? retryHistory() : retryResults()}>Retry loading</Button>
       </div>
     );
   }
@@ -237,21 +207,6 @@ export default function ForecastingPage() {
         )}
       </div>
 
-      {productScores?.[0]?.training_cutoff && (
-        <div className="rounded-lg border border-border px-4 py-3 text-xs text-muted-foreground">
-          <p>Training through {productScores[0].training_cutoff} (Asia/Manila); forecast dates are shown in the chart.</p>
-          {coverage?.gap_days > 0 && <p className="mt-1">
-            {coverage.gap_days} dates have no recorded completed sales across the menu.
-            {coverage.trailing_gap_days > 0 ? ` Last recorded sale: ${coverage.last_sale}.` : ""}
-            {" "}Empty dates are treated as zero recorded sales; closure and incomplete records cannot be distinguished.
-          </p>}
-          {coverage?.recent_gap_dates?.length > 0 && <details className="mt-1">
-            <summary className="cursor-pointer">Recent dates without recorded sales</summary>
-            <p className="mt-1">{coverage.recent_gap_dates.join(", ")}</p>
-          </details>}
-        </div>
-      )}
-
       {/* 3 KPI Cards */}
       {hasData && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -276,7 +231,7 @@ export default function ForecastingPage() {
             ) : (
               <>
                 <StatValue size="hero" className="mt-1 text-green-700 dark:text-green-400">{ingredientIncomplete ? "Review needed" : "All good"}</StatValue>
-                <StatSub className="block whitespace-normal break-words">{ingredientIncomplete ? "Ingredient calculation incomplete; check recipes and resale items" : "No urgent orders"}</StatSub>
+                <StatSub className="block whitespace-normal break-words">{ingredientIncomplete ? "Ingredient demand incomplete; review forecast coverage and recipes" : "No urgent orders"}</StatSub>
               </>
             )}
           </div>
@@ -304,7 +259,6 @@ export default function ForecastingPage() {
         activeTab === "products" ? (
           <ProductDemandTab
             results={forecasted}
-            productScores={productScores}
             activeTab={activeTab}
             onTabChange={setActiveTab}
             selectedVariant={selectedVariant}
@@ -320,8 +274,6 @@ export default function ForecastingPage() {
           />
         )
       )}
-
-      {productScores?.length > 0 && <IndividualEvaluation scores={productScores} variants={forecasted} />}
       {/* Evaluation — clean card, matches KPI/Chart style */}
       {hasData && (evalMetrics || productMetrics) && (
         <div className="rounded-xl border border-border bg-card overflow-hidden">

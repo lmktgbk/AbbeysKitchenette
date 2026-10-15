@@ -8,6 +8,10 @@ import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import { proxyMlStatus } from "../../infrastructure/realtime/jobs.js";
 
 import { proxyMl } from "../../infrastructure/integrations/ml/ml.client.js";
+import { loadInventoryPlanningSnapshot } from "../../services/inventoryPlanning.repository.js";
+import { ingredientForecastRows } from "../../services/inventoryPlanning.js";
+import { successResponse, controllerError } from "../../utils/response.js";
+import { AppError } from "../../middleware/errorHandler.middleware.js";
 
 const router = Router();
 
@@ -82,9 +86,15 @@ router.get(
   authenticate,
   authorize("admin"),
   validateQuery(forecastJobQuerySchema),
-  (req, res) => {
+  async (req, res) => {
     const { jobId } = req.validatedQuery;
-    proxyGet(res, `/forecast/demand/ingredients?job_id=${jobId}`, "DEMAND_INGREDIENTS_ERROR");
+    try {
+      const snapshot = await loadInventoryPlanningSnapshot(undefined, { jobId });
+      if (!snapshot.forecast) throw new AppError(404, "Completed forecast not found", "FORECAST_NOT_FOUND");
+      return successResponse(res, "Ingredient forecast retrieved", { ingredients: ingredientForecastRows(snapshot), recipe_missing_variants: snapshot.recipeMissingVariants });
+    } catch (error) {
+      return controllerError(res, error, "DEMAND_INGREDIENTS_ERROR");
+    }
   },
 );
 

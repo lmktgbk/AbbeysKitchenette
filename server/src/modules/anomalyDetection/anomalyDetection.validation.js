@@ -5,7 +5,7 @@ export const anomalyQuerySchema = z.object({
   page: coercedInteger(LIMITS.page).optional().default(1),
   limit: coercedInteger(LIMITS.pageSize).optional().default(20),
   severity: z.enum(["critical", "high", "medium", "low"]).optional(),
-  category: z.enum(["revenue", "loss", "cancellation", "fulfillment", "refund", "discount", "cash", "restock", "stockout", "supplier", "payment", "sales_hours"]).optional(),
+  category: z.enum(["revenue", "loss", "cancellation", "fulfillment", "refund", "discount", "cash", "restock", "stockout", "supplier", "payment", "sales_hours", "security"]).optional(),
   // Explicit string mapping — z.coerce.boolean() turns the query string
   // "false" into TRUE (any non-empty string is truthy), which inverted the
   // Active inbox to show reviewed items. Never use coerce.boolean on query.

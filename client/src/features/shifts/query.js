@@ -23,6 +23,9 @@ const shiftKeys = {
 export { shiftKeys };
 
 /* ── Query Hooks ───────────────────────────────── */
+export function useOpenShiftCount() {
+  return useQuery({ queryKey: ["shifts", "openCount"], queryFn: api.getOpenShiftCountRequest });
+}
 
 /**
  * useMyShifts — own open shifts with live expected cash.

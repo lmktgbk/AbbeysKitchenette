@@ -4,7 +4,7 @@
  * own data. Query keys consumed: none directly (children own ["ingredients","list"/"summary"/
  * "alerts"/"stockValue"], ["reorderSuggestions"], ["wasteReductions"]); mutations invalidate
  * ["ingredients"]. Guards: staff route guard; no BR-02 shift gate, no per-role branching.
- * State: Query [] | local [showFormModal, showRestockModal, showLossModal, showCountModal, showBatchModal, batchModalIngredient, selectedIngredient, isEditMode, restockDraftQuantity, acceptedSuggestionId] | Zustand [].
+ * State: Query [] | local [showFormModal, showRestockModal, showLossModal, showCountModal, showBatchModal, batchModalIngredient, selectedIngredient, isEditMode, restockDraftQuantity] | Zustand [].
  */
 import { useState } from "react";
 import { toast } from "sonner";
@@ -37,7 +37,7 @@ export default function InventoryPage() {
   const [selectedIngredient, setSelectedIngredient] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [restockDraftQuantity, setRestockDraftQuantity] = useState(null);
-  const [acceptedSuggestionId, setAcceptedSuggestionId] = useState(null);
+  const [restockSuggestionId, setRestockSuggestionId] = useState(null);
 
   // ── Mutations (hook handles invalidation; component handles toast + UI state) ──
 
@@ -67,22 +67,16 @@ export default function InventoryPage() {
     isPending: mutations.update.isPending,
   };
 
-  // Record stock first; suggestion acceptance is a separate follow-up request, not part of the restock transaction.
+  // Delivered stock and the linked recommendation resolve together on the server.
   const restockMutation = {
     mutate: ({ id, data }) =>
-      mutations.restock.mutate({ id, data }, {
+      mutations.restock.mutate({ id, data: { ...data, ...(restockSuggestionId ? { reorder_suggestion_id: restockSuggestionId } : {}) } }, {
         onSuccess: () => {
           toast.success("Ingredient restocked");
           setShowRestockModal(false);
           setSelectedIngredient(null);
           setRestockDraftQuantity(null);
-          // Attempt suggestion resolution only after the restock succeeds; this callback does not await that request.
-          if (acceptedSuggestionId) {
-            mutations.acceptReorder.mutate(acceptedSuggestionId, {
-              onError: () => toast.warning("Stock was recorded, but the suggestion could not be resolved. Refresh suggestions; do not repeat the restock."),
-            });
-            setAcceptedSuggestionId(null);
-          }
+          setRestockSuggestionId(null);
         },
         onError: (err) => toast.error(err.response?.data?.message || "Failed to restock ingredient"),
       }),
@@ -144,12 +138,15 @@ export default function InventoryPage() {
 
   /** Selects the ingredient for a new batch; this action alone does not add stock. */
   function handleRestock(ingredient) {
+    setRestockSuggestionId(null);
+    setRestockDraftQuantity(null);
     setSelectedIngredient(ingredient);
     setShowRestockModal(true);
   }
 
-  /** Prefills a restock draft and remembers the suggestion; acceptance waits for a successful restock. */
+  /** Opens an unsaved delivery draft; acceptance happens only with successful restock. */
   function handleAcceptSuggestion(suggestion) {
+    setRestockSuggestionId(suggestion.id);
     // Pre-fill restock modal with AI suggestion data
     setSelectedIngredient({
       ingredient_id: suggestion.ingredient_id,
@@ -158,7 +155,6 @@ export default function InventoryPage() {
       stock_quantity: suggestion.current_stock,
     });
     setRestockDraftQuantity(suggestion.suggested_quantity);
-    setAcceptedSuggestionId(suggestion.id);
     setShowRestockModal(true);
   }
 
@@ -167,7 +163,7 @@ export default function InventoryPage() {
     setShowRestockModal(open);
     if (!open) {
       setRestockDraftQuantity(null);
-      setAcceptedSuggestionId(null);
+      setRestockSuggestionId(null);
     }
   }
 
@@ -264,7 +260,7 @@ export default function InventoryPage() {
       <KpiCards />
 
       {/* Two-column layout: Table + Sidebar */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px] items-start">
+      <div className="grid grid-cols-1 items-stretch gap-4 lg:min-h-[36rem] lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* Left — Table */}
         <IngredientTable
           onAdd={handleAdd}
@@ -279,10 +275,12 @@ export default function InventoryPage() {
         />
 
         {/* Right — Sidebar panels */}
-        <div className="flex flex-col gap-4">
+        <div className="relative min-h-0 min-w-0">
+          <div className="flex flex-col gap-4 lg:absolute lg:inset-0 lg:grid lg:grid-rows-[minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)]">
           <StockAlerts onRestock={handleRestock} onDeclareExpiredLoss={handleDeclareExpiredLoss} />
           <ReorderSuggestions onAccept={handleAcceptSuggestion} />
           <WasteInsights />
+          </div>
         </div>
       </div>
 

@@ -5,6 +5,11 @@
  */
 import api from "@/config/axios";
 
+export async function getOpenShiftCountRequest() {
+  const res = await api.get("/shifts/open-count");
+  return res.data;
+}
+
 /**
  * Shifts API (BR-02)
  *

@@ -35,6 +35,22 @@ describe.skipIf(process.env.ANOMALY_DB_CHECK !== "1")("PostgreSQL anomaly trigge
     expect(await db.anomalyResult.count()).toBe(1); expect(await db.domainEffect.count()).toBe(2);
     expect(h.evaluate.mock.calls[0][0]).not.toBe(h.evaluate.mock.calls[1][0]);
   }, 30000);
+
+  it("recovers security alerts and deduplicates repeated scans including reviewed findings", async () => {
+    await db.$transaction(tx => recordEffects(tx, { audit: { action: "ACCOUNT_LOCKED", details: { attempts: 5 } } }));
+    const effects = createEffectsRepository(db); await effects.deliverOne();
+    const worker = createAnomalyWorker({ db }); worker.start(); await worker.stop();
+    const card = await db.anomalyResult.findFirst({ where: { category: "security" } });
+    expect(card.ruleId).toBe("security_account_lockout");
+    await db.anomalyResult.update({ where: { id: card.id }, data: { isAcknowledged: true } });
+    await Promise.all([anomalyService.runScan(["security_account_lockout"]), anomalyService.runScan(["security_account_lockout"])]);
+    expect(await db.anomalyResult.count({ where: { category: "security" } })).toBe(1);
+    while (await effects.deliverOne()) { /* Drain only isolated intents. */ }
+    const notices = await db.notification.findMany();
+    expect(notices).toHaveLength(1);
+    expect(notices[0].message).not.toContain("[security:");
+    expect(notices[0].referenceId).toBe(card.id);
+  }, 30000);
   it("capture failure rolls findings back and leaves the trigger pending for retry", async () => {
     await db.automationRun.create({ data: { runKey: "anomaly:fixture", kind: "anomaly", scheduledAt: new Date(), result: { rules: ["revenue_anomaly"], context: null } } });
     await db.$executeRawUnsafe("ALTER TABLE domain_effects ADD CONSTRAINT fixture_block_effect CHECK (false) NOT VALID");

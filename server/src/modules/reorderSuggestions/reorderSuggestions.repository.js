@@ -1,10 +1,43 @@
 import { recordEffects } from "../../infrastructure/effects/effects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import prisma from "../../config/prisma.js";
+import { readInventoryPlanningSnapshot } from "../../services/inventoryPlanning.repository.js";
+import { resolveAdvisory } from "../../services/advisoryEffects.js";
+import { buildReorderContexts, reorderStaleness, reorderReviewReasons } from "./reorderSuggestions.analysis.js";
+import { AppError } from "../../middleware/errorHandler.middleware.js";
 
 /** Persists calculated advice atomically and preserves resolved history. */
 
 export const reorderSuggestionsRepository = {
+  /** Called under the restock ingredient lock, before new stock changes the evidence. */
+  async acceptDelivery(tx, id, ingredientId, userId) {
+    const row = await tx.reorderSuggestion.findUnique({ where: { id } });
+    if (!row || row.ingredientId !== ingredientId) throw new AppError(404, "Recommendation not found for this ingredient", "SUGGESTION_NOT_FOUND");
+    if (row.status !== "pending") throw new AppError(409, "Recommendation already resolved. Refresh before trying again", "SUGGESTION_CONFLICT");
+    const snapshot = await readInventoryPlanningSnapshot(tx);
+    const context = buildReorderContexts(snapshot).find(c => c.ingredient_id === ingredientId);
+    const stale = reorderStaleness(row, context);
+    if (stale) throw new AppError(409, stale, "STALE_REORDER_SUGGESTION");
+    if (Number(row.suggestedQuantity) <= 0 || !reorderReviewReasons(context).length)
+      throw new AppError(409, "This ingredient no longer requires reorder review", "REORDER_NOT_NEEDED");
+    const claimed = await tx.reorderSuggestion.updateMany({ where: { id, status: "pending" }, data: { status: "accepted" } });
+    if (!claimed.count) throw new AppError(409, "Recommendation already resolved", "SUGGESTION_CONFLICT");
+    await recordEffects(tx, { audit: { userId, action: ACTIONS.REORDER_ACCEPTED, targetType: "ingredient", targetId: ingredientId,
+      details: { suggestionId: id, source: "restock_delivery", suggested_quantity: Number(row.suggestedQuantity), unit: row.unit } } });
+  },
+  async acceptCurrent(id, userId) {
+    return resolveAdvisory("reorderSuggestion", id, "accepted", userId, ACTIONS.REORDER_ACCEPTED, async (tx, row) => {
+      // Inventory writers use the same ingredient lock. Validation and intent commit together.
+      await tx.$queryRaw`SELECT ingredient_id FROM ingredients WHERE ingredient_id=${row.ingredientId}::uuid FOR UPDATE`;
+      const snapshot = await readInventoryPlanningSnapshot(tx);
+      const context = buildReorderContexts(snapshot).find(c => c.ingredient_id === row.ingredientId);
+      const stale = reorderStaleness(row, context);
+      if (stale) throw new AppError(409, stale, "STALE_REORDER_SUGGESTION");
+      if (Number(row.suggestedQuantity) <= 0 || !reorderReviewReasons(context).length) {
+        throw new AppError(409, "This ingredient no longer requires a reorder review. Generate new suggestions", "REORDER_NOT_NEEDED");
+      }
+    });
+  },
   // Generation finishes before this method. Replace only pending rows; resolved
   // history survives. A failed insert or lost scheduler lease rolls back replacement.
   async saveSuggestions(suggestions, automation, userId) {

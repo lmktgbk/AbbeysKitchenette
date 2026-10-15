@@ -13,6 +13,10 @@ function handleError(res, error, fallbackCode) {
 }
 
 export const shiftController = {
+  async getOpenCount(req, res) {
+    try { return successResponse(res, "Open shift count", { count: await shiftService.getOpenCount() }); }
+    catch (error) { return handleError(res, error, "GET_OPEN_SHIFT_COUNT_ERROR"); }
+  },
   /**
    * POST /api/shifts/open
    * Open a drawer session with declared opening cash.

@@ -5,6 +5,7 @@ import { lockStock } from "./ingredient.lock.js";
 import prisma from "../../config/prisma.js";
 import { getBusinessDate, toManilaDateString } from "../../config/time.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
+import { reorderSuggestionsRepository } from "../reorderSuggestions/reorderSuggestions.repository.js";
 
 // Frozen response/notification quantities use the ledger's three-decimal precision.
 const roundStock = quantity => Math.round(quantity * 1000) / 1000;
@@ -364,6 +365,9 @@ export const ingredientService = {
       qtyBefore = await ingredientRepository.getStockFromBatches(id, tx);
 
       // Step 1: Create a new batch record (FIFO — first in, first out)
+      if (data.reorder_suggestion_id) {
+        await reorderSuggestionsRepository.acceptDelivery(tx, data.reorder_suggestion_id, id, userId);
+      }
       // The batch tracks its own quantityLeft which decreases as stock is consumed
       await ingredientRepository.createRestockBatch(
         {
@@ -433,7 +437,7 @@ export const ingredientService = {
    * @returns {object} - updated ingredient in snake_case
    * @throws {AppError} 404 if not found, 400 if insufficient stock/invalid batch, 409 on conflict
    */
-  async declareLoss(id, data, userId) {
+  async declareLoss(id, data, userId, validate) {
     // Step 1: Validate ingredient exists and not archived
     const existing = await ingredientRepository.findById(id);
     if (!existing || existing.isArchived) {
@@ -475,6 +479,7 @@ export const ingredientService = {
     await prisma.$transaction(async (tx) => {
       await lockStock(tx, [id]);
       qtyBefore = await ingredientRepository.getStockFromBatches(id, tx);
+      if (validate) await validate(tx);
       if (data.expired_batch_only) {
         // Recheck expiry under the same stock lock used by expiry edits and deductions.
         const current = await ingredientRepository.findBatchByIdAndIngredient(batch_id, id, tx);
@@ -566,7 +571,7 @@ export const ingredientService = {
    * @param {number} batchId - restock batch ID (must be expired with stock left)
    * @param {string} userId - admin declaring the loss
    */
-  async declareExpiredLoss(id, batchId, userId) {
+  async declareExpiredLoss(id, batchId, userId, validate) {
     const batch = await ingredientRepository.findBatchByIdAndIngredient(batchId, id);
     if (!batch) {
       throw new AppError(404, "Batch not found for this ingredient", "BATCH_NOT_FOUND");
@@ -589,6 +594,7 @@ export const ingredientService = {
         notes: `Expired on ${toISODateOnly(batch.expiryDate)} (one-click write-off)`,
       },
       userId,
+      validate,
     );
   },
 
@@ -890,43 +896,27 @@ export const ingredientService = {
    * @returns {object} - updated batch in snake_case
    * @throws {AppError} 404 if ingredient or batch not found
    */
-  async toggleBatchPriority(ingredientId, batchId, isPriority) {
-    // Verify ingredient exists
-    const ingredient = await ingredientRepository.findById(ingredientId);
-    if (!ingredient) {
-      throw new AppError(404, "Ingredient not found", "INGREDIENT_NOT_FOUND");
-    }
-
-    // Verify batch belongs to this ingredient
-    const batch = await ingredientRepository.findBatchByIdAndIngredient(
-      batchId,
-      ingredientId,
-    );
-    if (!batch) {
-      throw new AppError(404, "Batch not found", "BATCH_NOT_FOUND");
-    }
-
-    // Clear all priority flags first (single-star rule)
-    await ingredientRepository.clearAllPriority(ingredientId);
-
-    // If setting priority, set it on the target batch
-    // If un-starring, fall back to FIFO leader (oldest active batch)
-    if (isPriority) {
-      await ingredientRepository.setBatchPriority(batchId, true);
-    } else {
-      const fifoLeaderId = await ingredientRepository.findFifoLeaderId(ingredientId);
-      if (fifoLeaderId) {
-        await ingredientRepository.setBatchPriority(fifoLeaderId, true);
+  async toggleBatchPriority(ingredientId, batchId, isPriority, { userId, validate } = {}) {
+    return prisma.$transaction(async tx => {
+      await lockStock(tx, [ingredientId]);
+      const ingredient = await ingredientRepository.findById(ingredientId, tx);
+      if (!ingredient || ingredient.isArchived) throw new AppError(404, "Ingredient not found", "INGREDIENT_NOT_FOUND");
+      const batch = await ingredientRepository.findBatchByIdAndIngredient(batchId, ingredientId, tx);
+      if (!batch) throw new AppError(404, "Batch not found", "BATCH_NOT_FOUND");
+      const today = await getBusinessDate(tx);
+      if (isPriority && (Number(batch.quantityLeft) <= 0 || (batch.expiryDate && toISODateOnly(batch.expiryDate) < today))) {
+        throw new AppError(409, "Only non-expired batches with remaining stock can be prioritized. Refresh the batches", "BATCH_NOT_USABLE");
       }
-    }
-
-    // Fetch updated batch and return in snake_case
-    const updated = await ingredientRepository.findBatchByIdAndIngredient(
-      batchId,
-      ingredientId,
-    );
-
-    return mapToBatchResponse(updated);
+      if (validate) await validate(tx);
+      await ingredientRepository.clearAllPriority(ingredientId, tx);
+      const leader = isPriority ? batchId : await ingredientRepository.findFifoLeaderId(ingredientId, tx);
+      if (leader) await ingredientRepository.setBatchPriority(leader, true, tx);
+      if (userId) await recordEffects(tx, { audit: { userId, action: ACTIONS.BATCH_PRIORITY_UPDATED,
+        targetType: "ingredient", targetId: ingredientId,
+        details: { name: ingredient.ingredientName, batch_id: leader, is_priority: isPriority } } });
+      const updated = await ingredientRepository.findBatchByIdAndIngredient(batchId, ingredientId, tx);
+      return mapToBatchResponse(updated);
+    }, { timeout: 10000 });
   },
 
   /**
@@ -937,21 +927,15 @@ export const ingredientService = {
    * @throws {AppError} 404 if ingredient not found
    */
   async followFifo(ingredientId) {
-    const ingredient = await ingredientRepository.findById(ingredientId);
-    if (!ingredient) {
-      throw new AppError(404, "Ingredient not found", "INGREDIENT_NOT_FOUND");
-    }
-
-    // Clear all priority flags
-    await ingredientRepository.clearAllPriority(ingredientId);
-
-    // Set the FIFO leader (oldest active batch) as priority
-    const fifoLeaderId = await ingredientRepository.findFifoLeaderId(ingredientId);
-    if (fifoLeaderId) {
-      await ingredientRepository.setBatchPriority(fifoLeaderId, true);
-    }
-
-    return { ingredient_id: ingredientId };
+    return prisma.$transaction(async tx => {
+      await lockStock(tx, [ingredientId]);
+      const ingredient = await ingredientRepository.findById(ingredientId, tx);
+      if (!ingredient || ingredient.isArchived) throw new AppError(404, "Ingredient not found", "INGREDIENT_NOT_FOUND");
+      await ingredientRepository.clearAllPriority(ingredientId, tx);
+      const leader = await ingredientRepository.findFifoLeaderId(ingredientId, tx);
+      if (leader) await ingredientRepository.setBatchPriority(leader, true, tx);
+      return { ingredient_id: ingredientId };
+    });
   },
 
   /* ── Archived ────────────────────────── */

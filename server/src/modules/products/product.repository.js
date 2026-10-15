@@ -1,5 +1,6 @@
 import prisma from "../../config/prisma.js";
 import { MANILA_TODAY_SQL, getBusinessDate } from "../../config/time.js";
+import { AVAILABLE_VARIANTS_SQL, PRODUCT_ENABLED_SQL, PRODUCT_SELLABLE_SQL, PRODUCT_STATUS_SQL } from "./productAvailability.js";
 
 /** Get Prisma client or transaction client */
 const getClient = (tx) => tx || prisma;
@@ -64,6 +65,7 @@ export const productRepository = {
           select: {
             subcategoryId: true,
             subcategoryName: true,
+            isActive: true,
             category: { select: { categoryId: true, categoryName: true } },
           },
         },
@@ -113,9 +115,9 @@ export const productRepository = {
     }
 
     if (status === "active") {
-      clauses.push("p.is_available = true");
+      clauses.push(PRODUCT_SELLABLE_SQL);
     } else if (status === "unavailable") {
-      clauses.push("p.is_available = false");
+      clauses.push(`NOT ${PRODUCT_SELLABLE_SQL}`);
     }
 
     return { where: `WHERE ${clauses.join(" AND ")}`, values };
@@ -144,23 +146,9 @@ export const productRepository = {
         (SELECT COUNT(*)::int FROM product_variants pv WHERE pv.product_id = p.product_id) AS variant_count,
         (SELECT MIN(pv.price) FROM product_variants pv WHERE pv.product_id = p.product_id) AS min_price,
         (SELECT MAX(pv.price) FROM product_variants pv WHERE pv.product_id = p.product_id) AS max_price,
-        EXISTS(
-          SELECT 1 FROM product_variants pv
-          WHERE pv.product_id = p.product_id
-            AND pv.is_available = true
-            AND EXISTS (
-              SELECT 1 FROM recipes r WHERE r.variant_id = pv.variant_id
-            )
-            AND NOT EXISTS (
-              SELECT 1 FROM recipes r
-              WHERE r.variant_id = pv.variant_id
-                AND COALESCE((
-                  SELECT SUM(rb.quantity_left) FROM restock_batches rb
-                  WHERE rb.ingredient_id = r.ingredient_id AND rb.quantity_left > 0
-                    AND (rb.expiry_date IS NULL OR rb.expiry_date >= ${MANILA_TODAY_SQL})
-                ), 0) < r.quantity_needed
-            )
-        ) AS has_active_variant
+        ${PRODUCT_SELLABLE_SQL} AS has_active_variant,
+        CASE WHEN ${PRODUCT_ENABLED_SQL} THEN ${AVAILABLE_VARIANTS_SQL} ELSE 0 END AS available_variant_count,
+        ${PRODUCT_STATUS_SQL} AS availability_status
       FROM products p
       LEFT JOIN subcategories sc ON sc.subcategory_id = p.subcategory_id
       LEFT JOIN categories c ON c.category_id = sc.category_id
@@ -188,15 +176,15 @@ export const productRepository = {
    * @returns {{ total: number, available: number, unavailable: number, categoriesUsed: number }}
    */
   async countByStatus() {
-    const result = await prisma.$queryRaw`
+    const result = await prisma.$queryRawUnsafe(`
       SELECT
         COUNT(*)::int AS total,
-        COUNT(*) FILTER (WHERE p.is_available = true)::int AS available,
-        COUNT(*) FILTER (WHERE p.is_available = false)::int AS unavailable,
+        COUNT(*) FILTER (WHERE ${PRODUCT_SELLABLE_SQL})::int AS available,
+        COUNT(*) FILTER (WHERE NOT ${PRODUCT_SELLABLE_SQL})::int AS unavailable,
         (SELECT COUNT(*)::int FROM subcategories)::int AS total_categories
       FROM products p
       WHERE p.is_archived = false
-    `;
+    `);
 
     return {
       total: result[0].total,

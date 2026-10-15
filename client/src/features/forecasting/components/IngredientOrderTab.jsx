@@ -34,7 +34,7 @@ const STATUS_ORDER = { critical: 0, warning: 1, ok: 2 };
 
 function inLastsBand(days, band) {
   if (band !== "low" && band !== "mid" && band !== "high") return true;
-  if (days == null) return band === "high";
+  if (days == null) return false;
   if (band === "low") return days < 7;
   if (band === "mid") return days >= 7 && days <= 30;
   return days > 30;
@@ -162,7 +162,7 @@ export default function IngredientOrderTab({ ingredients, activeTab, onTabChange
                 <NumCell className="whitespace-nowrap py-2.5 text-muted-foreground">{ing.current_stock.toLocaleString()}</NumCell>
                 <NumCell align="center" className="whitespace-nowrap py-2.5">{ing.days_covered != null ? `${ing.days_covered}d` : "—"}</NumCell>
                 <td className="whitespace-nowrap px-4 py-2.5 text-center">
-                  <Pill variant={STATUS_VARIANT[ing.status] || "success"}>{STATUS_LABEL[ing.status] || ing.status}</Pill>
+                  <Pill variant={STATUS_VARIANT[ing.status] || "warning"}>{STATUS_LABEL[ing.status] || ing.status}</Pill>
                 </td>
               </tr>
             ))}
@@ -170,7 +170,7 @@ export default function IngredientOrderTab({ ingredients, activeTab, onTabChange
         </table>
       </div>
       <Pagination currentPage={page} totalItems={sorted.length} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={(s) => { setPageSize(s); setPage(1); }} pageSizeOptions={[20, 50, 100]} itemLabel="ingredients" />
-      <p className="px-4 py-2 text-xs text-muted-foreground">Tip: “Lasts” = how many days your current stock will cover at forecasted demand.</p>
+      <p className="px-4 py-2 text-xs text-muted-foreground">Based on predicted variants in the selected forecast. Stock excludes expired batches. “Lasts” estimates coverage at average predicted use; — means no predicted use.</p>
     </div>
   );
 }

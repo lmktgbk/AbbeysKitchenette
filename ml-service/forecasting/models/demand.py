@@ -54,55 +54,34 @@ class WeekScore(BaseModel):
 
 
 class VariantScore(BaseModel):
-    """Daily errors and hidden-week pairs; method metadata distinguishes direct and legacy models."""
+    """Held-out observations and daily MAE needed for the overall variant evaluation."""
     variant_id: int
     weeks: list[WeekScore] = []
     n_weeks: list[WeekScore] = []
-    rmse: float | None
     mae: float | None
-    mse: float | None
-    r_squared: float | None
-
-
-class SalesCoverage(BaseModel):
-    """Recorded menu-wide coverage, without asserting that empty dates were closed or complete."""
-    first_sale: str | None
-    last_sale: str | None
-    gap_days: int
-    recent_gap_dates: list[str]
-    trailing_gap_days: int | None
 
 
 class ProductScore(BaseModel):
     """Paper metrics scored at product level (dense series, configurable rolling-origin
     7-day holdouts).
 
-    Daily fields pool all origin pairs; w_ fields average the per-origin
+    Daily MAE pools all origin pairs; w_ fields average the per-origin
     week totals; weeks/n_weeks carry the per-origin pairs the menu headline
     pools over (headline + range). Extended fields default for older score records.
     """
     product_id: str | int
     product_name: str
     variants: int
-    training_cutoff: str | None = None
     evaluation_version: int | None = None
     forecast_method: str | None = None
-    coverage: SalesCoverage | None = None
     variant_scores: list[VariantScore] = []
-    rmse: float
     mae: float
-    mse: float
-    r_squared: float | None
     w_mae: float = 0.0
     w_mse: float = 0.0
     w_pred: float = 0.0
     w_actual: float = 0.0
     weeks: list[WeekScore] = []
     # Naive carry-forward on the same hidden tails; absent on older jobs.
-    n_mae: float = 0.0
-    n_mse: float = 0.0
-    n_rmse: float = 0.0
-    n_r_squared: float | None = None
     n_w_mae: float = 0.0
     n_w_mse: float = 0.0
     n_w_pred: float = 0.0

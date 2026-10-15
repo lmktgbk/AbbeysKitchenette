@@ -10,6 +10,19 @@ function handleError(res, error, fallbackCode) {
 }
 
 export const wasteReductionController = {
+  async prioritizeBatch(req, res) {
+    try {
+      const batch = await wasteReductionService.prioritize(req.params.id, Number(req.params.batchId), req.user.id);
+      return successResponse(res, "Batch prioritized", { batch });
+    } catch (error) { return handleError(res, error, "WASTE_PRIORITY_ERROR"); }
+  },
+
+  async recordExpiredLoss(req, res) {
+    try {
+      const ingredient = await wasteReductionService.expiredLoss(req.params.id, Number(req.params.batchId), req.user.id);
+      return successResponse(res, "Expired loss recorded", { ingredient });
+    } catch (error) { return handleError(res, error, "WASTE_EXPIRED_LOSS_ERROR"); }
+  },
   /**
    * GET /api/waste-reduction
    * List all pending waste reduction insights.

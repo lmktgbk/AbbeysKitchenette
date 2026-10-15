@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import { shiftAlertDetails } from "@/features/shifts/shiftUtils";
+import { anomalyGuidance } from "../guidance";
 
 const SEVERITY_CONFIG = {
   critical: {
@@ -46,6 +47,7 @@ const CATEGORY_ICONS = {
   supplier: "truck",
   payment: "creditCard",
   sales_hours: "clock",
+  security: "alertTriangle",
 };
 
 const CATEGORY_LABELS = {
@@ -61,6 +63,7 @@ const CATEGORY_LABELS = {
   supplier: "Supplier",
   payment: "Payments",
   sales_hours: "Hours",
+  security: "Security",
 };
 
 function formatTimeAgo(dateStr) {
@@ -79,6 +82,7 @@ export default function AnomalyCard({ anomaly, onAcknowledge, onViewShift }) {
   const config = SEVERITY_CONFIG[anomaly.severity] || SEVERITY_CONFIG.low;
   // Keep the persisted identifier for deduplication, but show a plain-language cash verdict.
   const { shiftId, description } = shiftAlertDetails(anomaly.description);
+  const guidance = anomalyGuidance(anomaly);
 
   return (
     <div className={`rounded-xl border border-border bg-card border-l-4 ${config.color} transition-colors hover:shadow-sm`}>
@@ -98,7 +102,7 @@ export default function AnomalyCard({ anomaly, onAcknowledge, onViewShift }) {
                   {CATEGORY_LABELS[anomaly.category]}
                 </span>
               </div>
-              <p className="text-sm text-foreground/80 mt-1">{description}</p>
+              <p className="text-sm text-foreground/80 mt-1">{description.replace(/\s*\[security:[a-f0-9]{64}\]/g, "")}</p>
               {shiftId && onViewShift && <button type="button" onClick={() => onViewShift(shiftId)} className="mt-2 text-xs font-semibold text-primary hover:underline">View Shift</button>}
               <p className="type-small text-muted-foreground/70 mt-0.5">
                 {formatTimeAgo(anomaly.detectedAt)}
@@ -116,19 +120,21 @@ export default function AnomalyCard({ anomaly, onAcknowledge, onViewShift }) {
         </div>
 
         {/* What to do — collapsed */}
-        {anomaly.geminiInsight && (
+        {guidance.text && (
           <div className="mt-2">
             <button
               onClick={() => setExpanded(!expanded)}
+              aria-expanded={expanded}
               className="flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
             >
-              <Icon name="sparkles" size={12} />
+              <Icon name={guidance.aiAssisted ? "sparkles" : "info"} size={12} />
               {expanded ? "Hide" : "Show"} What to do
               <Icon name={expanded ? "chevronDown" : "chevronRight"} size={12} />
             </button>
             {expanded && (
               <div className="mt-2 rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground whitespace-pre-line leading-relaxed">
-                {anomaly.geminiInsight}
+                {!guidance.aiAssisted && <p className="mb-1 font-medium text-foreground">Suggested checks</p>}
+                {guidance.text}
               </div>
             )}
           </div>

@@ -260,6 +260,7 @@ export const ingredientController = {
         req.params.id,
         Number(req.params.batchId),
         req.body.is_priority,
+        { userId: req.user.id },
       );
       return successResponse(res, "Batch priority updated", { batch });
     } catch (error) {

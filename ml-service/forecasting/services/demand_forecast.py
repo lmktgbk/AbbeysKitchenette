@@ -14,7 +14,7 @@ from config import (
     EVAL_ORIGINS,
 )
 from forecasting.services.data_loader import load_variant_daily_sales
-from forecasting.services.metrics import compute_metrics, weekly_metrics
+from forecasting.services.metrics import weekly_metrics
 
 # Business timezone — the whole web app follows the Asia/Manila calendar day.
 BUSINESS_TZ = ZoneInfo("Asia/Manila")
@@ -158,17 +158,6 @@ def predict_units(train, period=FORECAST_PERIOD):
     return values.astype(float).tolist()
 
 
-def sales_coverage(sales, cutoff):
-    """Describe recorded menu-wide gaps; absence alone cannot identify closure or incomplete entry."""
-    dates = pd.DatetimeIndex(sales.loc[sales.units > 0, "ds"].unique()).sort_values()
-    if dates.empty:
-        return {"first_sale": None, "last_sale": None, "gap_days": 0, "recent_gap_dates": [], "trailing_gap_days": None}
-    missing = pd.date_range(dates.min(), cutoff).difference(dates)
-    return {"first_sale": dates.min().date().isoformat(), "last_sale": dates.max().date().isoformat(),
-            "gap_days": len(missing), "recent_gap_dates": [d.date().isoformat() for d in missing[-14:]],
-            "trailing_gap_days": (pd.Timestamp(cutoff) - dates.max()).days}
-
-
 def week_pair(prediction, actual):
     """Store one horizon pair in the shared product/variant response shape."""
     score = weekly_metrics(pd.DataFrame({"yhat": prediction}), pd.DataFrame({"y": actual}))
@@ -181,13 +170,13 @@ def evaluate_product(calendar):
 
     Every model sees only the history before its holdout. Zero-history/short-history
     variants use zero fallback estimates in evaluation, including their actual errors.
-    Daily pairs and weekly totals are retained for both Prophet and the baseline.
+    Daily MAE supports the overall typical error; weekly totals compare Prophet and the baseline.
     """
     dates = calendar.index
     variant_pairs = {int(vid): ([], []) for vid in calendar.columns}
     variant_weeks = {int(vid): [] for vid in calendar.columns}
     variant_baselines = {int(vid): [] for vid in calendar.columns}
-    product_predictions, product_actuals, baseline_predictions = [], [], []
+    product_predictions, product_actuals = [], []
     weeks, baseline_weeks = [], []
     for origin in range(EVAL_ORIGINS):
         end = len(calendar) - origin * HOLDOUT_DAYS
@@ -211,16 +200,14 @@ def evaluate_product(calendar):
         baseline = calendar.iloc[split - HOLDOUT_DAYS:split].sum(axis=1).tolist()
         product_predictions.extend(predicted)
         product_actuals.extend(observed)
-        baseline_predictions.extend(baseline)
         weeks.append(week_pair(predicted, observed))
         baseline_weeks.append(week_pair(baseline, observed))
     if not weeks:
         return None
 
     def daily_score(prediction, actual):
-        """Synthetic pair indices avoid duplicate-date joins across multiple evaluation windows."""
-        return compute_metrics(pd.DataFrame({"ds": range(len(prediction)), "yhat": prediction}),
-                               pd.DataFrame({"ds": range(len(actual)), "y": actual}))
+        """Retain daily MAE for the overall typical-error summary, not individual score tables."""
+        return {"mae": float(np.mean(np.abs(np.asarray(actual) - np.asarray(prediction)))) if len(actual) else None}
 
     def weekly_fields(rows, prefix=""):
         """Keep legacy mean fields while preserving all origin pairs for correct pooled metrics."""
@@ -229,7 +216,6 @@ def evaluate_product(calendar):
 
     return {**daily_score(product_predictions, product_actuals), **weekly_fields(weeks),
             "weeks": weeks, "n_weeks": baseline_weeks, **weekly_fields(baseline_weeks, "n_"),
-            **{"n_" + key: value for key, value in daily_score(baseline_predictions, product_actuals).items()},
             "variant_scores": [{"variant_id": vid, **daily_score(*values),
                                 "weeks": variant_weeks[vid], "n_weeks": variant_baselines[vid]}
                                for vid, values in variant_pairs.items()]}
@@ -245,7 +231,6 @@ async def run_demand_forecast(job_id: int) -> dict:
         if df.empty:
             await complete_job(job_id, 0, 0, 0, [])
             return {"job_id": job_id, "message": "No sales data found"}
-        coverage = sales_coverage(df, cutoff)
         groups = df.groupby("product_id")
         total = len(groups)
         completed_count, failed_count = 0, 0
@@ -283,9 +268,9 @@ async def run_demand_forecast(job_id: int) -> dict:
                 score = evaluate_product(calendar) if calendar.to_numpy().sum() > 0 else None
                 if score:
                     product_scores.append({"product_id": str(product_id), "product_name": product_name,
-                                           "variants": len(variants), "training_cutoff": cutoff.isoformat(),
+                                           "variants": len(variants),
                                            "evaluation_version": 5, "forecast_method": "variant_prophet_expected_flat",
-                                           "coverage": coverage, **score})
+                                           **score})
                 if product_saved:
                     completed_count += 1
                 else:

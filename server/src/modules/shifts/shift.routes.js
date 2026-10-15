@@ -54,6 +54,8 @@ router.get(
 );
 
 // GET /api/shifts/stats — KPI aggregates (must be before /:id)
+router.get("/open-count", authenticate, authorize("admin"), shiftController.getOpenCount);
+
 router.get(
   "/stats",
   authenticate,

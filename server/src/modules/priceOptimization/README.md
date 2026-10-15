@@ -35,6 +35,10 @@ are not part of the contract. Model confidence is not calibrated profit probabil
 Market estimates are stored with generation date and verified:false, alongside
 product, cost, sales and forecast snapshots. Regeneration creates a new analysis;
 existing context is not silently refreshed. Generation does not change prices.
+The latest analysis per variant remains visible after approval with an Applied
+status, until successful regeneration replaces it. Dismissed advice stays hidden;
+older accepted history is retained in storage. Low-temperature generation favors
+keeping reasonable current prices, but a fresh AI analysis can still differ.
 
 Admin approval rechecks observed price, recipe completeness and current cost.
 Price, status and audit commit together; stale/duplicate/failing actions roll back.

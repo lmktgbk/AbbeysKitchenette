@@ -1,5 +1,5 @@
 import prisma from "../../../config/prisma.js";
-import { toManilaDateString, toDayKey } from "../../../config/time.js";
+import { toManilaDateString, toDayKey, manilaDayStart } from "../../../config/time.js";
 
 export const cancellationSpike = {
   id: "cancellation_spike",
@@ -14,9 +14,7 @@ export const cancellationSpike = {
 
   /** Build daily cancellation percentages from orders and cancellation records; separate today from prior active days. */
   async dataFetcher() {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 30);
-    cutoff.setHours(0, 0, 0, 0);
+    const cutoff = new Date(manilaDayStart(toManilaDateString()).getTime() - 30 * 86400000);
 
     const rows = await prisma.$queryRawUnsafe(`
       WITH daily_stats AS (
@@ -79,7 +77,7 @@ export const cancellationSpike = {
 
     const config = this.config;
     const severity = classifySeverity(zScore, config.zScoreThresholds);
-    const triggered = Math.abs(zScore) >= config.zScoreThresholds.medium;
+    const triggered = zScore >= config.zScoreThresholds.medium;
 
     const min = Math.max(0, mean - 2 * mad * 1.4826);
     const max = mean + 2 * mad * 1.4826;

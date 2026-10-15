@@ -1,6 +1,7 @@
 import cloudinary from "../../config/cloudinary.js";
 import { env } from "../../config/env.js";
 import { storageRepository } from "./storage.repository.js";
+import { reportWorkerFailure } from "../../utils/workerDiagnostics.js";
 
 /** Reconcile persisted cleanup claims; provider failures remain eligible for repository-managed retries. */
 export function createStorageWorker({ repository = storageRepository, destroy = id => cloudinary.uploader.destroy(id,
@@ -30,7 +31,7 @@ export function createStorageWorker({ repository = storageRepository, destroy = 
     if (!running) return;
     if (flight) { requested = true; return; }
     clearTimeout(timer);
-    flight = sweep().catch(() => console.warn("[storage] Asset reconciliation deferred")).finally(() => {
+    flight = sweep().catch(error => reportWorkerFailure("storage", error)).finally(() => {
       flight = null;
       if (running) { timer = setTimeout(wake, requested ? 0 : intervalMs); timer.unref?.(); }
       requested = false;

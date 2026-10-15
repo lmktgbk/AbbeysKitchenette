@@ -12,7 +12,6 @@ import { AppError } from "../../middleware/errorHandler.middleware.js";
  */
 import { sessionCookieOptions } from "../../config/cookies.js";
 import { recordLoginFailure } from "./auth.effects.js";
-import { issueRealtimeTicket } from "../../infrastructure/realtime/tickets.js";
 
 const COOKIE_OPTIONS = sessionCookieOptions();
 
@@ -32,15 +31,6 @@ function handleError(res, error, fallbackCode) {
 }
 
 export const authController = {
-  async realtimeTicket(req, res) {
-    try {
-      const session = req.cookies?.token || req.headers.authorization?.match(/^Bearer (\S+)$/i)?.[1];
-      res.setHeader("Cache-Control", "private, no-store");
-      return successResponse(res, "Realtime ticket issued", { ticket: issueRealtimeTicket(session) });
-    } catch (error) {
-      return handleError(res, error, "REALTIME_TICKET_ERROR");
-    }
-  },
   // POST /api/auth/login — staff portal (cashier + kitchen). Blocks admins.
   async login(req, res) {
     try {

@@ -4,6 +4,7 @@ import { orderRepository } from "../orders/order.repository.js";
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import crypto from "crypto";
 import { productRepository } from "../products/product.repository.js";
+import { variantSellable } from "../products/productAvailability.js";
 
 /**
  * Guest Service
@@ -26,9 +27,7 @@ export const guestService = {
     const ingredientIds = [...new Set(products.flatMap(p =>
       p.variants.flatMap(v => v.recipes.map(r => r.ingredientId))))];
     const stock = await productRepository.getStockByIngredientIds(ingredientIds);
-    const available = v => v.isAvailable && !v.isManuallyDeactivated &&
-      v.recipes.length > 0 && v.recipes.every(r => !r.ingredient.isArchived &&
-        (stock[r.ingredientId] ?? 0) >= Number(r.quantityNeeded));
+    const available = v => variantSellable(v, stock);
 
     return products.map((p) => ({
       product_id: p.productId,

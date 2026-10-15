@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
-import { bulkVariantActions, isProductActive } from "../product.utils";
+import { bulkVariantActions, productAvailability } from "../product.utils";
 
 /**
  * ProductDetailModal
@@ -142,15 +142,13 @@ export default function ProductDetailModal({
                 <div className="flex items-center gap-2">
                   <span
                     className={`h-2 w-2 rounded-full ${
-                      isProductActive(data)
+                      productAvailability(data).active
                         ? "bg-success"
                         : "bg-destructive"
                     }`}
                   />
                   <span className="text-xs font-medium text-muted-foreground">
-                    {isProductActive(data)
-                      ? "Active"
-                      : "Unavailable"}
+                    {productAvailability(data).label}
                   </span>
                 </div>
 

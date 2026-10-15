@@ -59,6 +59,27 @@ describe.skipIf(process.env.AUTH_EFFECTS_DB_CHECK !== "1")("PostgreSQL authentic
     await auth.logout(user.id, 0); await auth.logout(user.id, 0); await recover();
     expect(await db.auditLog.count({ where: { action: "LOGOUT" } })).toBe(1);
   }, 30000);
+
+  it("terminal OTP failures remain exhausted even if security alert capture is unavailable", async () => {
+    const flow = await otp(); const wrong = flow.code === "100000" ? "100001" : "100000";
+    await db.otpCode.updateMany({ where: { challengeId: flow.id }, data: { attempts: 4 } });
+    await block(() => verifyOtp(user.id, flow.id, wrong, user));
+    expect((await db.otpCode.findFirst()).attempts).toBe(5);
+    expect((await db.user.findFirst()).sessionVersion).toBe(0);
+  }, 20000);
+
+  it("captures lockout and OTP exhaustion without logging codes or adding restrictions", async () => {
+    for (let i = 0; i < 5; i++) await repo.incrementFailedLoginAttempts(user.id, 5);
+    expect((await db.user.findFirst()).lockedUntil).toBeInstanceOf(Date);
+    await db.user.update({ where: { id: user.id }, data: { lockedUntil: null, failedLoginAttempts: 0 } });
+    const flow = await otp(); const wrong = flow.code === "100000" ? "100001" : "100000";
+    for (let i = 0; i < 5; i++) await expect(verifyOtp(user.id, flow.id, wrong, user)).rejects.toThrow();
+    await recover();
+    expect(await db.auditLog.count({ where: { action: "ACCOUNT_LOCKED" } })).toBe(1);
+    expect(await db.auditLog.count({ where: { action: "OTP_ATTEMPTS_EXHAUSTED" } })).toBe(1);
+    expect(JSON.stringify(await db.auditLog.findMany())).not.toContain(flow.code);
+    expect((await db.user.findFirst()).sessionVersion).toBe(0);
+  }, 30000);
   it("reset issuance cannot commit a token without its intent", async () => {
     await block(issue); expect(await db.passwordResetToken.count()).toBe(0);
   }, 20000);

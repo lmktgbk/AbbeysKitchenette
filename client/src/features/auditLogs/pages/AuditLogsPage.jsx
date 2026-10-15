@@ -36,7 +36,7 @@ const ACTION_GROUP_MAP = {
   "group:Category": ["CATEGORY_CREATED", "CATEGORY_UPDATED", "CATEGORY_DELETED"],
   "group:Inventory": ["INGREDIENT_CREATED", "INGREDIENT_UPDATED", "INGREDIENT_ARCHIVED", "INGREDIENT_RESTORED", "INGREDIENT_DELETED", "STOCK_RESTOCKED", "STOCK_LOSS_DECLARED", "STOCK_COUNT_RECORDED", "LOSS_OVERRIDDEN"],
   "group:Staff": ["STAFF_CREATED", "STAFF_UPDATED", "STAFF_DEACTIVATED", "STAFF_ACTIVATED", "STAFF_DELETED"],
-  "group:Auth": ["LOGIN_SUCCESS", "LOGIN_FAILED", "LOGOUT", "PASSWORD_CHANGED", "PASSWORD_RESET_REQUESTED", "PASSWORD_RESET", "PROFILE_UPDATED", "OTP_VERIFIED"],
+  "group:Auth": ["LOGIN_SUCCESS", "LOGIN_FAILED", "ACCOUNT_LOCKED", "OTP_ATTEMPTS_EXHAUSTED", "LOGOUT", "PASSWORD_CHANGED", "PASSWORD_RESET_REQUESTED", "PASSWORD_RESET", "PROFILE_UPDATED", "OTP_VERIFIED"],
   "group:Order": ["ORDER_CREATED", "ORDER_ACCEPTED", "ORDER_PREPARING", "ORDER_UPDATED", "ORDER_COMPLETED", "ORDER_CANCELLED", "ORDER_ITEM_REMOVED"],
   "group:Shift": ["SHIFT_OPENED", "SHIFT_CLOSED", "SHIFT_FORCE_CLOSED"],
   "group:System": ["SETTINGS_UPDATED", "FORECAST_RUN", "MBA_RUN", "MBA_COMBO_CREATED", "PRICE_RUN", "PRICE_APPLIED", "PRICE_DISMISSED", "REORDER_RUN", "REORDER_ACCEPTED", "REORDER_REJECTED", "WASTE_RUN", "WASTE_ACCEPTED", "WASTE_REJECTED", "ANOMALY_SCAN", "ANOMALY_ACKNOWLEDGED", "DAILY_REPORT_SENT"],
@@ -229,6 +229,8 @@ function formatDescription(log) {
     case "LOGIN_FAILED": return `Failed login attempt${email ? ` — ${email}` : ""}${userId ? ` — User ${userId.slice(0, 8)}` : ""}${reason ? ` (${reason})` : ""}`;
     case "LOGOUT": return "Logged out";
     case "OTP_VERIFIED": return "OTP verified";
+    case "ACCOUNT_LOCKED": return "Existing password lockout reached after repeated incorrect passwords";
+    case "OTP_ATTEMPTS_EXHAUSTED": return "Login challenge reached five incorrect OTP attempts";
     case "PASSWORD_CHANGED": return "Password changed";
     case "PASSWORD_RESET_REQUESTED": {
       if (d.context === "invite") {
@@ -259,6 +261,7 @@ function formatDescription(log) {
     case "PRICE_DISMISSED": return `Dismissed price suggestion for "${name}"${sizeName ? ` (${sizeName})` : ""}`;
     case "REORDER_RUN": return `Ran reorder suggestions${d.count != null ? ` (${d.count} suggestions)` : ""}`;
     case "REORDER_ACCEPTED": return `Accepted reorder for "${name}"${d.suggested_quantity != null ? ` — ${d.suggested_quantity}${unit ? ` ${unit}` : ""}` : ""}`;
+    case "BATCH_PRIORITY_UPDATED": return d.is_priority ? `Prioritized batch #${d.batch_id} for "${name}"` : `Restored FIFO for "${name}"`;
     case "REORDER_REJECTED": return `Rejected reorder for "${name}"`;
     case "WASTE_RUN": return `Ran waste analysis${d.count != null ? ` (${d.count} insights)` : ""}`;
     case "WASTE_ACCEPTED": return `Accepted waste insight for "${name}"`;

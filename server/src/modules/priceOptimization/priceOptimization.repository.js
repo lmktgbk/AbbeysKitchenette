@@ -177,17 +177,20 @@ const priceOptimizationRepository = {
   },
 
   /**
-   * Get pending suggestions for a product (or all).
+   * Show the latest analysis per variant, including applied suggestions.
    */
   async getPendingSuggestions(productId) {
-    const where = { status: "pending" };
+    const where = {};
     if (productId) {
       where.variant = { productId };
     }
-    return prisma.priceOptimization.findMany({
+    const latest = await prisma.priceOptimization.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      distinct: ["variantId"],
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
+    // Filter after selecting the latest: dismissing must not reveal older advice.
+    return latest.filter(row => row.status !== "rejected");
   },
 
   /**

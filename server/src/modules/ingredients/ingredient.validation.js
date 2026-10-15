@@ -38,6 +38,7 @@ export const updateIngredientSchema = z.object({
 
 // Used by POST /api/ingredients/:id/restock — add stock via new FIFO batch
 export const restockIngredientSchema = z.object({
+  reorder_suggestion_id: z.string().uuid().optional(),
   quantity_added: stockQuantity(true),
   cost_per_unit: unitCost(),
   supplier_name: z

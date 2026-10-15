@@ -2,15 +2,9 @@
  * Inventory advice policy. Quantities come from recipes, dated demand and batch
  * balances; provider text cannot change them. This module performs no writes.
  */
-export const INVENTORY_POLICY = Object.freeze({ horizonDays: 7, leadTimeDays: 2, safetyBuffer: 0.2, version: 1 });
+export const INVENTORY_POLICY = Object.freeze({ horizonDays: 7, safetyBuffer: 0.2, version: 1 });
 const round = n => Math.round((n + Number.EPSILON) * 1000) / 1000;
 const addDays = (day, count) => new Date(Date.parse(`${day}T00:00:00Z`) + count * 86400000).toISOString().slice(0, 10);
-
-/** Round in the ingredient's stored unit, without confusing kg/l with g/ml. */
-export function roundPurchase(quantity, unit) {
-  const increment = ({ g: 50, ml: 50, kg: 0.05, l: 0.05, pcs: 1, pieces: 1 })[unit.toLowerCase()] ?? 0.001;
-  return round(Math.ceil((quantity - 1e-9) / increment) * increment);
-}
 
 /**
  * Simulate priority-first FIFO consumption. Expiry dates are usable through that
@@ -46,75 +40,125 @@ export function simulateBatches(batches, dailyDemand, today, days = INVENTORY_PO
  * Use the threshold fallback when the forecast is incomplete, old or does not
  * cover all seven upcoming business dates.
  */
-export function ingredientPlan(snapshot, ingredient) {
+export function ingredientPlan(snapshot, ingredient, { requireFresh = true } = {}) {
   const rows = snapshot.demand.filter(d => d.ingredient_id === ingredient.ingredient_id);
   const dates = Array.from({ length: INVENTORY_POLICY.horizonDays }, (_, i) => addDays(snapshot.today, i));
   const daily = Object.fromEntries(dates.map(d => [d, 0]));
-  let complete = rows.length > 0 && snapshot.forecast && snapshot.forecast.age_hours != null
-    && Number(snapshot.forecast.age_hours) >= 0 && Number(snapshot.forecast.age_hours) <= 48;
+  const issues = [];
+  if (!snapshot.forecast) issues.push("No completed forecast available");
+  if (!rows.length) issues.push("No linked variant recipes");
+  if (requireFresh && snapshot.forecast && (snapshot.forecast.age_hours == null || Number(snapshot.forecast.age_hours) < 0 || Number(snapshot.forecast.age_hours) > 48)) issues.push("Forecast is over 48 hours old or has an invalid timestamp");
+  let missingVariants = 0;
+  const missingDates = new Set();
   for (const row of rows) {
     const entries = Array.isArray(row.daily_data) ? row.daily_data : [];
-    if (row.skipped || dates.some(day => !entries.some(e => e.date === day && typeof e.units === "number" && Number.isFinite(e.units) && e.units >= 0))) complete = false;
-    for (const entry of entries) if (entry.date in daily && !row.skipped) daily[entry.date] += Number(entry.units) * Number(row.quantity_needed);
+    if (row.skipped) missingVariants++;
+    else for (const day of dates) if (!entries.some(e => e.date === day && typeof e.units === "number" && Number.isFinite(e.units) && e.units >= 0)) missingDates.add(day);
+    for (const entry of entries) if (entry.date in daily && !row.skipped && typeof entry.units === "number" && Number.isFinite(entry.units) && entry.units >= 0) daily[entry.date] += entry.units * Number(row.quantity_needed);
   }
+  if (missingVariants) issues.push(`${missingVariants} linked variant(s) missing or skipped`);
+  if (missingDates.size) issues.push(`Forecast does not cover: ${[...missingDates].sort().join(", ")}`);
+  const complete = issues.length === 0;
   // Partial predictions stay available as context, but cannot assert waste or full coverage.
   const batches = snapshot.batches.filter(b => b.ingredient_id === ingredient.ingredient_id);
   const simulation = simulateBatches(batches, complete ? daily : {}, snapshot.today);
-  return { ...simulation, daily, complete: Boolean(complete), demand: Object.values(daily).reduce((sum, v) => sum + v, 0), batches };
+  return { ...simulation, daily, complete, issues, demand: Object.values(daily).reduce((sum, v) => sum + v, 0), batches };
 }
 
-/** Build purchase intent only; accepting it never reserves or adds inventory. */
-export function calculateReorders(snapshot) {
+/** Show ingredient needs for the predictions actually saved in the selected run.
+ * Missing variants do not block estimated coverage; reorder advice retains its own completeness checks.
+ */
+export function ingredientForecastRows(snapshot) {
   return snapshot.ingredients.flatMap(ingredient => {
-    const plan = ingredientPlan(snapshot, ingredient);
-    const threshold = Number(ingredient.minimum_threshold);
-    const buffer = plan.complete ? plan.demand * INVENTORY_POLICY.safetyBuffer : 0;
-    const effectiveStock = plan.usableStock - (plan.complete ? plan.expiringUnused : 0);
-    const deficit = Math.max(0, (plan.complete ? Math.max(plan.demand + buffer, threshold) : threshold) - effectiveStock);
-    const quantity = roundPurchase(deficit, ingredient.unit);
-    if (quantity <= 0) return [];
-    const firstShortage = plan.complete ? plan.unmet.find(d => d.quantity > 1e-9)?.date : null;
-    const daysOut = firstShortage ? (Date.parse(firstShortage) - Date.parse(snapshot.today)) / 86400000 : null;
-    const source = plan.complete ? "forecast" : "minimum_stock_fallback";
-    return [{ ingredient_id: ingredient.ingredient_id, ingredient_name: ingredient.ingredient_name,
-      current_stock: round(plan.usableStock), unit: ingredient.unit, suggested_quantity: quantity,
-      urgency: plan.usableStock <= 0 || (daysOut != null && daysOut <= INVENTORY_POLICY.leadTimeDays) ? "high" : daysOut != null && daysOut <= 5 ? "medium" : "low",
-      estimated_stockout: firstShortage, confidence: plan.complete ? 0.8 : 0.4,
-      reasoning: plan.complete
-        ? `Expected seven-day use ${round(plan.demand)} ${ingredient.unit}; usable stock ${round(plan.usableStock)}; estimated unused stock expiring in the period ${round(plan.expiringUnused)}. Includes a 20% demand buffer and respects minimum stock ${threshold}.`
-        : `Forecast missing, incomplete or stale. Threshold fallback: usable stock ${round(plan.usableStock)} ${ingredient.unit}, minimum ${threshold}. No forecast-based coverage claim.`,
-      metadata: { policy_version: INVENTORY_POLICY.version, source, forecast_id: snapshot.forecast?.id ?? null,
-        as_of: snapshot.today, recent_daily_usage: snapshot.usage?.find(u => u.ingredient_id === ingredient.ingredient_id)?.daily_average ?? null, expected_demand: round(plan.demand), safety_buffer: round(buffer), lead_time_days: INVENTORY_POLICY.leadTimeDays } }];
+    const daily = {};
+    for (const row of snapshot.demand) {
+      if (row.ingredient_id !== ingredient.ingredient_id || row.skipped || !Array.isArray(row.daily_data)) continue;
+      for (const entry of row.daily_data) {
+        if (typeof entry.units !== "number" || !Number.isFinite(entry.units) || entry.units < 0) continue;
+        daily[entry.date] = (daily[entry.date] ?? 0) + entry.units * Number(row.quantity_needed);
+      }
+    }
+    const dates = Object.keys(daily).sort();
+    if (!dates.length) return [];
+    const demand = Object.values(daily).reduce((sum, n) => sum + n, 0);
+    const batches = snapshot.batches.filter(b => b.ingredient_id === ingredient.ingredient_id);
+    const plan = simulateBatches(batches, daily, snapshot.today);
+    const coverage = demand > 0 ? plan.usableStock / (demand / dates.length) : null;
+    const shortage = plan.unmet.some(d => d.quantity > 1e-9);
+    return { ingredient_id: ingredient.ingredient_id, name: ingredient.ingredient_name, unit: ingredient.unit,
+      total_needed: round(demand), current_stock: round(plan.usableStock),
+      daily_values: dates.map(date => ({ date, quantity: daily[date] })),
+      days_covered: coverage == null ? null : Math.round(coverage * 10) / 10,
+      status: shortage || (coverage != null && coverage < 3) ? "critical" : coverage != null && coverage < 7 ? "warning" : "ok" };
   });
 }
 
 /** Separate dated waste exposure from excess purchasing; neither is a realized saving. */
 export function calculateWaste(snapshot) {
   return snapshot.ingredients.flatMap(ingredient => {
-    const plan = ingredientPlan(snapshot, ingredient);
+    // Waste advice uses available predictions, independently of reorder completeness policy.
+    const dates = Array.from({ length: 7 }, (_, i) => addDays(snapshot.today, i));
+    const daily = {};
+    if (snapshot.forecast) for (const row of snapshot.demand.filter(d => d.ingredient_id === ingredient.ingredient_id && !d.skipped)) {
+      if (!Number.isFinite(Number(row.quantity_needed)) || Number(row.quantity_needed) < 0) continue;
+      for (const entry of Array.isArray(row.daily_data) ? row.daily_data : []) {
+        if (dates.includes(entry.date) && typeof entry.units === "number" && Number.isFinite(entry.units) && entry.units >= 0)
+          daily[entry.date] = (daily[entry.date] ?? 0) + entry.units * Number(row.quantity_needed);
+      }
+    }
+    const batches = snapshot.batches.filter(b => b.ingredient_id === ingredient.ingredient_id);
+    const missingDates = dates.filter(date => !(date in daily));
+    const plan = { ...simulateBatches(batches, daily, snapshot.today), batches, daily,
+      complete: missingDates.length === 0, demand: Object.values(daily).reduce((sum, value) => sum + value, 0) };
+    const coveredThrough = expiry => dates.filter(date => date <= expiry).every(date => date in daily);
+    plan.atRisk = plan.atRisk.filter(batch => coveredThrough(batch.expiry_date));
     const expired = plan.expired.reduce((sum, b) => sum + b.remaining, 0);
-    const risk = plan.complete ? plan.expiringUnused : 0;
+    const risk = plan.atRisk.reduce((sum, b) => sum + b.remaining, 0);
     const excess = plan.complete && plan.demand > 0 && plan.usableStock > plan.demand * 1.5
       ? Math.max(0, plan.usableStock - plan.demand * (1 + INVENTORY_POLICY.safetyBuffer)) : 0;
     const soon = plan.batches.filter(b => b.expiry_date && b.expiry_date >= snapshot.today && b.expiry_date <= addDays(snapshot.today, 6));
-    const watchQuantity = !plan.complete ? soon.reduce((sum, b) => sum + Number(b.quantity_left), 0) : 0;
+    const uncovered = soon.filter(b => !coveredThrough(b.expiry_date));
+    const watchQuantity = uncovered.reduce((sum, b) => sum + Number(b.quantity_left), 0);
     if (expired <= 0 && risk <= 0 && excess <= 0 && watchQuantity <= 0) return [];
-    const kind = expired > 0 ? "expired_stock" : risk > 0 ? "expiry_risk" : watchQuantity > 0 ? "expiry_watch" : "excess_stock";
-    const affected = [...plan.expired, ...(plan.complete ? plan.atRisk : soon.map(b => ({ ...b, remaining: Number(b.quantity_left) })))];
-    const costBatches = plan.complete ? affected : plan.expired;
-    const knownCost = costBatches.every(b => b.cost_per_unit != null && Number.isFinite(Number(b.cost_per_unit)));
-    const exposure = costBatches.length && knownCost ? Math.round(costBatches.reduce((sum, b) => sum + b.remaining * Number(b.cost_per_unit), 0) * 100) / 100 : null;
-    return [{ ingredient_id: ingredient.ingredient_id, ingredient_name: ingredient.ingredient_name,
-      current_stock: round(plan.totalStock), forecasted_weekly_usage: round(plan.demand), unit: ingredient.unit,
-      overstock_amount: round(expired + risk || excess), waste_risk: expired > 0 ? "high" : risk > 0 || watchQuantity > 0 ? "medium" : "low",
-      potential_savings: null, confidence: plan.complete ? 0.8 : 0.4,
-      reasoning: `Expired remaining stock: ${round(expired)} ${ingredient.unit}. ${plan.complete ? `Expected use ${round(plan.demand)} over seven days; estimated unused stock at expiry ${round(risk)}.` : "Forecast unavailable or incomplete; future waste quantity cannot be verified."}`,
-      suggestion: expired > 0 ? "Inspect and confirm disposal using Record expired loss for the listed batches. Acceptance alone does not deduct stock."
-        : risk > 0 ? "Review the affected batches and use before expiry where safe. Review batch priorities and reduce upcoming purchases."
-        : watchQuantity > 0 ? "Review batches expiring soon. Run a current forecast before estimating unused quantities."
-        : "Review future purchases; stock beyond weekly demand is not confirmed waste.",
-      metadata: { policy_version: INVENTORY_POLICY.version, kind, as_of: snapshot.today, forecast_id: snapshot.forecast?.id ?? null,
-        forecast_complete: plan.complete, expiring_watch_quantity: round(watchQuantity), expired_quantity: round(expired), at_risk_quantity: plan.complete ? round(risk) : null, excess_quantity: round(excess), estimated_cost_at_risk: exposure,
-        batches: affected.map(b => ({ batch_id: b.batch_id, expiry_date: b.expiry_date, quantity: round(b.remaining), expired: b.expiry_date < snapshot.today })) } }];
+    const groups = [
+      { kind: "expired_stock", quantity: expired, batches: plan.expired, level: "high",
+        suggestion: `Do not use expired ${ingredient.ingredient_name}. Review ${plan.expired.map(b => `Batch #${b.batch_id}`).join(", ")} for disposal and record the confirmed expired loss.` },
+      { kind: "expiry_risk", quantity: risk, batches: plan.atRisk, level: "medium",
+        suggestion: `${ingredient.ingredient_name}: review ${plan.atRisk.map(b => `Batch #${b.batch_id} (expires ${b.expiry_date})`).join(", ")} for use before expiry. Available predictions leave an estimated ${round(risk)} ${ingredient.unit} unused; consider prioritizing an eligible batch.` },
+      { kind: "expiry_watch", quantity: watchQuantity, batches: uncovered.map(b => ({ ...b, remaining: Number(b.quantity_left) })), level: "medium",
+        suggestion: `${ingredient.ingredient_name}: check ${uncovered.map(b => `Batch #${b.batch_id} (expires ${b.expiry_date})`).join(", ")} before purchasing more. Predictions do not cover the full period through expiry, so remaining quantities cannot be estimated.` },
+      { kind: "excess_stock", quantity: excess, batches: [], level: "low",
+        suggestion: `${ingredient.ingredient_name} has ${round(plan.usableStock)} ${ingredient.unit} usable stock against ${round(plan.demand)} ${ingredient.unit} forecasted use over the next seven days. Review or postpone purchases; excess inventory is not confirmed waste.` },
+    ];
+    return groups.filter(group => group.quantity > 0).map(group => {
+      const knownCost = group.batches.length > 0 && group.batches.every(b => b.cost_per_unit != null && Number.isFinite(Number(b.cost_per_unit)));
+      const exposure = knownCost && group.kind !== "expiry_watch"
+        ? Math.round(group.batches.reduce((sum, b) => sum + b.remaining * Number(b.cost_per_unit), 0) * 100) / 100 : null;
+      return { ingredient_id: ingredient.ingredient_id, ingredient_name: ingredient.ingredient_name,
+        current_stock: round(plan.totalStock), forecasted_weekly_usage: round(plan.demand), unit: ingredient.unit,
+        overstock_amount: group.kind === "expiry_watch" ? 0 : round(group.quantity), waste_risk: group.level,
+        potential_savings: null, confidence: plan.complete ? 0.8 : 0.4,
+        reasoning: group.kind === "expired_stock" ? `${round(expired)} ${ingredient.unit} remains in expired batches.`
+          : group.kind === "expiry_risk" ? `Estimated unused stock at expiry: ${round(risk)} ${ingredient.unit}, based on dated demand and priority-first FIFO.`
+          : group.kind === "expiry_watch" ? "These batches expire within seven days; available demand information cannot establish how much will remain."
+          : `Usable stock ${round(plan.usableStock)} ${ingredient.unit} exceeds 150% of expected seven-day use ${round(plan.demand)}. This is excess inventory, not confirmed waste.`,
+        suggestion: group.suggestion,
+        metadata: { policy_version: INVENTORY_POLICY.version, kind: group.kind, as_of: snapshot.today, forecast_id: snapshot.forecast?.id ?? null,
+          forecast_complete: plan.complete, usable_stock: round(plan.usableStock),
+          forecast_dates: Object.keys(daily).sort(), missing_forecast_dates: missingDates,
+          forecast_generated_at: snapshot.forecast?.generated_at ?? null,
+          prediction_basis: "Available variant predictions multiplied by recipe quantities; missing variants contribute no predicted use.",
+          coverage_note: snapshot.forecast == null ? "No completed forecast available."
+            : !snapshot.demand.some(d => d.ingredient_id === ingredient.ingredient_id) ? "No linked variant recipes."
+            : Object.keys(daily).length === 0 ? "No available predictions for this ingredient on the upcoming dates."
+            : missingDates.length ? `No prediction coverage for: ${missingDates.join(", ")}.` : null,
+          expiring_watch_quantity: group.kind === "expiry_watch" ? round(watchQuantity) : 0,
+          expired_quantity: group.kind === "expired_stock" ? round(expired) : 0,
+          at_risk_quantity: group.kind === "expiry_watch" ? null : group.kind === "expiry_risk" ? round(risk) : 0,
+          excess_quantity: group.kind === "excess_stock" ? round(excess) : 0, estimated_cost_at_risk: exposure,
+          batches: group.batches.map(b => ({ batch_id: b.batch_id, expiry_date: b.expiry_date,
+            quantity: round(Number(b.quantity_left)), estimated_unused: group.kind === "expiry_risk" ? round(b.remaining) : null,
+            cost_per_unit: b.cost_per_unit, priority: Boolean(b.is_priority), expired: b.expiry_date < snapshot.today })) } };
+    });
   });
 }

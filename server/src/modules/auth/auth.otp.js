@@ -1,4 +1,4 @@
-import { authAudit } from "./auth.effects.js";
+import { authAudit, securityAuthAudit } from "./auth.effects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
 import crypto from "node:crypto";
 import prisma from "../../config/prisma.js";
@@ -83,6 +83,8 @@ export async function verifyOtp(userId, challengeId, code, expected) {
       const updated = await tx.otpCode.update({
         where: { id: stored.id }, data: { attempts: { increment: 1 } },
       });
+      if (updated.attempts === MAX_ATTEMPTS) await securityAuthAudit(tx, userId, ACTIONS.OTP_ATTEMPTS_EXHAUSTED,
+        { attempts: MAX_ATTEMPTS });
       // Commit the failed-attempt write before returning an authentication error.
       return updated.attempts >= MAX_ATTEMPTS ? "exhausted" : "invalid";
     }

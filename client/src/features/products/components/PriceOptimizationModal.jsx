@@ -164,6 +164,7 @@ export default function PriceOptimizationModal({ open, onOpenChange, product }) 
               const isIncrease = direction === "increase";
               const isDecrease = direction === "decrease";
               const isKeep = direction === "keep";
+              const isApplied = s.status === "accepted";
 
               return (
                 <div
@@ -175,12 +176,13 @@ export default function PriceOptimizationModal({ open, onOpenChange, product }) 
                     <p className="text-sm font-medium text-foreground">
                       {s.productName} ({s.sizeName})
                     </p>
+                    {isApplied && <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">Applied</span>}
                   </div>
 
                   {/* Price change display */}
                   <div className="flex items-center gap-4">
                     <div className="text-center">
-                      <p className="text-xs text-muted-foreground">Current</p>
+                      <p className="text-xs text-muted-foreground">{isApplied ? "Previous" : "Current"}</p>
                       <p className="text-sm font-semibold text-foreground">
                         ₱{Number(s.currentPrice).toLocaleString()}
                       </p>
@@ -197,7 +199,7 @@ export default function PriceOptimizationModal({ open, onOpenChange, product }) 
                       }`}
                     />
                     <div className="text-center">
-                      <p className="text-xs text-muted-foreground">Recommended</p>
+                      <p className="text-xs text-muted-foreground">{isApplied ? "Applied price" : "Recommended"}</p>
                       <p
                         className={`text-sm font-semibold ${
                           isIncrease
@@ -241,7 +243,7 @@ export default function PriceOptimizationModal({ open, onOpenChange, product }) 
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-2">
+                  {!isApplied && <div className="flex gap-2">
                     <Button
                       size="sm"
                       variant="primary"
@@ -261,7 +263,7 @@ export default function PriceOptimizationModal({ open, onOpenChange, product }) 
                     >
                       Dismiss
                     </Button>
-                  </div>
+                  </div>}
                 </div>
               );
             })}

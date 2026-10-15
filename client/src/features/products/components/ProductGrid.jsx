@@ -23,7 +23,7 @@ const SORT_OPTIONS = [
 
 const STATUS_OPTIONS = [
   { value: "all", label: "All" },
-  { value: "active", label: "Active" },
+  { value: "active", label: "Available" },
   { value: "unavailable", label: "Unavailable" },
 ];
 
@@ -189,14 +189,14 @@ export default function ProductGrid({
           <div className="flex flex-col items-center justify-center py-16">
             <Icon name="package" size={48} className="mb-4 text-muted-foreground/30" />
             <p className="mb-1 text-sm font-medium text-foreground">
-              {search ? "No products match your search." : "No products yet"}
+              {search || filterActive ? statusFilter === "unavailable" && !search && activeFilters.category === "all" ? "No unavailable products" : "No products match your filters" : "No products yet"}
             </p>
             <p className="mb-4 text-xs text-muted-foreground">
-              {search
-                ? "Try a different search term."
+              {search || filterActive
+                ? "Try another search or clear your filters."
                 : "Add your first product to get started."}
             </p>
-            {!search && (
+            {search || filterActive ? <Button size="sm" variant="secondary" onClick={() => { setSearch(""); setStatusFilter("all"); setActiveFilters({ category: "all" }); }}>Clear filters</Button> : (
               <Button size="sm" onClick={onAdd}>
                 <Icon name="plus" size={14} className="mr-1" />
                 Add Product

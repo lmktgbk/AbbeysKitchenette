@@ -153,7 +153,7 @@ export async function getReorderSuggestionsRequest() {
 
 // POST /api/reorder-suggestions/generate — generate new via AI
 export async function generateReorderSuggestionsRequest() {
-  const res = await api.post("/reorder-suggestions/generate");
+  const res = await api.post("/reorder-suggestions/generate", undefined, { timeout: 210000 });
   return res.data;
 }
 
@@ -179,7 +179,7 @@ export async function getWasteReductionsRequest() {
 
 // POST /api/waste-reduction/generate — generate new via AI
 export async function generateWasteReductionsRequest() {
-  const res = await api.post("/waste-reduction/generate");
+  const res = await api.post("/waste-reduction/generate", undefined, { timeout: 90000 });
   return res.data;
 }
 
@@ -192,6 +192,16 @@ export async function acceptWasteReductionRequest(id) {
 // POST /api/waste-reduction/:id/reject
 export async function rejectWasteReductionRequest(id) {
   const res = await api.post(`/waste-reduction/${id}/reject`);
+  return res.data;
+}
+
+export async function prioritizeWasteBatchRequest(id, batchId) {
+  const res = await api.post(`/waste-reduction/${id}/batches/${batchId}/prioritize`);
+  return res.data;
+}
+
+export async function recordWasteExpiredLossRequest(id, batchId) {
+  const res = await api.post(`/waste-reduction/${id}/batches/${batchId}/expired-loss`);
   return res.data;
 }
 

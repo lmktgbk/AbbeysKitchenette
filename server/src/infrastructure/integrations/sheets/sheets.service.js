@@ -1,6 +1,7 @@
 import { sheetsConfigured, buildSheetRow } from "./sheets.outbox.js";
 import { sheetsRepository, SHEETS_GAP_MS } from "./sheets.repository.js";
 import { createSheetsTransport, SheetsError } from "./sheets.transport.js";
+import { reportWorkerFailure } from "../../../utils/workerDiagnostics.js";
 
 /** Exponential retry delay capped at five minutes plus jitter to stagger recovering workers. */
 export function sheetRetryDelay(attempts) {
@@ -54,7 +55,7 @@ export function createSheetsWorker({ repository = sheetsRepository, transport = 
       if (running || !configured()) return;
       running = true; controller = new AbortController();
       const tick = async () => {
-        try { await api.processOne(); } catch { console.warn("[sheets] Worker database operation failed; retry deferred"); }
+        try { await api.processOne(); } catch (error) { reportWorkerFailure("sheets", error); }
         if (running) { timer = setTimeout(tick, SHEETS_GAP_MS); timer.unref(); }
       };
       // A restart after a layout repair can recover saved events without repeating sales.

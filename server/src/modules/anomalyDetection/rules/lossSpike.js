@@ -1,5 +1,5 @@
 import prisma from "../../../config/prisma.js";
-import { toManilaDateString, toDayKey } from "../../../config/time.js";
+import { toManilaDateString, toDayKey, manilaDayStart } from "../../../config/time.js";
 
 export const lossSpike = {
   id: "loss_spike",
@@ -15,9 +15,7 @@ export const lossSpike = {
 
   /** Aggregate cancellation-loss peso exposure and record count, excluding other loss categories. */
   async dataFetcher() {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 30);
-    cutoff.setHours(0, 0, 0, 0);
+    const cutoff = new Date(manilaDayStart(toManilaDateString()).getTime() - 30 * 86400000);
 
     const rows = await prisma.$queryRawUnsafe(`
       SELECT
@@ -61,7 +59,7 @@ export const lossSpike = {
 
     const config = this.config;
     const severity = classifySeverity(zScore, config.zScoreThresholds);
-    const triggered = Math.abs(zScore) >= config.zScoreThresholds.medium;
+    const triggered = zScore >= config.zScoreThresholds.medium && todayCost > 0;
 
     const min = Math.max(0, mean - 2 * mad * 1.4826);
     const max = mean + 2 * mad * 1.4826;
@@ -71,8 +69,8 @@ export const lossSpike = {
     return {
       triggered,
       severity,
-      title: "Loss Spike Detected",
-      description: `${todayCount} items removed with loss today (cost: ₱${Math.round(todayCost).toLocaleString()}) — average is ₱${Math.round(mean).toLocaleString()}.`,
+      title: "Cancellation Loss Spike Detected",
+      description: `${todayCount} cancellation-loss records today (cost: ₱${Math.round(todayCost).toLocaleString()}) — average on recorded cancellation-loss dates is ₱${Math.round(mean).toLocaleString()}.`,
       actualValue: todayCost,
       expectedValue: mean,
       expectedMin: min,
@@ -89,8 +87,8 @@ export const lossSpike = {
 
 An anomaly was detected in cancellation losses (items removed with loss declared):
 - Today's loss cost: ₱${Math.round(todayCost).toLocaleString()}
-- Items removed with loss: ${todayCount}
-- 30-day average loss cost: ₱${Math.round(mean).toLocaleString()}
+- Cancellation-loss records: ${todayCount} (not a count of sold items)
+- Average on recorded cancellation-loss dates in the last 30 days: ₱${Math.round(mean).toLocaleString()}
 
 This typically happens when cashiers remove order items and declare loss.
 Provide 2-3 concise, actionable recommendations to reduce cancellation losses.

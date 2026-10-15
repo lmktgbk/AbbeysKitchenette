@@ -5,6 +5,9 @@ import prisma from "../../config/prisma.js";
 /** Persists calculated advice atomically and preserves resolved history. */
 
 export const wasteReductionRepository = {
+  findById(id, tx = prisma) {
+    return tx.wasteReduction.findUnique({ where: { id } });
+  },
   // Generation finishes before this method. Replace only pending rows; resolved
   // history survives. A failed insert or lost scheduler lease rolls back replacement.
   async saveInsights(insights, automation, userId) {

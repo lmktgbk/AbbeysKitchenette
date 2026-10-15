@@ -1,5 +1,5 @@
 import prisma from "../../../config/prisma.js";
-import { toManilaDateString, toDayKey } from "../../../config/time.js";
+import { toManilaDateString, toDayKey, manilaDayStart } from "../../../config/time.js";
 
 export const revenueAnomaly = {
   id: "revenue_anomaly",
@@ -12,11 +12,12 @@ export const revenueAnomaly = {
     zScoreThresholds: { medium: 2.0, high: 2.5, critical: 3.0 },
   },
 
-  /** Separate today's completed-order revenue from prior observed dates; absent historical dates are not zero-filled. */
+  /** Compare the prior Manila calendar day with earlier observed full days, never today's running total. */
   async dataFetcher() {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 30);
-    cutoff.setHours(0, 0, 0, 0);
+    const end = manilaDayStart(toManilaDateString());
+    const targetDate = new Date(end.getTime() - 86400000);
+    const todayStr = toManilaDateString(targetDate);
+    const cutoff = new Date(end.getTime() - 31 * 86400000);
 
     const rows = await prisma.$queryRawUnsafe(`
       SELECT
@@ -25,25 +26,24 @@ export const revenueAnomaly = {
       FROM orders o
       WHERE o."status" = 'completed'
         AND o."created_at" >= $1
+        AND o."created_at" < $2
       GROUP BY DATE(o."created_at" AT TIME ZONE 'Asia/Manila')
       ORDER BY day ASC
-    `, cutoff);
+    `, cutoff, end);
 
     if (rows.length < 7) return { shouldDetect: false };
 
-    // Manila business "today" — never host-local midnight (see config/time.js).
-    const todayStr = toManilaDateString();
-
     const todayRow = rows.find((r) => toDayKey(r.day) === todayStr);
-
-    const todayRevenue = todayRow ? Number(todayRow.revenue) : 0;
+    // No orders cannot distinguish a closure or missing records from zero demand.
+    if (!todayRow) return { shouldDetect: false };
+    const todayRevenue = Number(todayRow.revenue);
     const historical = rows.filter((r) => {
       const d = toDayKey(r.day);
-      return d !== todayStr;
+      return d < todayStr;
     }).map((r) => Number(r.revenue));
 
     return {
-      shouldDetect: true,
+      shouldDetect: historical.length >= 7,
       todayRevenue,
       historical,
       todayStr,
@@ -74,7 +74,7 @@ export const revenueAnomaly = {
       triggered,
       severity,
       title: `Revenue ${zScore < 0 ? "Drop" : "Spike"} Detected`,
-      description: `Yesterday's revenue was ₱${todayRevenue.toLocaleString()} — expected ₱${Math.round(mean).toLocaleString()} (range: ₱${Math.round(min).toLocaleString()} – ₱${Math.round(max).toLocaleString()}). Day: ${dayName}.`,
+      description: `Recorded revenue for ${todayStr} was ₱${todayRevenue.toLocaleString()} — historical daily average ₱${Math.round(mean).toLocaleString()} (range: ₱${Math.round(min).toLocaleString()} – ₱${Math.round(max).toLocaleString()}). Day: ${dayName}.`,
       actualValue: todayRevenue,
       expectedValue: mean,
       expectedMin: min,
@@ -87,14 +87,16 @@ export const revenueAnomaly = {
 
   /** Provide business-date, revenue expectation, and recent trend context for optional owner advice. */
   geminiPrompt(data) {
-    const { todayRevenue, mean, dayName, trend } = data;
+    const { todayRevenue, mean, dayName, trend, todayStr } = data;
     const trendStr = trend.map((v) => `₱${Math.round(v)}`).join(", ");
     return `You are an AI advisor for a café called Abbey's Kitchenette.
 
 An anomaly was detected in daily revenue:
 - Day: ${dayName}
+- Business date: ${todayStr}
 - Actual revenue: ₱${todayRevenue.toLocaleString()}
-- Expected (30-day median): ₱${Math.round(mean).toLocaleString()}
+- Historical daily average (observed dates in the last 30 days): ₱${Math.round(mean).toLocaleString()}
+- The assessed date is a completed Manila calendar day; it excludes today's running sales. Recorded totals do not prove records are complete.
 - Recent 3-day revenue trend: ${trendStr}
 
 Provide 2-3 concise, actionable recommendations for the café owner.

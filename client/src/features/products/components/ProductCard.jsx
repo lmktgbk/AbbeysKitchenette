@@ -3,17 +3,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
 import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
-import { formatPriceRange, isProductActive } from "../product.utils";
+import { formatPriceRange, productAvailability } from "../product.utils";
 
 /**
  * ProductCard
  *
  * Image-heavy product card with click-to-view detail modal.
- * Status dot: green if product is active OR has at least 1 active variant.
- * Unavailable overlay: only when product is inactive AND no variants are active.
+ * Status and overlay use effective sellability, with reasons supplied by the backend.
  */
 const ProductCard = memo(function ProductCard({ product, onViewDetail, onOptimizePrice }) {
-  const active = isProductActive(product);
+  const { active, status, label, availableCount, total } = productAvailability(product);
 
   function handleOptimizeClick(e) {
     e.stopPropagation();
@@ -35,11 +34,11 @@ const ProductCard = memo(function ProductCard({ product, onViewDetail, onOptimiz
           className="h-full w-full rounded-t-xl"
         />
 
-        {/* Unavailable overlay — only when product is inactive AND no active variants */}
+        {/* Only fully unsellable products receive a blocking overlay. */}
         {!active && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/40">
             <span className="rounded-full bg-black/60 px-3 py-1 text-xs font-medium text-white">
-              Unavailable
+              {label}
             </span>
           </div>
         )}
@@ -67,9 +66,9 @@ const ProductCard = memo(function ProductCard({ product, onViewDetail, onOptimiz
           {/* Status dot */}
           <span
             className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${
-              active ? "bg-success" : "bg-destructive"
+              status === "partial" ? "bg-amber-500" : active ? "bg-success" : "bg-destructive"
             }`}
-            title={active ? "Available" : "Unavailable"}
+            title={label}
           />
         </div>
 
@@ -78,6 +77,7 @@ const ProductCard = memo(function ProductCard({ product, onViewDetail, onOptimiz
             {product.subcategory_name ?? product.category_name}
           </Badge>
         )}
+        {status === "partial" && <p className="mb-1 text-xs text-amber-700 dark:text-amber-400">{availableCount} of {total} variants available</p>}
 
         <p className="text-xs text-muted-foreground">
           {formatPriceRange(product.min_price, product.max_price)}

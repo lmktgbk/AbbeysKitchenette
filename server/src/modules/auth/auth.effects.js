@@ -10,6 +10,17 @@ export function authAudit(tx, userId, action, details = {}, subjectId = userId) 
   return recordEffects(tx, { audit: { userId, action, targetType: "staff", targetId: subjectId, details } });
 }
 
+/** Alert capture must not roll back the existing incorrect-attempt accounting. */
+export async function securityAuthAudit(tx, userId, action, details) {
+  await tx.$executeRawUnsafe("SAVEPOINT security_alert_capture");
+  try { await authAudit(tx, userId, action, details); }
+  catch {
+    await tx.$executeRawUnsafe("ROLLBACK TO SAVEPOINT security_alert_capture");
+    console.warn("[auth] Security alert capture unavailable");
+  }
+  await tx.$executeRawUnsafe("RELEASE SAVEPOINT security_alert_capture");
+}
+
 /** Capture denied attempts independently; audit failure must never turn a denied login into success. */
 export async function recordLoginFailure(email, reason) {
   // Correlate failed attempts without retaining attacker-supplied addresses in audit payloads.
