@@ -26,7 +26,6 @@ import VariantProfitabilityTable from "@/features/analytics/components/VariantPr
 import IngredientProfitabilityTable from "@/features/analytics/components/IngredientProfitabilityTable";
 import WasteDetailsModal from "@/features/analytics/components/WasteDetailsModal";
 import ExportChoicesModal from "@/features/analytics/components/ExportChoicesModal";
-import DashboardAnomalyBanner from "@/features/anomalyDetection/components/DashboardAnomalyBanner";
 
 function SectionDivider({ title }) {
   return (
@@ -91,7 +90,6 @@ export default function DashboardPage() {
 
       <AnalyticsKpis kpis={ak} isLoading={analyticsLoading} dateFrom={dateFrom} dateTo={dateTo} />
 
-      <DashboardAnomalyBanner />
 
       {/* ─── Sales & Profitability ─── */}
       <SectionDivider title="Sales & Profitability" />
