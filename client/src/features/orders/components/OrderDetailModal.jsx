@@ -108,7 +108,7 @@ export default function OrderDetailModal({
         <DialogContent className="max-w-3xl p-0 flex flex-col max-h-[85vh]">
         <DialogClose onClick={() => onOpenChange(false)} />
         <DialogHeader className="pl-5 pr-10 pt-5 pb-0">
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex flex-wrap items-center gap-2">
             {loading ? (
               <Skeleton className="h-5 w-32" />
             ) : (
@@ -119,6 +119,7 @@ export default function OrderDetailModal({
                   <Icon name={source.icon} size={10} />
                   {source.label}
                 </Badge>
+                <OrderElapsedTime order={order} badge />
               </>
             )}
           </DialogTitle>
@@ -148,7 +149,6 @@ export default function OrderDetailModal({
             <div className="flex-1 overflow-y-auto px-5 py-3 modal-scroll">
               <div className="space-y-3">
                 <StatusStepper order={order} />
-                <OrderElapsedTime order={order} />
 
                 {/* Meta grid — customer, table, payment as stacked cells */}
                 <div className="grid grid-cols-3 gap-2">

@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { orderTiming } from "../orderTiming";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import Icon from "@/components/ui/icon";
 
 /** Browser ticks only refresh the display; persisted status times own the duration. */
-export default function OrderElapsedTime({ order, compact = false }) {
+export default function OrderElapsedTime({ order, compact = false, badge = false }) {
   const [now, setNow] = useState(Date.now);
   const timing = orderTiming(order, now);
   useEffect(() => {
@@ -11,6 +13,13 @@ export default function OrderElapsedTime({ order, compact = false }) {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [timing.running]);
+
+  if (badge) return (
+    <Badge variant="outline" className="gap-1" title="Elapsed time from acceptance; stops at completion or cancellation.">
+      <Icon name="clock" size={10} />
+      {timing.label}: {timing.value}
+    </Badge>
+  );
 
   return (
     <span
