@@ -80,10 +80,6 @@ export default function Footer({ settings = {} }) {
                 <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
                     <Link to="/privacy-policy" className="footer-link">Privacy Policy</Link>
                     <Link to="/terms-of-service" className="footer-link">Terms of Service</Link>
-                    {/* Staff login — intentionally subtle */}
-                    <Link to="/login" className="footer-staff-login">
-                        Staff Login
-                    </Link>
                 </div>
             </div>
         </footer>

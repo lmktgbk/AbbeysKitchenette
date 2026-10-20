@@ -75,6 +75,8 @@ export default function OtpForm({ userId, onRestart }) {
         }
     };
 
+    const codeField = register("code");
+
     const handleResend = async () => {
         if (resending || expired || otpSecondsRemaining(retryAt) > 0) return;
         setResending(true);
@@ -104,12 +106,20 @@ export default function OtpForm({ userId, onRestart }) {
 
             <Input
                 type="text"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                autoComplete="one-time-code"
+                aria-label="Six-digit verification code"
                 placeholder="000000"
                 maxLength={6}
                 className="mx-auto max-w-[200px] text-center text-lg tracking-[0.5em]"
                 autoFocus
                 error={errors.code?.message}
-                {...register("code")}
+                {...codeField}
+                onChange={(event) => {
+                    event.target.value = event.target.value.replace(/[^0-9]/g, "").slice(0, 6);
+                    void codeField.onChange(event);
+                }}
             />
 
             <div className="flex flex-col gap-3">

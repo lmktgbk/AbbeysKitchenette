@@ -9,6 +9,7 @@ import gcashLogo from "@/assets/gcash-logo.png";
 import mayaLogo from "@/assets/maya_logo.png";
 import PosDiscountLine from "./PosDiscountLine";
 import { SegButton, MethodCard } from "./PosPaymentControls";
+import { validateTender } from "../tenderValidation";
 
 /**
  * Tender chips — Exact first, then common bills, then Clear.
@@ -208,10 +209,10 @@ export default function PosPaymentModal({
     ? (lineDiscounts.some((l) => l?.type === "pwd"))
     : discountType === "pwd";
 
-  const rawPaid = Number(amountPaid);
-  const paid = paymentMethod === "cash" ? (Number.isFinite(rawPaid) ? rawPaid : 0) : total;
-  const change = paymentMethod === "cash" ? Math.max(0, roundMoney(paid - total)) : 0;
-  const tenderOk = amountPaid !== "" && paid >= 0 && paid >= total;
+  const tenderError = validateTender(amountPaid);
+  const paid = paymentMethod === "cash" ? (tenderError ? null : Number(amountPaid)) : total;
+  const tenderOk = paid !== null && !tenderError && paid >= total;
+  const change = paymentMethod === "cash" && tenderOk ? roundMoney(paid - total) : 0;
 
   const perItemValid = hasLines
     ? perLine.every((l, idx) => {
@@ -462,11 +463,12 @@ export default function PosPaymentModal({
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Amount received</label>
                 <Input
-                  type="number"
-                  min="0"
+                  type="text"
+                  inputMode="decimal"
                   value={amountPaid}
                   onChange={(e) => setAmountPaid(e.target.value)}
-                  placeholder="0"
+                  placeholder="0.00"
+                  error={amountPaid !== "" ? tenderError : undefined}
                   className="h-11 text-xl font-semibold"
                   autoFocus
                 />
@@ -534,7 +536,7 @@ export default function PosPaymentModal({
                 <span className="text-muted-foreground">Paid</span>
                 <span className="font-medium">
                   {paymentMethod === "cash"
-                    ? (amountPaid !== "" && paid >= 0 ? `₱${roundMoney(paid).toLocaleString()}` : "—")
+                    ? (paid !== null ? `₱${roundMoney(paid).toLocaleString()}` : "—")
                     : `₱${total.toLocaleString()}`}
                 </span>
               </div>
