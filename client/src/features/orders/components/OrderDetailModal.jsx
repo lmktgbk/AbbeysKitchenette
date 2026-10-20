@@ -9,6 +9,7 @@ import Icon from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import { formatDate, formatTime } from "@/lib/date";
 import { orderNumberLabel } from "@/lib/orderNumber";
+import OrderElapsedTime from "./OrderElapsedTime";
 import { printReceipt } from "@/features/receipts/api";
 import gcashLogo from "@/assets/gcash-logo.png";
 import mayaLogo from "@/assets/maya_logo.png";
@@ -147,6 +148,7 @@ export default function OrderDetailModal({
             <div className="flex-1 overflow-y-auto px-5 py-3 modal-scroll">
               <div className="space-y-3">
                 <StatusStepper order={order} />
+                <OrderElapsedTime order={order} />
 
                 {/* Meta grid — customer, table, payment as stacked cells */}
                 <div className="grid grid-cols-3 gap-2">

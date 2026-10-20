@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
 import PrimarySpinner, { ButtonSpinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { orderNumberLabel } from "@/lib/orderNumber";
+import OrderElapsedTime from "./OrderElapsedTime";
 
 export default function OrderCard({
   order,
@@ -15,19 +15,6 @@ export default function OrderCard({
   togglingIds,
   roleCategory,
 }) {
-  const [elapsed, setElapsed] = useState(0);
-
-  useEffect(() => {
-    if (!order) return undefined;
-    const start = new Date(order.updated_at || order.created_at).getTime();
-    function tick() {
-      setElapsed(Date.now() - start);
-    }
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [order]);
-
   if (!order) return null;
 
   const isPreparing = order.status === "preparing";
@@ -45,13 +32,6 @@ export default function OrderCard({
   const preparedCount = allItems.filter((i) => i.is_prepared).length;
   const progressPct = totalItems ? Math.round((preparedCount / totalItems) * 100) : 0;
 
-  const m = Math.floor(elapsed / 60000);
-  const s = Math.floor((elapsed % 60000) / 1000);
-  const elapsedDisplay = isCompleted
-    ? `${order.fulfillment_minutes ?? 0}m`
-    : m > 0 ? `${m}m ${s}s` : `${s}s`;
-  const isLongWait = !isCompleted && elapsed > 10 * 60000;
-
   const source = order.order_source === "online" ? "online" : "walk-in";
 
   return (
@@ -62,7 +42,7 @@ export default function OrderCard({
       {/* Header */}
       <div className="px-2.5 py-1.5 border-b border-border/60 shrink-0">
         <div className="flex items-center justify-between mb-0.5">
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <span className={cn(
               "type-micro px-1.5 py-px rounded-full font-bold",
               isPreparing
@@ -73,12 +53,7 @@ export default function OrderCard({
             )}>
               {isPreparing ? "PREPARING" : isCompleted ? "DONE" : "ACCEPTED"}
             </span>
-            <span className={cn(
-              "type-micro font-semibold",
-              isLongWait ? "kds-timer-pulse text-destructive" : "text-muted-foreground",
-            )}>
-              {elapsedDisplay}
-            </span>
+            <OrderElapsedTime order={order} compact />
           </div>
           <span className="type-micro text-muted-foreground">
             {new Date(order.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
