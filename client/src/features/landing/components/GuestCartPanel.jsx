@@ -36,10 +36,6 @@ export default function CartPanel({ cart, subtotal, onUpdateQty, onRemove, onChe
                         <span>Subtotal</span>
                         <span>₱{subtotal.toLocaleString()}</span>
                     </div>
-                    <div className="ord-total-row" style={{ fontSize: "0.8125rem", color: "#b08d72" }}>
-                        <span>Delivery / Dine-in</span>
-                        <span>TBD</span>
-                    </div>
                     <div className="ord-total-row grand">
                         <span>Total</span>
                         <span>₱{subtotal.toLocaleString()}</span>

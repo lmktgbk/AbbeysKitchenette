@@ -1,10 +1,11 @@
 import { Link } from "react-router-dom";
 import Icon from "@/components/ui/icon";
+import LegalContact from "../components/LegalContact";
 import "../landing.css";
 
 /**
  * PrivacyPolicy
- * Privacy policy page compliant with the Philippine Data Privacy Act of 2012 (RA 10173).
+ * Guest and staff privacy notice describing current system processing.
  * Displays how Abbey's Kitchenette collects, uses, and protects personal data.
  */
 export default function PrivacyPolicy() {
@@ -12,182 +13,77 @@ export default function PrivacyPolicy() {
 
     const sections = [
         {
-            title: "1. Personal Information Controller",
-            content: (
-                <>
-                    <p>
-                        Abbey's Kitchenette ("we", "us", or "our") is the Personal Information
-                        Controller responsible for the collection, processing, and storage of
-                        personal data through our point-of-sale system and online ordering platform.
-                    </p>
-                    <p>
-                        <strong>Data Protection Officer (DPO):</strong> [Name to be designated]
-                    </p>
-                    <p>
-                        For inquiries regarding this Privacy Policy or our data practices, please
-                        contact us using the information provided in Section 10.
-                    </p>
-                </>
-            ),
+            title: "1. Who This Notice Covers",
+            content: <>
+                <p>Abbey's Kitchenette is responsible for personal information collected through this website, guest ordering, and its internal restaurant system. This notice covers guests and customers. Section 5 explains additional processing for staff and administrators.</p>
+                <p>For privacy questions or requests, contact the store using Section 8. Store management handles these requests.</p>
+            </>,
         },
         {
-            title: "2. Personal Data We Collect",
-            content: (
-                <>
-                    <p>We collect the following categories of personal data:</p>
-                    <div className="privacy-data-table">
-                        <div className="privacy-data-row">
-                            <div className="privacy-data-category">Staff Information</div>
-                            <div className="privacy-data-items">Full name, email address, role, profile image</div>
-                        </div>
-                        <div className="privacy-data-row">
-                            <div className="privacy-data-category">Authentication Data</div>
-                            <div className="privacy-data-items">Password (hashed), PIN (hashed), OTP codes</div>
-                        </div>
-                        <div className="privacy-data-row">
-                            <div className="privacy-data-category">Customer Information</div>
-                            <div className="privacy-data-items">Name, table number (walk-in orders)</div>
-                        </div>
-                        <div className="privacy-data-row">
-                            <div className="privacy-data-category">Order Data</div>
-                            <div className="privacy-data-items">Items ordered, quantities, prices, timestamps</div>
-                        </div>
-                        <div className="privacy-data-row">
-                            <div className="privacy-data-category">System Data</div>
-                            <div className="privacy-data-items">IP addresses, login timestamps, audit logs</div>
-                        </div>
-                    </div>
-                </>
-            ),
+            title: "2. Information Collected From Guests",
+            content: <>
+                <ul>
+                    <li><strong>Orders:</strong> Your name, table number, selected items, quantities, prices, order status, and transaction times. Staff may also enter this information when taking your order.</li>
+                    <li><strong>Payments and adjustments:</strong> Payment method, amounts, payment references where applicable, and cancellation or refund records. Discount records may include a senior citizen or PWD ID number when provided to staff for a discount.</li>
+                    <li><strong>Technical information:</strong> IP addresses and request or security records used to operate and protect the service.</li>
+                </ul>
+                <p>Guest checkout does not require an account, email address, or phone number. It does require a name and table number so staff can identify and serve the order.</p>
+            </>,
         },
         {
-            title: "3. How We Collect Your Data",
-            content: (
-                <>
-                    <p><strong>Staff Data:</strong> Collected during account creation by administrators. Profile images are uploaded by staff members.</p>
-                    <p><strong>Customer Data:</strong> Collected when you place an order through our online ordering system or when staff enters your order at the POS terminal.</p>
-                    <p><strong>System Data:</strong> Automatically collected during system usage for security and audit purposes.</p>
-                </>
-            ),
+            title: "3. Why We Use Information",
+            content: <>
+                <p>We use order information to accept, prepare, track, and serve orders; record payments; handle corrections, cancellations, and refunds; and respond to requests. Processing needed to fulfill an order supports our transaction with you. We also retain relevant records to meet applicable legal obligations.</p>
+                <p>Order and inventory records support sales reporting, demand forecasting, and stock planning. Security records help prevent misuse and investigate incidents. These operational and security uses are subject to applicable privacy requirements and safeguards.</p>
+                <p>Staff sign-in uses authentication cookies. Guest ordering uses browser storage for cart and submission-retry information. Order-tracking links contain an access token: keep your link private, especially on shared devices.</p>
+            </>,
         },
         {
-            title: "4. Purpose of Collection",
-            content: (
-                <>
-                    <p>We process your personal data for the following purposes:</p>
-                    <ul>
-                        <li><strong>Order Processing:</strong> To prepare, track, and fulfill your food and beverage orders</li>
-                        <li><strong>Staff Management:</strong> To manage employee accounts, roles, and system access</li>
-                        <li><strong>Performance Tracking:</strong> To monitor staff productivity and service quality</li>
-                        <li><strong>Security:</strong> To protect against unauthorized access and maintain audit trails</li>
-                        <li><strong>Business Operations:</strong> To manage inventory, sales reporting, and business analytics</li>
-                    </ul>
-                </>
-            ),
+            title: "4. Service Providers and Access",
+            content: <>
+                <p>Authorized personnel access information as needed for their work. The following providers support the system:</p>
+                <ul>
+                    <li><strong>Vercel, Railway, and Supabase:</strong> Website hosting, application processing, and database storage. Hosting infrastructure may process connection and request information.</li>
+                    <li><strong>Brevo:</strong> Delivery of staff verification, recovery, and account-related emails.</li>
+                    <li><strong>Cloudinary:</strong> Storage and delivery of uploaded images, including staff profile images.</li>
+                    <li><strong>Google Sheets:</strong> When configured, exported sales records, including customer names, tables, purchased items, amounts, and staff attribution.</li>
+                    <li><strong>Google Gemini:</strong> Operational information submitted for AI-assisted recommendations, such as inventory, demand, and anomaly context.</li>
+                </ul>
+                <p>Providers may process information outside the Philippines. We remain responsible for applying appropriate safeguards to the processing we arrange. Information may also be disclosed where required by law. We do not sell personal information for marketing.</p>
+            </>,
         },
         {
-            title: "5. How We Use Your Data",
-            content: (
-                <>
-                    <p>Your personal data is used solely for the purposes stated in Section 4. We do not use your data for automated decision-making or profiling.</p>
-                </>
-            ),
+            title: "5. Additional Notice for Staff and Administrators",
+            content: <>
+                <p>Administrators create staff accounts using names, email addresses, and roles. The system also processes optional profile images, password hashes, verification and recovery records, sessions, and account status.</p>
+                <p>Login attempts, IP information, access denials, account lockouts, and exhausted OTP attempts may be recorded for security. Existing controls may restrict staff login to the store network or temporarily limit authentication attempts.</p>
+                <p>Orders and operational actions can be attributed to staff accounts. Shift opening and closing times, cash balances, discrepancies, notes, and audit records support reconciliation, accountability, and incident review.</p>
+                <p>Automated checks can flag unusual activity and apply authentication limits. Business analytics and AI-assisted advice support management review; an alert is not proof of misconduct. Staff may contact management about inaccurate records or to request review of an alert.</p>
+            </>,
         },
         {
-            title: "6. Data Sharing",
-            content: (
-                <>
-                    <p>We may share your personal data with the following third-party service providers who act as data processors:</p>
-                    <ul>
-                        <li><strong>Cloudinary:</strong> For secure storage and delivery of profile images</li>
-                        <li><strong>Gmail (Google):</strong> For sending order confirmation and notification emails</li>
-                    </ul>
-                    <p>We do <strong>not</strong> sell, trade, or otherwise transfer your personal data to third parties for marketing or other unrelated purposes.</p>
-                </>
-            ),
+            title: "6. Retention and Protection",
+            content: <>
+                <p>Information is retained for as long as needed for order handling, accounting, security, dispute resolution, and applicable legal obligations. Relevant accounting records may need to remain after a customer request or a staff account is deactivated. A tax-record obligation does not automatically require keeping every personal detail for the same period.</p>
+                <p>This notice does not promise immediate or automatic deletion. Retention and deletion requests are assessed against the purpose of the records and applicable requirements.</p>
+                <p>The system uses password hashing, HttpOnly authentication cookies, role-based permissions, and configured staff-network restrictions. No online service can guarantee absolute security. Do not share staff credentials or guest order-tracking links.</p>
+            </>,
         },
         {
-            title: "7. Data Retention",
-            content: (
-                <>
-                    <p>We retain your personal data for the following periods:</p>
-                    <ul>
-                        <li><strong>Staff Data:</strong> Duration of employment plus audit retention period</li>
-                        <li><strong>Customer Order Data:</strong> Ten (10) years from the date of transaction, in compliance with Bureau of Internal Revenue (BIR) requirements for sales records</li>
-                        <li><strong>Audit Logs:</strong> Two (2) years from the date of creation</li>
-                    </ul>
-                </>
-            ),
+            title: "7. Your Privacy Rights",
+            content: <>
+                <p>Under the Philippine Data Privacy Act of 2012, you may exercise applicable rights to information, access, correction, objection, erasure or blocking, data portability, and damages where provided by law. Rights are subject to applicable conditions and lawful record-retention requirements.</p>
+                <p>Contact us with your request and enough information to locate the relevant records. We may need to verify your identity before disclosing or changing personal information. Do not send passwords or OTP codes.</p>
+                <p>You may raise a complaint with the <a href="https://privacy.gov.ph" className="privacy-inline-link" target="_blank" rel="noopener noreferrer">National Privacy Commission</a>.</p>
+            </>,
         },
         {
-            title: "8. Data Security",
-            content: (
-                <>
-                    <p>We implement appropriate technical and organizational security measures to protect your personal data, including:</p>
-                    <ul>
-                        <li>Password hashing using bcrypt</li>
-                        <li>Secure authentication via JSON Web Tokens (JWT) with httpOnly cookies</li>
-                        <li>IP address restrictions for staff access</li>
-                        <li>Role-based access control (RBAC) to limit data access based on job function</li>
-                        <li>Regular security audits and access reviews</li>
-                    </ul>
-                </>
-            ),
-        },
-        {
-            title: "9. Your Rights as a Data Subject",
-            content: (
-                <>
-                    <p>Under the Data Privacy Act of 2012 (RA 10173), you have the following rights:</p>
-                    <ul>
-                        <li><strong>Right to be Informed:</strong> To know how your personal data is collected and processed</li>
-                        <li><strong>Right of Access:</strong> To obtain a copy of your personal data</li>
-                        <li><strong>Right to Object:</strong> To refuse or stop the processing of your personal data</li>
-                        <li><strong>Right to Erasure:</strong> To request deletion of your personal data, subject to legal retention requirements</li>
-                        <li><strong>Right to Rectification:</strong> To correct any inaccurate personal data</li>
-                        <li><strong>Right to Data Portability:</strong> To obtain your data in a structured, commonly used format</li>
-                        <li><strong>Right to File a Complaint:</strong> To lodge a complaint with the National Privacy Commission (NPC)</li>
-                    </ul>
-                    <p>To exercise any of these rights, please contact us using the information in Section 10.</p>
-                </>
-            ),
-        },
-        {
-            title: "10. Contact Us",
-            content: (
-                <>
-                    <p>For questions, concerns, or requests regarding this Privacy Policy or your personal data, please contact:</p>
-                    <div className="privacy-contact-card">
-                        <p><strong>Abbey's Kitchenette</strong></p>
-                        <p>Robledo Compound, Bulacnin, Lipa City</p>
-                        <p>Phone: 0929 781 1212</p>
-                        <p>Email: maryrosemendoza78@yahoo.com</p>
-                    </div>
-                </>
-            ),
-        },
-        {
-            title: "11. National Privacy Commission",
-            content: (
-                <>
-                    <p>If you believe your data privacy rights have been violated, you may file a complaint with:</p>
-                    <div className="privacy-contact-card">
-                        <p><strong>National Privacy Commission (NPC)</strong></p>
-                        <p>28th Floor, Tower 1, Rockwell Business Center, Ortigas Center, Pasig City</p>
-                        <p>Phone: (02) 8234-2228</p>
-                        <p>Email: complaints@privacy.gov.ph</p>
-                        <p>Website: www.privacy.gov.ph</p>
-                    </div>
-                </>
-            ),
-        },
-        {
-            title: "12. Changes to This Policy",
-            content: (
-                <>
-                    <p>We may update this Privacy Policy from time to time. Any changes will be posted on this page with an updated effective date. We encourage you to review this page periodically.</p>
-                </>
-            ),
+            title: "8. Contact and Updates",
+            content: <>
+                <p>For privacy questions, requests, or concerns, contact store management:</p>
+                <LegalContact />
+                <p>Changes will be published on this page with a revised date. Please review the notice when using the service.</p>
+            </>,
         },
     ];
 
@@ -219,15 +115,10 @@ export default function PrivacyPolicy() {
                         <h1 className="privacy-title">Privacy Policy</h1>
                         <p className="privacy-subtitle">
                             Your privacy matters to us. Learn how we collect, use, and protect
-                            your personal data in compliance with the Philippine Data Privacy Act
-                            of 2012 (RA 10173).
+                            guest and staff information, and how to exercise your privacy rights.
                         </p>
                         <p className="privacy-effective-date">
-                            Effective Date: {new Date().toLocaleDateString("en-PH", {
-                                year: "numeric",
-                                month: "long",
-                                day: "numeric",
-                            })}
+                            Last updated: October 20, 2026
                         </p>
                     </div>
 

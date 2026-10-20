@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import Icon from "@/components/ui/icon";
+import LegalContact from "../components/LegalContact";
 import "../landing.css";
 
 /**
@@ -12,169 +13,63 @@ export default function TermsOfService() {
 
     const sections = [
         {
-            title: "1. Acceptance of Terms",
-            content: (
-                <p>
-                    By accessing or using the Abbey's Kitchenette point-of-sale system, online
-                    ordering platform, or related services ("Services"), you agree to be bound
-                    by these Terms of Service. If you do not agree to these terms, please do
-                    not use our Services.
-                </p>
-            ),
+            title: "1. About This Service",
+            content: <>
+                <p>These terms cover the Abbey's Kitchenette website and guest ordering service. You can browse the menu, submit an order for your table, and track its status without creating an account.</p>
+                <p>Internal staff access is restricted to authorized accounts and is subject to the store's operating instructions and account-use rules.</p>
+            </>,
         },
         {
-            title: "2. Description of Services",
-            content: (
-                <>
-                    <p>Abbey's Kitchenette provides:</p>
-                    <ul>
-                        <li><strong>Online Ordering:</strong> A platform for customers to browse our menu and place food and beverage orders</li>
-                        <li><strong>Point-of-Sale System:</strong> An internal system for staff to process orders, manage inventory, and track sales</li>
-                        <li><strong>Kitchen Display:</strong> An interface for kitchen staff to manage and fulfill orders</li>
-                    </ul>
-                </>
-            ),
+            title: "2. Placing an Order",
+            content: <>
+                <p>Provide an accurate name and table number, and review the items, variants, quantities, and displayed prices before submitting. If you are unsure about ingredients or have an allergy or dietary requirement, speak to staff before ordering.</p>
+                <p>Submitting an order sends a request to the store. Orders remain subject to staff acceptance, item availability, and payment confirmation. A pending order is not confirmation that preparation has started.</p>
+                <p>If an item becomes unavailable or a displayed price appears incorrect, staff will explain the available options before proceeding. This website does not promise a delivery service or a specific preparation time.</p>
+            </>,
         },
         {
-            title: "3. User Accounts",
-            content: (
-                <>
-                    <p><strong>Staff Accounts:</strong></p>
-                    <ul>
-                        <li>Staff accounts are created by administrators for authorized personnel only</li>
-                        <li>Staff are responsible for maintaining the confidentiality of their PIN and login credentials</li>
-                        <li>Staff must not share their accounts or credentials with others</li>
-                        <li>Staff must report any unauthorized use of their accounts immediately</li>
-                    </ul>
-                    <p><strong>Customer Accounts:</strong></p>
-                    <ul>
-                        <li>Online ordering does not require account creation</li>
-                        <li>Customers provide information (name, contact) voluntarily for order fulfillment</li>
-                    </ul>
-                </>
-            ),
+            title: "3. Prices and Payments",
+            content: <>
+                <p>Prices are shown in Philippine pesos. Staff will confirm the payable amount and any applicable discount. Eligibility for senior citizen, PWD, or promotional discounts is subject to applicable requirements and staff verification.</p>
+                <p>Pay using a method accepted by the store and follow staff instructions. Guest submission alone does not charge a bank account or e-wallet. Staff confirm and record payments; an entered payment reference alone does not prove that funds were received.</p>
+            </>,
         },
         {
-            title: "4. Acceptable Use",
-            content: (
-                <>
-                    <p>You agree to use our Services only for their intended purposes. You must not:</p>
-                    <ul>
-                        <li>Attempt to gain unauthorized access to any part of the system</li>
-                        <li>Use the system to process fraudulent or unauthorized transactions</li>
-                        <li>Interfere with or disrupt the system or servers</li>
-                        <li>Use automated tools to access or interact with the system without authorization</li>
-                        <li>Violate any applicable laws or regulations</li>
-                    </ul>
-                </>
-            ),
+            title: "4. Changes, Cancellations, and Refunds",
+            content: <>
+                <p>Contact staff promptly to correct or cancel an order. Available options depend on whether the order has been accepted, paid for, or prepared. Customers cannot assume an order is cancelled until staff confirm it.</p>
+                <p>If the store cannot fulfill an order, or an item is incorrect or has a quality issue, notify staff so they can assess an appropriate correction, replacement, cancellation, or refund. Where a refund is approved or legally required, staff will explain the amount and how it will be returned.</p>
+                <p>Nothing in these terms removes your rights or remedies under applicable Philippine consumer law.</p>
+            </>,
         },
         {
-            title: "5. Orders and Payments",
-            content: (
-                <>
-                    <ul>
-                        <li>All orders are subject to availability and confirmation</li>
-                        <li>Prices displayed are inclusive of applicable taxes unless stated otherwise</li>
-                        <li>Payment is processed at the time of order pickup or delivery as applicable</li>
-                        <li>Abbey's Kitchenette reserves the right to refuse or cancel orders at its discretion</li>
-                    </ul>
-                </>
-            ),
+            title: "5. Responsible Use and Tracking",
+            content: <>
+                <p>Do not submit false or duplicate orders, attempt unauthorized access, interfere with the service, or access another person's order without permission. If submission appears to fail, check your order status or ask staff before placing it again.</p>
+                <p>Your order-tracking link permits access to information about that order. Keep it private and avoid leaving it open on a shared device. Staff must keep their passwords and verification codes private and use only their assigned accounts.</p>
+            </>,
         },
         {
-            title: "6. Intellectual Property",
-            content: (
-                <>
-                    <p>
-                        All content, design, graphics, and other materials in our Services are
-                        the intellectual property of Abbey's Kitchenette. You may not reproduce,
-                        distribute, or create derivative works without our express written permission.
-                    </p>
-                    <p>
-                        The Abbey's Kitchenette name, logo, and related marks are trademarks of
-                        Abbey's Kitchenette. Unauthorized use of these marks is prohibited.
-                    </p>
-                </>
-            ),
+            title: "6. Availability and Website Content",
+            content: <>
+                <p>The website may be interrupted by maintenance, connectivity problems, or service-provider outages. If ordering or tracking is unavailable, contact store staff directly. Status displays and timing estimates are informational and are not guaranteed serving times.</p>
+                <p>The restaurant's branding and original content belong to their respective owners. Do not copy or misuse them without permission or another lawful basis.</p>
+            </>,
         },
         {
-            title: "7. Limitation of Liability",
-            content: (
-                <>
-                    <p>To the maximum extent permitted by law:</p>
-                    <ul>
-                        <li>Abbey's Kitchenette shall not be liable for any indirect, incidental, special, or consequential damages</li>
-                        <li>Our total liability shall not exceed the amount paid for the specific order giving rise to the claim</li>
-                        <li>We are not liable for delays or failures caused by circumstances beyond our reasonable control</li>
-                    </ul>
-                </>
-            ),
+            title: "7. Privacy and Applicable Law",
+            content: <>
+                <p>Our <Link to="/privacy-policy" className="privacy-inline-link">Privacy Policy</Link> explains guest information, staff records, service providers, and privacy requests.</p>
+                <p>These terms are subject to Philippine law. They do not exclude mandatory consumer protections or prevent you from contacting an appropriate regulator or seeking remedies available under law.</p>
+            </>,
         },
         {
-            title: "8. Indemnification",
-            content: (
-                <p>
-                    You agree to indemnify and hold harmless Abbey's Kitchenette, its owners,
-                    employees, and affiliates from any claims, losses, or damages arising from
-                    your use of the Services or violation of these Terms.
-                </p>
-            ),
-        },
-        {
-            title: "9. Privacy",
-            content: (
-                <p>
-                    Your use of our Services is also governed by our Privacy Policy, which
-                    describes how we collect, use, and protect your personal data in compliance
-                    with the Philippine Data Privacy Act of 2012 (RA 10173). Please review our{" "}
-                    <Link to="/privacy-policy" className="privacy-inline-link">Privacy Policy</Link>{" "}
-                    for more information.
-                </p>
-            ),
-        },
-        {
-            title: "10. Modifications",
-            content: (
-                <p>
-                    Abbey's Kitchenette reserves the right to modify these Terms at any time.
-                    Changes will be effective immediately upon posting. Your continued use of
-                    the Services after changes constitutes acceptance of the modified Terms.
-                </p>
-            ),
-        },
-        {
-            title: "11. Governing Law",
-            content: (
-                <p>
-                    These Terms shall be governed by and construed in accordance with the laws
-                    of the Republic of the Philippines. Any disputes shall be resolved in the
-                    appropriate courts of Lipa City, Batangas, Philippines.
-                </p>
-            ),
-        },
-        {
-            title: "12. Severability",
-            content: (
-                <p>
-                    If any provision of these Terms is found to be unenforceable, the remaining
-                    provisions shall continue in full force and effect.
-                </p>
-            ),
-        },
-        {
-            title: "13. Contact",
-            content: (
-                <>
-                    <p>For questions about these Terms of Service, please contact:</p>
-                    <div className="privacy-contact-card">
-                        <p><strong>Abbey's Kitchenette</strong></p>
-                        <p>Robledo Compound, Bulacnin, Lipa City</p>
-                        <p>Phone: 0929 781 1212</p>
-                        <p>Email: maryrosemendoza78@yahoo.com</p>
-                    </div>
-                </>
-            ),
+            title: "8. Contact and Changes",
+            content: <>
+                <p>For order concerns or questions about these terms, contact the store:</p>
+                <LegalContact />
+                <p>We may update these terms and publish a revised date on this page. Changes do not automatically rewrite an order already agreed with you.</p>
+            </>,
         },
     ];
 
@@ -206,14 +101,10 @@ export default function TermsOfService() {
                         <h1 className="privacy-title">Terms of Service</h1>
                         <p className="privacy-subtitle">
                             Please read these terms carefully before using our services.
-                            By using Abbey's Kitchenette's services, you agree to these terms.
+                            These terms explain guest ordering, payment, and how to get help.
                         </p>
                         <p className="privacy-effective-date">
-                            Effective Date: {new Date().toLocaleDateString("en-PH", {
-                                year: "numeric",
-                                month: "long",
-                                day: "numeric",
-                            })}
+                            Last updated: October 20, 2026
                         </p>
                     </div>
 
