@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useGuestMenu, usePendingOnlineOrders } from "../query";
 import { Skeleton } from "@/components/ui/skeleton";
 import Icon from "@/components/ui/icon";
-import PrimarySpinner from "@/components/ui/spinner";
 import {
   Dialog,
   DialogContent,
@@ -95,11 +94,7 @@ export default function PosMenuGrid({ onAddItem, sidebarOpen, onToggleSidebar })
 
       {/* Product grid */}
       <div className="relative grid grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-        {isFetching && !isPending && (
-          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-background/50">
-            <PrimarySpinner size="inline" />
-          </div>
-        )}
+        {/* Keep loaded products visible during stock-driven background refreshes. */}
         {isPending
           ? Array.from({ length: 8 }).map((_, i) => (
               <Skeleton key={i} className="h-20 rounded-xl" />

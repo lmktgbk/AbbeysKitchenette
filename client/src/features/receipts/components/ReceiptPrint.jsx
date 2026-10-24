@@ -92,7 +92,7 @@ export default function ReceiptPrint({ payload, paperSize = "58mm", showLogo = t
       <p>Payment: {method}</p>
       {order.reference_no && <p className="rc-small">Reference: {order.reference_no}</p>}
       {order.amount_paid != null && (
-        <div className="rc-row"><span>Amount paid</span><span className="rc-right">{peso(order.amount_paid)}</span></div>
+        <div className="rc-row"><span>Amount received</span><span className="rc-right">{peso(order.amount_paid)}</span></div>
       )}
       {order.change != null && (
         <div className="rc-row"><span>Change</span><span className="rc-right">{peso(order.change)}</span></div>

@@ -121,7 +121,7 @@ function orderLines(order, store, cols) {
   out.push(...BOLD_ON, ...SIZE_TALL, ...row("TOTAL", peso(order.total_amount), cols), ...SIZE_NORMAL, ...BOLD_OFF, ...divider(cols));
   line(`Payment: ${(order.payment_method || "cash").toUpperCase()}`);
   if (order.reference_no) line(`Reference: ${order.reference_no}`);
-  if (order.amount_paid != null) out.push(...row("Amount paid", peso(order.amount_paid), cols));
+  if (order.amount_paid != null) out.push(...row("Amount received", peso(order.amount_paid), cols));
   if (order.change != null) out.push(...row("Change", peso(order.change), cols));
   if (Number(order.refund?.amount) > 0) out.push(...row("Refunded", peso(order.refund.amount), cols));
   out.push(...divider(cols));

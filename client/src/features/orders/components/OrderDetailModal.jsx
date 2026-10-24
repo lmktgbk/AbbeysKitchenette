@@ -196,7 +196,7 @@ export default function OrderDetailModal({
                       valueClassName="text-base font-bold"
                     />
                     <StatCell
-                      label="Paid"
+                      label="Amount received"
                       value={order?.amount_paid != null
                         ? `₱${Number(order.amount_paid).toLocaleString()}`
                         : "—"

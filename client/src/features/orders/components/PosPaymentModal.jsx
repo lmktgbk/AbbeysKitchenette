@@ -533,7 +533,7 @@ export default function PosPaymentModal({
                 <span className="text-base font-bold">₱{total.toLocaleString()}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Paid</span>
+                <span className="text-muted-foreground">Amount received</span>
                 <span className="font-medium">
                   {paymentMethod === "cash"
                     ? (paid !== null ? `₱${roundMoney(paid).toLocaleString()}` : "—")

@@ -23,10 +23,12 @@ it.each(["58mm", "80mm"])("preserves settlements, discounts and wrapped text on 
   expect(html).toContain("rc-logo");
   expect(html).toContain("Senior discount 20%");
   expect(html).toContain("₱120.00"); expect(html).toContain("Refunded");
+  expect(html).toContain("Amount received");
   expect(html).not.toContain("REMOVED");
   const text = printedText(buildReceiptBytes(payload, { paperSize }));
   expect(text).toContain("FINISH"); expect(text).toContain("Senior discount 20%");
   expect(text).toContain("P120.00"); expect(text).toContain("Refunded");
+  expect(text).toContain("Amount received");
   expect(text).not.toContain("REMOVED");
   expect(text).toContain("#261011-001");
   const columns = paperSize === "80mm" ? 48 : 32;
