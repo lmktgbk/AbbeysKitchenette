@@ -180,7 +180,11 @@ export default function PriceOptimizationModal({ open, onOpenChange, product }) 
                   </div>
 
                   {/* Price change display */}
-                  <div className="flex items-center gap-4">
+                  {isKeep ? (
+                    <p className="text-sm font-semibold text-foreground">
+                      Keep current price: ₱{Number(s.recommendedPrice).toLocaleString()}
+                    </p>
+                  ) : <div className="flex items-center gap-4">
                     <div className="text-center">
                       <p className="text-xs text-muted-foreground">{isApplied ? "Previous" : "Current"}</p>
                       <p className="text-sm font-semibold text-foreground">
@@ -223,7 +227,7 @@ export default function PriceOptimizationModal({ open, onOpenChange, product }) 
                     >
                       {isIncrease ? "+" : ""}{Number(s.changePercent).toFixed(1)}%
                     </span>
-                  </div>
+                  </div>}
 
                   {/* Model estimates are explicitly separate from recorded ingredient margins. */}
                   <div className="space-y-1 text-xs text-muted-foreground">
