@@ -20,7 +20,10 @@ describe.skipIf(process.env.DEMO_DB_CHECK !== "1")("Isolated PostgreSQL demo see
     expect(await writeDay(db, "2026-09-20", catalog)).toBe(true);
     const orders = await db.order.findMany({ include: { items: true, receipt: true } });
     expect(orders).toHaveLength(planDay("2026-09-20").length);
-    expect(orders.filter((o) => o.customerName.startsWith("Receipt sample"))).toHaveLength(18);
+    const receiptIds = new Set(planDay("2026-09-20").filter(order => order.source === "receipt").map(order => order.id));
+    expect(orders.filter(order => receiptIds.has(order.orderId))).toHaveLength(18);
+    expect(orders.find(order => order.orderId === seedId("receipt:13")).customerName).toBe("Ate Maye");
+    expect(orders.find(order => order.orderId === seedId("receipt:15")).customerName).toBe("Sir Ken");
     for (const order of orders) {
       expect(Number(order.totalAmount)).toBe(order.items.reduce((sum, i) => sum + i.quantity * Number(i.unitPrice), 0));
       expect(order.receipt).not.toBeNull();

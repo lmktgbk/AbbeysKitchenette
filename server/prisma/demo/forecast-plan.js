@@ -1,13 +1,13 @@
 import { createHash } from "node:crypto";
 import { products, categories } from "./catalog.js";
-import { planDay, seedId, fingerprint } from "./plan.js";
+import { planDay, seedId, fingerprint, generatedCustomerName, CUSTOMER_NAMING_VERSION } from "./plan.js";
 import { receipts } from "./receipts.js";
 
-export const PROFILE = "forecast-demo-v3";
-// Freeze the approved v2 demand generation. Only basket grouping changes in v3.
+export const PROFILE = "forecast-demo-v4";
+// Retain the deterministic demand stream while v4 lowers average traffic to eight.
 const DEMAND_PROFILE = "forecast-demo-v2";
 export const assumptions = {
-  profile: PROFILE, averageOrdersPerDay: 10, weekdayWeights: [1.2, .85, .9, .95, 1, 1.1, 1.3],
+  profile: PROFILE, averageOrdersPerDay: 8, weekdayWeights: [1.2, .85, .9, .95, 1, 1.1, 1.3],
   weeklyTrafficNoise: .08, basketWeightNoise: .10, annualDemandAmplitude: .05,
   classification: "Controlled synthetic variant totals with varied baskets; not client-confirmed demand or live accuracy",
 };
@@ -77,7 +77,7 @@ export function forecastDemoBaselineDay(day) {
       const orders = baskets.slice(cursor, cursor + dailyCounts[d]).map((lines, i) => {
         const merged = new Map();
         for (const line of lines) merged.set(key(line), { ...line, quantity: (merged.get(key(line))?.quantity || 0) + 1 });
-        return { id: seedId(`${DEMAND_PROFILE}:${dateKey}:${i}`), source: "synthetic", customer: `Demo guest ${i + 1}`,
+        return { id: seedId(`${DEMAND_PROFILE}:${dateKey}:${i}`), source: "synthetic", customer: generatedCustomerName(dateKey, i),
           table: `Table ${1 + i % 8}`, payment: random() < .75 ? "cash" : random() < .5 ? "maya" : "gcash",
           minute: 16 * 60 + Math.floor(random() * 390), lines: [...merged.values()] };
       });
@@ -129,6 +129,6 @@ export function forecastDemoDay(day) {
 // Distinct checkpoints prevent resuming this profile with the legacy generator.
 // Change PROFILE when generation behavior changes; assumptions/catalog are hashed too.
 export const forecastSeed = {
-  marker: `${PROFILE}:${createHash("sha256").update(JSON.stringify({ assumptions, fingerprint })).digest("hex")}`,
+  marker: `${PROFILE}:${createHash("sha256").update(JSON.stringify({ assumptions, fingerprint })).digest("hex")}:${CUSTOMER_NAMING_VERSION}`,
   planDay: forecastDemoDay,
 };

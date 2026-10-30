@@ -2,8 +2,23 @@ import { describe, it, expect } from "vitest";
 import { ingredients, products } from "../prisma/demo/catalog.js";
 import { receipts } from "../prisma/demo/receipts.js";
 import { START, validateCatalog, planDay, takeStock, dates, seedId } from "../prisma/demo/plan.js";
+import { forecastDemoDay } from "../prisma/demo/forecast-plan.js";
 
 describe("Demo seed plans", () => {
+  it("uses Demo Guest in 2025 and date-qualified Receipt sample names in 2026 for both profiles", () => {
+    for (const generate of [planDay, forecastDemoDay]) {
+      expect(generate("2025-12-31").every(order => order.customer.startsWith("Demo Guest "))).toBe(true);
+      expect(generate("2026-01-01").every(order => /^Receipt sample 20260101-\d+$/.test(order.customer))).toBe(true);
+      const history = dates("2026-01-01", "2026-10-24").flatMap(generate);
+      const actual = history.filter(order => order.source === "receipt");
+      expect(actual).toHaveLength(37);
+      expect(new Set(actual.map(order => order.id)).size).toBe(37);
+      const generated = history.filter(order => order.source === "synthetic");
+      expect(new Set(generated.map(order => order.customer)).size).toBe(generated.length);
+      const sampleNames = new Set(actual.map(order => order.customer));
+      expect(generated.every(order => !sampleNames.has(order.customer))).toBe(true);
+    }
+  });
   it("includes sales history from January 2025 through the completed cutoff", () => {
     expect(START).toBe("2025-01-01");
     const history = dates(START, "2026-10-05");
@@ -23,6 +38,8 @@ describe("Demo seed plans", () => {
       const actual = planDay(receipt[0]).find((order) => order.id === seedId(`receipt:${index}`));
       expect(actual.lines.map((l) => [l.quantity, l.name, l.size])).toEqual(receipt[4]);
       expect(actual.payment).toBe(receipt[3]);
+      expect(actual.table).toBe(receipt[1]);
+      expect(actual.customer).toBe(receipt[2] || `Receipt sample ${index + 1}`);
     });
   });
   it("produces identical days across full runs and incremental extensions", () => {

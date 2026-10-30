@@ -65,6 +65,9 @@ function DayOfWeekChart({ data, isLoading }) {
               allowDecimals={false}
             />
             <Tooltip
+              cursor={{ fill: "var(--color-foreground)", fillOpacity: 0.06 }}
+              labelStyle={{ color: "var(--color-foreground)" }}
+              itemStyle={{ color: "var(--color-foreground)" }}
               contentStyle={{
                 backgroundColor: "var(--color-card)",
                 border: "1px solid var(--color-border)",

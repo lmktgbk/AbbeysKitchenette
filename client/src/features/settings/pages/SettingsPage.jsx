@@ -604,17 +604,19 @@ export default function SettingsPage() {
               <p className="text-xs text-muted-foreground">
                 {diningRows.length} table{diningRows.length !== 1 ? "s" : ""} configured
               </p>
-              <button
-                type="button"
-                onClick={toggleTakeout}
-                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                  diningTables.takeoutEnabled ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {diningTables.takeoutEnabled ? "Takeout: On" : "Takeout: Off"}
-              </button>
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={toggleTakeout}
+                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                    diningTables.takeoutEnabled ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {diningTables.takeoutEnabled ? "Takeout: On" : "Takeout: Off"}
+                </button>
+                {renderSectionSaveButton("tables")}
+              </div>
             </div>
-            <div className="mt-3 flex justify-end">{renderSectionSaveButton("tables")}</div>
           </CardContent>
         </Card>
 

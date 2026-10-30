@@ -7,8 +7,17 @@ export const VERSION = "demo-v1";
 export class SeedError extends Error {}
 export const START = "2025-01-01";
 export const fingerprint = createHash("sha256").update(JSON.stringify({ ingredients, products, receipts })).digest("hex");
-export const marker = `${VERSION}:${fingerprint}`;
+// Version labels separately so changing names never changes sales draws or IDs.
+export const CUSTOMER_NAMING_VERSION = "customer-year-labels-v1";
+export const marker = `${VERSION}:${fingerprint}:${CUSTOMER_NAMING_VERSION}`;
 export const units = (value) => Math.round(Number(value) * 1000) / 1000;
+
+/** Dates keep generated sample names distinct from the 37 numbered receipts. */
+export function generatedCustomerName(day, index) {
+  return day < "2026-01-01"
+    ? `Demo Guest ${index + 1}`
+    : `Receipt sample ${day.replaceAll("-", "")}-${index + 1}`;
+}
 
 /** Stable UUIDs distinguish seed rows from manually created records. */
 export function seedId(key) {
@@ -97,13 +106,13 @@ export function planDay(day) {
       const quantity = (lines.get(key)?.quantity ?? 0) + (random() < 0.12 ? 2 : 1);
       lines.set(key, { ...variant, quantity });
     }
-    orders.push({ id: seedId(`order:${day}:${i}`), source: "synthetic", customer: `Demo guest ${i + 1}`,
+    orders.push({ id: seedId(`order:${day}:${i}`), source: "synthetic", customer: generatedCustomerName(day, i),
       table: `Table ${1 + Math.floor(random() * 8)}`, payment: random() < 0.75 ? "cash" : random() < 0.5 ? "maya" : "gcash",
       minute: 16 * 60 + Math.floor(random() * 390), lines: [...lines.values()] });
   }
   receipts.forEach(([date, table, customer, payment, lines], index) => {
     if (date !== day) return;
-    orders.push({ id: seedId(`receipt:${index}`), source: "receipt", customer: `Receipt sample ${index + 1}${customer ? ` (${customer})` : ""}`,
+    orders.push({ id: seedId(`receipt:${index}`), source: "receipt", customer: customer || `Receipt sample ${index + 1}`,
       table, payment, minute: 16 * 60 + index * 5,
       lines: lines.map(([quantity, name, size]) => ({ ...variants.find((v) => v.name === name && v.size === size), quantity })) });
   });

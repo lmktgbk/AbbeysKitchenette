@@ -17,7 +17,9 @@ describe.skipIf(process.env.DEMO_DB_CHECK !== "1")("Forecast profile PostgreSQL 
     await writeDay(db,"2026-09-20",catalog,forecastSeed);
     const orders=await db.order.findMany({include:{items:true,receipt:true}});
     expect(orders).toHaveLength(forecastDemoDay("2026-09-20").length);
-    expect(orders.filter((o)=>o.customerName.startsWith("Receipt sample"))).toHaveLength(18);
+    const receipts = forecastDemoDay("2026-09-20").filter(order => order.source === "receipt");
+    expect(orders.filter(order => receipts.some(receipt => receipt.id === order.orderId))).toHaveLength(18);
+    for (const receipt of receipts) expect(orders.find(order => order.orderId === receipt.id).customerName).toBe(receipt.customer);
     for(const order of orders){
       expect(Number(order.totalAmount)).toBe(order.items.reduce((s,i)=>s+i.quantity*Number(i.unitPrice),0));
       expect(order.receipt).not.toBeNull();

@@ -61,8 +61,10 @@ describe("AI purchasing and optional waste explanations", () => {
     expect(result.current_stock).toBe(0);
   });
   it("does not publish advice from a cancelled generation", async () => {
-    h.ai.mockRejectedValue(new Error("fixture cancelled"));
-    await expect(reorderSuggestionsService.generate({ signal: { aborted: true } })).rejects.toMatchObject({ code: "GENERATION_CANCELLED" });
+    const controller = new AbortController();
+    controller.abort();
+    await expect(reorderSuggestionsService.generate({ signal: controller.signal })).rejects.toMatchObject({ code: "GENERATION_CANCELLED" });
+    expect(h.ai).not.toHaveBeenCalled();
     expect(h.saveReorder).not.toHaveBeenCalled();
   });
   it("retains calculated advice after malformed JSON", async () => {

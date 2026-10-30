@@ -66,15 +66,6 @@ export default function ForecastingPage() {
   const productScores = job?.product_scores || null;
   // Historical saved runs keep their original rounded quantities and scores.
   const expectedDemand = productScores?.some((score) => ["variant_prophet_expected", "variant_prophet_expected_flat"].includes(score.forecast_method));
-  // A zero forecast is different from a skipped product and remains in evaluation.
-  const productCounts = useMemo(() => {
-    const totals = new Map();
-    for (const variant of forecasted) {
-      const key = variant.product_id ?? variant.product_name;
-      totals.set(key, (totals.get(key) || 0) + variant.total_units);
-    }
-    return { total: totals.size, zero: [...totals.values()].filter((units) => units === 0).length };
-  }, [forecasted]);
 
   const periodTotals = useMemo(() => {
     if (!forecasted.length) return { units: 0, revenue: 0 };
@@ -147,7 +138,7 @@ export default function ForecastingPage() {
     return (
       <div className="rounded-xl border border-destructive/30 bg-card p-6" role="alert">
         <h1 className="text-base font-semibold text-foreground">Could not load forecast</h1>
-        <p className="mt-2 text-sm text-muted-foreground">The forecast service could not return the saved results. Try loading them again; generating another forecast is not required to retry.</p>
+        <p className="mt-2 text-sm text-muted-foreground">The forecast service could not return the saved results. Try loading them again, generating another forecast is not required to retry.</p>
         <Button className="mt-4" onClick={() => historyError ? retryHistory() : retryResults()}>Retry loading</Button>
       </div>
     );
@@ -188,7 +179,6 @@ export default function ForecastingPage() {
                 : "Legacy rounded forecast. Generate a new forecast for fractional expected demand and matching evaluation."}
             </p>}
             {lastUpdated && <p className="mt-1 text-xs text-muted-foreground">Last updated: {lastUpdated}</p>}
-            {hasData && <p className="mt-1 text-xs text-muted-foreground">{productCounts.total} products forecasted · {productCounts.zero} with zero expected demand. The product table shows positive demand.</p>}
           </div>
           <div className="shrink-0">
             <ForecastRunButton onJobComplete={handleJobComplete} />
@@ -213,7 +203,7 @@ export default function ForecastingPage() {
           <div className="min-w-0 rounded-xl border border-border bg-card p-5">
             <StatLabel>Demand — Expected Demand</StatLabel>
             <StatValue size="hero" className="mt-1">{formatDemand(periodTotals.units)}</StatValue>
-            <StatSub>Total forecast for 7 days · avg {formatDemand(periodTotals.units/7)} items/day</StatSub>
+            <StatSub>Total forecast for 7 days · avg {formatDemand(periodTotals.units / 7)} items/day</StatSub>
           </div>
           <div className="min-w-0 rounded-xl border border-border bg-card p-5">
             <StatLabel>Expected Sales</StatLabel>
@@ -226,7 +216,7 @@ export default function ForecastingPage() {
               <>
                 <StatValue size="hero" className="mt-1 text-amber-700 dark:text-amber-400">{lowIngredients.length} low</StatValue>
                 {/* Long ingredient names wrap within the grid cell instead of widening it. */}
-                <StatSub className="block whitespace-normal break-words">{topNeed.map((i)=> i.name).join(", ")}{lowIngredients.length > 3 ? ` +${lowIngredients.length-3} more` : ""}</StatSub>
+                <StatSub className="block whitespace-normal break-words">{topNeed.map((i) => i.name).join(", ")}{lowIngredients.length > 3 ? ` +${lowIngredients.length - 3} more` : ""}</StatSub>
               </>
             ) : (
               <>
@@ -303,28 +293,28 @@ export default function ForecastingPage() {
           {showDetails && (
             <div className="border-t border-border px-4 py-3 space-y-4">
               {evalMetrics?.count != null && (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <div className="rounded-lg border border-border bg-card px-3 py-2">
-                  <p className="text-xs text-muted-foreground">Pooled weekly R²</p>
-                  <p className="text-sm font-semibold text-foreground">{formatR2(evalMetrics.r2)}</p>
-                  <p className="text-xs text-muted-foreground">Across held-out variant-week totals</p>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div className="rounded-lg border border-border bg-card px-3 py-2">
+                    <p className="text-xs text-muted-foreground">Pooled weekly R²</p>
+                    <p className="text-sm font-semibold text-foreground">{formatR2(evalMetrics.r2)}</p>
+                    <p className="text-xs text-muted-foreground">Across held-out variant-week totals</p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-card px-3 py-2">
+                    <p className="text-xs text-muted-foreground">Typical error (MAE)</p>
+                    <p className="text-sm font-semibold text-foreground">±{evalMetrics.mae.toFixed(2)} units/week</p>
+                    <p className="text-xs text-muted-foreground">Average miss per variant week</p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-card px-3 py-2">
+                    <p className="text-xs text-muted-foreground">RMSE</p>
+                    <p className="text-sm font-semibold text-foreground">±{evalMetrics.rmse.toFixed(2)} units/week</p>
+                    <p className="text-xs text-muted-foreground">Larger errors penalized</p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-card px-3 py-2">
+                    <p className="text-xs text-muted-foreground">MSE</p>
+                    <p className="text-sm font-semibold text-foreground">{evalMetrics.mse.toFixed(2)}</p>
+                    <p className="text-xs text-muted-foreground">Mean squared error</p>
+                  </div>
                 </div>
-                <div className="rounded-lg border border-border bg-card px-3 py-2">
-                  <p className="text-xs text-muted-foreground">Typical error (MAE)</p>
-                  <p className="text-sm font-semibold text-foreground">±{evalMetrics.mae.toFixed(2)} units/week</p>
-                  <p className="text-xs text-muted-foreground">Average miss per variant week</p>
-                </div>
-                <div className="rounded-lg border border-border bg-card px-3 py-2">
-                  <p className="text-xs text-muted-foreground">RMSE</p>
-                  <p className="text-sm font-semibold text-foreground">±{evalMetrics.rmse.toFixed(2)} units/week</p>
-                  <p className="text-xs text-muted-foreground">Larger errors penalized</p>
-                </div>
-                <div className="rounded-lg border border-border bg-card px-3 py-2">
-                  <p className="text-xs text-muted-foreground">MSE</p>
-                  <p className="text-sm font-semibold text-foreground">{evalMetrics.mse.toFixed(2)}</p>
-                  <p className="text-xs text-muted-foreground">Mean squared error</p>
-                </div>
-              </div>
               )}
               {evalMetrics?.count != null ? (
                 <>

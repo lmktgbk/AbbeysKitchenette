@@ -10,9 +10,9 @@ import { useReducedMotion } from "@/hooks/useReducedMotion";
 const CHART_COLORS = [
   "var(--color-chart-1)",
   "var(--color-chart-2)",
-  "var(--color-chart-3)",
-  "var(--color-chart-4)",
-  "var(--color-chart-5)",
+  "#2a9d8f",
+  "#638bd6",
+  "#c99736",
 ];
 
 /**
@@ -66,6 +66,9 @@ function CategorySalesChart({ data, isLoading }) {
               tickFormatter={(v) => `₱${v.toLocaleString()}`}
             />
             <Tooltip
+              cursor={{ fill: "var(--color-foreground)", fillOpacity: 0.06 }}
+              labelStyle={{ color: "var(--color-foreground)" }}
+              itemStyle={{ color: "var(--color-foreground)" }}
               contentStyle={{
                 backgroundColor: "var(--color-card)",
                 border: "1px solid var(--color-border)",

@@ -154,7 +154,7 @@ export default function StaffTable({
                     </Badge>
                   </TableCell>
                   <TableCell className={COLUMNS.lastLogin.cell}>
-                    {s.last_login_at ? formatDate(s.last_login_at, "shortDate") : "Never"}
+                    {s.last_login_at ? formatDate(s.last_login_at, "dateTime") : "Never"}
                   </TableCell>
                   <TableCell className={COLUMNS.actions.cell}>
                     <div className="flex items-center justify-center gap-1">
