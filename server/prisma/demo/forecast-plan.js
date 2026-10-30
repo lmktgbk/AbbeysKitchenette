@@ -3,11 +3,11 @@ import { products, categories } from "./catalog.js";
 import { planDay, seedId, fingerprint, generatedCustomerName, CUSTOMER_NAMING_VERSION } from "./plan.js";
 import { receipts } from "./receipts.js";
 
-export const PROFILE = "forecast-demo-v4";
-// Retain the deterministic demand stream while v4 lowers average traffic to eight.
+export const PROFILE = "forecast-demo-v3";
+// Preserve the ten-order demand stream; v3 varies basket grouping only.
 const DEMAND_PROFILE = "forecast-demo-v2";
 export const assumptions = {
-  profile: PROFILE, averageOrdersPerDay: 8, weekdayWeights: [1.2, .85, .9, .95, 1, 1.1, 1.3],
+  profile: PROFILE, averageOrdersPerDay: 10, weekdayWeights: [1.2, .85, .9, .95, 1, 1.1, 1.3],
   weeklyTrafficNoise: .08, basketWeightNoise: .10, annualDemandAmplitude: .05,
   classification: "Controlled synthetic variant totals with varied baskets; not client-confirmed demand or live accuracy",
 };

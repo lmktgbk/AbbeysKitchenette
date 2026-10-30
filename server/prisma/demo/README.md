@@ -168,16 +168,16 @@ Restart services after completion, sign in with the configured demo admin, then
 run demand forecasting and MBA. Latest October scores are not the August benchmark.
 
 
-## Lower-traffic profile (forecast-demo-v4)
+## Lower-traffic profile (forecast-demo-v3)
 
-The forecast profile now targets **8 synthetic orders/day**, with the same basket
+The forecast profile targets **10 synthetic orders/day**, with the same basket
 and inventory rules and the 37 unchanged receipt samples. Weekly traffic is derived
 from `averageOrdersPerDay * 7`. Actual receipt samples are added on their original
 dates, so those days may exceed the synthetic target. Rare variants may have no
 sales; they remain in the catalog and forecasting can legitimately skip them.
 
-Switching from an older profile (including the 10-order profile) requires a fresh
-reset, not `--mode=extend`. The v4 marker prevents mixing those histories:
+Switching from a different profile (including the eight-order v4 profile) requires
+a fresh reset, not `--mode=extend`. Profile markers prevent mixing those histories:
 
 ```bash
 npm run seed:demo:forecast -- --through=2026-10-05 --apply --confirm=RESET_SMARTCAFE
