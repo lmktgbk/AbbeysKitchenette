@@ -2,17 +2,17 @@
 
 ## Customer display names
 
-Both seed profiles use `Demo Guest 1`, etc. for generated 2025 orders. Generated
-orders from January 2026 use `Receipt sample YYYYMMDD-1`, etc. The date avoids
-collisions with the 37 transcribed receipts numbered `Receipt sample 1`–`37`.
+Both seed profiles use `Demo Guest 1`, etc. for generated orders through March
+2026. Generated orders from April 2026 use `Receipt sample YYYYMMDD-1`, etc. The
+date avoids collisions with the 37 transcribed receipts numbered `Receipt sample 1`–`37`.
 Where the transcription supplies a name, that name is used directly: `Ate Maye`
 or `Sir Ken`. Display labels do not change the internal synthetic/receipt source.
 
 This change preserves sales patterns, quantities, baskets, prices, payment methods,
 table labels, timestamps and deterministic IDs. No table-ID feature is included.
 Checkpoint markers include a naming version so extension refuses an older naming
-profile rather than silently mixing formats. Renaming all existing seeded history
-requires a reviewed fresh seed; editing scripts alone does not update saved orders.
+profile rather than silently mixing formats. Renaming existing seeded history
+requires a fresh seed; editing scripts alone does not update saved orders.
 
 `../demo-seed.js` is the entry point. `catalog.js` contains menu, ingredient and
 recipe assumptions; `receipts.js` contains the 37 transcribed samples; `plan.js`

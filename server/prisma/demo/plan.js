@@ -8,13 +8,13 @@ export class SeedError extends Error {}
 export const START = "2025-01-01";
 export const fingerprint = createHash("sha256").update(JSON.stringify({ ingredients, products, receipts })).digest("hex");
 // Version labels separately so changing names never changes sales draws or IDs.
-export const CUSTOMER_NAMING_VERSION = "customer-year-labels-v1";
+export const CUSTOMER_NAMING_VERSION = "customer-april-2026-labels-v2";
 export const marker = `${VERSION}:${fingerprint}:${CUSTOMER_NAMING_VERSION}`;
 export const units = (value) => Math.round(Number(value) * 1000) / 1000;
 
-/** Dates keep generated sample names distinct from the 37 numbered receipts. */
+/** Generated records before April 2026 remain demo-labelled; newer samples carry a dated label. */
 export function generatedCustomerName(day, index) {
-  return day < "2026-01-01"
+  return day < "2026-04-01"
     ? `Demo Guest ${index + 1}`
     : `Receipt sample ${day.replaceAll("-", "")}-${index + 1}`;
 }
