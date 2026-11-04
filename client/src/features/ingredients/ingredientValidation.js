@@ -36,7 +36,11 @@ export const restockSchema = z.object({
   total_cost: z.preprocess(
     value => value == null || (typeof value === "string" && value.trim() === "") || (typeof value === "number" && Number.isNaN(value))
       ? undefined : Number(value),
-    z.number({ required_error: "Enter total cost (0 or more)", invalid_type_error: "Enter a valid total cost" })
+    z.number({
+      error: (issue) => issue.input === undefined
+        ? "Enter total cost (0 or more)"
+        : "Enter a valid total cost",
+    })
       .finite("Enter a valid total cost").min(0, "Cost cannot be negative"),
   ),
   supplier_name: z
@@ -62,7 +66,7 @@ export const countSchema = z.object({
 // Declare loss form
 export const lossSchema = z.object({
   loss_type: z.enum(["spoilage", "spillage", "expiry", "other"], {
-    errorMap: () => ({ message: "Select a loss type" }),
+    error: "Select a loss type",
   }),
   quantity_lost: coerceNumber(z.number().positive("Quantity must be greater than zero")),
   batch_id: z.preprocess(

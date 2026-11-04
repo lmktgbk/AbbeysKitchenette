@@ -41,7 +41,7 @@ export const createProductSchema = z.object({
     .string()
     .min(1, "Product name is required")
     .max(150, "Must not exceed 150 characters"),
-  subcategory_id: z.number({ required_error: "Category is required" }),
+  subcategory_id: z.number({ error: "Category is required" }),
   description: z
     .string()
     .max(500, "Must not exceed 500 characters")
