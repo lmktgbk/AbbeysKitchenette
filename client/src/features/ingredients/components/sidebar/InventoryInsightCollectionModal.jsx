@@ -26,7 +26,9 @@ export default function InventoryInsightCollectionModal({ open, onClose, title, 
               {Number(facts.minimum_required) > 0 && <p>Minimum required: {amount(facts.minimum_required)} {item.unit}</p>}
               {Number(facts.expired_stock) > 0 && <p>Expired stock excluded: {amount(facts.expired_stock)} {item.unit}{batches.filter(b => b.expires && b.expires < facts.as_of).length ? ` · ${batches.filter(b => b.expires && b.expires < facts.as_of).map(b => `Batch #${b.batch_id}`).join(", ")}` : ""}</p>}
               {batches.filter(b => b.expires && b.expires >= facts.as_of).map(b => <p key={`expiry-${b.batch_id}`}>Expiring soon: Batch #{b.batch_id} · {amount(b.remaining)} {item.unit} · {formatDate(b.expires)}</p>)}
-              {(facts.warnings ?? []).map(warning => <p key={warning} className="text-amber-700 dark:text-amber-400">{warning}</p>)}
+              {(facts.warnings ?? [])
+                .filter(warning => !(facts.forecast_issues ?? []).includes(warning))
+                .map(warning => <p key={warning} className="text-amber-700 dark:text-amber-400">{warning}</p>)}
             </div>}
             {!isReorder && !isAlert && <div className="mt-2 space-y-1 text-xs text-muted-foreground">
               {facts.kind === "expiry_watch" && <p>{!(facts.forecast_dates ?? []).length ? "No usable predictions for the upcoming dates." : "Some dates through expiry have no predictions."}</p>}
