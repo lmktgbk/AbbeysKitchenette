@@ -122,7 +122,7 @@ export function calculateWaste(snapshot) {
     if (expired <= 0 && risk <= 0 && excess <= 0 && watchQuantity <= 0) return [];
     const groups = [
       { kind: "expired_stock", quantity: expired, batches: plan.expired, level: "high",
-        suggestion: `Do not use expired ${ingredient.ingredient_name}. Review ${plan.expired.map(b => `Batch #${b.batch_id}`).join(", ")} for disposal and record the confirmed expired loss.` },
+        suggestion: `Do not use the ${round(expired)} ${ingredient.unit} of expired ${ingredient.ingredient_name}. Review ${plan.expired.map(b => `Batch #${b.batch_id} (${round(b.quantity_left)} ${ingredient.unit})`).join(", ")} for disposal and record the confirmed expired loss.` },
       { kind: "expiry_risk", quantity: risk, batches: plan.atRisk, level: "medium",
         suggestion: `${ingredient.ingredient_name}: review ${plan.atRisk.map(b => `Batch #${b.batch_id} (expires ${b.expiry_date})`).join(", ")} for use before expiry. Available predictions leave an estimated ${round(risk)} ${ingredient.unit} unused; consider prioritizing an eligible batch.` },
       { kind: "expiry_watch", quantity: watchQuantity, batches: uncovered.map(b => ({ ...b, remaining: Number(b.quantity_left) })), level: "medium",
