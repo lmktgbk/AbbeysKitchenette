@@ -138,7 +138,6 @@ export default function WasteInsights() {
                 <button className="mt-1 text-primary hover:underline" onClick={() => setExpandedId(expanded ? null : insight.id)} aria-expanded={expanded}>{expanded ? "Hide details" : "Details"}</button>
                 {expanded && <div className="mt-2 space-y-1 break-words leading-relaxed">
                   <p>Generated: {formatDate(insight.created_at, "dateTime")} (Manila)</p>
-                  {facts.kind !== "expired_stock" && forecastDates.length > 0 && <p>Forecast period: {formatDate(forecastDates[0])}{forecastDates.length > 1 ? ` – ${formatDate(forecastDates.at(-1))}` : ""}</p>}
                   {facts.kind === "expiry_watch" && <p>{!forecastDates.length ? "No usable predictions for the upcoming dates." : "Some dates through expiry have no predictions."}</p>}
                   {batches.map(batch => <p key={batch.batch_id}>Batch #{batch.batch_id} · {amount(batch.quantity)} {insight.unit} · {batch.expired ? "Expired" : "Expires"} {formatDate(batch.expiry_date)}{batch.priority ? " · Prioritized" : ""}</p>)}
                   {assessment && <p>Assessment: {assessment}</p>}
