@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate } from "@/lib/date";
+import InventoryInsightModal from "./InventoryInsightModal";
 
 /**
  * ReorderSuggestions
@@ -21,6 +22,7 @@ export default function ReorderSuggestions({ onAccept }) {
   const { data: suggestionsData, isLoading, isError } = useReorderSuggestions();
   const mutations = useIngredientMutations();
   const [expandedId, setExpandedId] = useState(null);
+  const [selected, setSelected] = useState(null);
 
   const suggestions = suggestionsData?.data?.suggestions ?? [];
 
@@ -155,9 +157,9 @@ export default function ReorderSuggestions({ onAccept }) {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="min-w-0 break-words text-sm font-medium text-foreground">
+                        <button type="button" className="min-w-0 break-words text-left text-sm font-medium text-foreground hover:text-primary hover:underline" onClick={() => setSelected(s)} aria-label={`View details for ${s.ingredient_name}`}>
                           {s.ingredient_name}
-                        </p>
+                        </button>
                         <span
                           className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${urgency.className}`}
                         >
@@ -222,6 +224,11 @@ export default function ReorderSuggestions({ onAccept }) {
           </div>
         )}
       </div>
+      <InventoryInsightModal item={selected} kind="reorder" onClose={() => setSelected(null)}
+        onPrimary={() => { setSelected(null); handleAccept(selected); }} primaryLabel="Accept"
+        onSecondary={() => { const id = selected?.id; setSelected(null); if (id) handleReject(id); }} secondaryLabel="Dismiss"
+        primaryDisabled={Boolean(selected?.stale_reason) || selected?.metadata?.policy_version !== 2 || mutations.acceptReorder.isPending}
+        secondaryDisabled={mutations.rejectReorder.isPending} />
     </div>
   );
 }
