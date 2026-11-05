@@ -375,7 +375,10 @@ function IngredientRow({
 /* ── Expanded Row ──────────────────── */
 
 function ExpandedRow({ ingredient, onRestock, onLoss, onCount, onBatches, onEdit, onArchive, onRestore, onDelete, showArchived }) {
-  const { data: batchesData, isLoading } = useIngredientBatches(ingredient.ingredient_id);
+  // Use the same explicit paginated contract as the Batches modal so the summary
+  // and batch list cannot diverge because of a separate default-query cache entry.
+  const { data: batchesData, isLoading, isError } = useIngredientBatches(ingredient.ingredient_id,
+    { page: 1, limit: 50, sortBy: "restocked_at", sortDir: "asc" });
 
   const batches = batchesData?.data?.batches ?? [];
   const activeBatch = batches.find((b) => b.quantity_left > 0) ?? null;
@@ -434,6 +437,12 @@ function ExpandedRow({ ingredient, onRestock, onLoss, onCount, onBatches, onEdit
             <div className="min-w-0">
               {activeBatch ? (
                 <CurrentBatch batch={activeBatch} unit={unit} />
+              ) : isError ? (
+                <div className="rounded-lg border border-destructive/30 p-4 text-center">
+                  <Icon name="alertTriangle" size={20} className="mx-auto text-destructive mb-2" />
+                  <p className="text-sm text-destructive">Could not load restock batches.</p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">Open Batches or refresh to retry.</p>
+                </div>
               ) : (
                 <div className="rounded-lg border border-border p-4 text-center">
                   <Icon name="package" size={20} className="mx-auto text-muted-foreground/40 mb-2" />
