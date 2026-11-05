@@ -160,16 +160,16 @@ export default function BatchListModal({ open, onOpenChange, ingredient }) {
     isPending: mutations.followFifo.isPending,
   };
 
-  // Server returns { batches, totalItems, hasPriority, fifoLeaderBatchId }
+  // Server returns the effective current batch separately from the paginated rows.
   const batches = batchesData?.data?.batches ?? [];
   const totalBatches = batchesData?.data?.totalItems ?? 0;
   const fifoLeaderBatchId = batchesData?.data?.fifoLeaderBatchId ?? null;
+  const priorityBatchId = batchesData?.data?.priorityBatchId ?? null;
+  const currentBatchId = priorityBatchId || fifoLeaderBatchId;
 
-  // Derive the indicator from priority rows on the current page and the server’s FIFO leader ID.
-  const priorityBatch = batches.find((b) => b.is_priority);
-  const isFifoMode = priorityBatch
-    ? priorityBatch.batch_id === fifoLeaderBatchId
-    : !fifoLeaderBatchId; // no priority batch and no leader = no batches at all
+  // Use server-wide metadata rather than only the current page. A priority
+  // batch may be on a different pagination page than the FIFO leader.
+  const isFifoMode = !priorityBatchId && Boolean(fifoLeaderBatchId);
 
   // Server returns { history, totalItems }
   const history = historyData?.data?.history ?? [];
@@ -274,6 +274,7 @@ export default function BatchListModal({ open, onOpenChange, ingredient }) {
               isLoading={batchesLoading}
               ingredient={ingredient}
               fifoLeaderBatchId={fifoLeaderBatchId}
+              currentBatchId={currentBatchId}
               onTogglePriority={(batchId, isPriority) =>
                 priorityMutation.mutate({ batchId, isPriority })
               }
@@ -318,7 +319,7 @@ export default function BatchListModal({ open, onOpenChange, ingredient }) {
 /* ── Batches Tab ───────────────────── */
 
 /** Renders one fetched batch page, delegating priority changes to the parent. */
-function BatchesTab({ batches, isLoading, ingredient, onTogglePriority, isPriorityLoading }) {
+function BatchesTab({ batches, isLoading, ingredient, currentBatchId, onTogglePriority, isPriorityLoading }) {
 
   if (isLoading) {
     return (
@@ -372,6 +373,7 @@ function BatchesTab({ batches, isLoading, ingredient, onTogglePriority, isPriori
             key={batch.batch_id}
             batch={batch}
             ingredient={ingredient}
+            isCurrentBatch={batch.batch_id === currentBatchId}
             onTogglePriority={onTogglePriority}
             isPriorityLoading={isPriorityLoading}
           />
@@ -384,7 +386,7 @@ function BatchesTab({ batches, isLoading, ingredient, onTogglePriority, isPriori
 /* ── Batch Row ─────────────────────── */
 
 /** Displays stored batch balances/costs and its priority action; it does not calculate stock allocation. */
-function BatchRow({ batch, ingredient, onTogglePriority, isPriorityLoading }) {
+function BatchRow({ batch, ingredient, isCurrentBatch, onTogglePriority, isPriorityLoading }) {
   const unit = ingredient.unit;
   const remaining = batch.quantity_left;
   const isDepleted = remaining === 0;
@@ -392,12 +394,12 @@ function BatchRow({ batch, ingredient, onTogglePriority, isPriorityLoading }) {
   const restockDate = new Date(batch.restocked_at);
   const dateStr = formatDate(restockDate);
 
-  const isStarHighlighted = batch.is_priority;
+  const isStarHighlighted = batch.is_priority || isCurrentBatch;
 
   return (
     <TableRow
       className={
-        `${batch.is_priority ? "bg-primary/5" : ""} ${isDepleted ? "opacity-50" : ""}`
+        `${isCurrentBatch ? "bg-primary/5" : ""} ${isDepleted ? "opacity-50" : ""}`
       }
     >
       <TableCell>
@@ -408,7 +410,7 @@ function BatchRow({ batch, ingredient, onTogglePriority, isPriorityLoading }) {
             ? "bg-primary text-primary-foreground"
             : "bg-muted text-muted-foreground hover:bg-muted/80"
             } ${isPriorityLoading ? "opacity-50" : "cursor-pointer"}`}
-          title={batch.is_priority ? "Remove priority" : "Use first (priority)"}
+          title={batch.is_priority ? "Remove priority" : isCurrentBatch ? "Currently selected by FIFO" : "Use first (priority)"}
         >
           {isStarHighlighted ? "★" : "☆"}
         </button>

@@ -381,7 +381,11 @@ function ExpandedRow({ ingredient, onRestock, onLoss, onCount, onBatches, onEdit
     { page: 1, limit: 50, sortBy: "restocked_at", sortDir: "asc" });
 
   const batches = batchesData?.data?.batches ?? [];
-  const activeBatch = batches.find((b) => b.quantity_left > 0) ?? null;
+  // The API resolves this globally, so the current batch is not lost when it
+  // falls beyond the first paginated page.
+  const activeBatch = batchesData?.data?.currentBatch
+    ?? batches.find((b) => Number(b.quantity_left) > 0)
+    ?? null;
 
   const stock = ingredient.stock_quantity;
   const threshold = ingredient.minimum_threshold;

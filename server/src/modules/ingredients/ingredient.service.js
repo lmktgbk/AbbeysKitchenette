@@ -804,7 +804,7 @@ export const ingredientService = {
    * Sorted by priority first, then oldest first (FIFO).
    * @param {string} id - ingredient UUID
    * @param {object} options - { page, limit, search }
-   * @returns {object} - { batches, totalItems, hasPriority, fifoLeaderBatchId }
+   * @returns {object} - { batches, totalItems, hasPriority, priorityBatchId, fifoLeaderBatchId, currentBatch }
    * @throws {AppError} 404 if ingredient not found
    */
   async getBatches(id, { page = 1, limit = 50, search, sortBy = "restocked_at", sortDir = "asc" }) {
@@ -834,11 +834,21 @@ export const ingredientService = {
     const priorityCount = await ingredientRepository.findPriorityCount(id);
     const hasPriority = priorityCount > 0;
 
+    const priorityBatchId = await ingredientRepository.findPriorityBatchId(id);
+
     // Step 6: Always find FIFO leader (oldest active batch) — used to determine FIFO vs manual mode
     const fifoLeaderBatchId = await ingredientRepository.findFifoLeaderId(id);
 
+    // This is the batch the deduction rules will use now. It is returned
+    // separately so callers do not have to load every paginated batch.
+    const currentBatchId = priorityBatchId || fifoLeaderBatchId;
+    const currentBatch = currentBatchId
+      ? await ingredientRepository.findBatchByIdAndIngredient(currentBatchId, id)
+      : null;
+
     // Step 7: Return batches + metadata
-    return { batches: mapped, totalItems, hasPriority, fifoLeaderBatchId };
+    return { batches: mapped, totalItems, hasPriority, priorityBatchId, fifoLeaderBatchId,
+      currentBatch: currentBatch ? mapToBatchResponse(currentBatch) : null };
   },
 
   /**

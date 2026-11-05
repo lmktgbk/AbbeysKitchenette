@@ -659,6 +659,15 @@ export const ingredientRepository = {
     });
   },
 
+  /** Return the manually selected priority batch id, if any. */
+  async findPriorityBatchId(ingredientId) {
+    const row = await prisma.restockBatch.findFirst({
+      where: { ingredientId, isPriority: true },
+      select: { restockId: true },
+    });
+    return row?.restockId ?? null;
+  },
+
   /**
    * Find the batch with isPriority = true for an ingredient.
    * Returns the batch record with quantityLeft and version for depletion checks.
