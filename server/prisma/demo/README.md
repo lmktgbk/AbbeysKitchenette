@@ -131,7 +131,6 @@ receipt-informed sampling. Receipt examples influenced the generator, so they ar
 not an independent real-world test set. No R² target is promised or built into the
 generator, and mixed synthetic/receipt results cannot establish live cafe accuracy.
 
-
 ## Separate 30-order forecasting preview
 
 `npm run seed:demo:preview -- --through=2026-10-05` exports a controlled synthetic
@@ -139,7 +138,6 @@ profile without opening a database connection. It does not change `seed:demo`.
 Its fixed weekly basket quotas intentionally reduce noise for teaching; see
 `../../../audit/forecast-demo-dataset/README.md` for assumptions and benchmarks.
 Do not use the destructive original seed command to import this preview profile.
-
 
 ## Apply the approved forecasting profile
 
@@ -167,7 +165,6 @@ simulation. Purchase/deduction/accounting logic is shared with the existing writ
 Restart services after completion, sign in with the configured demo admin, then
 run demand forecasting and MBA. Latest October scores are not the August benchmark.
 
-
 ## Lower-traffic profile (forecast-demo-v3)
 
 The forecast profile targets **10 synthetic orders/day**, with the same basket
@@ -187,7 +184,6 @@ Stop backend/ML first, then restart and regenerate forecasting/MBA afterward.
 Use extend only after this new profile is initialized. Historical 30-order benchmark
 scores do not apply to this changed volume. Lower traffic does not guarantee a
 particular forecast revenue or R²; revenue also depends on basket sizes/menu prices.
-
 
 ## Forecast demo v3: varied baskets, unchanged demand
 
