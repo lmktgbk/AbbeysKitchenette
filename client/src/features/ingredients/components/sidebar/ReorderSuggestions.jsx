@@ -168,6 +168,7 @@ export default function ReorderSuggestions({ onAccept }) {
                       </div>
                       <div className="mt-2 space-y-1 break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">
                         <p className="font-medium text-foreground">Suggested purchase: {amount(s.suggested_quantity)} {s.unit}</p>
+                        {isCurrentPolicy && Number(facts.minimum_required) > 0 && <p>Minimum required: {amount(facts.minimum_required)} {s.unit}</p>}
                         <p>Expected use: {isCurrentPolicy && facts.expected_use_available ? `${amount(facts.expected_use)} ${s.unit} / 7 days${facts.forecast_complete ? "" : " (partial estimate)"}` : "Unavailable"}</p>
                         <p>Usable stock: {amount(s.current_stock)} {s.unit}</p>
                         <p><span className="font-medium text-foreground">Reason: </span>{s.reasoning}</p>

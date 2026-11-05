@@ -33,7 +33,7 @@ const responseSchema = z
   })
   .strict();
 
-/** Facts are calculated here; purchase quantities belong to Gemini, not a hidden formula. */
+/** Facts and the minimum safe replenishment are calculated here; Gemini may recommend more. */
 export function buildReorderContexts(snapshot) {
   return snapshot.ingredients.map((ingredient) => {
     const plan = ingredientPlan(snapshot, ingredient, { requireFresh: false });
@@ -94,8 +94,12 @@ export function buildReorderContexts(snapshot) {
         }))
         .sort((a, b) => a.variant_id - b.variant_id),
     };
+    const minimum_required = context.expected_use_available
+      ? round(Math.max(0, context.expected_use + context.minimum_stock - context.usable_stock))
+      : round(Math.max(0, context.minimum_stock - context.usable_stock));
     return {
       ...context,
+      minimum_required,
       fingerprint: createHash("sha256")
         .update(JSON.stringify(context))
         .digest("hex"),
@@ -189,6 +193,8 @@ export function normalizeReorders(result, contexts) {
     if (!c || seen.has(r.ingredient_id))
       throw invalid("foreign_or_duplicate_ingredient");
     if (r.unit !== c.unit) throw invalid("unit_mismatch");
+    if (r.suggested_quantity + 1e-9 < c.minimum_required)
+      throw invalid("below_minimum_required");
     if (
       ["pcs", "pieces"].includes(c.unit.toLowerCase()) &&
       !Number.isInteger(r.suggested_quantity)

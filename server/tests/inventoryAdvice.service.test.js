@@ -25,10 +25,10 @@ describe("AI purchasing and optional waste explanations", () => {
     expect(h.ai).not.toHaveBeenCalled();
     expect(h.saveReorder).toHaveBeenCalledWith([], undefined, undefined);
   });
-  it("does not save or show zero-purchase recommendations", async () => {
+  it("does not publish an AI quantity below the minimum purchase", async () => {
     h.ai.mockResolvedValue({ text: JSON.stringify({ recommendations: [{ ingredient_id: "milk", unit: "ml", suggested_quantity: 0, urgency: "low", reason: "No purchase justified; review recorded activity." }] }) });
-    expect(await reorderSuggestionsService.generate()).toEqual([]);
-    expect(h.saveReorder.mock.calls[0][0]).toEqual([]);
+    await expect(reorderSuggestionsService.generate()).rejects.toMatchObject({ code: "INVALID_REORDER_ADVICE" });
+    expect(h.saveReorder).not.toHaveBeenCalled();
   });
   it("sends only ingredients needing review, excluding healthy stock from the prompt", async () => {
     h.snapshot.ingredients.push({ ingredient_id: "vegetables", ingredient_name: "Frozen vegetables", unit: "g", minimum_threshold: 500 });

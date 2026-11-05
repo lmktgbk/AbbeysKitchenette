@@ -51,13 +51,12 @@ describe("Gemini restock advice", () => {
     expect(c.first_shortage).toBe(days[1]);
     expect(c.forecast_complete).toBe(true);
   });
-  it("keeps the AI quantity and flags shortages instead of replacing it", () => {
-    const [row] = normalizeReorders(output({ suggested_quantity: 10 }), buildReorderContexts(snapshot()));
-    expect(row.suggested_quantity).toBe(10);
-    expect(row.metadata.warnings.join(" ")).toContain("may not cover");
+  it("rejects an AI quantity below the calculated minimum", () => {
+    expect(() => normalizeReorders(output({ suggested_quantity: 10 }), buildReorderContexts(snapshot()))).toThrow();
   });
-  it("supports zero recommendations", () => {
-    const [row] = normalizeReorders(output({ suggested_quantity: 0 }), buildReorderContexts(snapshot()));
+  it("allows zero recommendations when no minimum purchase is required", () => {
+    const input = snapshot(); input.batches[0].quantity_left = 1000; input.batches[0].expiry_date = null;
+    const [row] = normalizeReorders(output({ suggested_quantity: 0 }), buildReorderContexts(input));
     expect(row.suggested_quantity).toBe(0);
     expect(row.urgency).toBe("low");
   });
