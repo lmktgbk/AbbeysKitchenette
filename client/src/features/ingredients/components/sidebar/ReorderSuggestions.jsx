@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate } from "@/lib/date";
-import InventoryInsightModal from "./InventoryInsightModal";
+import InventoryInsightCollectionModal from "./InventoryInsightCollectionModal";
 
 /**
  * ReorderSuggestions
@@ -22,7 +22,7 @@ export default function ReorderSuggestions({ onAccept }) {
   const { data: suggestionsData, isLoading, isError } = useReorderSuggestions();
   const mutations = useIngredientMutations();
   const [expandedId, setExpandedId] = useState(null);
-  const [selected, setSelected] = useState(null);
+  const [showAll, setShowAll] = useState(false);
 
   const suggestions = suggestionsData?.data?.suggestions ?? [];
 
@@ -82,9 +82,9 @@ export default function ReorderSuggestions({ onAccept }) {
       <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
           <Icon name="package" size={16} className="text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">
+          <button type="button" className="text-left text-sm font-semibold text-foreground hover:text-primary hover:underline" onClick={() => setShowAll(true)}>
             Reorder Suggestions
-          </h3>
+          </button>
           {suggestions.length > 0 && (
             <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
               {suggestions.length}
@@ -157,9 +157,9 @@ export default function ReorderSuggestions({ onAccept }) {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <button type="button" className="min-w-0 break-words text-left text-sm font-medium text-foreground hover:text-primary hover:underline" onClick={() => setSelected(s)} aria-label={`View details for ${s.ingredient_name}`}>
+                        <p className="min-w-0 break-words text-sm font-medium text-foreground">
                           {s.ingredient_name}
-                        </button>
+                        </p>
                         <span
                           className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${urgency.className}`}
                         >
@@ -224,11 +224,7 @@ export default function ReorderSuggestions({ onAccept }) {
           </div>
         )}
       </div>
-      <InventoryInsightModal item={selected} kind="reorder" onClose={() => setSelected(null)}
-        onPrimary={() => { setSelected(null); handleAccept(selected); }} primaryLabel="Accept"
-        onSecondary={() => { const id = selected?.id; setSelected(null); if (id) handleReject(id); }} secondaryLabel="Dismiss"
-        primaryDisabled={Boolean(selected?.stale_reason) || selected?.metadata?.policy_version !== 2 || mutations.acceptReorder.isPending}
-        secondaryDisabled={mutations.rejectReorder.isPending} />
+      <InventoryInsightCollectionModal open={showAll} onClose={() => setShowAll(false)} title="Reorder Suggestions" description={`${suggestions.length} pending suggestion${suggestions.length === 1 ? "" : "s"}`} items={suggestions} kind="reorder" primaryLabel="Accept" secondaryLabel="Dismiss" onPrimary={s => { setShowAll(false); handleAccept(s); }} onSecondary={s => { setShowAll(false); handleReject(s.id); }} primaryDisabled={s => Boolean(s.stale_reason) || s.metadata?.policy_version !== 2 || mutations.acceptReorder.isPending} />
     </div>
   );
 }

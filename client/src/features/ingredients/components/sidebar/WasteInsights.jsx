@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
 import { formatDate } from "@/lib/date";
 import WasteExpiredLossModal from "../WasteExpiredLossModal";
-import InventoryInsightModal from "./InventoryInsightModal";
+import InventoryInsightCollectionModal from "./InventoryInsightCollectionModal";
 
 const types = {
   expired_stock: { label: "Expired", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
@@ -25,7 +25,7 @@ export default function WasteInsights() {
   const [expandedId, setExpandedId] = useState(null);
   const [lossSelection, setLossSelection] = useState(null);
   const [batchSelection, setBatchSelection] = useState(null);
-  const [selected, setSelected] = useState(null);
+  const [showAll, setShowAll] = useState(false);
   const insights = data?.data?.insights ?? [];
   const busy = mutations.generateWaste.isPending || mutations.prioritizeWaste.isPending || mutations.wasteExpiredLoss.isPending || mutations.acceptWaste.isPending || mutations.rejectWaste.isPending;
 
@@ -90,7 +90,7 @@ export default function WasteInsights() {
       <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
           <Icon name="trendingDown" size={16} className="text-destructive" />
-          <h3 className="text-sm font-semibold">Waste Insights</h3>
+          <button type="button" className="text-left text-sm font-semibold hover:text-primary hover:underline" onClick={() => setShowAll(true)}>Waste Insights</button>
           {insights.length > 0 && <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">{insights.length}</span>}
         </div>
         <Button size="sm" variant="ghost" onClick={generate} disabled={busy} aria-label="Generate waste insights" aria-busy={mutations.generateWaste.isPending}>
@@ -118,9 +118,9 @@ export default function WasteInsights() {
               }[facts.kind];
               return <div key={insight.id} className="px-4 py-3 text-xs text-muted-foreground [overflow-wrap:anywhere]">
                 <div className="flex flex-wrap items-center gap-2">
-                  <button type="button" className="min-w-0 break-words text-left text-sm font-medium text-foreground hover:text-primary hover:underline" onClick={() => setSelected(insight)} aria-label={`View details for ${insight.ingredient_name}`}>
+                  <p className="min-w-0 break-words text-sm font-medium text-foreground">
                     {insight.ingredient_name}
-                  </button>
+                  </p>
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${type.color}`}>{type.label}</span>
                 </div>
                 <div className="mt-2 space-y-1 break-words">
@@ -151,11 +151,7 @@ export default function WasteInsights() {
             })}</div>}
       </div>
     </div>
-    <InventoryInsightModal item={selected} kind="waste" onClose={() => setSelected(null)}
-      onPrimary={() => { const item = selected; setSelected(null); if (item) acknowledge(item); }} primaryLabel="Acknowledge"
-      onSecondary={() => { const id = selected?.id; setSelected(null); if (id) dismiss(id); }} secondaryLabel="Dismiss"
-      primaryDisabled={!selected || Boolean(selected.stale_reason) || (selected.metadata?.policy_version !== 3) || busy}
-      secondaryDisabled={busy} />
+    <InventoryInsightCollectionModal open={showAll} onClose={() => setShowAll(false)} title="Waste Insights" description={`${insights.length} pending insight${insights.length === 1 ? "" : "s"}`} items={insights} kind="waste" primaryLabel="Acknowledge" secondaryLabel="Dismiss" onPrimary={item => { setShowAll(false); acknowledge(item); }} onSecondary={item => { setShowAll(false); dismiss(item.id); }} primaryDisabled={item => Boolean(item.stale_reason) || item.metadata?.policy_version !== 3 || busy} />
     <WasteExpiredLossModal selection={lossSelection} onClose={() => setLossSelection(null)} onConfirm={recordLoss} isLoading={mutations.wasteExpiredLoss.isPending} />
     <Dialog open={Boolean(batchSelection)} onOpenChange={open => { if (!open) setBatchSelection(null); }}>
       <DialogContent>

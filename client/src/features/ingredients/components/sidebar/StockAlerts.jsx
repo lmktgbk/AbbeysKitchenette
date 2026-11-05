@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import ExpiryBadge from "../ExpiryBadge";
-import InventoryInsightModal from "./InventoryInsightModal";
+import InventoryInsightCollectionModal from "./InventoryInsightCollectionModal";
 
 /**
  * StockAlerts
@@ -18,7 +18,7 @@ import InventoryInsightModal from "./InventoryInsightModal";
  */
 export default function StockAlerts({ onRestock, onDeclareExpiredLoss }) {
   const { data: alertsData, isLoading } = useIngredientAlerts();
-  const [selected, setSelected] = useState(null);
+  const [showAll, setShowAll] = useState(false);
 
   const alerts = alertsData?.data?.alerts ?? [];
 
@@ -29,9 +29,9 @@ export default function StockAlerts({ onRestock, onDeclareExpiredLoss }) {
       <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
           <Icon name="alertTriangle" size={16} className="text-yellow-600 dark:text-yellow-400" />
-          <h3 className="text-sm font-semibold text-foreground">
+          <button type="button" className="text-left text-sm font-semibold text-foreground hover:text-primary hover:underline" onClick={() => setShowAll(true)}>
             Stock Alerts
-          </h3>
+          </button>
           {alerts.length > 0 && (
             <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
               {alerts.length}
@@ -68,26 +68,18 @@ export default function StockAlerts({ onRestock, onDeclareExpiredLoss }) {
                 alert={alert}
                 onRestock={onRestock}
                 onDeclareExpiredLoss={onDeclareExpiredLoss}
-                onOpenDetails={setSelected}
               />
             ))}
           </div>
         )}
       </div>
     </div>
-    <InventoryInsightModal item={selected} kind="alert" onClose={() => setSelected(null)}
-      onPrimary={() => {
-        if (!selected) return;
-        if (selected.alert_type === "expired") onDeclareExpiredLoss?.({ ingredient_id: selected.ingredient_id, ingredient_name: selected.ingredient_name, unit: selected.unit, batch_id: selected.restock_id, quantity: Number(selected.batch_quantity_left), cost_per_unit: Number(selected.batch_cost_per_unit ?? 0) });
-        else onRestock?.({ ingredient_id: selected.ingredient_id, ingredient_name: selected.ingredient_name, unit: selected.unit, stock_quantity: selected.stock_at_trigger });
-        setSelected(null);
-      }}
-      primaryLabel={selected?.alert_type === "expired" ? "Declare loss" : "Restock"} />
+    <InventoryInsightCollectionModal open={showAll} onClose={() => setShowAll(false)} title="Stock Alerts" description={`${alerts.length} active alert${alerts.length === 1 ? "" : "s"}`} items={alerts} kind="alert" primaryLabel="Action" secondaryLabel="Close" onPrimary={alert => { if (alert.alert_type === "expired") onDeclareExpiredLoss?.({ ingredient_id: alert.ingredient_id, ingredient_name: alert.ingredient_name, unit: alert.unit, batch_id: alert.restock_id, quantity: Number(alert.batch_quantity_left), cost_per_unit: Number(alert.batch_cost_per_unit ?? 0) }); else onRestock?.({ ingredient_id: alert.ingredient_id, ingredient_name: alert.ingredient_name, unit: alert.unit, stock_quantity: alert.stock_at_trigger }); }} onSecondary={() => setShowAll(false)} />
     </>
   );
 }
 
-function AlertRow({ alert, onRestock, onDeclareExpiredLoss, onOpenDetails }) {
+function AlertRow({ alert, onRestock, onDeclareExpiredLoss }) {
   const isOut = alert.alert_type === "out_of_stock";
   const isExpiry = alert.alert_type === "expiring_soon" || alert.alert_type === "expired";
   const isExpired = alert.alert_type === "expired";
@@ -102,9 +94,9 @@ function AlertRow({ alert, onRestock, onDeclareExpiredLoss, onOpenDetails }) {
           }`}
         />
         <div className="flex-1 min-w-0">
-          <button type="button" className="truncate text-left text-sm font-medium text-foreground hover:text-primary hover:underline" onClick={() => onOpenDetails?.(alert)} aria-label={`View details for ${alert.ingredient_name}`}>
+          <p className="truncate text-sm font-medium text-foreground">
             {alert.ingredient_name}
-          </button>
+          </p>
           <p className="text-xs text-muted-foreground">
             {isExpired ? "Expired: " : "Expires in: "}
             <span className="font-semibold text-foreground">
@@ -155,9 +147,9 @@ function AlertRow({ alert, onRestock, onDeclareExpiredLoss, onOpenDetails }) {
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <button type="button" className="truncate text-left text-sm font-medium text-foreground hover:text-primary hover:underline" onClick={() => onOpenDetails?.(alert)} aria-label={`View details for ${alert.ingredient_name}`}>
+        <p className="truncate text-sm font-medium text-foreground">
           {alert.ingredient_name}
-        </button>
+        </p>
         <p className="text-xs text-muted-foreground">
           {isOut
             ? "Out of stock"
