@@ -1161,7 +1161,7 @@ export const orderRepository = {
       // integer has not (260925002). Match customer_name on the raw input,
       // but match order_number on digits-only so dashed/prefixed pastes hit.
       // Order ID (UUID) matches on its text form so full or partial pastes hit.
-      const digits = String(search).replace(/\D/g, "");
+      const digits = String(search).replace(/\D/g, "").replace(/^0+(\d)/, "$1");
       if (digits) {
         values.push(`%${search}%`, `%${digits}%`, `%${search}%`);
         clauses.push(`(o.customer_name ILIKE $${idx} OR CAST(o.order_number AS TEXT) LIKE $${idx + 1} OR CAST(o.order_id AS TEXT) ILIKE $${idx + 2})`);

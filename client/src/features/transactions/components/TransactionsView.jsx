@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import Icon from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import { formatPeso } from "@/lib/money";
-import { orderNumberLabel } from "@/lib/orderNumber";
+import { formatOrderNumber, orderNumberLabel } from "@/lib/orderNumber";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, MoneyCell } from "@/components/ui/table";
 import { StatLabel, StatValue } from "@/components/ui/stat";
 
@@ -103,11 +103,24 @@ export default function TransactionsView({ switcher, actions }) {
   const visible = search.trim()
     ? transactions.filter((t) => {
       const q = search.trim().toLowerCase();
+      const rawNumber = String(t.order_number ?? "");
+      const formattedNumber = t.order_number != null ? formatOrderNumber(t.order_number).toLowerCase() : "";
+      const labeledNumber = t.order_number != null ? orderNumberLabel(t.order_number).toLowerCase() : "";
+      const qDigits = q.replace(/\D/g, "");
+
+      const matchesOrder = t.order_number != null && (
+        rawNumber.includes(q)
+        || formattedNumber.includes(q)
+        || labeledNumber.includes(q)
+        || (qDigits !== "" && rawNumber.includes(qDigits))
+      );
       return (
-        String(t.order_number ?? "").includes(q)
+        matchesOrder
         || String(t.order_id ?? "").toLowerCase().includes(q)
         || (t.staff_name ?? "").toLowerCase().includes(q)
         || (t.note ?? "").toLowerCase().includes(q)
+        || (t.type ?? "").toLowerCase().includes(q)
+        || (t.method ?? "").toLowerCase().includes(q)
       );
     })
     : transactions;
