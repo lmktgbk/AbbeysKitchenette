@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import Icon from "@/components/ui/icon";
 import LegalContact from "../components/LegalContact";
@@ -9,6 +10,10 @@ import "../landing.css";
  * Displays how Abbey's Kitchenette collects, uses, and protects personal data.
  */
 export default function PrivacyPolicy() {
+    // Scroll to top on mount so visitors don't land at the bottom when navigating from the footer
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, []);
     const currentYear = new Date().getFullYear();
 
     const sections = [

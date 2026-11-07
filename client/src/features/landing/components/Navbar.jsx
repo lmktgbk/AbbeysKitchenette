@@ -26,7 +26,7 @@ export default function Navbar({ storeName = "Abbey's Kitchenette" }) {
     // Close mobile menu on resize to desktop
     useEffect(() => {
         const onResize = () => {
-            if (window.innerWidth >= 768) setMobileOpen(false);
+            if (window.innerWidth >= 1024) setMobileOpen(false);
         };
         window.addEventListener("resize", onResize);
         return () => window.removeEventListener("resize", onResize);
@@ -60,7 +60,7 @@ export default function Navbar({ storeName = "Abbey's Kitchenette" }) {
                 {/* Logo */}
                 <a
                     href="#home"
-                    className="flex items-center gap-2.5 text-decoration-none"
+                    className="flex shrink-0 items-center gap-2.5 text-decoration-none"
                     onClick={(e) => handleNavClick(e, "#home")}
                     aria-label={`${displayName} — back to top`}
                 >
@@ -89,7 +89,7 @@ export default function Navbar({ storeName = "Abbey's Kitchenette" }) {
                 </a>
 
                 {/* Desktop Links */}
-                <div className="hidden items-center gap-8 md:flex">
+                <div className="hidden items-center gap-6 xl:gap-8 lg:flex">
                     {links.map((link) => (
                         <a
                             key={link.href}
@@ -103,7 +103,7 @@ export default function Navbar({ storeName = "Abbey's Kitchenette" }) {
                 </div>
 
                 {/* Desktop CTA */}
-                <div className="hidden items-center gap-3 md:flex">
+                <div className="hidden shrink-0 items-center gap-3 lg:flex">
                     <Link to="/order" className="navbar-cta">
                         <Icon name="shoppingBag" size={15} />
                         Open Kiosk
@@ -112,7 +112,7 @@ export default function Navbar({ storeName = "Abbey's Kitchenette" }) {
 
                 {/* Mobile Toggle */}
                 <button
-                    className="navbar-mobile-btn md:hidden"
+                    className="navbar-mobile-btn lg:hidden"
                     onClick={() => setMobileOpen(!mobileOpen)}
                     aria-label={mobileOpen ? "Close menu" : "Open menu"}
                     aria-expanded={mobileOpen}
@@ -126,7 +126,7 @@ export default function Navbar({ storeName = "Abbey's Kitchenette" }) {
             {mobileOpen && (
                 <div
                     id="navbar-mobile-menu"
-                    className="navbar-mobile-menu md:hidden"
+                    className="navbar-mobile-menu lg:hidden"
                     role="navigation"
                     aria-label="Mobile navigation"
                 >

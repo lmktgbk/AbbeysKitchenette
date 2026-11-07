@@ -249,7 +249,7 @@
   min-width: 40px;
   min-height: 40px;
 }
-@media (max-width: 767.98px) {
+@media (max-width: 1023.98px) {
   .navbar-mobile-btn {
     display: flex;
   }
