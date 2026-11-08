@@ -187,19 +187,40 @@ export async function closingStock(prisma, through, seed = LEGACY_SEED) {
   await prisma.$transaction(async (tx) => {
     const stock = await tx.restockBatch.findMany({ where: { quantityLeft: { gt: 0 } } });
     const purchases = [];
+    const topUps = [];
     for (const [name, , threshold, life, cost] of ingredients) {
       const ingredientId = seedId(`ingredient:${name}`);
       const current = stock.filter((b) => b.ingredientId === ingredientId);
       if (current.length > 1) throw new SeedError(`Multiple positive batches for ${name}; refusing to merge manual history`);
-      if (current.length) continue;
       const maximumPortion = Math.max(...products.flatMap((p) => p[3].flatMap((v) => v[2].filter((r) => r[1] === name).map((r) => r[0]))), 1);
-      const quantity = units(Math.max(threshold * 1.5, maximumPortion * 3));
+      const target = units(Math.max(threshold * 1.5, maximumPortion * 3));
+      if (current.length) {
+        const batch = current[0];
+        const quantity = units(Math.max(0, target - Number(batch.quantityLeft)));
+        if (quantity > 0 || !batch.expiryDate || batch.expiryDate < expires(through, 0)) {
+          topUps.push({ batch, ingredientId, quantity, cost, expiryDate: expires(through, life) });
+        }
+        continue;
+      }
+      const quantity = target;
       purchases.push({ ingredientId, restockedById: adminId, quantityAdded: quantity, quantityLeft: quantity, costPerUnit: cost,
         totalCost: money(quantity * cost), expiryDate: expires(through, life), restockedAt: at(through, "23:58"), supplierName: "Demo supplier (estimated)", notes: `${marker}:closing` });
     }
+    for (const { batch, quantity, cost, expiryDate } of topUps) {
+      await tx.restockBatch.update({ where: { restockId: batch.restockId }, data: {
+        quantityAdded: { increment: quantity }, quantityLeft: { increment: quantity },
+        totalCost: { increment: money(quantity * cost) }, expiryDate,
+      } });
+    }
     const rows = await insert(tx, "restockBatch", purchases, true);
-    await insert(tx, "stockAdjustment", rows.map((row) => ({ ingredientId: row.ingredientId, adjustedById: adminId,
+    await insert(tx, "stockAdjustment", [
+      ...rows.map((row) => ({ ingredientId: row.ingredientId, adjustedById: adminId,
       adjustmentType: "restock", quantityBefore: 0, quantityChanged: row.quantityAdded, quantityAfter: row.quantityAdded,
-      relatedRestockId: row.restockId, adjustedAt: at(through, "23:58"), notes: "Demo closing stock" })));
+      relatedRestockId: row.restockId, adjustedAt: at(through, "23:58"), notes: "Demo closing stock" })),
+      ...topUps.filter(({ quantity }) => quantity > 0).map(({ batch, ingredientId, quantity }) => ({ ingredientId, adjustedById: adminId,
+        adjustmentType: "restock", quantityBefore: Number(batch.quantityLeft), quantityChanged: quantity,
+        quantityAfter: Number(batch.quantityLeft) + quantity, relatedRestockId: batch.restockId,
+        adjustedAt: at(through, "23:58"), notes: "Demo healthy closing stock top-up" })),
+    ]);
   }, { timeout: 60000 });
 }
