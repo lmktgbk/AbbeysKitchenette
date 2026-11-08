@@ -7,6 +7,8 @@ const adminId = seedId("admin");
 const money = (value) => Math.round(value * 100) / 100;
 const timestamp = (day, minute) => at(day, `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`);
 const expires = (day, days) => new Date(Date.parse(day) + days * 86400000);
+// Healthy demo closing stock must remain usable after the seed's through date.
+const HEALTHY_EXPIRY_BUFFER_DAYS = 30;
 // Keep seeded numbers consistent with live orders: YYMMDD followed by a
 // three-digit sequence for that business date (e.g. 261031012).
 const dateOrderPrefix = day => Number(day.replaceAll("-", "").slice(2)) * 1000;
@@ -198,13 +200,13 @@ export async function closingStock(prisma, through, seed = LEGACY_SEED) {
         const batch = current[0];
         const quantity = units(Math.max(0, target - Number(batch.quantityLeft)));
         if (quantity > 0 || !batch.expiryDate || batch.expiryDate < expires(through, 0)) {
-          topUps.push({ batch, ingredientId, quantity, cost, expiryDate: expires(through, life) });
+          topUps.push({ batch, ingredientId, quantity, cost, expiryDate: expires(through, life + HEALTHY_EXPIRY_BUFFER_DAYS) });
         }
         continue;
       }
       const quantity = target;
       purchases.push({ ingredientId, restockedById: adminId, quantityAdded: quantity, quantityLeft: quantity, costPerUnit: cost,
-        totalCost: money(quantity * cost), expiryDate: expires(through, life), restockedAt: at(through, "23:58"), supplierName: "Demo supplier (estimated)", notes: `${marker}:closing` });
+        totalCost: money(quantity * cost), expiryDate: expires(through, life + HEALTHY_EXPIRY_BUFFER_DAYS), restockedAt: at(through, "23:58"), supplierName: "Demo supplier (estimated)", notes: `${marker}:closing` });
     }
     for (const { batch, quantity, cost, expiryDate } of topUps) {
       await tx.restockBatch.update({ where: { restockId: batch.restockId }, data: {
