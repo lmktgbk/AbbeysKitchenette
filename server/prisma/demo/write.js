@@ -7,6 +7,9 @@ const adminId = seedId("admin");
 const money = (value) => Math.round(value * 100) / 100;
 const timestamp = (day, minute) => at(day, `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`);
 const expires = (day, days) => new Date(Date.parse(day) + days * 86400000);
+// Keep seeded numbers consistent with live orders: YYMMDD followed by a
+// three-digit sequence for that business date (e.g. 261031012).
+const dateOrderPrefix = day => Number(day.replaceAll("-", "").slice(2)) * 1000;
 
 /** Keep inserts below PostgreSQL's bind limit, including large deduction ledgers. */
 async function insert(client, model, data, returning = false) {
@@ -85,14 +88,21 @@ export async function writeDay(prisma, day, catalog, seed = LEGACY_SEED) {
     const orders = planDay(day);
     const counter = await tx.orderCounter.findUnique({ where: { date: new Date(day) } });
     const previous = await tx.order.aggregate({ where: { orderDate: new Date(day) }, _max: { orderNumber: true } });
-    let number = Math.max(counter?.counter ?? 0, previous._max.orderNumber ?? 0);
+    // The counter table stores only the daily sequence. The order table may
+    // contain either legacy short numbers or date-based numbers from an
+    // earlier partial run, so normalize both sources before continuing.
+    let sequence = Math.max(
+      counter?.counter ?? 0,
+      (previous._max.orderNumber ?? 0) % 1000,
+    );
+    const orderPrefix = dateOrderPrefix(day);
     const cash = orders.filter((o) => o.payment === "cash").reduce((sum, o) => sum + o.lines.reduce((s, l) => s + l.quantity * l.price, 0), 0);
     await tx.shift.create({ data: { shiftId, openedBy: adminId, openedAt: at(day, "16:00"), openingCash: 1000,
       status: "closed", closedAt: at(day, "23:59"), closedBy: adminId, expectedCash: 1000 + cash, actualCash: 1000 + cash, variance: 0, closeNote: marker,
       createdAt: at(day, "16:00"), updatedAt: at(day, "23:59") } });
     await insert(tx, "order", orders.map((o) => {
       const total = o.lines.reduce((sum, line) => sum + line.quantity * line.price, 0);
-      return { orderId: o.id, orderNumber: ++number, orderDate: new Date(day), customerName: o.customer, tableNumber: o.table,
+      return { orderId: o.id, orderNumber: orderPrefix + (++sequence), orderDate: new Date(day), customerName: o.customer, tableNumber: o.table,
         orderSource: "walk_in", status: "completed", shiftId, paymentMethod: o.payment,
         referenceNo: o.payment === "cash" ? null : `DEMO-${o.id}`, subtotalAmount: total, totalAmount: total, amountPaid: total, change: 0,
         createdBy: adminId, createdAt: timestamp(day, o.minute), updatedAt: timestamp(day, o.minute + 20),
@@ -166,7 +176,7 @@ export async function writeDay(prisma, day, catalog, seed = LEGACY_SEED) {
     if (changed.length) await tx.$executeRawUnsafe(`UPDATE restock_batches AS b SET quantity_left = v.balance FROM (SELECT * FROM jsonb_to_recordset($1::jsonb) AS x(id integer, balance numeric)) AS v WHERE b.restock_id = v.id`, JSON.stringify(changed.map((b) => ({ id: b.id, balance: b.left }))));
     await insert(tx, "receipt", orders.map((o) => ({ receiptId: seedId(`receipt-row:${o.id}`), orderId: o.id, issuedBy: adminId,
       totalAmount: o.lines.reduce((sum, l) => sum + l.quantity * l.price, 0), issuedAt: timestamp(day, o.minute + 1) })));
-    await tx.orderCounter.upsert({ where: { date: new Date(day) }, create: { date: new Date(day), counter: number }, update: { counter: number } });
+    await tx.orderCounter.upsert({ where: { date: new Date(day) }, create: { date: new Date(day), counter: sequence }, update: { counter: sequence } });
     return true;
   }, { timeout: 60000 });
 }
