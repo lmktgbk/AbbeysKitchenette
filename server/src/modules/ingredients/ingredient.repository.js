@@ -46,8 +46,12 @@ export const ingredientRepository = {
 
     if (status && status !== "all") {
       const statusMap = { healthy: "healthy", low: "low_stock", out: "out_of_stock" };
-      clauses.push(`${this._statusCaseExpr()} = $${idx++}`);
-      values.push(statusMap[status] || status);
+      if (status === "attention") {
+        clauses.push(`${this._statusCaseExpr()} IN ('low_stock', 'out_of_stock')`);
+      } else {
+        clauses.push(`${this._statusCaseExpr()} = $${idx++}`);
+        values.push(statusMap[status] || status);
+      }
     }
 
     return { where: `WHERE ${clauses.join(" AND ")}`, values };
@@ -589,9 +593,27 @@ export const ingredientRepository = {
    * @param {string} id - ingredient UUID
    * @returns {number} - total batch count
    */
-  async countBatchesByIngredientId(id) {
-    return prisma.restockBatch.count({
-      where: { ingredientId: id },
+  async countBatchesByIngredientId(id, search) {
+    const where = { ingredientId: id };
+    if (search) {
+      const parsed = search.replace(/^b-?/i, "");
+      const batchId = Number(parsed);
+      const orFilters = [
+        { supplierName: { contains: search, mode: "insensitive" } },
+        { notes: { contains: search, mode: "insensitive" } },
+      ];
+      if (!isNaN(batchId) && batchId > 0) orFilters.push({ restockId: batchId });
+      where.OR = orFilters;
+    }
+    return prisma.restockBatch.count({ where });
+  },
+
+  /** Active, non-expired batches used to estimate FIFO loss cost. */
+  async findActiveBatchesForIngredient(id, today) {
+    return prisma.restockBatch.findMany({
+      where: { ingredientId: id, quantityLeft: { gt: 0 },
+        OR: [{ expiryDate: null }, { expiryDate: { gte: new Date(`${today}T00:00:00Z`) } }] },
+      orderBy: [{ isPriority: "desc" }, { restockedAt: "asc" }, { restockId: "asc" }],
     });
   },
 

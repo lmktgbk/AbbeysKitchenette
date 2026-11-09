@@ -38,6 +38,7 @@ export default function InventoryPage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [restockDraftQuantity, setRestockDraftQuantity] = useState(null);
   const [restockSuggestionId, setRestockSuggestionId] = useState(null);
+  const [stockStatusFilter, setStockStatusFilter] = useState("all");
 
   // ── Mutations (hook handles invalidation; component handles toast + UI state) ──
 
@@ -257,7 +258,7 @@ export default function InventoryPage() {
   return (
     <div className="flex flex-col gap-4">
       {/* KPI Summary Cards */}
-      <KpiCards />
+      <KpiCards statusFilter={stockStatusFilter} onStatusFilterChange={setStockStatusFilter} />
 
       {/* Two-column layout: Table + Sidebar */}
       <div className="grid grid-cols-1 items-stretch gap-4 lg:min-h-[36rem] lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -272,6 +273,8 @@ export default function InventoryPage() {
           onArchive={handleArchive}
           onRestore={handleRestore}
           onDelete={handleDelete}
+          stockStatusFilter={stockStatusFilter}
+          onStockStatusFilterChange={setStockStatusFilter}
         />
 
         {/* Right — Sidebar panels */}
@@ -302,12 +305,17 @@ export default function InventoryPage() {
         onOpenChange={handleRestockModalClose}
         ingredient={selectedIngredient}
         initialQuantity={restockDraftQuantity}
-        onSubmit={(data) =>
-          restockMutation.mutate({
-            id: selectedIngredient?.ingredient_id,
-            data,
-          })
-        }
+        onSubmit={async (data) => {
+          const ok = await confirm({
+            title: "Confirm restock?",
+            message: `${selectedIngredient?.ingredient_name} · ${data.quantity_added} ${selectedIngredient?.unit}`,
+            note: "This creates an inventory batch and changes the current stock value. Review the details before confirming.",
+            confirmLabel: "Record restock",
+            loadingText: "Recording...",
+            variant: "success",
+          });
+          if (ok) restockMutation.mutate({ id: selectedIngredient?.ingredient_id, data });
+        }}
         isLoading={restockMutation.isPending}
       />
 
@@ -316,12 +324,17 @@ export default function InventoryPage() {
         open={showLossModal}
         onOpenChange={setShowLossModal}
         ingredient={selectedIngredient}
-        onSubmit={(data) =>
-          lossMutation.mutate({
-            id: selectedIngredient?.ingredient_id,
-            data,
-          })
-        }
+        onSubmit={async (data) => {
+          const ok = await confirm({
+            title: "Record inventory loss?",
+            message: `${selectedIngredient?.ingredient_name} · ${data.quantity_lost} ${selectedIngredient?.unit}`,
+            note: "This permanently deducts stock and records a loss. It cannot be automatically reversed.",
+            confirmLabel: "Record loss",
+            loadingText: "Recording...",
+            variant: "danger",
+          });
+          if (ok) lossMutation.mutate({ id: selectedIngredient?.ingredient_id, data });
+        }}
         isLoading={lossMutation.isPending}
       />
 

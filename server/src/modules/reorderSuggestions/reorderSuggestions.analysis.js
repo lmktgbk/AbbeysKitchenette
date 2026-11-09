@@ -238,6 +238,41 @@ export function normalizeReorders(result, contexts) {
   });
 }
 
+/**
+ * Deterministic safety-net used when Gemini is unavailable or returns an
+ * invalid quantity. Facts and minimum quantities remain backend-owned.
+ */
+export function buildFallbackReorders(contexts, cause = "AI response was unavailable") {
+  return contexts.map((c) => {
+    const pieces = ["pcs", "pieces"].includes(c.unit.toLowerCase());
+    const safeQuantity = pieces
+      ? Math.ceil(c.minimum_required)
+      : round(c.minimum_required);
+    const urgency = c.usable_stock <= 0 ? "high" : "medium";
+    const warnings = [...c.forecast_issues, "Backend safety fallback used; review quantity before purchasing"];
+    const forecastText = c.expected_use_available
+      ? `projected seven-day use is ${round(c.expected_use)} ${c.unit}`
+      : `recent usage data is incomplete and the minimum stock level is ${round(c.minimum_stock)} ${c.unit}`;
+    const reason = `${c.ingredient_name} has ${round(c.usable_stock)} ${c.unit} usable and ${forecastText}. Recommended ${safeQuantity} ${c.unit} to meet the calculated minimum required.`;
+    return {
+      ingredient_id: c.ingredient_id,
+      current_stock: c.usable_stock,
+      unit: c.unit,
+      suggested_quantity: safeQuantity,
+      urgency,
+      reasoning: reason,
+      estimated_stockout: c.first_shortage,
+      confidence: c.forecast_complete ? 0.6 : 0.3,
+      metadata: {
+        policy_version: REORDER_POLICY_VERSION,
+        source: "backend_fallback",
+        ...c,
+        warnings,
+      },
+    };
+  });
+}
+
 export function reorderStaleness(suggestion, context) {
   if (
     !context ||

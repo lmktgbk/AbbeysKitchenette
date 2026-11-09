@@ -43,7 +43,7 @@ export default function StaffPage() {
   }
 
   // Account creation and invitation delivery have separate outcomes; failed email does not undo creation.
-  function handleFormSubmit(data) {
+  async function handleFormSubmit(data) {
     if (isEditMode) {
       mutations.update.mutate(
         { id: selectedStaff.staff_id, data },
@@ -57,6 +57,15 @@ export default function StaffPage() {
         }
       );
     } else {
+      const ok = await confirm({
+        title: "Create staff account?",
+        message: `${data.name} · ${data.email} · ${data.role}`,
+        note: "An invitation email will be sent. Review the details before creating the account.",
+        confirmLabel: "Create account",
+        loadingText: "Creating...",
+        variant: "success",
+      });
+      if (!ok) return;
       mutations.create.mutate(data, {
         onSuccess: (res) => {
           setShowFormModal(false);

@@ -195,7 +195,11 @@ export async function closingStock(prisma, through, seed = LEGACY_SEED) {
       const current = stock.filter((b) => b.ingredientId === ingredientId);
       if (current.length > 1) throw new SeedError(`Multiple positive batches for ${name}; refusing to merge manual history`);
       const maximumPortion = Math.max(...products.flatMap((p) => p[3].flatMap((v) => v[2].filter((r) => r[1] === name).map((r) => r[0]))), 1);
-      const target = units(Math.max(threshold * 1.5, maximumPortion * 3));
+      // Keep a practical operational buffer: the minimum threshold plus one
+      // recipe portion, or two portions when that is larger. This keeps seeded
+      // products usable without creating the large surplus from the old 1.5x/3x
+      // target that flooded waste insights with excess-stock cards.
+      const target = units(Math.max(threshold + maximumPortion, maximumPortion * 2));
       if (current.length) {
         const batch = current[0];
         const quantity = units(Math.max(0, target - Number(batch.quantityLeft)));

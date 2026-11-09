@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  * Summary cards showing ingredient stock health at a glance.
  * 4 cards: Total Items, Total Value, Healthy (ring), Low/Out (ring).
  */
-export default function KpiCards() {
+export default function KpiCards({ statusFilter = "all", onStatusFilterChange }) {
   const { data: summaryData, isLoading } = useIngredientSummary();
   const { data: stockValueData, isLoading: stockValueLoading } = useStockValue();
 
@@ -41,7 +41,7 @@ export default function KpiCards() {
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      <StatCard label="Total Items" value={summary.total} />
+      <StatCard label="Total Items" value={summary.total} active={statusFilter === "all"} onClick={() => onStatusFilterChange?.("all")} />
       <StatCard
         label="Total Value"
         value={stockValueLoading ? <Skeleton className="h-5 w-16" /> : totalValue}
@@ -53,6 +53,8 @@ export default function KpiCards() {
         total={total}
         color="text-green-600 dark:text-green-400"
         ring="ring-green-500/20"
+        active={statusFilter === "healthy"}
+        onClick={() => onStatusFilterChange?.("healthy")}
       />
       <RingCard
         label="Low / Out"
@@ -60,14 +62,16 @@ export default function KpiCards() {
         total={total}
         color="text-red-600 dark:text-red-400"
         ring="ring-red-500/20"
+        active={statusFilter === "attention"}
+        onClick={() => onStatusFilterChange?.("attention")}
       />
     </div>
   );
 }
 
-function StatCard({ label, value, prefix = "" }) {
+function StatCard({ label, value, prefix = "", active, onClick }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+    <button type="button" onClick={onClick} className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${active ? "border-primary bg-primary/10" : "border-border bg-card hover:bg-muted/50"}`}>
       <div className="min-w-0">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {label}
@@ -76,15 +80,15 @@ function StatCard({ label, value, prefix = "" }) {
           {prefix}{typeof value === "number" ? value.toLocaleString() : value}
         </p>
       </div>
-    </div>
+    </button>
   );
 }
 
-function RingCard({ label, count, total, color, ring }) {
+function RingCard({ label, count, total, color, ring, active, onClick }) {
   const pct = Math.round((count / total) * 100);
 
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+    <button type="button" onClick={onClick} className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${active ? "border-primary bg-primary/10" : "border-border bg-card hover:bg-muted/50"}`}>
       <div className={`relative h-10 w-10 shrink-0 rounded-full ring-4 ${ring}`}>
         <svg className="h-10 w-10 -rotate-90" viewBox="0 0 36 36">
           <circle cx="18" cy="18" r="14" fill="none" stroke="currentColor" strokeWidth="3" className="text-muted" />
@@ -109,6 +113,6 @@ function RingCard({ label, count, total, color, ring }) {
         </p>
         <p className="text-lg font-bold text-foreground">{count}</p>
       </div>
-    </div>
+    </button>
   );
 }

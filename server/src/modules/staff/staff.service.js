@@ -10,6 +10,7 @@ import { revokeLocalSessions } from "../../infrastructure/realtime/sessions.js";
 import { generateStaffInviteEmail } from "../../infrastructure/integrations/email.js";
 import { signToken } from "../../config/jwt.js";
 import { env } from "../../config/env.js";
+import { authRepository } from "../auth/auth.repository.js";
 
 /**
  * Staff Service (admin-only callers — enforced in staff.routes.js)
@@ -32,6 +33,21 @@ function mapToStaffResponse(user) {
     created_at: user.createdAt,
     updated_at: user.updatedAt,
   };
+}
+
+/** Issue a current-version set-password link for an invited staff account. */
+async function sendStaffInvite(user, actorId, context = "staff-invite") {
+  const resetToken = signToken({ sub: user.id, purpose: "password-reset", version: user.sessionVersion }, "15m");
+  const resetUrl = `${env.CLIENT_URL}/reset-password?token=${resetToken}`;
+  const issued = await authRepository.issueResetToken(
+    user.id, resetToken, new Date(Date.now() + 15 * 60 * 1000), user.sessionVersion, actorId, context,
+  );
+  await sendAuthEmail({
+    to: user.email,
+    subject: "Your Staff Account — Set Your Password",
+    html: generateStaffInviteEmail(resetUrl, user.name?.split(" ")[0]),
+  }, { userId: actorId, subjectId: user.id, context, requestId: issued.id },
+  () => authRepository.discardResetToken(user.id, resetToken));
 }
 
 export const staffService = {
@@ -79,21 +95,7 @@ export const staffService = {
     // Email the set-password link. Return emailed flag so UI can warn if mail failed.
     // The link is single-use: stored (hashed) and burned on first reset.
     try {
-      const resetToken = signToken({ sub: user.id, purpose: "password-reset", version: 0 }, "15m");
-      const resetUrl = `${env.CLIENT_URL}/reset-password?token=${resetToken}`;
-      const { authRepository } = await import("../auth/auth.repository.js");
-      const issued = await authRepository.issueResetToken(
-        user.id,
-        resetToken,
-        new Date(Date.now() + 15 * 60 * 1000),
-        0, userId, "staff-invite",
-      );
-      await sendAuthEmail({
-        to: user.email,
-        subject: "Your Staff Account — Set Your Password",
-        html: generateStaffInviteEmail(resetUrl, user.name?.split(" ")[0]),
-      }, { userId, subjectId: user.id, context: "staff-invite", requestId: issued.id },
-      () => authRepository.discardResetToken(user.id, resetToken));
+      await sendStaffInvite({ ...user, sessionVersion: 0 }, userId);
     } catch (err) {
       console.warn("[staff] Invitation delivery unavailable", err?.code ?? "DELIVERY_FAILED");
       return { staff: mapToStaffResponse(user), emailed: false };
@@ -126,6 +128,19 @@ export const staffService = {
       throw error;
     }
     revokeLocalSessions(id);
+    const roleChanged = role !== undefined && role !== user.role;
+    if (roleChanged && await authRepository.hasPendingResetToken(id)) {
+      const current = await prisma.user.findUnique({ where: { id }, select: {
+        id: true, name: true, email: true, role: true, isActive: true, sessionVersion: true,
+      } });
+      if (current?.isActive) {
+        try {
+          await sendStaffInvite(current, userId, "staff-role-change");
+        } catch (error) {
+          console.warn("[staff] Role-change invitation delivery unavailable", error?.code ?? "DELIVERY_FAILED");
+        }
+      }
+    }
     return mapToStaffResponse(updated);
   },
 

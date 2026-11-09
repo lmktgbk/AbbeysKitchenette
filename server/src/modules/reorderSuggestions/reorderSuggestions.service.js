@@ -1,7 +1,7 @@
 import { AppError } from "../../middleware/errorHandler.middleware.js";
 import { reorderSuggestionsRepository as repo } from "./reorderSuggestions.repository.js";
 import { loadInventoryPlanningSnapshot } from "../../services/inventoryPlanning.repository.js";
-import { buildReorderContexts, selectReorderCandidates, reorderStaleness, REORDER_CHUNK_SIZE } from "./reorderSuggestions.analysis.js";
+import { buildReorderContexts, buildFallbackReorders, selectReorderCandidates, reorderStaleness, REORDER_CHUNK_SIZE } from "./reorderSuggestions.analysis.js";
 import { generateReorderChunk } from "./reorderSuggestions.provider.js";
 import { resolveAdvisory } from "../../services/advisoryEffects.js";
 import { ACTIONS } from "../auditLogs/auditLog.constants.js";
@@ -14,20 +14,24 @@ export async function generateReorderBatches(contexts, { signal } = {}) {
   const deadline = AbortSignal.timeout(GENERATION_TIMEOUT_MS);
   const requestSignal = signal ? AbortSignal.any([signal, deadline]) : deadline;
   const suggestions = [];
-  try {
-    for (let i = 0; i < contexts.length; i += REORDER_CHUNK_SIZE) {
-      requestSignal.throwIfAborted();
-      const chunk = contexts.slice(i, i + REORDER_CHUNK_SIZE);
-      suggestions.push(...await generateReorderChunk(chunk, { signal: requestSignal }));
+  for (let i = 0; i < contexts.length; i += REORDER_CHUNK_SIZE) {
+    const chunk = contexts.slice(i, i + REORDER_CHUNK_SIZE);
+    if (signal?.aborted) {
+      throw new AppError(503, "Generation was cancelled", "GENERATION_CANCELLED");
     }
-    requestSignal.throwIfAborted();
-    return suggestions;
-  } catch (error) {
-    if (signal?.aborted) throw new AppError(503, "Generation was cancelled", "GENERATION_CANCELLED");
-    if (requestSignal.aborted) throw new AppError(504, "Gemini generation timed out. Previous suggestions were preserved. Please try again", "REORDER_AI_TIMEOUT");
-    if (error instanceof AppError) throw error;
-    throw new AppError(502, "AI restock recommendations could not be generated. Previous suggestions were preserved. Please try again", "REORDER_AI_UNAVAILABLE");
+    if (requestSignal.aborted) {
+      suggestions.push(...buildFallbackReorders(chunk, "Gemini generation timed out"));
+      continue;
+    }
+    try {
+      suggestions.push(...await generateReorderChunk(chunk, { signal: requestSignal }));
+    } catch (error) {
+      if (signal?.aborted) throw new AppError(503, "Generation was cancelled", "GENERATION_CANCELLED");
+      console.warn(JSON.stringify({ event: "reorder_ai_fallback", ingredientCount: chunk.length, reason: error?.diagnostic?.reason || error?.code || "provider_failure" }));
+      suggestions.push(...buildFallbackReorders(chunk, "AI advice failed validation or was unavailable"));
+    }
   }
+  return suggestions;
 }
 
 export const reorderSuggestionsService = {

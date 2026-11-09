@@ -105,7 +105,7 @@ export const getIngredientsQuerySchema = z.object({
   page: pageQuery,
   limit: limitQuery("50"),
   search: searchQuery,
-  status: z.enum(["all", "out", "low", "healthy"]).optional().default("all"),
+  status: z.enum(["all", "out", "low", "healthy", "attention"]).optional().default("all"),
   sortBy: z
     .enum(["ingredient_name", "unit", "stock_quantity", "minimum_threshold", "status"])
     .optional()

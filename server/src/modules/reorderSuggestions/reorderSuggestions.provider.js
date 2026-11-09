@@ -52,8 +52,8 @@ function logFailure(phase, fields) {
   console.warn(JSON.stringify({ event: "reorder_ai_failure", phase, model: GEMINI_MODEL, ...fields }));
 }
 
-export async function generateReorderChunk(contexts, { signal, wait = delay } = {}) {
-  const { system, user } = buildReorderPrompt(contexts);
+export async function generateReorderChunk(contexts, { signal, wait = delay, correction = false } = {}) {
+  const { system, user } = buildReorderPrompt(contexts, { correction });
   let response;
   for (let attempt = 1; attempt <= 3; attempt++) {
     signal?.throwIfAborted();
@@ -90,6 +90,9 @@ export async function generateReorderChunk(contexts, { signal, wait = delay } = 
   try { return normalizeReorders(parsed, contexts); }
   catch (error) {
     logFailure("validation", { ingredientCount: contexts.length, ...(error.diagnostic || {}) });
+    if (!correction && error?.diagnostic?.reason === "below_minimum_required") {
+      return generateReorderChunk(contexts, { signal, wait, correction: true });
+    }
     throw error;
   }
 }

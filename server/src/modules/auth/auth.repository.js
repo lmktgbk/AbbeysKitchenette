@@ -198,6 +198,15 @@ export const authRepository = {
     return prisma.passwordResetToken.deleteMany({ where: { userId, tokenHash: this.hashResetToken(token), usedAt: null } });
   },
 
+  /** Used by admin staff edits to detect an account that still needs its initial password. */
+  async hasPendingResetToken(userId) {
+    const token = await prisma.passwordResetToken.findFirst({
+      where: { userId, usedAt: null, expiresAt: { gt: new Date() } },
+      select: { id: true },
+    });
+    return Boolean(token);
+  },
+
   async findResetToken(token) {
     return prisma.passwordResetToken.findUnique({
       where: { tokenHash: this.hashResetToken(token) },

@@ -73,7 +73,7 @@ export default function LossModal({
     getIngredientBatchesRequest(ingredient.ingredient_id, { page: 1, limit: 100 })
       .then((data) => {
         if (!active) return;
-        const list = (data.data?.batches ?? []).filter(
+        const list = (data.data?.activeBatches ?? data.data?.batches ?? []).filter(
           (b) => Number(b.quantity_left ?? b.quantityLeft) > 0,
         );
         setBatches(list);

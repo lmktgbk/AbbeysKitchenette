@@ -36,6 +36,8 @@ export default function ProductsPage() {
   const [addKey, setAddKey] = useState(0);
   const [showPriceModal, setShowPriceModal] = useState(false);
   const [priceModalProduct, setPriceModalProduct] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryOpen, setCategoryOpen] = useState(false);
 
   // ── Detail modal state ──────────────
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -233,11 +235,20 @@ export default function ProductsPage() {
   }
 
   /** Routes validated form data to creation or the selected product’s two-step edit flow. */
-  function handleFormSubmit(data) {
+  async function handleFormSubmit(data) {
     const target = fullEditProduct ?? selectedProduct;
     if (isEditMode && target) {
       updateMutation.mutate({ id: target.product_id, data });
     } else {
+      const ok = await confirm({
+        title: "Create product?",
+        message: `${data.name} · ${data.category_name ?? "Product catalog"}`,
+        note: "The product will be added to the catalog. You can edit or deactivate it later.",
+        confirmLabel: "Create product",
+        loadingText: "Creating...",
+        variant: "success",
+      });
+      if (!ok) return;
       createMutation.mutate(data);
     }
   }
@@ -247,7 +258,7 @@ export default function ProductsPage() {
   return (
     <div className="flex flex-col gap-4">
       {/* KPI Summary Cards */}
-      <KpiCards />
+      <KpiCards statusFilter={statusFilter} onStatusFilterChange={setStatusFilter} onOpenCategories={() => setCategoryOpen(true)} />
 
       {/* Product Grid */}
       <ProductGrid
@@ -255,6 +266,10 @@ export default function ProductsPage() {
         onViewDetail={handleViewDetail}
         onOptimizePrice={handleOptimizePrice}
         categories={categories}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        categoryOpen={categoryOpen}
+        onCategoryOpenChange={setCategoryOpen}
       />
 
       {/* Product Detail Modal */}

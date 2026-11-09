@@ -5,7 +5,6 @@ import { useProductsRealtime } from "@/realtime/subscriptions";
 import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
 import { SearchBar } from "@/components/filters/SearchBar";
-import { FilterPill } from "@/components/filters/FilterPill";
 import { Pagination } from "@/components/filters/Pagination";
 import FilterModal from "@/components/filters/FilterModal";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,12 +18,6 @@ const SORT_OPTIONS = [
   { value: "product_name_desc", label: "Name Z–A" },
   { value: "category_name_asc", label: "Category A–Z" },
   { value: "category_name_desc", label: "Category Z–A" },
-];
-
-const STATUS_OPTIONS = [
-  { value: "all", label: "All" },
-  { value: "active", label: "Available" },
-  { value: "unavailable", label: "Unavailable" },
 ];
 
 /**
@@ -44,16 +37,18 @@ export default function ProductGrid({
   onViewDetail,
   onOptimizePrice,
   categories = [],
+  statusFilter = "all",
+  onStatusFilterChange,
+  categoryOpen,
+  onCategoryOpenChange,
 }) {
   // Live catalog: stock/menu changes elsewhere refresh this grid.
   useProductsRealtime();
   const [search, setSearch] = useState("");
   const [pageSize, setPageSize] = useState(20);
   const [activeSort, setActiveSort] = useState("created_at_desc");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [filterOpen, setFilterOpen] = useState(false);
   const [activeFilters, setActiveFilters] = useState({ category: "all" });
-  const [categoryOpen, setCategoryOpen] = useState(false);
 
   const [currentPage, setCurrentPage] = useResettableState(1, [search, activeSort, statusFilter, activeFilters.category]);
 
@@ -119,20 +114,12 @@ export default function ProductGrid({
             />
           </div>
 
-          {/* Right: Status pill (desktop) + Manage Categories + Add */}
+          {/* Right: Manage Categories + Add */}
           <div className="flex shrink-0 flex-wrap items-center gap-2">
-            {/* Status pill - hidden on mobile/tablet, shown on lg+ */}
-            <div className="hidden lg:block">
-              <FilterPill
-                options={STATUS_OPTIONS}
-                value={statusFilter}
-                onChange={setStatusFilter}
-              />
-            </div>
             <Button
               size="default"
               variant="secondary"
-              onClick={() => setCategoryOpen(true)}
+              onClick={() => onCategoryOpenChange?.(true)}
               className="hidden sm:inline-flex"
             >
               <Icon name="tag" size={16} className="mr-1" />
@@ -146,14 +133,6 @@ export default function ProductGrid({
           </div>
         </div>
 
-        {/* Row 2: Status Filter Pills (mobile/tablet only, below search) */}
-        <div className="mt-2 flex items-center gap-2 lg:hidden">
-          <FilterPill
-            options={STATUS_OPTIONS}
-            value={statusFilter}
-            onChange={setStatusFilter}
-          />
-        </div>
       </div>
 
       {/* Sort & Filter Modal */}
@@ -196,7 +175,7 @@ export default function ProductGrid({
                 ? "Try another search or clear your filters."
                 : "Add your first product to get started."}
             </p>
-            {search || filterActive ? <Button size="sm" variant="secondary" onClick={() => { setSearch(""); setStatusFilter("all"); setActiveFilters({ category: "all" }); }}>Clear filters</Button> : (
+            {search || filterActive ? <Button size="sm" variant="secondary" onClick={() => { setSearch(""); onStatusFilterChange?.("all"); setActiveFilters({ category: "all" }); }}>Clear filters</Button> : (
               <Button size="sm" onClick={onAdd}>
                 <Icon name="plus" size={14} className="mr-1" />
                 Add Product
@@ -234,7 +213,7 @@ export default function ProductGrid({
       )}
 
       {/* Category Management Modal */}
-      <CategoryModal open={categoryOpen} onOpenChange={setCategoryOpen} />
+      <CategoryModal open={categoryOpen} onOpenChange={onCategoryOpenChange} />
     </div>
   );
 }

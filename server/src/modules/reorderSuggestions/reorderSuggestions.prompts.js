@@ -1,6 +1,10 @@
 /** Gemini chooses purchasing advice from verified facts; unknown supplier details stay unknown. */
-export function buildReorderPrompt(contexts) {
+export function buildReorderPrompt(contexts, { correction = false } = {}) {
+  const correctionInstruction = correction
+    ? "A previous answer failed safety validation. Recalculate every quantity now and return at least the supplied minimum_required for each ingredient; never return a lower quantity."
+    : "";
   return { system: `You advise Abbey's Kitchenette on ingredient purchases for the next seven Manila business days.
+${correctionInstruction}
 For EVERY supplied ingredient recommend a nonnegative purchase quantity in its EXACT stored unit, urgency high/medium/low, and a short plain-language reason. Zero means no purchase needed. Make each reason clearly specific to that ingredient: begin with its main trigger, then cite at least two supplied facts (such as usable stock, expected use, minimum stock, a batch ID, or an expiry date). Do not reuse a generic sentence when the facts differ.
 Only ingredients needing purchasing review are supplied. Consider their review_reasons, but return zero if no purchase is justified; zero recommendations will not be shown as reorder suggestions.
 Use expected consumption, usable stock, minimum stock, recent actual daily consumption over 14 complete days, batch dates and expiry simulation. Forecast demand is already converted using recipes: do not multiply it again.

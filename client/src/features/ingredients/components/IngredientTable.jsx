@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useIngredientTable, useIngredientBatches, useIngredientAlerts } from "../query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -71,6 +71,8 @@ export default function IngredientTable({
   onRestore,
   onDelete,
   onAdd,
+  stockStatusFilter = "all",
+  onStockStatusFilterChange,
 }) {
   const [search, setSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
@@ -79,7 +81,13 @@ export default function IngredientTable({
   const [pageSize, setPageSize] = useState(20);
   const [filterOpen, setFilterOpen] = useState(false);
   const [activeSort, setActiveSort] = useState("status_asc");
-  const [activeFilters, setActiveFilters] = useState({ status: "all" });
+  const [activeFilters, setActiveFilters] = useState({ status: stockStatusFilter });
+
+  // KPI cards and the detailed filter modal share one status filter.
+  useEffect(() => {
+    setActiveFilters(prev => ({ ...prev, status: stockStatusFilter }));
+    setCurrentPage(1);
+  }, [stockStatusFilter]);
 
   function toggleExpand(id) {
     setExpandedRow((prev) => (prev === id ? null : id));
@@ -118,15 +126,27 @@ export default function IngredientTable({
   return (
     <div className="relative border border-border rounded-xl overflow-hidden">
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border px-4 py-3">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-3 border-b border-border px-4 py-3">
+        <div className="flex items-center gap-2 min-w-0">
           <SearchBar
+            className="min-w-0 flex-1"
             value={search}
             onChange={(val) => { setSearch(val); setCurrentPage(1); }}
             placeholder="Search ingredients..."
             onFilterClick={() => setFilterOpen(true)}
             filterActive={filterActive}
           />
+          <Button
+            size="sm"
+            onClick={onAdd}
+            disabled={showArchived}
+            aria-label="Add ingredient"
+            title="Add ingredient"
+            className="shrink-0"
+          >
+            <Icon name="package" size={14} />
+            <span className="hidden sm:inline">Add Ingredient</span>
+          </Button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -144,14 +164,6 @@ export default function IngredientTable({
             }}
           />
 
-          <Button
-            size="sm"
-            onClick={onAdd}
-            disabled={showArchived}
-          >
-            <Icon name="package" size={14} />
-            <span className="hidden sm:inline">Add Ingredient</span>
-          </Button>
         </div>
       </div>
 
@@ -166,14 +178,14 @@ export default function IngredientTable({
       />
 
       {/* Table */}
-      <div className={`relative ${isRefetching ? "pointer-events-none" : ""}`}>
+      <div className={`relative overflow-x-auto ${isRefetching ? "pointer-events-none" : ""}`}>
         {isRefetching && (
           <div className="absolute inset-0 z-10 bg-background/60 flex items-start justify-center pt-8">
             <PrimarySpinner size="inline" />
           </div>
         )}
 
-        <Table>
+        <Table className="min-w-[680px] lg:min-w-0">
           <TableHeader>
             <TableRow className="bg-muted/30">
               {INGREDIENT_COLUMNS.map((col) => (

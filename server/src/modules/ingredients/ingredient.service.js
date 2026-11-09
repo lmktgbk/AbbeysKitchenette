@@ -815,7 +815,7 @@ export const ingredientService = {
     }
 
     // Step 2: Count total batches (for pagination)
-    const totalItems = await ingredientRepository.countBatchesByIngredientId(id);
+    const totalItems = await ingredientRepository.countBatchesByIngredientId(id, search);
 
     // Step 3: Fetch paginated batches (skip/take/search/sort)
     const skip = (page - 1) * limit;
@@ -845,10 +845,12 @@ export const ingredientService = {
     const currentBatch = currentBatchId
       ? await ingredientRepository.findBatchByIdAndIngredient(currentBatchId, id)
       : null;
+    const activeBatches = await ingredientRepository.findActiveBatchesForIngredient(id, await getBusinessDate(prisma));
 
     // Step 7: Return batches + metadata
     return { batches: mapped, totalItems, hasPriority, priorityBatchId, fifoLeaderBatchId,
-      currentBatch: currentBatch ? mapToBatchResponse(currentBatch) : null };
+      currentBatch: currentBatch ? mapToBatchResponse(currentBatch) : null,
+      activeBatches: activeBatches.map(mapToBatchResponse) };
   },
 
   /**
