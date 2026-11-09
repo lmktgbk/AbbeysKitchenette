@@ -126,9 +126,11 @@ export const productRepository = {
   _buildActiveOrderByClause(sortBy, sortDir) {
     const dir = sortDir === "desc" ? "DESC" : "ASC";
     const sortMap = {
-      product_name: `p.product_name ${dir}`,
-      category_name: `c.category_name ${dir}`,
-      created_at: `p.created_at ${dir}`,
+      product_name: `p.product_name ${dir}, p.product_id ASC`,
+      // The UI displays the subcategory badge, so category sorting must use
+      // that same field rather than the parent category grouping.
+      category_name: `sc.subcategory_name ${dir}, p.product_name ASC, p.product_id ASC`,
+      created_at: `p.created_at ${dir}, p.product_id ASC`,
     };
     return sortMap[sortBy] || `p.created_at DESC`;
   },
