@@ -175,7 +175,9 @@ export const analyticsRepository = {
       values.push(dateTo);
     }
     if (search) {
-      whereClauses.push(`(p.product_name ILIKE $${idx} OR v.size_name ILIKE $${idx})`);
+      // Match both individual fields and the exact label rendered by the
+      // dashboard ("Product - Variant"), so copying the visible text works.
+      whereClauses.push(`(p.product_name ILIKE $${idx} OR v.size_name ILIKE $${idx} OR CONCAT(p.product_name, ' - ', v.size_name) ILIKE $${idx})`);
       values.push(`%${search}%`);
       idx++;
     }
