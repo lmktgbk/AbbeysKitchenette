@@ -25,10 +25,12 @@ describe("AI purchasing and optional waste explanations", () => {
     expect(h.ai).not.toHaveBeenCalled();
     expect(h.saveReorder).toHaveBeenCalledWith([], undefined, undefined);
   });
-  it("does not publish an AI quantity below the minimum purchase", async () => {
+  it("falls back to the calculated minimum when AI returns an unsafe quantity", async () => {
     h.ai.mockResolvedValue({ text: JSON.stringify({ recommendations: [{ ingredient_id: "milk", unit: "ml", suggested_quantity: 0, urgency: "low", reason: "No purchase justified; review recorded activity." }] }) });
-    await expect(reorderSuggestionsService.generate()).rejects.toMatchObject({ code: "INVALID_REORDER_ADVICE" });
-    expect(h.saveReorder).not.toHaveBeenCalled();
+    const [result] = await reorderSuggestionsService.generate();
+    expect(result.suggested_quantity).toBe(100);
+    expect(result.metadata.source).toBe("backend_fallback");
+    expect(h.saveReorder).toHaveBeenCalled();
   });
   it("sends only ingredients needing review, excluding healthy stock from the prompt", async () => {
     h.snapshot.ingredients.push({ ingredient_id: "vegetables", ingredient_name: "Frozen vegetables", unit: "g", minimum_threshold: 500 });
@@ -45,10 +47,11 @@ describe("AI purchasing and optional waste explanations", () => {
     h.pending = [{ ingredient_id: "milk", suggested_quantity: 0 }, { ingredient_id: "vegetables", suggested_quantity: 100 }];
     expect(await reorderSuggestionsService.getPending()).toEqual([]);
   });
-  it("preserves previous purchasing advice on provider failure while waste advice remains available", async () => {
+  it("uses a deterministic fallback on provider failure while waste advice remains available", async () => {
     h.ai.mockRejectedValue(new Error("fixture timeout"));
-    await expect(reorderSuggestionsService.generate()).rejects.toMatchObject({ code: "REORDER_AI_UNAVAILABLE" });
-    expect(h.saveReorder).not.toHaveBeenCalled();
+    const [result] = await reorderSuggestionsService.generate();
+    expect(result.metadata.source).toBe("backend_fallback");
+    expect(result.suggested_quantity).toBe(100);
     expect((await wasteReductionService.generate())[0].metadata.expired_quantity).toBe(10);
   });
   it("uses Gemini's quantity and reason while retaining verified stock and incomplete-forecast warnings", async () => {
@@ -71,10 +74,11 @@ describe("AI purchasing and optional waste explanations", () => {
     h.ai.mockResolvedValue({ text: "not JSON" });
     expect((await wasteReductionService.generate())[0].potential_savings).toBeNull();
   });
-  it.each(["not JSON", JSON.stringify({ recommendations: [] }), JSON.stringify({ recommendations: [{ ingredient_id: "foreign", unit: "ml", suggested_quantity: 250, urgency: "high", reason: "Invalid" }] })])("does not replace existing recommendations with invalid output", async text => {
+  it.each(["not JSON", JSON.stringify({ recommendations: [] }), JSON.stringify({ recommendations: [{ ingredient_id: "foreign", unit: "ml", suggested_quantity: 250, urgency: "high", reason: "Invalid" }] })])("falls back when AI output is invalid", async text => {
     h.ai.mockResolvedValue({ text });
-    await expect(reorderSuggestionsService.generate()).rejects.toThrow();
-    expect(h.saveReorder).not.toHaveBeenCalled();
+    const [result] = await reorderSuggestionsService.generate();
+    expect(result.metadata.source).toBe("backend_fallback");
+    expect(h.saveReorder).toHaveBeenCalled();
   });
   it("preserves the previous generation when one ingredient chunk fails", async () => {
     h.snapshot.ingredients = Array.from({ length: 31 }, (_, i) => ({ ingredient_id: `ingredient-${i}`, ingredient_name: `Ingredient ${i}`, unit: "g", minimum_threshold: 10 }));
@@ -83,9 +87,10 @@ describe("AI purchasing and optional waste explanations", () => {
       if (contexts.length < 20) throw new Error("Second chunk unavailable");
       return { text: JSON.stringify({ recommendations: contexts.map(c => ({ ingredient_id: c.ingredient_id, unit: c.unit, suggested_quantity: 20, urgency: "medium", reason: "Minimum-stock purchase; forecast unavailable." })) }) };
     });
-    await expect(reorderSuggestionsService.generate()).rejects.toMatchObject({ code: "REORDER_AI_UNAVAILABLE" });
+    const rows = await reorderSuggestionsService.generate();
+    expect(rows).toHaveLength(31);
     expect(h.ai).toHaveBeenCalledTimes(2);
-    expect(h.saveReorder).not.toHaveBeenCalled();
+    expect(h.saveReorder).toHaveBeenCalledTimes(1);
   });
   it("processes the complete catalog one group at a time and publishes only the combined result", async () => {
     h.snapshot.ingredients = Array.from({ length: 41 }, (_, i) => ({ ingredient_id: `ingredient-${i}`, ingredient_name: `Ingredient ${i}`, unit: "g", minimum_threshold: 10 }));
@@ -104,11 +109,12 @@ describe("AI purchasing and optional waste explanations", () => {
     expect(h.saveReorder).toHaveBeenCalledTimes(1);
     expect(h.saveReorder.mock.calls[0][0]).toHaveLength(41);
   });
-  it("stops before later groups when the first group fails", async () => {
+  it("falls back for every group when the provider fails", async () => {
     h.snapshot.ingredients = Array.from({ length: 41 }, (_, i) => ({ ingredient_id: `ingredient-${i}`, ingredient_name: `Ingredient ${i}`, unit: "g", minimum_threshold: 10 }));
     h.ai.mockRejectedValue(new Error("Provider unavailable"));
-    await expect(reorderSuggestionsService.generate()).rejects.toMatchObject({ code: "REORDER_AI_UNAVAILABLE" });
-    expect(h.ai).toHaveBeenCalledTimes(1);
-    expect(h.saveReorder).not.toHaveBeenCalled();
+    const rows = await reorderSuggestionsService.generate();
+    expect(rows).toHaveLength(41);
+    expect(h.ai).toHaveBeenCalledTimes(3);
+    expect(h.saveReorder).toHaveBeenCalledTimes(1);
   });
 });
