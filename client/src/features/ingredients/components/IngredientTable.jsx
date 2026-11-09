@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useIngredientTable, useIngredientBatches, useIngredientAlerts } from "../query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -72,7 +72,6 @@ export default function IngredientTable({
   onDelete,
   onAdd,
   stockStatusFilter = "all",
-  onStockStatusFilterChange,
 }) {
   const [search, setSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
@@ -81,13 +80,9 @@ export default function IngredientTable({
   const [pageSize, setPageSize] = useState(20);
   const [filterOpen, setFilterOpen] = useState(false);
   const [activeSort, setActiveSort] = useState("status_asc");
-  const [activeFilters, setActiveFilters] = useState({ status: stockStatusFilter });
-
-  // KPI cards and the detailed filter modal share one status filter.
-  useEffect(() => {
-    setActiveFilters(prev => ({ ...prev, status: stockStatusFilter }));
-    setCurrentPage(1);
-  }, [stockStatusFilter]);
+  const [activeFilters, setActiveFilters] = useState({ status: "all" });
+  // KPI status is controlled by the page; modal filters remain local.
+  const selectedStatus = stockStatusFilter !== "all" ? stockStatusFilter : activeFilters.status;
 
   function toggleExpand(id) {
     setExpandedRow((prev) => (prev === id ? null : id));
@@ -102,7 +97,7 @@ export default function IngredientTable({
     page: currentPage,
     limit: pageSize,
     search: search || undefined,
-    status: activeFilters.status !== "all" ? activeFilters.status : undefined,
+    status: selectedStatus !== "all" ? selectedStatus : undefined,
     sortBy,
     sortDir,
   };
@@ -121,7 +116,7 @@ export default function IngredientTable({
     setActiveFilters(filters);
   }
 
-  const filterActive = activeFilters.status !== "all" || activeSort !== "status_asc";
+  const filterActive = selectedStatus !== "all" || activeSort !== "status_asc";
 
   return (
     <div className="relative border border-border rounded-xl overflow-hidden">
