@@ -60,7 +60,9 @@ export default function ProductGrid({
     : [activeSort.replace(/_asc$/, ""), "asc"];
 
   const filterActive =
-    activeFilters.category !== "all" || statusFilter !== "all";
+    activeSort !== "created_at_desc" ||
+    activeFilters.category !== "all" ||
+    statusFilter !== "all";
 
   const queryParams = useMemo(() => ({
     page: currentPage,
