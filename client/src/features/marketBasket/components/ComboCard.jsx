@@ -4,9 +4,9 @@ import Icon from "@/components/ui/icon";
 
 /**
  * ComboCard — Promotion card (FP-Growth)
- * All cards show the same format: names, stats, pricing, Create Promotion.
+ * All cards show the same format: names, stability, pricing, Create Promotion.
  * Props:
- * - rule: { id, product_a, product_b, size_name_a, size_name_b, support, confidence, lift, pricing }
+ * - rule: { id, product_a, product_b, size_name_a, size_name_b, stable, evidence, pricing }
  * - onCreateCombo: (rule) => void
  * - isTop: boolean
  */
@@ -28,23 +28,8 @@ function ComboCard({ rule, onCreateCombo, isTop }) {
         </p>
       </div>
 
-      {/* Evaluation metrics — the paper's Support / Confidence / Lift, per rule */}
-      <div className="mt-2 grid grid-cols-3 gap-2">
-        <div title="Share of all baskets containing both items" className="rounded-lg border border-border bg-muted/30 px-2 py-1.5 text-center">
-          <p className="type-caption font-medium uppercase tracking-wide text-muted-foreground">Support</p>
-          <p className="text-sm font-semibold text-foreground">{(rule.support * 100).toFixed(2)}%</p>
-          <p className="type-caption text-muted-foreground">{rule.evidence ? `${rule.evidence.supporting_baskets} / ${rule.evidence.training_baskets} training baskets` : "Count unavailable - rerun analysis"}</p>
-        </div>
-        <div title="Share of A-buyers who also take B" className="rounded-lg border border-border bg-muted/30 px-2 py-1.5 text-center">
-          <p className="type-caption font-medium uppercase tracking-wide text-muted-foreground">Confidence</p>
-          <p className="text-sm font-semibold text-foreground">{(rule.confidence * 100).toFixed(1)}%</p>
-          <p className="type-caption text-muted-foreground">of A-buyers</p>
-        </div>
-        <div title="How many times more likely together than by coincidence (1.0 = independent)" className="rounded-lg border border-border bg-muted/30 px-2 py-1.5 text-center">
-          <p className="type-caption font-medium uppercase tracking-wide text-muted-foreground">Lift</p>
-          <p className="text-sm font-semibold text-foreground">{rule.lift.toFixed(2)}×</p>
-          <p className="type-caption text-muted-foreground">vs coincidence</p>
-        </div>
+      <div className="mt-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+        {rule.stable ? "Frequently purchased together and stable in recent orders" : "Frequently purchased together; recent stability is limited"}
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
         {rule.stable ? "Stable in recent orders" : "Insufficient recent evidence"}

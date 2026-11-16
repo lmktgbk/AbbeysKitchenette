@@ -3,7 +3,6 @@ import { formatDemand } from "../formatDemand";
 import { useState, useMemo, useCallback } from "react";
 import { useDemandHistory, useDemandResults, useDemandIngredients, forecastKeys } from "../query";
 import { useQueryClient } from "@tanstack/react-query";
-import { summarizeEvaluation } from "../evaluation";
 import ForecastRunButton from "../components/ForecastRunButton";
 import SimpleForecastChart from "../components/SimpleForecastChart";
 import ProductDemandTab from "../components/ProductDemandTab";
@@ -14,10 +13,6 @@ import Icon from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 
 /** Undefined scores must remain visibly unavailable rather than becoming 0%. */
-function formatR2(value) {
-  return value == null ? "N/A" : `${(value * 100).toFixed(1)}%`;
-}
-
 /**
  * ForecastingPage — friendly redesign.
  * Answers only 3 questions: Demand (Expected Units), Revenue (Expected Sales), Inventory (What to Order)
@@ -25,7 +20,7 @@ function formatR2(value) {
  *
  * State (Rule of Thumb):
  * - API data via TanStack Query: jobs history, demand results + ingredients keyed by activeJobId.
- * - Browser-only via useState: selectedJobId override, activeTab, selectedVariant, showDetails.
+ * - Browser-only via useState: selectedJobId override, activeTab, selectedVariant.
  * - activeJobId is DERIVED (selected ?? first job) — never mirrored back into state via effect,
  *   so first paint selects without a null-first fetch or double skeleton.
  */
@@ -35,7 +30,6 @@ export default function ForecastingPage() {
   const [activeTab, setActiveTab] = useState("products");
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [showDetails, setShowDetails] = useState(false);
 
   const { data: historyData, isLoading: historyLoading, isError: historyError, refetch: retryHistory } = useDemandHistory();
   const jobs = historyData?.data?.jobs || [];
@@ -104,20 +98,6 @@ export default function ForecastingPage() {
   const hasData = forecasted.length > 0;
   const isFailed = job?.status === "failed";
   const showLoading = resultsLoading && !job;
-
-  // Calculate product and baseline summaries from the same stored observations.
-  const productMetrics = useMemo(
-    () => summarizeEvaluation(productScores, forecasted, job?.completed),
-    [productScores, forecasted, job?.completed],
-  );
-
-  // The model predicts variants; product sums are a separate secondary evaluation.
-  const variantMetrics = useMemo(() => summarizeEvaluation(
-    productScores?.flatMap((score) => score.variant_scores || []).filter((score) => score.weeks?.length), [],
-  ), [productScores]);
-
-  // Do not substitute product scores when an older run lacks variant evaluation.
-  const evalMetrics = variantMetrics;
 
   // ── Loading skeletons ──
   if (historyLoading || showLoading) {
@@ -264,91 +244,10 @@ export default function ForecastingPage() {
           />
         )
       )}
-      {/* Evaluation — clean card, matches KPI/Chart style */}
-      {hasData && (evalMetrics || productMetrics) && (
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <button onClick={() => setShowDetails(!showDetails)} className="flex w-full flex-wrap items-center justify-between gap-3 px-4 py-3 hover:bg-muted/50 transition-colors">
-            <div className="text-left">
-              <h3 className="text-sm font-semibold text-foreground">Variant Evaluation</h3>
-              <p className="text-xs text-muted-foreground">How accurately are individual variants forecast?</p>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              {evalMetrics?.count != null ? (
-                <>
-                  <span title="Pooled R-squared across held-out variant-week totals" className="hidden sm:inline-flex rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                    Pooled R² {formatR2(evalMetrics.r2)}
-                  </span>
-                  <span title="Mean Absolute Error — typical weekly miss per variant" className="inline-flex rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                    Typical error {evalMetrics.mae.toFixed(1)}/week{evalMetrics.dailyMae != null ? ` · ±${evalMetrics.dailyMae.toFixed(1)}/day` : ""}
-                  </span>
-                </>
-              ) : (
-                <span className="inline-flex rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                  Not yet scored
-                </span>
-              )}
-              <Icon name={showDetails ? "chevronUp" : "chevronDown"} size={14} className="text-muted-foreground" />
-            </div>
-          </button>
-          {showDetails && (
-            <div className="border-t border-border px-4 py-3 space-y-4">
-              {evalMetrics?.count != null && (
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  <div className="rounded-lg border border-border bg-card px-3 py-2">
-                    <p className="text-xs text-muted-foreground">Pooled weekly R²</p>
-                    <p className="text-sm font-semibold text-foreground">{formatR2(evalMetrics.r2)}</p>
-                    <p className="text-xs text-muted-foreground">Across held-out variant-week totals</p>
-                  </div>
-                  <div className="rounded-lg border border-border bg-card px-3 py-2">
-                    <p className="text-xs text-muted-foreground">Typical error (MAE)</p>
-                    <p className="text-sm font-semibold text-foreground">±{evalMetrics.mae.toFixed(2)} units/week</p>
-                    <p className="text-xs text-muted-foreground">Average miss per variant week</p>
-                  </div>
-                  <div className="rounded-lg border border-border bg-card px-3 py-2">
-                    <p className="text-xs text-muted-foreground">RMSE</p>
-                    <p className="text-sm font-semibold text-foreground">±{evalMetrics.rmse.toFixed(2)} units/week</p>
-                    <p className="text-xs text-muted-foreground">Larger errors penalized</p>
-                  </div>
-                  <div className="rounded-lg border border-border bg-card px-3 py-2">
-                    <p className="text-xs text-muted-foreground">MSE</p>
-                    <p className="text-sm font-semibold text-foreground">{evalMetrics.mse.toFixed(2)}</p>
-                    <p className="text-xs text-muted-foreground">Mean squared error</p>
-                  </div>
-                </div>
-              )}
-              {evalMetrics?.count != null ? (
-                <>
-                  <p className="text-xs text-muted-foreground">
-                    Held-out variant-week totals across {evalMetrics.count} variants (hidden weeks, zeros included)
-                    {evalMetrics.range ? ` · R² range ${(evalMetrics.range[0] * 100).toFixed(1)}–${(evalMetrics.range[1] * 100).toFixed(1)}% across evaluated hidden weeks` : ""}
-                    {evalMetrics.unscored ? ` · ${evalMetrics.unscored} too new to score` : ""} · Lower is better for MAE/RMSE/MSE
-                  </p>
-                  {evalMetrics.naive && (() => {
-                    const n = evalMetrics.naive;
-                    const pct = (base, val) => base > 0 ? Math.round((1 - val / base) * 100) : 0;
-                    const r2gap = n.productR2 != null && n.r2 != null ? ((n.productR2 - n.r2) * 100).toFixed(0) : null;
-                    return (
-                      <p className="text-xs text-muted-foreground">
-                        Carry-forward baseline ({n.observations} matched variant-weeks): MAE {n.mae.toFixed(2)}/week · RMSE {n.rmse.toFixed(2)}/week · R² {formatR2(n.r2)}. Prophet error reduction: MAE {pct(n.mae, n.productMae)}%, RMSE {pct(n.rmse, n.productRmse)}% (negative means worse). R² difference: {r2gap == null ? "N/A" : `${r2gap} pts`}.
-                      </p>
-                    );
-                  })()}
-                </>
-              ) : (
-                <p className="text-xs text-muted-foreground">Variant evaluation is unavailable for this run. Generate a new forecast with sufficient sales history; product scores below are a separate aggregation.</p>
-              )}
-
-              {productMetrics?.count != null && <p className="text-xs text-muted-foreground">
-                Aggregated product evaluation ({productMetrics.count} products, weekly totals): R² {formatR2(productMetrics.r2)} ·
-                MAE {productMetrics.mae.toFixed(2)} · RMSE {productMetrics.rmse.toFixed(2)} · MSE {productMetrics.mse.toFixed(2)}.
-                {productMetrics.naive && ` Matched product baseline: R² ${formatR2(productMetrics.naive.r2)} · MAE ${productMetrics.naive.mae.toFixed(2)} · RMSE ${productMetrics.naive.rmse.toFixed(2)}.`}
-              </p>}
-              <p className="border-t border-border pt-2 text-xs text-muted-foreground">
-                Forecast ID: {job?.id} · {forecasted.length} predicted{skipped.length ? ` · ${skipped.length} skipped; see history or error reason` : ""}
-              </p>
-            </div>
-          )}
-        </div>
+      {hasData && (
+        <p className="text-xs text-muted-foreground">
+          Forecast ID: {job?.id} · {forecasted.length} predicted{skipped.length ? ` · ${skipped.length} skipped; see history or error reason` : ""}
+        </p>
       )}
     </div>
   );
