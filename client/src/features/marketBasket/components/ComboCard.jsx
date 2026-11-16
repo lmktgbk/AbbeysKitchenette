@@ -4,9 +4,9 @@ import Icon from "@/components/ui/icon";
 
 /**
  * ComboCard — Promotion card (FP-Growth)
- * All cards show the same format: names, stability, pricing, Create Promotion.
+ * All cards show the same format: names, pricing, Create Promotion.
  * Props:
- * - rule: { id, product_a, product_b, size_name_a, size_name_b, stable, evidence, pricing }
+ * - rule: { id, product_a, product_b, size_name_a, size_name_b, pricing }
  * - onCreateCombo: (rule) => void
  * - isTop: boolean
  */
@@ -28,13 +28,6 @@ function ComboCard({ rule, onCreateCombo, isTop }) {
         </p>
       </div>
 
-      <div className="mt-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-        {rule.stable ? "Frequently purchased together and stable in recent orders" : "Frequently purchased together; recent stability is limited"}
-      </div>
-      <p className="mt-2 text-xs text-muted-foreground">
-        {rule.stable ? "Stable in recent orders" : "Insufficient recent evidence"}
-        {rule.evidence && ` - ${rule.evidence.recent_supporting_baskets} / ${rule.evidence.recent_baskets} recent baskets`}
-      </p>
       {/* Pricing preview — flex-1 to align buttons */}
       {rule.pricing && (
         <div className="mt-3 flex-1 rounded-lg bg-muted/50 px-3 py-2 text-xs">
