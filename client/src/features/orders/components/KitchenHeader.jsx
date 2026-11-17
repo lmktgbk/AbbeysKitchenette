@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import useAuthStore from "@/features/auth/authStore";
 import useLogout from "@/features/auth/useLogout";
 import { confirm } from "@/components/alerts/ConfirmDialog";
-import LiveDot from "@/realtime/LiveDot";
 import ProfileMenu from "@/features/profile/components/ProfileMenu";
 import ProfileModal from "@/features/profile/components/ProfileModal";
 import Icon from "@/components/ui/icon";
@@ -47,7 +46,6 @@ export default function KitchenHeader({ refreshing }) {
         <img src="/favicon.png" alt="Abbey's Kitchenette" className="h-7 w-7 rounded-md ring-1 ring-border" />
         <span className="font-brand text-lg font-semibold">Abbey's Kitchenette</span>
         <div className="ml-2 flex items-center gap-1.5">
-          <LiveDot />
           {refreshing && (
             <span className="type-caption font-semibold text-muted-foreground">
               · syncing

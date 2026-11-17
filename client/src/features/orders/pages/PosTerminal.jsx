@@ -12,7 +12,6 @@ import useAuthStore from "@/features/auth/authStore";
 import useLogout from "@/features/auth/useLogout";
 import { confirm } from "@/components/alerts/ConfirmDialog";
 import { FilterPill } from "@/components/filters/FilterPill";
-import LiveDot from "@/realtime/LiveDot";
 import Icon from "@/components/ui/icon";
 import ProfileMenu from "@/features/profile/components/ProfileMenu";
 import ProfileModal from "@/features/profile/components/ProfileModal";
@@ -82,7 +81,6 @@ export default function PosTerminal() {
 
         {/* Right — printer, theme, profile, sign out */}
         <div className="flex items-center gap-2">
-          <LiveDot />
           <button
             onClick={() => setTerminalSettingsOpen(true)}
             title="Terminal settings"
